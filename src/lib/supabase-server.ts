@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseServerClient = ReturnType<typeof createClient<any>>;
+
 // Check if Supabase credentials are available
 const hasCredentials = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,7 +27,8 @@ const createMockClient = () => {
           single: async () => ({ data: null, error: null }),
           order: () => ({ limit: () => ({ data: [], error: null }) }),
         }),
-        order: (column: string, opts: { ascending: boolean }) => ({
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        order: (_column: string, _opts: { ascending: boolean }) => ({
           limit: (n: number) => ({ data: mockData[table].slice(0, n), error: null }),
           data: mockData[table],
           error: null,
@@ -40,9 +44,9 @@ const createMockClient = () => {
   } as unknown as ReturnType<typeof createClient>;
 };
 
-let clientInstance: any | null = null;
+let clientInstance: SupabaseServerClient | null = null;
 
-export function createServerClient(): any {
+export function createServerClient(): SupabaseServerClient {
   if (clientInstance) {
     return clientInstance;
   }

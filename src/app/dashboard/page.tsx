@@ -1,6 +1,21 @@
 import { createServerClient } from "@/lib/supabase-server";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
+
+function formatTimeAgo(ts?: string | null) {
+  if (!ts) return "—";
+  const then = new Date(ts);
+  const now = new Date();
+  const diffMs = now.getTime() - then.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  const diffD = Math.floor(diffH / 24);
+  return `${diffD}d ago`;
+}
 
 export default async function DashboardPage() {
   const db = createServerClient();
@@ -22,50 +37,55 @@ export default async function DashboardPage() {
     .limit(10);
 
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold text-red-600">Dashboard</h1>
 
-      {/* Counts */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-green-700">{online}</p>
-          <p className="text-xs text-green-600 mt-1">Online</p>
-        </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-gray-700">{offline}</p>
-          <p className="text-xs text-gray-500 mt-1">Offline</p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-red-700">{pendingCount}</p>
-          <p className="text-xs text-red-600 mt-1">Pending</p>
-        </div>
+      {/* Stats cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl leading-tight text-green-700">{online}</CardTitle>
+            <CardDescription className="text-green-600">Online Agents</CardDescription>
+          </CardHeader>
+        </Card>
+        <Card className="border-gray-200 bg-gray-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl leading-tight text-gray-700">{offline}</CardTitle>
+            <CardDescription className="text-gray-600">Offline Agents</CardDescription>
+          </CardHeader>
+        </Card>
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl leading-tight text-red-700">{pendingCount}</CardTitle>
+            <CardDescription className="text-red-600">Pending Approvals</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
 
-      {/* Last 10 events */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Recent Events</h2>
-        <div className="space-y-2">
+      {/* Recent Events */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Recent Events</h2>
+        <div className="space-y-3">
           {(events || []).map((e) => (
-            <div
-              key={e.id}
-              className="border rounded-lg p-3 text-sm flex justify-between items-start"
-            >
-              <div>
-                <span className="font-medium">{e.event_type}</span>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Agent: {e.agent_id?.slice(0, 8)}…
-                </p>
-              </div>
-              <span className="text-xs text-gray-400 whitespace-nowrap">
-                {new Date(e.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
+            <Card key={e.id} className="border-zinc-200">
+              <CardContent className="flex items-start justify-between py-4">
+                <div className="min-w-0">
+                  <p className="font-medium text-zinc-900">{e.event_type}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Agent: {e.agent_id?.slice(0, 8) ?? "—"}…
+                  </p>
+                </div>
+                <span className="whitespace-nowrap text-xs text-zinc-400">
+                  {formatTimeAgo(e.timestamp)}
+                </span>
+              </CardContent>
+            </Card>
           ))}
           {(!events || events.length === 0) && (
-            <p className="text-gray-400 text-sm">No events yet.</p>
+            <p className="text-sm text-zinc-400">No events yet.</p>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

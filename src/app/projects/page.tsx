@@ -1,17 +1,45 @@
-import { createServerClient } from "@/lib/supabase-server";
+import { createServerClient, isMockMode } from "@/lib/supabase-server";
+import { ErrorState } from "@/components/error-state";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
-  const db = createServerClient();
-  const { data: projects } = await db
-    .from("projects")
-    .select("id, title, status, created_at, agent_id")
-    .order("created_at", { ascending: false });
+  let projects: { id: string; title: string; status: string; created_at: string; agent_id: string }[] | null = null;
+  let error: { message: string; details?: string } | null = null;
+
+  try {
+    const db = createServerClient();
+    const res = await db
+      .from("projects")
+      .select("id, title, status, created_at, agent_id")
+      .order("created_at", { ascending: false });
+    projects = res.data;
+  } catch (err) {
+    error = {
+      message: "Failed to load projects",
+      details: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-red-600">Projects</h1>
+        <ErrorState title="Error loading data" message={error.message} details={error.details} />
+      </div>
+    );
+  }
+
+  const mockBanner = isMockMode() ? (
+    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <span className="font-medium">Demo mode</span> – backend not connected.
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-6">
+      {mockBanner}
       <h1 className="text-2xl font-bold text-red-600">Projects</h1>
 
       {/* Mobile cards */}

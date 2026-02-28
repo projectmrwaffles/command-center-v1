@@ -1,18 +1,46 @@
-import { createServerClient } from "@/lib/supabase-server";
+import { createServerClient, isMockMode } from "@/lib/supabase-server";
+import { ErrorState } from "@/components/error-state";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
 export default async function AgentsPage() {
-  const db = createServerClient();
-  const { data: agents } = await db
-    .from("agents")
-    .select("id, name, type, status, last_seen")
-    .order("name");
+  let agents: { id: string; name: string; type: string; status: string; last_seen: string | null }[] | null = null;
+  let error: { message: string; details?: string } | null = null;
+
+  try {
+    const db = createServerClient();
+    const res = await db
+      .from("agents")
+      .select("id, name, type, status, last_seen")
+      .order("name");
+    agents = res.data;
+  } catch (err) {
+    error = {
+      message: "Failed to load agents",
+      details: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-red-600">Agents</h1>
+        <ErrorState title="Error loading data" message={error.message} details={error.details} />
+      </div>
+    );
+  }
+
+  const mockBanner = isMockMode() ? (
+    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <span className="font-medium">Demo mode</span> – backend not connected.
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-6">
+      {mockBanner}
       <h1 className="text-2xl font-bold text-red-600">Agents</h1>
 
       {/* Mobile cards */}

@@ -1,4 +1,5 @@
-import { createServerClient } from "@/lib/supabase-server";
+import { createServerClient, isMockMode } from "@/lib/supabase-server";
+import { ErrorState } from "@/components/error-state";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,12 @@ export const dynamic = "force-dynamic";
 
 async function handleApproval(formData: FormData) {
   "use server";
+  
+  // Guard: cannot process approvals in mock mode
+  if (isMockMode()) {
+    redirect("/approvals?error=demo_mode_no_approvals");
+  }
+  
   const db = createServerClient();
   const id = formData.get("id") as string;
   const action = formData.get("action") as string;
@@ -52,23 +59,54 @@ export default async function ApprovalsPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const sp = await searchParams;
-  const db = createServerClient();
+  let approvals: { id: string; status: string; summary: string; note: string; decided_at: string | null; agent_id: string; job_id: string; created_at: string }[] | null = null;
+  let error: { message: string; details?: string } | null = null;
 
-  const { data: approvals } = await db
-    .from("approvals")
-    .select("id, status, summary, note, decided_at, agent_id, job_id, created_at")
-    .order("created_at", { ascending: false });
+  try {
+    const db = createServerClient();
+    const res = await db
+      .from("approvals")
+      .select("id, status, summary, note, decided_at, agent_id, job_id, created_at")
+      .order("created_at", { ascending: false });
+    approvals = res.data;
+  } catch (err) {
+    error = {
+      message: "Failed to load approvals",
+      details: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-red-600">Approvals</h1>
+        <ErrorState title="Error loading data" message={error.message} details={error.details} />
+      </div>
+    );
+  }
 
   const pending = (approvals || []).filter((a) => a.status === "pending");
   const resolved = (approvals || []).filter((a) => a.status !== "pending");
+  const mockBanner = isMockMode() ? (
+    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <span className="font-medium">Demo mode</span> – backend not connected.
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-6">
+      {mockBanner}
       <h1 className="text-2xl font-bold text-red-600">Approvals</h1>
 
       {sp.error === "note_required" && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           Note is required when requesting changes.
+        </div>
+      )}
+
+      {sp.error === "demo_mode_no_approvals" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+          Approvals cannot be processed in demo mode.
         </div>
       )}
 

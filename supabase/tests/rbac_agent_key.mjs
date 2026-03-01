@@ -26,7 +26,16 @@ const JOB_B = 'eeee0002-0002-0002-0002-000000000002';
 const svc = createClient(URL, SVC, { auth: { persistSession: false, autoRefreshToken: false } });
 
 let ok = 0, nok = 0;
-const r = (n, p, d) => { console.log(`[${p?'PASS':'FAIL'}] ${n}${d?' — '+d:''}`); p ? ok++ : nok++; };
+const r = (n, p, d) => {
+  const msg = d ? ` — ${d}` : '';
+  if (p) {
+    console.log(`[PASS] ${n}${msg}`);
+    ok = ok + 1;
+  } else {
+    console.log(`[FAIL] ${n}${msg}`);
+    nok = nok + 1;
+  }
+};
 
 async function api(method, path, key, body) {
   const opts = {

@@ -26,7 +26,16 @@ const PASS  = 'G8t3_1_Pr00f!';
 const svc = createClient(URL, SVC, { auth: { persistSession: false, autoRefreshToken: false } });
 
 let ok = 0, nok = 0;
-const r = (n, p, d) => { console.log(`[${p?'PASS':'FAIL'}] ${n}${d?' — '+d:''}`); p ? ok++ : nok++; };
+const r = (n, p, d) => {
+  const msg = d ? ` — ${d}` : '';
+  if (p) {
+    console.log(`[PASS] ${n}${msg}`);
+    ok = ok + 1;
+  } else {
+    console.log(`[FAIL] ${n}${msg}`);
+    nok = nok + 1;
+  }
+};
 
 async function main() {
   console.log('=== RBAC ADMIN JWT TEST ===\n');
@@ -79,29 +88,49 @@ async function main() {
   // TEST 1: read all agents
   console.log('--- T1: Admin JWT reads all agents ---');
   const { data: ag, error: age } = await ac.from('agents').select('id,name');
-  age ? r('read agents', false, age.message) : r('read agents', ag.length >= 2, `${ag.length} rows`);
+  if (age) {
+    r('read agents', false, age.message);
+  } else {
+    r('read agents', ag.length >= 2, `${ag.length} rows`);
+  }
 
   // TEST 2: read all projects
   console.log('\n--- T2: Admin JWT reads all projects ---');
   const { data: pr, error: pre } = await ac.from('projects').select('id,name');
-  pre ? r('read projects', false, pre.message) : r('read projects', pr.length >= 1, `${pr.length} rows`);
+  if (pre) {
+    r('read projects', false, pre.message);
+  } else {
+    r('read projects', pr.length >= 1, `${pr.length} rows`);
+  }
 
   // TEST 3: read all jobs
   console.log('\n--- T3: Admin JWT reads all jobs ---');
   const { data: jb, error: jbe } = await ac.from('jobs').select('id,title,owner_agent_id');
-  jbe ? r('read jobs', false, jbe.message) : r('read jobs', jb.length >= 2, `${jb.length} rows`);
+  if (jbe) {
+    r('read jobs', false, jbe.message);
+  } else {
+    r('read jobs', jb.length >= 2, `${jb.length} rows`);
+  }
 
   // TEST 4: read all approvals
   console.log('\n--- T4: Admin JWT reads all approvals ---');
   const { data: ap, error: ape } = await ac.from('approvals').select('id,status');
-  ape ? r('read approvals', false, ape.message) : r('read approvals', ap.length >= 1, `${ap.length} rows`);
+  if (ape) {
+    r('read approvals', false, ape.message);
+  } else {
+    r('read approvals', ap.length >= 1, `${ap.length} rows`);
+  }
 
   // TEST 5: approve (update approval row)
   console.log('\n--- T5: Admin JWT approves ---');
   const { data: up, error: upe } = await ac.from('approvals')
     .update({ status:'approved', decided_by: uid, decided_at: new Date().toISOString(), note:'LGTM' })
     .eq('id', APPR).select();
-  upe ? r('approve', false, upe.message) : r('approve', up?.[0]?.status === 'approved', `status=${up?.[0]?.status}`);
+  if (upe) {
+    r('approve', false, upe.message);
+  } else {
+    r('approve', up?.[0]?.status === 'approved', `status=${up?.[0]?.status}`);
+  }
 
   // TEST 6: admin cannot insert into agent_events (no insert policy for authenticated)
   // Our RLS only grants insert to service_role context — authenticated should fail

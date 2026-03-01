@@ -35,7 +35,11 @@ let failed = 0;
 function report(name, pass, detail) {
   const tag = pass ? 'PASS' : 'FAIL';
   console.log(`[${tag}] ${name}${detail ? ' — ' + detail : ''}`);
-  pass ? passed++ : failed++;
+  if (pass) {
+    passed = passed + 1;
+  } else {
+    failed = failed + 1;
+  }
 }
 
 async function main() {

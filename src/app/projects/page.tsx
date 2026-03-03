@@ -1,20 +1,39 @@
 import { createServerClient, isMockMode } from "@/lib/supabase-server";
 import { ErrorState } from "@/components/error-state";
+import { DbBanner } from "@/components/db-banner";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
-  let projects: { id: string; title: string; status: string; created_at: string; agent_id: string }[] | null = null;
+  const db = createServerClient();
+  let projects: { id: string; name: string; type: string | null; team_id: string | null }[] | null = null;
+  let teams: { id: string; name: string }[] = [];
   let error: { message: string; details?: string } | null = null;
 
+  if (!db) {
+    return (
+      <div className="space-y-6">
+        <DbBanner />
+        <ErrorState
+          title="DB not initialized"
+          message="Supabase env missing or migrations not applied."
+          details="Apply migrations in Supabase SQL Editor, then refresh."
+        />
+      </div>
+    );
+  }
+
   try {
-    const db = createServerClient();
-    const res = await db
+    const projectsRes = await db
       .from("projects")
-      .select("id, title, status, created_at, agent_id")
-      .order("created_at", { ascending: false });
-    projects = res.data;
+      .select("id, name, type, team_id")
+      .order("name");
+    projects = (projectsRes.data ?? []) as { id: string; name: string; type: string | null; team_id: string | null }[];
+
+    const teamsRes = await db.from("teams").select("id, name");
+    teams = (teamsRes.data ?? []) as { id: string; name: string }[];
   } catch (err) {
     error = {
       message: "Failed to load projects",
@@ -25,105 +44,44 @@ export default async function ProjectsPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-red-600">Projects</h1>
-        <ErrorState title="Error loading data" message={error.message} details={error.details} />
+        <DbBanner />
+        <ErrorState title="Error" message={error.message} details={error.details} />
       </div>
     );
   }
 
-  const mockBanner = isMockMode() ? (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <span className="font-medium">Demo mode</span> – backend not connected.
-    </div>
-  ) : null;
+  const teamsById = new Map<string, string>();
+  teams.forEach((t) => teamsById.set(t.id, t.name));
 
   return (
     <div className="space-y-6">
-      {mockBanner}
-      <h1 className="text-2xl font-bold text-red-600">Projects</h1>
+      <DbBanner />
 
-      {/* Mobile cards */}
-      <div className="grid gap-4 md:hidden">
-        {(projects || []).map((p) => (
-          <Link key={p.id} href={`/projects/${p.id}`} className="block">
-            <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm active:bg-zinc-50">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-semibold text-zinc-900">{p.title || "Untitled"}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Agent: {p.agent_id?.slice(0, 8) ?? "—"}…
-                  </p>
-                </div>
-                <span
-                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                    p.status === "active"
-                      ? "bg-green-100 text-green-700"
-                      : p.status === "completed"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {p.status}
-                </span>
-              </div>
-              <p className="mt-2 text-xs text-zinc-400">
-                Created {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
-              </p>
-            </div>
-          </Link>
-        ))}
-        {(!projects || projects.length === 0) && (
-          <p className="text-sm text-zinc-400">No projects yet.</p>
-        )}
+      <div>
+        <h1 className="text-lg font-semibold text-zinc-900">Projects</h1>
+        <p className="text-sm text-zinc-500">Active projects with sprints and PRDs</p>
       </div>
 
-      {/* Desktop table */}
-      <div className="hidden md:block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-50 text-zinc-600">
-            <tr>
-              <th className="px-4 py-3 font-medium">Title</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Agent</th>
-              <th className="px-4 py-3 font-medium">Created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
-            {(projects || []).map((p) => (
-              <tr key={p.id} className="hover:bg-zinc-50">
-                <td className="px-4 py-3">
-                  <Link href={`/projects/${p.id}`} className="font-medium text-zinc-900 hover:underline">
-                    {p.title || "Untitled"}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      p.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : p.status === "completed"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {p.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-zinc-500">{p.agent_id?.slice(0, 8) ?? "—"}…</td>
-                <td className="px-4 py-3 text-zinc-500">
-                  {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
-                </td>
-              </tr>
-            ))}
-            {(!projects || projects.length === 0) && (
-              <tr>
-                <td className="px-4 py-4 text-zinc-400" colSpan={4}>
-                  No projects yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="grid gap-4">
+        {(projects || []).map((p) => (
+          <Link key={p.id} href={`/projects/${p.id}`} className="block">
+            <Card className="hover:bg-zinc-50">
+              <CardHeader className="pb-2">
+                <CardTitle>{p.name}</CardTitle>
+                <CardDescription>
+                  {p.type ?? "Project"}
+                  {p.team_id && teamsById.get(p.team_id) && ` • ${teamsById.get(p.team_id)}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-zinc-500">View project details →</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+        {(projects || []).length === 0 && (
+          <p className="text-sm text-zinc-500">No projects yet.</p>
+        )}
       </div>
     </div>
   );

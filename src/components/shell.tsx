@@ -2,49 +2,122 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ReactNode } from "react";
+import { FloatingNewButton } from "@/components/floating-new-button";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
+// Icon components (inline for self-contained shell)
+function OverviewIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function ProjectsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2z" />
+      <path d="M3 7l9 5 9-5" />
+    </svg>
+  );
+}
+
+function AgentsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}
+
+function UsageIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M3 3v18h18" />
+      <path d="M18 17V9" />
+      <path d="M13 17V5" />
+      <path d="M8 17v-3" />
+    </svg>
+  );
+}
+
+function TeamsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="12" cy="8" r="3" />
+      <path d="M18 20a6 6 0 00-12 0" />
+      <circle cx="20" cy="10" r="2" />
+      <circle cx="4" cy="10" r="2" />
+    </svg>
+  );
+}
+
 const NAV = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/agents", label: "Agents" },
-  { href: "/projects", label: "Projects" },
-  { href: "/approvals", label: "Approvals" },
+  { href: "/dashboard", label: "Overview", icon: OverviewIcon },
+  { href: "/projects", label: "Projects", icon: ProjectsIcon },
+  { href: "/agents", label: "Agents", icon: AgentsIcon },
+  { href: "/usage", label: "Usage", icon: UsageIcon },
+  { href: "/teams", label: "Teams", icon: TeamsIcon },
 ] as const;
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
 
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-950">
       <div className="mx-auto flex w-full max-w-6xl">
         {/* Desktop sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-zinc-200 md:bg-white">
+          {/* Header */}
           <div className="px-5 py-5">
             <div className="text-sm font-semibold tracking-tight">Command Center</div>
-            <div className="mt-1 text-xs text-zinc-500">MVP</div>
+            <div className="text-xs text-zinc-500">V1</div>
           </div>
-          <nav className="flex flex-col gap-1 px-2 pb-4">
+
+          {/* Nav */}
+          <nav className="flex flex-col gap-0.5 px-3 pb-2 flex-1">
             {NAV.map((item) => {
-              const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+              const active = isActive(item.href);
+              const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     active
-                      ? "bg-zinc-900 text-white"
-                      : "text-zinc-700 hover:bg-zinc-100",
+                      ? "bg-zinc-900/5 text-zinc-900"
+                      : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                   )}
                 >
-                  {item.label}
+                  {/* Red left indicator for active state */}
+                  {active && (
+                    <span className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r bg-red-600" />
+                  )}
+                  <Icon className={cn("h-5 w-5", active ? "text-red-600" : "text-zinc-400")} />
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
+
+          {/* Footer */}
+          <div className="border-t border-zinc-200 px-5 py-4 text-xs text-zinc-500">
+            <div className="flex items-center justify-between">
+              <span>API</span>
+              <span className="font-mono text-zinc-400">v1</span>
+            </div>
+          </div>
         </aside>
 
         {/* Main */}
@@ -60,30 +133,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         data-testid="mobile-tabs"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden"
       >
-        <div className="mx-auto grid max-w-6xl grid-cols-4">
+        <div className="mx-auto grid max-w-6xl grid-cols-5">
           {NAV.map((item) => {
-            const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+            const active = isActive(item.href);
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-3 text-xs font-medium",
-                  active ? "text-zinc-950" : "text-zinc-500",
+                  "flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors",
+                  active ? "text-zinc-950" : "text-zinc-500"
                 )}
               >
-                <span
-                  className={cn(
-                    "h-1 w-10 rounded-full",
-                    active ? "bg-zinc-950" : "bg-transparent",
-                  )}
-                />
+                <Icon className={cn("h-5 w-5", active ? "text-red-600" : "text-zinc-400")} />
                 <span>{item.label}</span>
               </Link>
             );
           })}
         </div>
       </nav>
+
+      {/* Floating New Button */}
+      <FloatingNewButton />
     </div>
   );
 }

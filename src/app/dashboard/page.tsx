@@ -1,122 +1,280 @@
-import { createServerClient, isMockMode } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
 import { ErrorState } from "@/components/error-state";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { DbBanner } from "@/components/db-banner";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { OverviewClient } from "./client";
 
 export const dynamic = "force-dynamic";
 
-function formatTimeAgo(ts?: string | null) {
-  if (!ts) return "—";
-  const then = new Date(ts);
-  const now = new Date();
-  const diffMs = now.getTime() - then.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  return `${diffD}d ago`;
+export type DashboardData = {
+  needsYou: NeedsYouItem[];
+  projects: ProjectSummary[];
+  agents: AgentSummary[];
+  events: EventItem[];
+  usage: UsageSummary | null;
+  teams?: { id: string; name: string }[];
+  error: string | null;
+};
+
+export type NeedsYouItem = {
+  id: string;
+  type: "approval" | "blocked" | "error";
+  title: string;
+  severity?: string;
+  projectId?: string;
+  projectName?: string;
+  agentId?: string;
+  agentName?: string;
+  jobId?: string;
+  createdAt: string;
+};
+
+export type ProjectSummary = {
+  id: string;
+  name: string;
+  type?: string;
+  teamName?: string;
+  activeSprint?: {
+    id: string;
+    name: string;
+    goal?: string;
+    progress: number; // 0-100
+    doneCount: number;
+    totalCount: number;
+  } | null;
+  approvalCount: number;
+  blockedCount: number;
+  lastUpdate?: string;
+};
+
+export type AgentSummary = {
+  id: string;
+  name: string;
+  status: string;
+  lastSeen?: string;
+  currentJob?: string;
+};
+
+export type EventItem = {
+  id: string;
+  type: string;
+  label: string;
+  severity: "info" | "warn" | "error";
+  actorName?: string;
+  projectName?: string;
+  timestamp: string;
+};
+
+export type UsageSummary = {
+  totalTokens24h: number;
+  totalCost24h: number;
+  topModels: { model: string; tokens: number; cost: number }[];
+};
+
+async function loadDashboardData(): Promise<DashboardData> {
+  const db = createServerClient();
+  if (!db) {
+    return { needsYou: [], projects: [], agents: [], events: [], usage: null, error: "DB not configured" };
+  }
+
+  try {
+    // Fetch needs-you items (pending approvals + blocked sprint items + blocked jobs)
+    const [approvalsRes, blockedItemsRes, blockedJobsRes] = await Promise.allSettled([
+      db.from("approvals").select("id, summary, severity, project_id, agent_id, job_id, created_at").eq("status", "pending").order("created_at", { ascending: false }),
+      db.from("sprint_items").select("id, title, project_id, assignee_agent_id, created_at").eq("status", "blocked"),
+      db.from("jobs").select("id, title, project_id, owner_agent_id, status, created_at").eq("status", "blocked"),
+    ]);
+
+    const approvals = approvalsRes.status === "fulfilled" ? approvalsRes.value.data ?? [] : [];
+    const blockedItems = blockedItemsRes.status === "fulfilled" ? blockedItemsRes.value.data ?? [] : [];
+    const blockedJobs = blockedJobsRes.status === "fulfilled" ? blockedJobsRes.value.data ?? [] : [];
+
+    // Fetch projects with their active sprint + sprint items for progress
+    const projectsRes = await db.from("projects").select("id, name, type, team_id").eq("status", "active");
+    const teamsRes = await db.from("teams").select("id, name");
+    const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status").eq("status", "active");
+    const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status");
+    const agentsRes = await db.from("agents").select("id, name, status, last_seen, current_job_id");
+    const jobsRes = await db.from("jobs").select("id, project_id, title, status, prd_id, owner_agent_id");
+    const eventsRes = await db.from("agent_events").select("id, event_type, payload, agent_id, project_id, job_id, timestamp").order("timestamp", { ascending: false }).limit(10);
+
+    // Usage last 24h
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const usageRes = await db.from("ai_usage").select("model, tokens_in, tokens_out, total_tokens, cost_usd, created_at").gte("created_at", oneDayAgo);
+
+    // Map teams
+    const teamsById = new Map<string, string>();
+    (teamsRes.data ?? []).forEach((t: any) => teamsById.set(t.id, t.name));
+
+    // Map sprints to projects and calculate progress
+    const sprintsByProjectId = new Map<string, any[]>();
+    (sprintsRes.data ?? []).forEach((s: any) => {
+      const arr = sprintsByProjectId.get(s.project_id) ?? [];
+      arr.push(s);
+      sprintsByProjectId.set(s.project_id, arr);
+    });
+
+    const itemsBySprintId = new Map<string, any[]>();
+    (sprintItemsRes.data ?? []).forEach((si: any) => {
+      if (!si.sprint_id) return;
+      const arr = itemsBySprintId.get(si.sprint_id) ?? [];
+      arr.push(si);
+      itemsBySprintId.set(si.sprint_id, arr);
+    });
+
+    const projects: ProjectSummary[] = (projectsRes.data ?? []).map((p: any) => {
+      const teamName = p.team_id ? teamsById.get(p.team_id) : undefined;
+      const projectSprints = sprintsByProjectId.get(p.id) ?? [];
+      const activeSprint = projectSprints[0];
+      let progress = 0, doneCount = 0, totalCount = 0;
+      if (activeSprint) {
+        const items = itemsBySprintId.get(activeSprint.id) ?? [];
+        totalCount = items.length;
+        doneCount = items.filter((i: any) => i.status === "done").length;
+        progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+      }
+      // Count approvals and blocked jobs per project
+      const approvalCount = approvals.filter((a: any) => a.project_id === p.id).length;
+      const blockedJobCount = (blockedJobs as any[]).filter((j) => j.project_id === p.id).length;
+      return {
+        id: p.id,
+        name: p.name,
+        type: p.type,
+        teamName,
+        activeSprint: activeSprint
+          ? {
+              id: activeSprint.id,
+              name: activeSprint.name,
+              goal: activeSprint.goal,
+              progress,
+              doneCount,
+              totalCount,
+            }
+          : null,
+        approvalCount,
+        blockedCount: blockedJobCount,
+      };
+    });
+
+    // Agents with current job
+    const agents: AgentSummary[] = (agentsRes.data ?? []).map((a: any) => ({
+      id: a.id,
+      name: a.name,
+      status: a.status,
+      lastSeen: a.last_seen,
+      currentJob: a.current_job_id,
+    }));
+
+    // Needs You items
+    const needsYou: NeedsYouItem[] = [
+      ...(approvals as any[]).map((a) => ({
+        id: a.id,
+        type: "approval" as const,
+        title: a.summary || "Approval requested",
+        severity: a.severity || "medium",
+        projectId: a.project_id,
+        agentId: a.agent_id,
+        jobId: a.job_id,
+        createdAt: a.created_at,
+      })),
+      ...((blockedItems as any[]) ?? []).map((si) => ({
+        id: si.id,
+        type: "blocked" as const,
+        title: si.title || "Blocked sprint item",
+        projectId: si.project_id,
+        agentId: si.assignee_agent_id,
+        createdAt: si.created_at,
+      })),
+      ...((blockedJobs as any[]) ?? []).map((j) => ({
+        id: j.id,
+        type: "error" as const,
+        title: j.title || "Blocked job",
+        projectId: j.project_id,
+        agentId: j.owner_agent_id,
+        createdAt: j.created_at,
+      })),
+    ];
+
+    // Human-friendly event labels
+    const agentNamesById = new Map<string, string>();
+    (agentsRes.data ?? []).forEach((a: any) => agentNamesById.set(a.id, a.name));
+    const projectNamesById = new Map<string, string>();
+    (projectsRes.data ?? []).forEach((p: any) => projectNamesById.set(p.id, p.name));
+
+    const eventLabelMap: Record<string, string> = {
+      HEARTBEAT: "Agent check-in",
+      APPROVAL_REQUESTED: "Approval requested",
+      JOB_STATUS_CHANGED: "Job updated",
+    };
+
+    const events: EventItem[] = (eventsRes.data ?? []).map((e: any) => {
+      const label = eventLabelMap[e.event_type] ?? e.event_type;
+      const payload = (e.payload as any) ?? {};
+      const actor = agentNamesById.get(e.agent_id);
+      return {
+        id: e.id,
+        type: e.event_type,
+        label,
+        severity: e.event_type === "ERROR" ? "error" : e.event_type === "APPROVAL_REQUESTED" ? "warn" : "info",
+        actorName: actor ?? payload.agent_name ?? "Unknown agent",
+        projectName: projectNamesById.get(e.project_id) ?? payload.project_name,
+        timestamp: e.timestamp,
+      };
+    });
+
+    // Usage aggregations
+    const usageRows = usageRes.data ?? [];
+    const totalTokens24h = (usageRows as any[]).reduce((sum, r) => sum + (r.total_tokens || 0), 0);
+    const totalCost24h = (usageRows as any[]).reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
+    const byModel = new Map<string, { model: string; tokens: number; cost: number }>();
+    (usageRows as any[]).forEach((r) => {
+      const m = r.model ?? "unknown";
+      const existing = byModel.get(m) ?? { model: m, tokens: 0, cost: 0 };
+      existing.tokens += r.total_tokens || 0;
+      existing.cost += Number(r.cost_usd) || 0;
+      byModel.set(m, existing);
+    });
+    const topModels = Array.from(byModel.values()).sort((a, b) => b.tokens - a.tokens).slice(0, 3);
+
+    const usage: UsageSummary = { totalTokens24h, totalCost24h, topModels };
+
+    return { needsYou, projects, agents, events, usage, teams: (teamsRes.data ?? []) as any, error: null };
+  } catch (err: any) {
+    return {
+      needsYou: [],
+      projects: [],
+      agents: [],
+      events: [],
+      usage: null,
+      error: err?.message ?? "Unknown error loading data",
+    };
+  }
 }
 
 export default async function DashboardPage() {
-  let agents: { id: string; name: string; status: string; last_seen: string | null }[] | null = null;
-  let events: { id: string; agent_id: string; event_type: string; payload: object; timestamp: string }[] | null = null;
-  let approvals: { id: string }[] | null = null;
-  let error: { message: string; details?: string } | null = null;
-
-  try {
-    const db = createServerClient();
-    const agentsRes = await db.from("agents").select("id, name, status, last_seen");
-    agents = agentsRes.data;
-
-    const approvalsRes = await db
-      .from("approvals")
-      .select("id")
-      .eq("status", "pending");
-    approvals = approvalsRes.data;
-
-    const eventsRes = await db
-      .from("agent_events")
-      .select("id, agent_id, event_type, payload, timestamp")
-      .order("timestamp", { ascending: false })
-      .limit(10);
-    events = eventsRes.data;
-  } catch (err) {
-    error = {
-      message: "Failed to load dashboard data",
-      details: err instanceof Error ? err.message : String(err),
-    };
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-red-600">Dashboard</h1>
-        <ErrorState title="Error loading data" message={error.message} details={error.details} />
-      </div>
-    );
-  }
-
-  const online = (agents || []).filter((a) => a.status === "active").length;
-  const offline = (agents || []).filter((a) => a.status !== "active").length;
-  const pendingCount = (approvals || []).length;
-  const mockBanner = isMockMode() ? (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <span className="font-medium">Demo mode</span> – backend not connected.
-    </div>
-  ) : null;
+  const data = await loadDashboardData();
 
   return (
     <div className="space-y-6">
-      {mockBanner}
-      <h1 className="text-2xl font-bold text-red-600">Dashboard</h1>
+      <DbBanner />
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="border-green-200 bg-green-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-2xl leading-tight text-green-700">{online}</CardTitle>
-            <CardDescription className="text-green-600">Online Agents</CardDescription>
-          </CardHeader>
-        </Card>
-        <Card className="border-gray-200 bg-gray-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-2xl leading-tight text-gray-700">{offline}</CardTitle>
-            <CardDescription className="text-gray-600">Offline Agents</CardDescription>
-          </CardHeader>
-        </Card>
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-2xl leading-tight text-red-700">{pendingCount}</CardTitle>
-            <CardDescription className="text-red-600">Pending Approvals</CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-zinc-900">Overview</h1>
+          <p className="text-sm text-zinc-500">Last updated {new Date().toLocaleTimeString()}</p>
+        </div>
+        {/* Refresh button placeholder */}
       </div>
 
-      {/* Recent Events */}
-      <section>
-        <h2 className="mb-2 text-lg font-semibold">Recent Events</h2>
-        <div className="space-y-3">
-          {(events || []).map((e) => (
-            <Card key={e.id} className="border-zinc-200">
-              <CardContent className="flex items-start justify-between py-4">
-                <div className="min-w-0">
-                  <p className="font-medium text-zinc-900">{e.event_type}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Agent: {e.agent_id?.slice(0, 8) ?? "—"}…
-                  </p>
-                </div>
-                <span className="whitespace-nowrap text-xs text-zinc-400">
-                  {formatTimeAgo(e.timestamp)}
-                </span>
-              </CardContent>
-            </Card>
-          ))}
-          {(!events || events.length === 0) && (
-            <p className="text-sm text-zinc-400">No events yet.</p>
-          )}
-        </div>
-      </section>
+      {data.error && (
+        <ErrorState
+          title="Error loading data"
+          message={data.error}
+          details="Check that the migrations have been applied in Supabase SQL Editor."
+        />
+      )}
+
+      <OverviewClient initialData={data} />
     </div>
   );
 }

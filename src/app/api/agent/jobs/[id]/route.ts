@@ -1,51 +1,39 @@
 import { NextResponse } from "next/server";
-import { verifyAgentKey, getServiceClient } from "@/lib/agent-auth";
+import { createServerClient } from "@/lib/supabase-server";
 
-const ALLOWED_FIELDS = ["status", "summary"];
+export const dynamic = "force-dynamic";
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const agent = await verifyAgentKey(request);
-  if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await request.json();
+  const db = createServerClient();
+  
+  if (!db) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
+  }
 
-  // Only allow updating allowlisted fields
-  const updates: Record<string, unknown> = {};
-  for (const key of Object.keys(body)) {
-    if (!ALLOWED_FIELDS.includes(key)) {
-      return NextResponse.json(
-        { error: `Forbidden: cannot update field '${key}'` },
-        { status: 403 }
-      );
+  try {
+    const { data, error } = await db
+      .from("jobs")
+      .select("id, title, status, owner_agent_id, project_id, summary, created_at, updated_at")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    updates[key] = body[key];
+
+    if (!data) {
+      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ job: data });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message ?? "Unknown error" },
+      { status: 500 }
+    );
   }
-
-  const svc = getServiceClient();
-
-  // Verify agent owns this job
-  const { data: job, error: jobErr } = await svc
-    .from("jobs")
-    .select("id, owner_agent_id")
-    .eq("id", id)
-    .single();
-
-  if (jobErr || !job) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (job.owner_agent_id !== agent.id) {
-    return NextResponse.json({ error: "Forbidden: not your job" }, { status: 403 });
-  }
-
-  updates.updated_at = new Date().toISOString();
-  const { data, error } = await svc
-    .from("jobs")
-    .update(updates)
-    .eq("id", id)
-    .select();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
 }

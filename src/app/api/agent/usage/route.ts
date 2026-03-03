@@ -1,27 +1,35 @@
 import { NextResponse } from "next/server";
-import { verifyAgentKey, getServiceClient } from "@/lib/agent-auth";
+import { createServerClient } from "@/lib/supabase-server";
 
-export async function POST(request: Request) {
-  const agent = await verifyAgentKey(request);
-  if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const dynamic = "force-dynamic";
 
-  const body = await request.json();
-
-  if (body.agent_id && body.agent_id !== agent.id) {
-    return NextResponse.json({ error: "Forbidden: agent_id mismatch" }, { status: 403 });
+export async function GET() {
+  const db = createServerClient();
+  if (!db) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
   }
 
-  const svc = getServiceClient();
-  const { data, error } = await svc.from("ai_usage").insert({
-    agent_id: agent.id,
-    provider: body.provider,
-    model: body.model,
-    tokens_in: body.tokens_in || 0,
-    tokens_out: body.tokens_out || 0,
-    total_tokens: body.total_tokens || 0,
-    cost_usd: body.cost_usd || null,
-  }).select();
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await db
+      .from("ai_usage")
+      .select("model, provider, total_tokens, cost_usd, created_at")
+      .gte("created_at", oneDayAgo)
+      .order("created_at", { ascending: false })
+      .limit(200);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ usage: data ?? [] });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message ?? "Unknown error" },
+      { status: 500 }
+    );
+  }
 }

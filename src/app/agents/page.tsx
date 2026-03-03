@@ -1,16 +1,32 @@
 import { createServerClient, isMockMode } from "@/lib/supabase-server";
 import { ErrorState } from "@/components/error-state";
+import { DbBanner } from "@/components/db-banner";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
 export default async function AgentsPage() {
-  let agents: { id: string; name: string; type: string; status: string; last_seen: string | null }[] | null = null;
+  const db = createServerClient();
+  let agents:
+    | { id: string; name: string; type: string; status: string; last_seen: string | null }[]
+    | null = null;
   let error: { message: string; details?: string } | null = null;
 
+  if (!db) {
+    return (
+      <div className="space-y-6">
+        <DbBanner />
+        <ErrorState
+          title="DB not initialized"
+          message="Supabase env missing or migrations not applied."
+          details="Apply migrations in Supabase SQL Editor, then refresh."
+        />
+      </div>
+    );
+  }
+
   try {
-    const db = createServerClient();
     const res = await db
       .from("agents")
       .select("id, name, type, status, last_seen")
@@ -26,6 +42,7 @@ export default async function AgentsPage() {
   if (error) {
     return (
       <div className="space-y-6">
+        <DbBanner />
         <h1 className="text-2xl font-bold text-red-600">Agents</h1>
         <ErrorState title="Error loading data" message={error.message} details={error.details} />
       </div>
@@ -40,6 +57,7 @@ export default async function AgentsPage() {
 
   return (
     <div className="space-y-6">
+      <DbBanner />
       {mockBanner}
       <h1 className="text-2xl font-bold text-red-600">Agents</h1>
 
@@ -65,9 +83,7 @@ export default async function AgentsPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="text-xs text-gray-400">
-                  {a.last_seen
-                    ? new Date(a.last_seen).toLocaleString()
-                    : "Never"}
+                  {a.last_seen ? new Date(a.last_seen).toLocaleString() : "Never"}
                 </p>
               </CardContent>
             </Card>
@@ -110,9 +126,7 @@ export default async function AgentsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-zinc-500">
-                  {a.last_seen
-                    ? new Date(a.last_seen).toLocaleString()
-                    : "Never"}
+                  {a.last_seen ? new Date(a.last_seen).toLocaleString() : "Never"}
                 </td>
               </tr>
             ))}

@@ -5,23 +5,47 @@ export type SupabaseServerClient = ReturnType<typeof createClient<any>>;
 
 let clientInstance: SupabaseServerClient | null = null;
 
+export type DbHealth =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "env_missing" | "db_not_initialized" | "unknown";
+      message: string;
+      details?: string;
+    };
+
+export function getDbHealth(): DbHealth {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // IMPORTANT:
+  // This function is used by DbBanner (client component). Never require server-only
+  // env vars here, otherwise the UI will always show "DB not initialized".
+  if (!url || !anonKey) {
+    return {
+      ok: false,
+      reason: "env_missing",
+      message: "DB not initialized: missing Supabase environment variables.",
+      details:
+        "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (local: .env.local, prod: Vercel project env).",
+    };
+  }
+
+  return { ok: true };
+}
+
 /**
- * PRD MVP behavior (fail-fast):
- * - If required Supabase env vars are missing, throw a clear error.
- * - No demo/preview mode fallback.
- * - Do not throw at import; throw only when createServerClient() is called.
+ * V1 behavior: never throw during render.
+ * - If env missing, return null (caller should render DB-not-initialized banner).
  */
-export function createServerClient(): SupabaseServerClient {
+export function createServerClient(): SupabaseServerClient | null {
   if (clientInstance) return clientInstance;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const health = getDbHealth();
+  if (!health.ok) return null;
 
-  if (!url || !serviceKey) {
-    throw new Error(
-      "Supabase not configured: missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
-    );
-  }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
   clientInstance = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -30,6 +54,12 @@ export function createServerClient(): SupabaseServerClient {
   return clientInstance;
 }
 
+/**
+ * Route handlers should use the same trusted server client.
+ * Alias used by newer API handlers.
+ */
+export const createRouteHandlerClient = createServerClient;
+
 export function isMockMode(): boolean {
-  return false;
+  return !getDbHealth().ok;
 }

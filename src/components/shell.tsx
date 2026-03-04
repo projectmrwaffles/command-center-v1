@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
-import { FloatingNewButton } from "@/components/floating-new-button";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
@@ -75,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-950">
-      <div className="mx-auto flex w-full max-w-6xl">
+      <div className="flex w-full">
         {/* Desktop sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-zinc-200 md:bg-white">
           {/* Header */}
@@ -133,7 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         data-testid="mobile-tabs"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden"
       >
-        <div className="mx-auto grid max-w-6xl grid-cols-5">
+        <div className="mx-auto grid max-w-none grid-cols-5">
           {NAV.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -153,9 +152,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </div>
       </nav>
-
-      {/* Floating New Button */}
-      <FloatingNewButton />
     </div>
   );
 }

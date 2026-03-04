@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRealtimeStore } from "@/lib/realtime-store";
 
 interface CreateProjectFormProps {
@@ -26,7 +26,8 @@ export function CreateProjectForm({
   const [teamId, setTeamId] = useState("");
   const [description, setDescription] = useState("");
 
-  const teams = useRealtimeStore((s) => Array.from(s.teamsById.values()));
+  const teamsById = useRealtimeStore((s) => s.teamsById);
+  const teams = useMemo(() => Array.from(teamsById.values()), [teamsById]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

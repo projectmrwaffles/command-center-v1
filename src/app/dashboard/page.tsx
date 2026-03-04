@@ -195,32 +195,7 @@ async function loadDashboardData(): Promise<DashboardData> {
       })),
     ];
 
-    // Human-friendly event labels
-    const agentNamesById = new Map<string, string>();
-    (agentsRes.data ?? []).forEach((a: any) => agentNamesById.set(a.id, a.name));
-    const projectNamesById = new Map<string, string>();
-    (projectsRes.data ?? []).forEach((p: any) => projectNamesById.set(p.id, p.name));
-
-    const eventLabelMap: Record<string, string> = {
-      HEARTBEAT: "Agent check-in",
-      APPROVAL_REQUESTED: "Approval requested",
-      JOB_STATUS_CHANGED: "Job updated",
-    };
-
-    const events: EventItem[] = (eventsRes.data ?? []).map((e: any) => {
-      const label = eventLabelMap[e.event_type] ?? e.event_type;
-      const payload = (e.payload as any) ?? {};
-      const actor = agentNamesById.get(e.agent_id);
-      return {
-        id: e.id,
-        type: e.event_type,
-        label,
-        severity: e.event_type === "ERROR" ? "error" : e.event_type === "APPROVAL_REQUESTED" ? "warn" : "info",
-        actorName: actor ?? payload.agent_name ?? "Unknown agent",
-        projectName: projectNamesById.get(e.project_id) ?? payload.project_name,
-        timestamp: e.timestamp,
-      };
-    });
+    const events: EventItem[] = [];
 
     // Usage aggregations
     const usageRows = usageRes.data ?? [];
@@ -263,7 +238,6 @@ export default async function DashboardPage() {
           <h1 className="text-lg font-semibold text-zinc-900">Overview</h1>
           <p className="text-sm text-zinc-500">Last updated {new Date().toLocaleTimeString()}</p>
         </div>
-        {/* Refresh button placeholder */}
       </div>
 
       {data.error && (

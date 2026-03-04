@@ -31,7 +31,6 @@ export function useCreateProject() {
       }
 
       const result = await res.json();
-      setIsOpen(false);
       return result.project;
     } catch (e: any) {
       setError(e?.message || "Failed to create project");

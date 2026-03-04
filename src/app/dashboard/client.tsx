@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { DashboardData } from "./page";
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { subscribeToAllTables } from "@/lib/realtime-subscribe";
+import { CreateProjectModal } from "@/components/create-project-modal";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
@@ -89,10 +90,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   useEffect(() => {
     initialData.agents.forEach((a: any) => store.upsertAgent(a));
     initialData.projects.forEach((p: any) => store.upsertProject({ ...p, progress_pct: p.activeSprint?.progress ?? 0 }));
-    // Only seed actionable events (skip HEARTBEAT)
-    initialData.events
-      .filter((e: any) => e.event_type !== "HEARTBEAT")
-      .forEach((e: any) => store.prependEvent(e as any));
     initialData.needsYou.forEach((n: any) => {
       if (n.type === "approval") {
         store.upsertApproval({
@@ -117,13 +114,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       onAgent: (p) => {
         if (p.eventType !== "DELETE") store.upsertAgent(p.new);
       },
-      onAgentEvent: (p) => {
-        if (p.eventType === "INSERT") {
-          // Filter out HEARTBEAT (system noise) by default
-          if (p.new?.event_type === "HEARTBEAT") return;
-          store.prependEvent(p.new);
-        }
-      },
       onApproval: (p) => {
         if (p.eventType === "DELETE") store.removeApproval(p.old.id);
         else store.upsertApproval(p.new);
@@ -140,6 +130,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       onUsageRollup: (p) => {
         if (p.eventType !== "DELETE") store.upsertUsageRollup(p.new);
       },
+      onTeam: (p) => {
+        if (p.eventType !== "DELETE") store.upsertTeam(p.new);
+      },
     });
 
     return () => sub.unsubscribeAll();
@@ -152,7 +145,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   const approvalsById = useRealtimeStore((s) => s.approvalsById);
   const jobsById = useRealtimeStore((s) => s.jobsById);
   const usageRollup = useRealtimeStore((s) => s.usageRollup);
-  const events = useRealtimeStore((s) => s.events);
   const teamsById = useRealtimeStore((s) => s.teamsById);
 
   const agents = useMemo(() => Array.from(agentsById.values()), [agentsById]);
@@ -250,33 +242,27 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     }));
   }, [projectsWithSprint, pendingApprovals, blockedJobs]);
 
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedNeedsYou, setSelectedNeedsYou] = useState<NeedsYouItem | null>(null);
-  const [showSystemEvents, setShowSystemEvents] = useState(false);
-
-  const actionableEventTypes = new Set([
-    "APPROVAL_REQUESTED",
-    "JOB_STATUS_CHANGED",
-    "JOB_BLOCKED",
-    "JOB_FAILED",
-    "JOB_COMPLETED",
-    "PRD_SUBMITTED",
-    "PROJECT_UPDATED",
-    "SPRINT_UPDATED",
-    "ERROR",
-  ]);
-
-  const filteredEvents = useMemo(() => {
-    return events.filter((e: any) => {
-      if (showSystemEvents) return true;
-      if (e.event_type === "HEARTBEAT") return false;
-      // If event type unknown, hide by default to avoid noise
-      return actionableEventTypes.has(e.event_type);
-    });
-  }, [events, showSystemEvents]);
+  const [showCreateProject, setShowCreateProject] = useState(false);
 
   return (
     <div className="space-y-6">
+      {/* Header row: title left, New Project right */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-zinc-900">Overview</h2>
+          <p className="text-sm text-zinc-500">Live updates</p>
+        </div>
+        <button
+          onClick={() => setShowCreateProject(true)}
+          className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+        >
+          New Project
+        </button>
+      </div>
+
+      <CreateProjectModal open={showCreateProject} onOpenChange={setShowCreateProject} />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* LEFT COLUMN */}
         <div className="space-y-6">
@@ -379,57 +365,14 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             )}
           </section>
 
-          {/* Events */}
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <SectionTitle>Recent Events</SectionTitle>
-              <label className="flex items-center gap-2 text-xs text-zinc-600">
-                <input
-                  type="checkbox"
-                  checked={showSystemEvents}
-                  onChange={(e) => setShowSystemEvents(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-zinc-300"
-                />
-                Show system events
-              </label>
-            </div>
-            {filteredEvents.length === 0 ? (
-              <p className="text-sm text-zinc-500">No recent events.</p>
-            ) : (
-              <div className="space-y-3">
-                {filteredEvents.slice(0, 12).map((e) => {
-                  const agent = e.agent_id ? agentsById.get(e.agent_id) : null;
-                  const agentDisplay = agent
-                    ? `${agent.name}${agent.title ? ` • ${agent.title}` : ""}${agent.primary_team_id && teamsById.get(agent.primary_team_id) ? ` • ${teamsById.get(agent.primary_team_id)}` : ""}`
-                    : e.agent_id
-                      ? "Unknown agent"
-                      : "—";
-                  return (
-                    <Card key={e.id} className="cursor-pointer border-zinc-200" onClick={() => setSelectedEvent(e)}>
-                      <CardContent className="py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-zinc-900">{e.event_type}</p>
-                            <p className="text-xs text-zinc-500 truncate" title={agentDisplay}>{agentDisplay}</p>
-                          </div>
-                          <span className="whitespace-nowrap text-xs text-zinc-400">{timeAgo(e.timestamp)}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </section>
         </div>
       </div>
 
       {/* Drawer */}
-      {(selectedEvent || selectedNeedsYou) && (
+      {selectedNeedsYou && (
         <div
           className="fixed inset-0 z-50 flex justify-end bg-black/50"
           onClick={() => {
-            setSelectedEvent(null);
             setSelectedNeedsYou(null);
           }}
         >
@@ -438,7 +381,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
               <h3 className="text-lg font-semibold">Details</h3>
               <button
                 onClick={() => {
-                  setSelectedEvent(null);
                   setSelectedNeedsYou(null);
                 }}
                 className="rounded p-1 hover:bg-zinc-100"
@@ -447,7 +389,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
               </button>
             </div>
             <pre className="mt-4 max-h-full overflow-auto rounded border bg-zinc-50 p-3 text-xs text-zinc-700">
-              {JSON.stringify(selectedEvent ?? selectedNeedsYou, null, 2)}
+              {JSON.stringify(selectedNeedsYou, null, 2)}
             </pre>
             <div className="mt-4 flex items-center gap-2">
               <Link
@@ -468,8 +410,12 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
   const progress = project.progress_pct ?? 0;
 
   return (
-    <Card className="border-zinc-200">
-      <CardHeader className="pb-2">
+    <Link
+      href={`/projects/${project.id}`}
+      className="block focus:outline-none focus:ring-2 focus:ring-red-200 rounded-2xl"
+    >
+      <Card className="border-zinc-200 transition-shadow hover:shadow-md cursor-pointer">
+        <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
             <CardTitle className="truncate text-sm font-medium">{project.name}</CardTitle>
@@ -500,7 +446,8 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
           {(project.blockedCount ?? 0) > 0 && drawBadge(`${project.blockedCount} blocked`, "amber")}
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </Link>
   );
 }
 

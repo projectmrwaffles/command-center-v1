@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { useCreateProject } from "@/hooks/use-create-project";
+import { supabaseRealtime } from "@/lib/supabase-realtime";
 
 function useIsMobile() {
   if (typeof window === "undefined") return false;
   return window.innerWidth < 768;
+}
+
+function storageNotConfiguredMessage() {
+  return (
+    "Storage not configured: create bucket project_docs (private). " +
+    "Supabase Dashboard → Storage → New bucket → name: project_docs → set Private." +
+    ""
+  );
 }
 
 export function CreateProjectModal({
@@ -19,6 +28,10 @@ export function CreateProjectModal({
   const { isSubmitting, error, createProject } = useCreateProject();
   const mobile = typeof window !== "undefined" ? useIsMobile() : false;
 
+  const [docs, setDocs] = useState<File[]>([]);
+  const [docsError, setDocsError] = useState<string | null>(null);
+  const [docsBusy, setDocsBusy] = useState(false);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -27,6 +40,14 @@ export function CreateProjectModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onOpenChange]);
+
+  // reset on open
+  useEffect(() => {
+    if (!open) return;
+    setDocs([]);
+    setDocsError(null);
+    setDocsBusy(false);
+  }, [open]);
 
   if (!open) return null;
 
@@ -46,8 +67,8 @@ export function CreateProjectModal({
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900">Create Project</h2>
-            <p className="text-sm text-zinc-500">Create a new project and start adding docs.</p>
+            <h2 className="text-base font-semibold text-zinc-900">New Project</h2>
+            <p className="text-sm text-zinc-500">Create a project and optionally upload docs.</p>
           </div>
           <button
             onClick={() => onOpenChange(false)}
@@ -60,13 +81,99 @@ export function CreateProjectModal({
 
         <CreateProjectForm
           onSubmit={async (data) => {
-            await createProject(data);
-            onOpenChange(false);
+            const project = await createProject(data);
+
+            // Upload docs (optional)
+            if (docs.length > 0) {
+              setDocsBusy(true);
+              setDocsError(null);
+
+              const uploaded: any[] = [];
+              for (const file of docs) {
+                const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
+                const ext = safeName.includes(".") ? safeName.split(".").pop() : "bin";
+                const objectName = `${project.id}/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${ext}`;
+
+                const { error: upErr } = await supabaseRealtime.storage
+                  .from("project_docs")
+                  .upload(objectName, file, {
+                    contentType: file.type || undefined,
+                    upsert: false,
+                  });
+
+                if (upErr) {
+                  console.error("[Storage upload] error", upErr);
+                  // Do not crash; show manual prerequisite.
+                  setDocsError(storageNotConfiguredMessage());
+                  break;
+                }
+
+                uploaded.push({
+                  project_id: project.id,
+                  type: file.type === "application/pdf" ? "prd_pdf" : file.type.startsWith("image/") ? "image" : "other",
+                  title: file.name,
+                  storage_path: objectName,
+                  mime_type: file.type || null,
+                  size_bytes: file.size,
+                });
+              }
+
+              if (uploaded.length > 0) {
+                // Insert metadata via existing server route? For now, insert via server role route to avoid RLS.
+                const res = await fetch(`/api/projects/${project.id}/documents`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ documents: uploaded }),
+                });
+
+                if (!res.ok) {
+                  const payload = await res.json().catch(() => ({}));
+                  console.error("[documents insert] failed", payload);
+                  setDocsError(payload.error || "Failed to save document metadata");
+                }
+              }
+
+              setDocsBusy(false);
+            }
+
+            // Keep modal open if docs failed, otherwise close.
+            if (!docsError) onOpenChange(false);
           }}
           onCancel={() => onOpenChange(false)}
-          isSubmitting={isSubmitting}
+          isSubmitting={isSubmitting || docsBusy}
           error={error}
         />
+
+        {/* Docs upload */}
+        <div className="mt-5 border-t border-zinc-200 pt-4">
+          <div className="mb-2 text-sm font-medium text-zinc-900">Upload docs (optional)</div>
+          <p className="mb-3 text-xs text-zinc-500">PRD PDF or images. Stored privately in project_docs.</p>
+
+          {docsError && (
+            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {docsError}
+            </div>
+          )}
+
+          <input
+            type="file"
+            multiple
+            accept="application/pdf,image/*"
+            onChange={(e) => setDocs(Array.from(e.target.files ?? []))}
+            className="block w-full text-sm"
+          />
+
+          {docs.length > 0 && (
+            <ul className="mt-3 space-y-1 text-xs text-zinc-600">
+              {docs.map((f) => (
+                <li key={f.name} className="flex items-center justify-between">
+                  <span className="truncate">{f.name}</span>
+                  <span className="ml-2 text-zinc-400">{Math.round(f.size / 1024)}KB</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );

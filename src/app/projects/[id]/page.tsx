@@ -180,7 +180,7 @@ export default function ProjectDetailPage() {
   const agents = Array.from(agentsById.values());
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -207,40 +207,40 @@ export default function ProjectDetailPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
             <Link href="/projects" className="text-zinc-400 hover:text-zinc-600">←</Link>
-            <h1 className="text-xl font-semibold text-zinc-900 truncate">{project.name}</h1>
+            <h1 className="text-lg sm:text-xl font-semibold text-zinc-900 truncate">{project.name}</h1>
             <StatusBadge status={project.status} />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-500">
             {project.type && <span className="capitalize">{project.type}</span>}
-            <span>Progress: {project.progress_pct}%</span>
-            <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
+            <span>{project.progress_pct}%</span>
+            <span>{new Date(project.updated_at).toLocaleDateString()}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {project.status === "active" ? (
             <button
               onClick={() => handleStatusChange("paused")}
               disabled={actionLoading === "paused"}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs sm:text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
             >
-              {actionLoading === "paused" ? "Pausing..." : "Pause"}
+              {actionLoading === "paused" ? "..." : "Pause"}
             </button>
           ) : project.status === "paused" ? (
             <button
               onClick={() => handleStatusChange("active")}
               disabled={actionLoading === "active"}
-              className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              className="rounded-md bg-green-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
             >
-              {actionLoading === "active" ? "Resuming..." : "Resume"}
+              {actionLoading === "active" ? "..." : "Resume"}
             </button>
           ) : null}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+            className="rounded-md border border-red-200 px-3 py-1.5 text-xs sm:text-sm font-medium text-red-600 hover:bg-red-50"
           >
             Delete
           </button>
@@ -248,56 +248,56 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Card className="border-zinc-200">
-          <CardContent className="py-3">
-            <div className="text-xs text-zinc-500">Tasks</div>
-            <div className="text-xl font-semibold">{stats.totalTasks}</div>
+          <CardContent className="py-2 sm:py-3">
+            <div className="text-[10px] sm:text-xs text-zinc-500">Tasks</div>
+            <div className="text-lg sm:text-xl font-semibold">{stats.totalTasks}</div>
           </CardContent>
         </Card>
         <Card className="border-zinc-200">
-          <CardContent className="py-3">
-            <div className="text-xs text-zinc-500">In Progress</div>
-            <div className="text-xl font-semibold text-blue-600">{stats.inProgressTasks}</div>
+          <CardContent className="py-2 sm:py-3">
+            <div className="text-[10px] sm:text-xs text-zinc-500">In Progress</div>
+            <div className="text-lg sm:text-xl font-semibold text-blue-600">{stats.inProgressTasks}</div>
           </CardContent>
         </Card>
         <Card className="border-zinc-200">
-          <CardContent className="py-3">
-            <div className="text-xs text-zinc-500">Done</div>
-            <div className="text-xl font-semibold text-green-600">{stats.doneTasks}</div>
+          <CardContent className="py-2 sm:py-3">
+            <div className="text-[10px] sm:text-xs text-zinc-500">Done</div>
+            <div className="text-lg sm:text-xl font-semibold text-green-600">{stats.doneTasks}</div>
           </CardContent>
         </Card>
         <Card className="border-zinc-200">
-          <CardContent className="py-3">
-            <div className="text-xs text-zinc-500">Blocked</div>
-            <div className="text-xl font-semibold text-red-600">{stats.blockedTasks}</div>
+          <CardContent className="py-2 sm:py-3">
+            <div className="text-[10px] sm:text-xs text-zinc-500">Blocked</div>
+            <div className="text-lg sm:text-xl font-semibold text-red-600">{stats.blockedTasks}</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         {/* Left: Teams */}
         <div className="lg:col-span-1">
           <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Teams</CardTitle>
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm">Teams</CardTitle>
             </CardHeader>
             <CardContent>
               {teams.length === 0 ? (
-                <p className="text-sm text-zinc-500">No teams assigned</p>
+                <p className="text-xs sm:text-sm text-zinc-500">No teams assigned</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {teams.map((team: any) => (
-                    <div key={team.id} className="rounded-lg border border-zinc-100 p-3">
+                    <div key={team.id} className="rounded-lg border border-zinc-100 p-2 sm:p-3">
                       <div className="flex items-center gap-2">
                         <TeamStatusDot status={team.status} />
-                        <span className="font-medium text-zinc-900">{team.name}</span>
+                        <span className="text-xs sm:text-sm font-medium text-zinc-900 truncate">{team.name}</span>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="text-xs text-zinc-500">{team.activeAgents || 0} active</span>
-                        <span className="text-xs text-zinc-500">{team.taskCount || 0} tasks</span>
+                      <div className="mt-1 sm:mt-2 flex flex-wrap gap-1 sm:gap-2">
+                        <span className="text-[10px] sm:text-xs text-zinc-500">{team.activeAgents || 0} active</span>
+                        <span className="text-[10px] sm:text-xs text-zinc-500">{team.taskCount || 0} tasks</span>
                         {team.blockedTasks > 0 && (
-                          <span className="text-xs text-red-600">{team.blockedTasks} blocked</span>
+                          <span className="text-[10px] sm:text-xs text-red-600">{team.blockedTasks} blocked</span>
                         )}
                       </div>
                     </div>
@@ -309,33 +309,33 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Right: Sprints & Tasks */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-4 lg:space-y-6 lg:col-span-2">
           {/* Sprints */}
           <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 sm:pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Sprints</CardTitle>
-                <button className="text-xs text-red-600 hover:underline">+ Create Sprint</button>
+                <CardTitle className="text-xs sm:text-sm">Sprints</CardTitle>
+                <button className="text-[10px] sm:text-xs text-red-600 hover:underline">+ Create</button>
               </div>
             </CardHeader>
             <CardContent>
               {sprints.length === 0 ? (
-                <p className="text-sm text-zinc-500">No sprints yet</p>
+                <p className="text-xs sm:text-sm text-zinc-500">No sprints yet</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {sprints.map((sprint: any) => (
-                    <div key={sprint.id} className="rounded-lg border border-zinc-100 p-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium text-zinc-900">{sprint.name}</span>
-                          {sprint.goal && <span className="ml-2 text-xs text-zinc-500">- {sprint.goal}</span>}
+                    <div key={sprint.id} className="rounded-lg border border-zinc-100 p-2 sm:p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-xs sm:text-sm font-medium text-zinc-900 truncate">{sprint.name}</span>
+                          {sprint.goal && <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs text-zinc-500 line-clamp-1">- {sprint.goal}</span>}
                         </div>
                         <TaskStatusBadge status={sprint.status === "active" ? "in_progress" : sprint.status === "completed" ? "done" : "todo"} />
                       </div>
-                      <div className="mt-2 flex items-center gap-4 text-xs text-zinc-500">
-                        {sprint.start_date && <span>{sprint.start_date}</span>}
-                        {sprint.end_date && <span>→ {sprint.end_date}</span>}
-                        <span>{sprint.progress_pct}% complete</span>
+                      <div className="mt-1 sm:mt-2 flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-zinc-500">
+                        {sprint.start_date && <span className="truncate">{sprint.start_date}</span>}
+                        {sprint.end_date && <span className="truncate">→ {sprint.end_date}</span>}
+                        <span>{sprint.progress_pct}%</span>
                       </div>
                     </div>
                   ))}
@@ -346,25 +346,25 @@ export default function ProjectDetailPage() {
 
           {/* Tasks */}
           <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 sm:pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Tasks</CardTitle>
-                <button className="text-xs text-red-600 hover:underline">+ New Task</button>
+                <CardTitle className="text-xs sm:text-sm">Tasks</CardTitle>
+                <button className="text-[10px] sm:text-xs text-red-600 hover:underline">+ New</button>
               </div>
             </CardHeader>
             <CardContent>
               {tasks.length === 0 ? (
-                <p className="text-sm text-zinc-500">No tasks yet</p>
+                <p className="text-xs sm:text-sm text-zinc-500">No tasks yet</p>
               ) : (
                 <div className="space-y-2">
                   {tasks.map((task: any) => {
                     const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
                     return (
-                      <div key={task.id} className="flex items-center justify-between rounded-lg border border-zinc-100 p-2">
-                        <div className="min-w-0">
-                          <span className="text-sm text-zinc-900 truncate">{task.title}</span>
+                      <div key={task.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 p-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs sm:text-sm text-zinc-900 truncate block">{task.title}</span>
                           {assignee && (
-                            <span className="ml-2 text-xs text-zinc-500">@{assignee.name}</span>
+                            <span className="text-[10px] sm:text-xs text-zinc-500">@{assignee.name}</span>
                           )}
                         </div>
                         <TaskStatusBadge status={task.status} />

@@ -233,13 +233,6 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <DbBanner />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-zinc-900">Overview</h1>
-          <p className="text-sm text-zinc-500">Last updated {new Date().toLocaleTimeString()}</p>
-        </div>
-      </div>
-
       {data.error && (
         <ErrorState
           title="Error loading data"

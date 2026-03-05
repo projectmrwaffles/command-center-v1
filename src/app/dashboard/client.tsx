@@ -149,6 +149,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
   const agents = useMemo(() => Array.from(agentsById.values()), [agentsById]);
   const jobs = useMemo(() => Array.from(jobsById.values()), [jobsById]);
+  const teams = useMemo(() => Array.from(teamsById.values()), [teamsById]);
 
   const pendingApprovals = useMemo(
     () => Array.from(approvalsById.values()).filter((a) => a.status === "pending"),
@@ -328,39 +329,54 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             <UsageCard usage={{ totalTokens: usage24h.totalTokens, totalCost: usage24h.totalCost, topModels: usage24h.topModels }} />
           </section>
 
-          {/* Agents */}
+          {/* Teams */}
           <section>
             <div className="mb-3 flex items-center justify-between">
-              <SectionTitle>Agents ({agents.length})</SectionTitle>
-              <Link href="/agents" className="text-xs text-red-600 hover:underline">
+              <SectionTitle>Teams ({teams.length})</SectionTitle>
+              <Link href="/teams" className="text-xs text-red-600 hover:underline">
                 View all
               </Link>
             </div>
-            {agents.length === 0 ? (
-              <p className="text-sm text-zinc-500">No agents registered.</p>
+            {teams.length === 0 ? (
+              <p className="text-sm text-zinc-500">No teams yet.</p>
             ) : (
               <div className="grid grid-cols-1 gap-3">
-                {agents.slice(0, 5).map((a) => (
-                  <Card key={a.id} className="border-zinc-200">
-                    <CardContent className="flex items-center justify-between py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-zinc-900">{a.name}</p>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                          {a.title && <span className="text-xs text-zinc-500">{a.title}</span>}
-                          {a.primary_team_id && teamsById.get(a.primary_team_id) && (
-                            <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-600">
-                              {teamsById.get(a.primary_team_id)?.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-right">
-                        <span className="text-xs text-zinc-400">{timeAgo(a.last_seen)}</span>
-                        <StatusDot status={a.status} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {teams.slice(0, 5).map((team) => {
+                  const teamAgents = agents.filter((a) => a.primary_team_id === team.id);
+                  const onlineCount = teamAgents.filter((a) => a.status === "active").length;
+                  const teamProjects = Array.from(projectsById.values()).filter((p: any) => p.team_id === team.id);
+                  const teamApprovals = pendingApprovals.filter((a) => {
+                    if (!a.project_id) return false;
+                    const proj = projectsById.get(a.project_id);
+                    return proj?.team_id === team.id;
+                  });
+
+                  // Determine team status based on activity
+                  const hasActiveAgents = teamAgents.some((a) => a.status === "active");
+                  const hasIdleAgents = teamAgents.some((a) => a.status === "idle");
+                  const teamStatus = hasActiveAgents ? "active" : hasIdleAgents ? "idle" : "offline";
+
+                  return (
+                    <Link key={team.id} href={`/teams/${team.id}`}>
+                      <Card className="cursor-pointer border-zinc-200 transition-shadow hover:shadow-md">
+                        <CardContent className="flex items-center justify-between py-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <StatusDot status={teamStatus} />
+                              <p className="text-sm font-medium text-zinc-900">{team.name}</p>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              {drawBadge(`Online ${onlineCount}/${teamAgents.length}`, onlineCount > 0 ? "green" : "red")}
+                              {teamProjects && drawBadge(`Projects ${teamProjects.length}`, "blue")}
+                              {teamApprovals.length > 0 && drawBadge(`Approvals ${teamApprovals.length}`, "amber")}
+                            </div>
+                          </div>
+                          <span className="text-zinc-400">→</span>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </section>

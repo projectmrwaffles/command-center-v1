@@ -43,6 +43,14 @@ export async function GET(
       .eq("project_id", projectId)
       .order("position", { ascending: true });
 
+    // Fetch project events (activity timeline)
+    const { data: events } = await db
+      .from("agent_events")
+      .select("id, event_type, payload, timestamp, agents(name)")
+      .eq("project_id", projectId)
+      .order("timestamp", { ascending: false })
+      .limit(50);
+
     // Fetch teams for this project
     const { data: projectTeams } = await db
       .from("team_members")
@@ -112,6 +120,7 @@ export async function GET(
       milestones,
       sprints: sprints || [],
       tasks: tasks || [],
+      events: events || [],
       stats: {
         totalTasks,
         doneTasks,

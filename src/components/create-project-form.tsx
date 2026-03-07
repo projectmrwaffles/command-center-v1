@@ -1,18 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRealtimeStore } from "@/lib/realtime-store";
+import { useState } from "react";
 
 interface CreateProjectFormProps {
   onSubmit: (data: {
     name: string;
     type: string;
-    teamId?: string;
     description?: string;
   }) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
   error?: string | null;
+}
+
+const PROJECT_TYPES = [
+  { value: "saas", label: "SAAS" },
+  { value: "web_app", label: "Web App" },
+  { value: "native_app", label: "Native App" },
+  { value: "marketing", label: "Marketing" },
+  { value: "other", label: "Other" },
+];
+
+// AI auto-routes projects to teams based on type
+function getAutoRouteTeam(type: string): string | null {
+  switch (type) {
+    case "saas":
+    case "web_app":
+    case "native_app":
+      return "Engineering"; // These need engineering work
+    case "marketing":
+      return "Marketing";
+    default:
+      return null;
+  }
 }
 
 export function CreateProjectForm({
@@ -22,19 +42,15 @@ export function CreateProjectForm({
   error,
 }: CreateProjectFormProps) {
   const [name, setName] = useState("");
-  const [type, setType] = useState("engineering");
-  const [teamId, setTeamId] = useState("");
+  const [type, setType] = useState("saas");
   const [description, setDescription] = useState("");
-
-  const teamsById = useRealtimeStore((s) => s.teamsById);
-  const teams = useMemo(() => Array.from(teamsById.values()), [teamsById]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const autoTeam = getAutoRouteTeam(type);
     await onSubmit({
       name,
       type,
-      teamId: teamId || undefined,
       description: description || undefined,
     });
   };
@@ -71,28 +87,13 @@ export function CreateProjectForm({
           required
           className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
         >
-          <option value="engineering">Engineering</option>
-          <option value="marketing">Marketing</option>
-          <option value="product">Product</option>
-          <option value="design">Design</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-zinc-700">Team</label>
-        <select
-          value={teamId}
-          onChange={(e) => setTeamId(e.target.value)}
-          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
-        >
-          <option value="">Select team (optional)</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
+          {PROJECT_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </select>
+        <p className="mt-1 text-xs text-zinc-500">AI will auto-route to the right team.</p>
       </div>
 
       <div>

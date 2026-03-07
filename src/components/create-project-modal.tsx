@@ -60,7 +60,7 @@ export function CreateProjectModal({
       <div
         className={
           mobile
-            ? "absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-auto rounded-t-2xl bg-white p-5 shadow-2xl"
+            ? "absolute inset-x-0 bottom-0 max-h-[90dvh] overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 shadow-2xl"
             : "absolute left-1/2 top-1/2 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl"
         }
         onClick={(e) => e.stopPropagation()}

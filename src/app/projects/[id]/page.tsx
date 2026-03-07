@@ -16,6 +16,7 @@ type ProjectDetail = {
   milestones: any[];
   sprints: any[];
   tasks: any[];
+  events: any[];
   stats: {
     totalTasks: number;
     doneTasks: number;
@@ -176,7 +177,7 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const { project, teams, sprints, tasks, stats } = data;
+  const { project, teams, sprints, tasks, events, stats } = data;
   const agents = Array.from(agentsById.values());
 
   return (
@@ -274,6 +275,44 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Activity Timeline */}
+      <Card className="border-zinc-200">
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="text-xs sm:text-sm">Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {events.length === 0 ? (
+            <p className="text-xs sm:text-sm text-zinc-500">No activity yet</p>
+          ) : (
+            <div className="space-y-3">
+              {events.map((event: any) => (
+                <div key={event.id} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="h-2 w-2 rounded-full bg-red-500" />
+                    <div className="w-px flex-1 bg-zinc-200" />
+                  </div>
+                  <div className="flex-1 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm font-medium text-zinc-900">
+                        {event.event_type.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                      </span>
+                      <span className="text-[10px] sm:text-xs text-zinc-400">
+                        {new Date(event.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    {event.payload && Object.keys(event.payload).length > 0 && (
+                      <p className="mt-1 text-[10px] sm:text-xs text-zinc-500">
+                        {JSON.stringify(event.payload).slice(0, 100)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         {/* Left: Teams */}

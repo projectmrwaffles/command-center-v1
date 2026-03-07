@@ -6,6 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 export const dynamic = "force-dynamic";
 
+function getAgentDisplayName(name: string) {
+  if (name === "main") return "Mr. Waffles";
+  return name;
+}
+
 export default async function AgentsPage() {
   const db = createServerClient();
   let agents:
@@ -30,6 +35,7 @@ export default async function AgentsPage() {
     const res = await db
       .from("agents")
       .select("id, name, type, status, last_seen")
+      .not("name", "like", "_archived_%")
       .order("name");
     agents = res.data;
   } catch (err) {
@@ -68,7 +74,7 @@ export default async function AgentsPage() {
             <Card className="active:bg-zinc-50">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-base">{a.name}</CardTitle>
+                  <CardTitle className="text-base">{getAgentDisplayName(a.name)}</CardTitle>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                       a.status === "active"
@@ -110,7 +116,7 @@ export default async function AgentsPage() {
               <tr key={a.id} className="hover:bg-zinc-50">
                 <td className="px-4 py-3">
                   <Link href={`/agents/${a.id}`} className="font-medium text-zinc-900 hover:underline">
-                    {a.name}
+                    {getAgentDisplayName(a.name)}
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-zinc-500">{a.type}</td>

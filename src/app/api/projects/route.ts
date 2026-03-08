@@ -3,6 +3,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { execSync } from "child_process";
 
 /**
+ * Heuristic fallback when AI agent is unavailable
+ */
+function analyzeWorkloadFallback(name: string, type: string, description: string | null): { 
+  complexity: string; 
+  hours: number; 
+  reasoning: string;
+} {
+  const text = `${name} ${description || ""}`.toLowerCase();
+  
+  const highComplexity = ["ai", "ml", "machine learning", "database", "backend", "api", "authentication", "payment", "stripe", "real-time", "realtime", "websocket", "mobile", "ios", "android", "native", "security", "complex", "full-stack", "e-commerce", "admin"];
+  const lowComplexity = ["simple", "basic", "landing", "marketing", "blog", "static", "demo", "test", "prototype", "mockup", "wireframe"];
+  
+  let highCount = highComplexity.filter(w => text.includes(w)).length;
+  let lowCount = lowComplexity.filter(w => text.includes(w)).length;
+  
+  const typeBase: Record<string, number> = { saas: 8, web_app: 6, native_app: 10, marketing: 4, other: 4 };
+  let baseHours = typeBase[type] || 4;
+  
+  if (highCount > lowCount) {
+    baseHours = Math.min(baseHours + (highCount - lowCount) * 2, 16);
+  } else if (lowCount > highCount) {
+    baseHours = Math.max(baseHours - (lowCount - highCount), 2);
+  }
+  
+  return { 
+    complexity: highCount > lowCount ? "high" : lowCount > highCount ? "low" : "medium",
+    hours: Math.max(2, Math.min(baseHours, 16)),
+    reasoning: `Analyzed: ${highCount} complex indicators, ${lowCount} simple`
+  };
+}
+
+/**
  * Invoke the product-lead agent to analyze project workload
  * Returns: { complexity, hours, reasoning }
  */
@@ -11,32 +43,17 @@ async function analyzeWorkloadWithAI(name: string, type: string, description: st
   hours: number; 
   reasoning: string;
 }> {
-  const prompt = `Analyze this project and respond with ONLY valid JSON (no other text):
-{
-  "complexity": "low" | "medium" | "high",
-  "estimated_hours": number between 2-16,
-  "reasoning": "short sentence explaining your estimate"
-}
-
-Project details:
-- name: ${name}
-- type: ${type}
-- description: ${description || "(none)"}`;
+  const prompt = `Analyze this project and respond with ONLY valid JSON:
+{"complexity": "low|medium|high", "estimated_hours": number, "reasoning": "text"}
+Project: name="${name}", type="${type}", description="${description || ""}"`;
 
   try {
-    // Call product-lead agent via CLI
-    const cmd = `openclaw agent --agent product-lead --message '${prompt.replace(/'/g, "\\'")}' --json`;
-    const result = execSync(cmd, { 
-      encoding: 'utf8', 
-      timeout: 60000,
-      maxBuffer: 1024 * 1024
-    });
-    
+    const cmd = `openclaw agent --agent product-lead --message '${prompt.replace(/'/g, "'")}' --json --timeout 30`;
+    const result = execSync(cmd, { encoding: 'utf8', timeout: 30000, maxBuffer: 512 * 1024 });
     const response = JSON.parse(result);
     const text = response?.result?.payloads?.[0]?.text;
     
     if (text) {
-      // Try to extract JSON from the response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -47,19 +64,11 @@ Project details:
         };
       }
     }
-    
-    // Fallback if parsing fails
-    console.error("[Workload Analysis] Failed to parse agent response:", text);
-    throw new Error("Failed to parse agent response");
-    
+    throw new Error("No parseable JSON");
   } catch (e: any) {
-    console.error("[Workload Analysis] Agent invocation failed:", e.message);
-    // Fallback to heuristic if agent fails
-    return {
-      complexity: "medium",
-      hours: 6,
-      reasoning: "Fallback: using default estimate due to agent error"
-    };
+    console.error("[Workload Analysis] Agent failed:", e.message);
+    // Use fallback instead of failing
+    return analyzeWorkloadFallback(name, type, description);
   }
 }
 

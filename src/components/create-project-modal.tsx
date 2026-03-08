@@ -60,12 +60,12 @@ export function CreateProjectModal({
       <div
         className={
           mobile
-            ? "fixed inset-0 z-50 flex flex-col bg-white overflow-y-auto"
+            ? "fixed left-0 right-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-white shadow-xl overflow-y-auto"
             : "absolute left-1/2 top-1/2 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl"
         }
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-4 shrink-0">
+        <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-900">New Project</h2>
             <p className="text-sm text-zinc-500">Create a project and optionally upload docs.</p>
@@ -145,7 +145,7 @@ export function CreateProjectModal({
         />
 
         {/* Docs upload */}
-        <div className="mt-5 border-t border-zinc-200 pt-4 pb-20">
+        <div className="mt-5 border-t border-zinc-200 pt-4">
           <div className="mb-2 text-sm font-medium text-zinc-900">Upload docs (optional)</div>
           <p className="mb-3 text-xs text-zinc-500">PRD PDF or images. Stored privately in project_docs.</p>
 

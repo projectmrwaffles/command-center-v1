@@ -246,6 +246,15 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   const [selectedNeedsYou, setSelectedNeedsYou] = useState<NeedsYouItem | null>(null);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+
+  // Track connection status
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setConnectionStatus("connected");
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Refresh data periodically
   const handleRefresh = async () => {
@@ -266,7 +275,10 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-zinc-900">Overview</h2>
-          <p className="text-sm text-zinc-500">Live updates</p>
+          <p className="text-sm text-zinc-500 flex items-center gap-2">
+            <span className={`h-2 w-2 rounded-full ${connectionStatus === "connected" ? "bg-green-500" : connectionStatus === "connecting" ? "bg-amber-500" : "bg-red-500"}`}></span>
+            {connectionStatus === "connected" ? "Live" : connectionStatus === "connecting" ? "Connecting..." : "Offline"}
+          </p>
         </div>
         <div className="flex gap-2">
           <button

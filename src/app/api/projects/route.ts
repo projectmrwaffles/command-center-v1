@@ -1,16 +1,64 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
-// Estimate project complexity and sprint hours based on type
-function getProjectComplexity(type: string): { complexity: string; hours: number } {
-  const complexityMap: Record<string, { complexity: string; hours: number }> = {
-    saas: { complexity: "high", hours: 8 },
-    web_app: { complexity: "medium", hours: 6 },
-    native_app: { complexity: "high", hours: 8 },
-    marketing: { complexity: "low", hours: 4 },
-    other: { complexity: "medium", hours: 4 },
+/**
+ * AI Workload Analyzer - Analyzes project to determine sprint duration
+ * In V2, this will call the actual project manager agent (product-lead)
+ * For now, uses intelligent keyword-based analysis
+ */
+function analyzeWorkload(name: string, type: string, description: string | null): { 
+  complexity: string; 
+  hours: number; 
+  reasoning: string;
+} {
+  const text = `${name} ${description || ""}`.toLowerCase();
+  
+  // High complexity indicators
+  const highComplexity = [
+    "ai", "ml", "machine learning", "neural", "database", "backend", 
+    "api", "authentication", "payment", "stripe", "integration",
+    "real-time", "realtime", "websocket", "streaming", "video",
+    "mobile", "ios", "android", "native", "complex", "security"
+  ];
+  
+  // Low complexity indicators  
+  const lowComplexity = [
+    "simple", "basic", "landing", "marketing", "blog", "static",
+    "demo", "test", "prototype", "mockup", "wireframe"
+  ];
+
+  // Count complexity indicators
+  let highCount = highComplexity.filter(w => text.includes(w)).length;
+  let lowCount = lowComplexity.filter(w => text.includes(w)).length;
+
+  // Base hours by project type
+  const typeBase: Record<string, number> = {
+    saas: 8,
+    web_app: 6,
+    native_app: 10,
+    marketing: 4,
+    other: 4,
   };
-  return complexityMap[type] || { complexity: "medium", hours: 4 };
+  
+  let baseHours = typeBase[type] || 4;
+  let complexity = "medium";
+  let reasoning = `Base: ${baseHours}h for ${type}`;
+
+  // Adjust based on description analysis
+  if (highCount > lowCount) {
+    baseHours = Math.min(baseHours + (highCount - lowCount) * 2, 16);
+    complexity = "high";
+    reasoning += `, +${(highCount - lowCount) * 2}h for complexity indicators`;
+  } else if (lowCount > highCount) {
+    baseHours = Math.max(baseHours - (lowCount - highCount), 2);
+    complexity = "low";
+    reasoning += `, -${(lowCount - highCount)}h for simplicity indicators`;
+  }
+
+  // Cap at reasonable bounds
+  const hours = Math.max(2, Math.min(baseHours, 16));
+  
+  return { complexity, hours, reasoning };
 }
 
 // Auto-route projects to teams based on type
@@ -39,6 +87,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    // AI Workload Analysis - determines sprint duration
+    const workload = analyzeWorkload(name, type, description || null);
+    
+    console.log(`[Workload Analysis] ${name}: ${workload.hours}h (${workload.complexity}) - ${workload.reasoning}`);
+
     // Auto-route to team based on type (if no team specified)
     const autoTeamId = teamId || getAutoRouteTeamId(type);
 
@@ -61,17 +114,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
     }
 
-    // Auto-create initial sprint (same-day, 4 hours)
+    // Auto-create sprint based on AI-analyzed workload
     const sprintName = "Sprint 1";
     const startDate = new Date().toISOString().split("T")[0];
-    const endDate = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString().split("T")[0]; // 4 hours from now
+    const endDate = new Date(Date.now() + workload.hours * 60 * 60 * 1000).toISOString();
 
     const { data: sprint, error: sprintError } = await db
       .from("sprints")
       .insert({
         project_id: project.id,
         name: sprintName,
-        goal: "Initial setup and planning",
+        goal: `AI-analyzed workload: ${workload.complexity} complexity (${workload.hours}h estimated)`,
         start_date: startDate,
         end_date: endDate,
         status: "active",
@@ -81,12 +134,11 @@ export async function POST(req: NextRequest) {
 
     if (sprintError) {
       console.error("[API /projects] sprint insert error:", sprintError);
-      // Non-fatal, continue
     }
 
-    // Log project_created event
+    // Log project_created event with AI analysis
     const { error: eventError } = await db.from("agent_events").insert({
-      agent_id: null, // System event
+      agent_id: null,
       project_id: project.id,
       event_type: "project_created",
       payload: {
@@ -95,12 +147,12 @@ export async function POST(req: NextRequest) {
         team_id: autoTeamId,
         description: description || null,
         sprint_id: sprint?.id || null,
+        workload_analysis: workload,
       },
     });
 
     if (eventError) {
       console.error("[API /projects] event log error:", eventError);
-      // Non-fatal, continue
     }
 
     // Add team members to project if team assigned
@@ -136,7 +188,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ project, sprint }, { status: 201 });
+    return NextResponse.json({ project, sprint, workload }, { status: 201 });
   } catch (e: any) {
     console.error("[API /projects] exception:", e);
     return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });

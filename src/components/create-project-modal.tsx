@@ -60,12 +60,12 @@ export function CreateProjectModal({
       <div
         className={
           mobile
-            ? "fixed left-0 right-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-white shadow-xl overflow-y-auto"
+            ? "absolute left-0 right-0 bottom-0 top-[15vh] bg-white rounded-t-2xl shadow-2xl flex flex-col"
             : "absolute left-1/2 top-1/2 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl"
         }
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="shrink-0 p-4 pb-2 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-900">New Project</h2>
             <p className="text-sm text-zinc-500">Create a project and optionally upload docs.</p>
@@ -79,6 +79,8 @@ export function CreateProjectModal({
           </button>
         </div>
 
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
         <CreateProjectForm
           onSubmit={async (data) => {
             const project = await createProject(data);
@@ -174,6 +176,7 @@ export function CreateProjectModal({
             </ul>
           )}
         </div>
+        </div>{/* End scrollable */}
       </div>
     </div>
   );

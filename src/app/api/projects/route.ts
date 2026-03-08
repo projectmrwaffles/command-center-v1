@@ -85,12 +85,12 @@ const TEAMS = {
 function getAutoRouteTeamIds(type: string): string[] {
   const teamMap: Record<string, string[]> = {
     saas: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
-    web_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT],
+    web_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
     native_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
-    marketing: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT],
-    other: [TEAMS.PRODUCT, TEAMS.ENGINEERING],
+    marketing: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT], // No QA for marketing
+    other: [TEAMS.PRODUCT, TEAMS.ENGINEERING, TEAMS.QA],
   };
-  return teamMap[type] || [TEAMS.PRODUCT];
+  return teamMap[type] || [TEAMS.PRODUCT, TEAMS.QA];
 }
 
 export async function POST(req: NextRequest) {

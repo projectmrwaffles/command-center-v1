@@ -72,16 +72,25 @@ Project: name="${name}", type="${type}", description="${description || ""}"`;
   }
 }
 
-// Auto-route projects to teams based on type
-function getAutoRouteTeamId(type: string): string | undefined {
-  const teamMap: Record<string, string | undefined> = {
-    saas: "11111111-1111-1111-1111-000000000001", // Engineering
-    web_app: "11111111-1111-1111-1111-000000000001", // Engineering
-    native_app: "11111111-1111-1111-1111-000000000001", // Engineering
-    marketing: "11111111-1111-1111-1111-000000000004", // Marketing
-    other: undefined,
+// Teams IDs
+const TEAMS = {
+  ENGINEERING: "11111111-1111-1111-1111-000000000001",
+  DESIGN: "11111111-1111-1111-1111-000000000002",
+  PRODUCT: "11111111-1111-1111-1111-000000000003",
+  MARKETING: "11111111-1111-1111-1111-000000000004",
+  QA: "11111111-1111-1111-1111-000000000005",
+};
+
+// Auto-route projects to ALL relevant teams based on type
+function getAutoRouteTeamIds(type: string): string[] {
+  const teamMap: Record<string, string[]> = {
+    saas: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
+    web_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT],
+    native_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
+    marketing: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT],
+    other: [TEAMS.PRODUCT, TEAMS.ENGINEERING],
   };
-  return teamMap[type] || undefined;
+  return teamMap[type] || [TEAMS.PRODUCT];
 }
 
 export async function POST(req: NextRequest) {
@@ -103,7 +112,8 @@ export async function POST(req: NextRequest) {
     console.log(`[Workload Analysis] ${name}: ${workload.hours}h (${workload.complexity}) - ${workload.reasoning}`);
 
     // Auto-route to team based on type (if no team specified)
-    const autoTeamId = teamId || getAutoRouteTeamId(type);
+    const autoTeamIds = teamId ? [teamId] : getAutoRouteTeamIds(type);
+    const primaryTeamId = autoTeamIds[0]; // For backward compatibility
 
     // Create project
     const { data: project, error } = await db
@@ -111,7 +121,7 @@ export async function POST(req: NextRequest) {
       .insert({
         name,
         type,
-        team_id: autoTeamId,
+        team_id: primaryTeamId,
         description: description || null,
         status: "active",
         progress_pct: 0,
@@ -154,7 +164,7 @@ export async function POST(req: NextRequest) {
       payload: {
         name,
         type,
-        team_id: autoTeamId,
+        team_ids: autoTeamIds,
         description: description || null,
         sprint_id: sprint?.id || null,
         workload_analysis: workload,
@@ -165,12 +175,12 @@ export async function POST(req: NextRequest) {
       console.error("[API /projects] event log error:", eventError);
     }
 
-    // Add team members to project if team assigned
-    if (autoTeamId) {
+    // Add team members from ALL assigned teams
+    for (const teamId of autoTeamIds) {
       const { data: teamMembers } = await db
         .from("team_members")
         .select("agent_id")
-        .eq("team_id", autoTeamId);
+        .eq("team_id", teamId);
 
       if (teamMembers?.length) {
         // Create initial task for each team member
@@ -191,12 +201,23 @@ export async function POST(req: NextRequest) {
           project_id: project.id,
           event_type: "team_assigned",
           payload: {
-            team_id: autoTeamId,
+            team_id: teamId,
             member_count: teamMembers.length,
           },
         });
       }
-    }
+    } // End for loop
+
+    // Log planning_started event
+    await db.from("agent_events").insert({
+      agent_id: null,
+      project_id: project.id,
+      event_type: "planning_started",
+      payload: {
+        teams_assigned: autoTeamIds.length,
+        team_ids: autoTeamIds,
+      },
+    });
 
     return NextResponse.json({ project, sprint, workload }, { status: 201 });
   } catch (e: any) {

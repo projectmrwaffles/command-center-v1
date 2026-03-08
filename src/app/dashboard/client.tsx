@@ -311,7 +311,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
               <p className="text-sm text-zinc-500">No active projects.</p>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {projectCards.slice(0, 4).map((p) => (
+                {projectCards.map((p) => (
                   <ProjectCard key={p.id} project={p} />
                 ))}
               </div>

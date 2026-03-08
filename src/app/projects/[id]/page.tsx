@@ -79,6 +79,9 @@ export default function ProjectDetailPage() {
   const [showSprintModal, setShowSprintModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [taskStatus, setTaskStatus] = useState("");
+  const [taskNotes, setTaskNotes] = useState("");
   const [newSprintName, setNewSprintName] = useState("");
   const [newSprintGoal, setNewSprintGoal] = useState("");
 
@@ -177,6 +180,47 @@ export default function ProjectDetailPage() {
       if (!res.ok) throw new Error("Failed to create task");
       
       setNewTaskTitle("");
+      setNewTaskDesc("");
+      setShowTaskModal(false);
+      // Refresh data
+      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
+      setData(json);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    if (!selectedTask) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          status: taskStatus || selectedTask.status,
+          notes: taskNotes,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update task");
+      
+      setShowTaskModal(false);
+      // Refresh data
+      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
+      setData(json);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
+    if (!confirm("Delete this task?")) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete task");
+      
       setShowTaskModal(false);
       // Refresh data
       const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
@@ -496,55 +540,111 @@ export default function ProjectDetailPage() {
               <div className="mt-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Title</label>
-                  <p className="text-sm text-zinc-900">{selectedTask.title}</p>
+                  <input
+                    type="text"
+                    defaultValue={selectedTask.title}
+                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm bg-zinc-50"
+                    readOnly
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Status</label>
-                  <p className="text-sm text-zinc-900 capitalize">{selectedTask.status?.replace("_", " ")}</p>
+                  <select
+                    value={taskStatus || selectedTask.status}
+                    onChange={e => setTaskStatus(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                  >
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="done">Done</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Assignee</label>
-                  <p className="text-sm text-zinc-900">
+                  <p className="text-sm text-zinc-900 mt-1">
                     {selectedTask.assignee_agent_id 
                       ? agentsById.get(selectedTask.assignee_agent_id)?.name || "Unknown"
                       : "Unassigned"}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700">Description / Notes</label>
+                  <label className="block text-sm font-medium text-zinc-700">Notes / Directions</label>
                   <textarea 
-                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    value={taskNotes}
+                    onChange={e => setTaskNotes(e.target.value)}
                     placeholder="Add notes or directions for this task..."
                     rows={4}
+                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                   />
                 </div>
               </div>
             ) : (
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-zinc-700">Task Title</label>
-                <input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={e => setNewTaskTitle(e.target.value)}
-                  placeholder="Enter task title..."
-                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                />
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700">Task Title <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={e => setNewTaskTitle(e.target.value)}
+                    placeholder="Enter task title..."
+                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700">Description</label>
+                  <textarea
+                    value={newTaskDesc}
+                    onChange={e => setNewTaskDesc(e.target.value)}
+                    placeholder="Describe what needs to be done..."
+                    rows={3}
+                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                  />
+                </div>
               </div>
             )}
             
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex gap-2">
               <button
                 onClick={() => setShowTaskModal(false)}
                 className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 Cancel
               </button>
-              <button
-                onClick={selectedTask ? () => setShowTaskModal(false) : handleCreateTask}
-                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
-                {selectedTask ? "Close" : "Create"}
-              </button>
+              {selectedTask ? (
+                <>
+                  <button
+                    onClick={handleUpdateTask}
+                    className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                  {selectedTask.status !== "done" && (
+                    <button
+                      onClick={() => { setTaskStatus("done"); handleUpdateTask(); }}
+                      className="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+                      title="Mark Done"
+                    >
+                      ✓
+                    </button>
+                  )}
+                  <button
+                    onClick={handleDeleteTask}
+                    className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleCreateTask}
+                  disabled={!newTaskTitle.trim()}
+                  className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  Create
+                </button>
+              )}
             </div>
           </div>
         </div>

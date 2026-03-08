@@ -1,64 +1,66 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+import { execSync } from "child_process";
 
 /**
- * AI Workload Analyzer - Analyzes project to determine sprint duration
- * In V2, this will call the actual project manager agent (product-lead)
- * For now, uses intelligent keyword-based analysis
+ * Invoke the product-lead agent to analyze project workload
+ * Returns: { complexity, hours, reasoning }
  */
-function analyzeWorkload(name: string, type: string, description: string | null): { 
+async function analyzeWorkloadWithAI(name: string, type: string, description: string | null): Promise<{ 
   complexity: string; 
   hours: number; 
   reasoning: string;
-} {
-  const text = `${name} ${description || ""}`.toLowerCase();
-  
-  // High complexity indicators
-  const highComplexity = [
-    "ai", "ml", "machine learning", "neural", "database", "backend", 
-    "api", "authentication", "payment", "stripe", "integration",
-    "real-time", "realtime", "websocket", "streaming", "video",
-    "mobile", "ios", "android", "native", "complex", "security"
-  ];
-  
-  // Low complexity indicators  
-  const lowComplexity = [
-    "simple", "basic", "landing", "marketing", "blog", "static",
-    "demo", "test", "prototype", "mockup", "wireframe"
-  ];
+}> {
+  const prompt = `Analyze this project and respond with ONLY valid JSON (no other text):
+{
+  "complexity": "low" | "medium" | "high",
+  "estimated_hours": number between 2-16,
+  "reasoning": "short sentence explaining your estimate"
+}
 
-  // Count complexity indicators
-  let highCount = highComplexity.filter(w => text.includes(w)).length;
-  let lowCount = lowComplexity.filter(w => text.includes(w)).length;
+Project details:
+- name: ${name}
+- type: ${type}
+- description: ${description || "(none)"}`;
 
-  // Base hours by project type
-  const typeBase: Record<string, number> = {
-    saas: 8,
-    web_app: 6,
-    native_app: 10,
-    marketing: 4,
-    other: 4,
-  };
-  
-  let baseHours = typeBase[type] || 4;
-  let complexity = "medium";
-  let reasoning = `Base: ${baseHours}h for ${type}`;
-
-  // Adjust based on description analysis
-  if (highCount > lowCount) {
-    baseHours = Math.min(baseHours + (highCount - lowCount) * 2, 16);
-    complexity = "high";
-    reasoning += `, +${(highCount - lowCount) * 2}h for complexity indicators`;
-  } else if (lowCount > highCount) {
-    baseHours = Math.max(baseHours - (lowCount - highCount), 2);
-    complexity = "low";
-    reasoning += `, -${(lowCount - highCount)}h for simplicity indicators`;
+  try {
+    // Call product-lead agent via CLI
+    const cmd = `openclaw agent --agent product-lead --message '${prompt.replace(/'/g, "\\'")}' --json`;
+    const result = execSync(cmd, { 
+      encoding: 'utf8', 
+      timeout: 60000,
+      maxBuffer: 1024 * 1024
+    });
+    
+    const response = JSON.parse(result);
+    const text = response?.result?.payloads?.[0]?.text;
+    
+    if (text) {
+      // Try to extract JSON from the response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          complexity: parsed.complexity || "medium",
+          hours: Math.max(2, Math.min(parsed.estimated_hours || 8, 16)),
+          reasoning: parsed.reasoning || "AI analysis completed"
+        };
+      }
+    }
+    
+    // Fallback if parsing fails
+    console.error("[Workload Analysis] Failed to parse agent response:", text);
+    throw new Error("Failed to parse agent response");
+    
+  } catch (e: any) {
+    console.error("[Workload Analysis] Agent invocation failed:", e.message);
+    // Fallback to heuristic if agent fails
+    return {
+      complexity: "medium",
+      hours: 6,
+      reasoning: "Fallback: using default estimate due to agent error"
+    };
   }
-
-  // Cap at reasonable bounds
-  const hours = Math.max(2, Math.min(baseHours, 16));
-  
-  return { complexity, hours, reasoning };
 }
 
 // Auto-route projects to teams based on type
@@ -87,9 +89,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    // AI Workload Analysis - determines sprint duration
-    const workload = analyzeWorkload(name, type, description || null);
-    
+    // Invoke product-lead agent to analyze workload
+    const workload = await analyzeWorkloadWithAI(name, type, description || null);
     console.log(`[Workload Analysis] ${name}: ${workload.hours}h (${workload.complexity}) - ${workload.reasoning}`);
 
     // Auto-route to team based on type (if no team specified)
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
       .insert({
         project_id: project.id,
         name: sprintName,
-        goal: `AI-analyzed workload: ${workload.complexity} complexity (${workload.hours}h estimated)`,
+        goal: `AI-analyzed workload: ${workload.complexity} complexity (${workload.hours}h estimated) - ${workload.reasoning}`,
         start_date: startDate,
         end_date: endDate,
         status: "active",

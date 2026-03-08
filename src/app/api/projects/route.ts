@@ -1,6 +1,18 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
+// Estimate project complexity and sprint hours based on type
+function getProjectComplexity(type: string): { complexity: string; hours: number } {
+  const complexityMap: Record<string, { complexity: string; hours: number }> = {
+    saas: { complexity: "high", hours: 8 },
+    web_app: { complexity: "medium", hours: 6 },
+    native_app: { complexity: "high", hours: 8 },
+    marketing: { complexity: "low", hours: 4 },
+    other: { complexity: "medium", hours: 4 },
+  };
+  return complexityMap[type] || { complexity: "medium", hours: 4 };
+}
+
 // Auto-route projects to teams based on type
 function getAutoRouteTeamId(type: string): string | undefined {
   const teamMap: Record<string, string | undefined> = {
@@ -49,10 +61,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
     }
 
-    // Auto-create initial sprint
+    // Auto-create initial sprint (same-day, 4 hours)
     const sprintName = "Sprint 1";
     const startDate = new Date().toISOString().split("T")[0];
-    const endDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const endDate = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString().split("T")[0]; // 4 hours from now
 
     const { data: sprint, error: sprintError } = await db
       .from("sprints")

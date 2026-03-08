@@ -80,8 +80,7 @@ export default function ProjectDetailPage() {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
-  const [taskStatus, setTaskStatus] = useState("");
-  const [taskNotes, setTaskNotes] = useState("");
+  const [taskDesc, setTaskDesc] = useState("");
   const [newSprintName, setNewSprintName] = useState("");
   const [newSprintGoal, setNewSprintGoal] = useState("");
 
@@ -190,39 +189,16 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleUpdateTask = async () => {
-    if (!selectedTask) return;
+  const handleUpdateTaskDesc = async () => {
+    if (!selectedTask || !taskDesc.trim()) return;
     try {
-      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
+      await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          status: taskStatus || selectedTask.status,
-          notes: taskNotes,
-        }),
+        body: JSON.stringify({ notes: taskDesc }),
       });
-      if (!res.ok) throw new Error("Failed to update task");
       
       setShowTaskModal(false);
-      // Refresh data
-      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
-      setData(json);
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  const handleDeleteTask = async () => {
-    if (!selectedTask) return;
-    if (!confirm("Delete this task?")) return;
-    try {
-      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete task");
-      
-      setShowTaskModal(false);
-      // Refresh data
       const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
       setData(json);
     } catch (e: any) {
@@ -258,6 +234,7 @@ export default function ProjectDetailPage() {
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
+    setTaskDesc(task.description || "");
     setShowTaskModal(true);
   };
 
@@ -539,41 +516,16 @@ export default function ProjectDetailPage() {
             {selectedTask ? (
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700">Title</label>
-                  <input
-                    type="text"
-                    defaultValue={selectedTask.title}
-                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm bg-zinc-50"
-                    readOnly
-                  />
+                  <label className="block text-sm font-medium text-zinc-700">Task</label>
+                  <p className="text-sm font-medium text-zinc-900">{selectedTask.title}</p>
+                  <p className="text-xs text-zinc-500 mt-1">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "AI"}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700">Status</label>
-                  <select
-                    value={taskStatus || selectedTask.status}
-                    onChange={e => setTaskStatus(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  >
-                    <option value="todo">To Do</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="blocked">Blocked</option>
-                    <option value="done">Done</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700">Assignee</label>
-                  <p className="text-sm text-zinc-900 mt-1">
-                    {selectedTask.assignee_agent_id 
-                      ? agentsById.get(selectedTask.assignee_agent_id)?.name || "Unknown"
-                      : "Unassigned"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700">Notes / Directions</label>
+                  <label className="block text-sm font-medium text-zinc-700">Description / Directions</label>
                   <textarea 
-                    value={taskNotes}
-                    onChange={e => setTaskNotes(e.target.value)}
-                    placeholder="Add notes or directions for this task..."
+                    value={taskDesc}
+                    onChange={e => setTaskDesc(e.target.value)}
+                    placeholder="Add notes or directions for the AI..."
                     rows={4}
                     className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                   />
@@ -582,12 +534,12 @@ export default function ProjectDetailPage() {
             ) : (
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700">Task Title <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-zinc-700">Task Name</label>
                   <input
                     type="text"
                     value={newTaskTitle}
                     onChange={e => setNewTaskTitle(e.target.value)}
-                    placeholder="Enter task title..."
+                    placeholder="What needs to be done..."
                     className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                   />
                 </div>
@@ -596,7 +548,7 @@ export default function ProjectDetailPage() {
                   <textarea
                     value={newTaskDesc}
                     onChange={e => setNewTaskDesc(e.target.value)}
-                    placeholder="Describe what needs to be done..."
+                    placeholder="Details for the AI..."
                     rows={3}
                     className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                   />
@@ -611,40 +563,13 @@ export default function ProjectDetailPage() {
               >
                 Cancel
               </button>
-              {selectedTask ? (
-                <>
-                  <button
-                    onClick={handleUpdateTask}
-                    className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Save
-                  </button>
-                  {selectedTask.status !== "done" && (
-                    <button
-                      onClick={() => { setTaskStatus("done"); handleUpdateTask(); }}
-                      className="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
-                      title="Mark Done"
-                    >
-                      ✓
-                    </button>
-                  )}
-                  <button
-                    onClick={handleDeleteTask}
-                    className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
-                    title="Delete"
-                  >
-                    ✕
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleCreateTask}
-                  disabled={!newTaskTitle.trim()}
-                  className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  Create
-                </button>
-              )}
+              <button
+                onClick={selectedTask ? handleUpdateTaskDesc : handleCreateTask}
+                disabled={selectedTask ? false : !newTaskTitle.trim()}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {selectedTask ? "Save" : "Create"}
+              </button>
             </div>
           </div>
         </div>

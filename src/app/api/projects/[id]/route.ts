@@ -193,10 +193,36 @@ export async function DELETE(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    // Soft delete using deleted_at
+    // Get all related records to cascade delete
+    const [sprintsRes, jobsRes, approvalsRes] = await Promise.all([
+      db.from("sprints").select("id").eq("project_id", projectId),
+      db.from("jobs").select("id").eq("project_id", projectId),
+      db.from("approvals").select("id").eq("project_id", projectId),
+    ]);
+
+    const sprintIds = sprintsRes.data?.map(s => s.id) ?? [];
+    const jobIds = jobsRes.data?.map(j => j.id) ?? [];
+    const approvalIds = approvalsRes.data?.map(a => a.id) ?? [];
+
+    // Delete in order (respecting FK constraints)
+    if (approvalIds.length > 0) {
+      await db.from("approvals").delete().in("id", approvalIds);
+    }
+    if (sprintIds.length > 0) {
+      await db.from("sprint_items").delete().in("sprint_id", sprintIds);
+      await db.from("sprints").delete().in("id", sprintIds);
+    }
+    if (jobIds.length > 0) {
+      await db.from("ai_usage").delete().in("job_id", jobIds);
+      await db.from("jobs").delete().in("id", jobIds);
+    }
+    await db.from("ai_usage").delete().eq("project_id", projectId);
+    await db.from("agent_events").delete().eq("project_id", projectId);
+
+    // Now delete the project
     const { data, error } = await db
       .from("projects")
-      .update({ deleted_at: new Date().toISOString(), status: "archived" })
+      .delete()
       .eq("id", projectId)
       .select()
       .single();

@@ -75,6 +75,12 @@ export default function ProjectDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showSprintModal, setShowSprintModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newSprintName, setNewSprintName] = useState("");
+  const [newSprintGoal, setNewSprintGoal] = useState("");
 
   const store = useRealtimeStore();
   const agentsById = useRealtimeStore((s) => s.agentsById);
@@ -152,6 +158,63 @@ export default function ProjectDetailPage() {
       setActionLoading(null);
       setShowDeleteConfirm(false);
     }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) return;
+    try {
+      const activeSprint = sprints.find((s: any) => s.status === "active");
+      if (!activeSprint) throw new Error("No active sprint");
+      
+      const res = await fetch(`/api/projects/${projectId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          title: newTaskTitle, 
+          sprint_id: activeSprint.id 
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create task");
+      
+      setNewTaskTitle("");
+      setShowTaskModal(false);
+      // Refresh data
+      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
+      setData(json);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleCreateSprint = async () => {
+    if (!newSprintName.trim()) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/sprints`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          name: newSprintName, 
+          goal: newSprintGoal || "Sprint goals",
+          start_date: new Date().toISOString().split("T")[0],
+          end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create sprint");
+      
+      setNewSprintName("");
+      setNewSprintGoal("");
+      setShowSprintModal(false);
+      // Refresh data
+      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
+      setData(json);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleTaskClick = (task: any) => {
+    setSelectedTask(task);
+    setShowTaskModal(true);
   };
 
   if (loading) {
@@ -354,7 +417,7 @@ export default function ProjectDetailPage() {
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xs sm:text-sm">Sprints</CardTitle>
-                <button className="text-[10px] sm:text-xs text-red-600 hover:underline">+ Create</button>
+                <button onClick={() => setShowSprintModal(true)} className="text-[10px] sm:text-xs text-red-600 hover:underline">+ Create</button>
               </div>
             </CardHeader>
             <CardContent>
@@ -388,7 +451,7 @@ export default function ProjectDetailPage() {
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xs sm:text-sm">Tasks</CardTitle>
-                <button className="text-[10px] sm:text-xs text-red-600 hover:underline">+ New</button>
+                <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="text-[10px] sm:text-xs text-red-600 hover:underline">+ New</button>
               </div>
             </CardHeader>
             <CardContent>
@@ -399,7 +462,11 @@ export default function ProjectDetailPage() {
                   {tasks.map((task: any) => {
                     const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
                     return (
-                      <div key={task.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 p-2">
+                      <div 
+                        key={task.id} 
+                        onClick={() => handleTaskClick(task)}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 p-2 cursor-pointer hover:bg-zinc-50"
+                      >
                         <div className="min-w-0 flex-1">
                           <span className="text-xs sm:text-sm text-zinc-900 truncate block">{task.title}</span>
                           {assignee && (
@@ -416,6 +483,119 @@ export default function ProjectDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Task Modal */}
+      {showTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowTaskModal(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-zinc-900">
+              {selectedTask ? "Task Details" : "New Task"}
+            </h3>
+            
+            {selectedTask ? (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700">Title</label>
+                  <p className="text-sm text-zinc-900">{selectedTask.title}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700">Status</label>
+                  <p className="text-sm text-zinc-900 capitalize">{selectedTask.status?.replace("_", " ")}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700">Assignee</label>
+                  <p className="text-sm text-zinc-900">
+                    {selectedTask.assignee_agent_id 
+                      ? agentsById.get(selectedTask.assignee_agent_id)?.name || "Unknown"
+                      : "Unassigned"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700">Description / Notes</label>
+                  <textarea 
+                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    placeholder="Add notes or directions for this task..."
+                    rows={4}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-zinc-700">Task Title</label>
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={e => setNewTaskTitle(e.target.value)}
+                  placeholder="Enter task title..."
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                />
+              </div>
+            )}
+            
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={() => setShowTaskModal(false)}
+                className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={selectedTask ? () => setShowTaskModal(false) : handleCreateTask}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                {selectedTask ? "Close" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sprint Modal */}
+      {showSprintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSprintModal(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-zinc-900">New Sprint</h3>
+            
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700">Sprint Name</label>
+                <input
+                  type="text"
+                  value={newSprintName}
+                  onChange={e => setNewSprintName(e.target.value)}
+                  placeholder="e.g., Sprint 3"
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700">Goal</label>
+                <input
+                  type="text"
+                  value={newSprintGoal}
+                  onChange={e => setNewSprintGoal(e.target.value)}
+                  placeholder="Sprint goal..."
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={() => setShowSprintModal(false)}
+                className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateSprint}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

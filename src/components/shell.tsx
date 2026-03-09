@@ -63,6 +63,7 @@ function TeamsIcon({ className }: { className?: string }) {
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: OverviewIcon },
   { href: "/projects", label: "Projects", icon: ProjectsIcon },
+  { href: "/campaigns", label: "Campaigns", icon: ProjectsIcon },
   { href: "/agents", label: "Agents", icon: AgentsIcon },
   { href: "/usage", label: "Usage", icon: UsageIcon },
   { href: "/teams", label: "Teams", icon: TeamsIcon },

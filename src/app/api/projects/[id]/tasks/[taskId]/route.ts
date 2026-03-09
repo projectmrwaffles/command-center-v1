@@ -1,6 +1,43 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Check if all tasks are done and update project status
+ */
+async function checkAndCompleteProject(db: any, projectId: string): Promise<void> {
+  const { data: tasks } = await db
+    .from("sprint_items")
+    .select("status")
+    .eq("project_id", projectId);
+  
+  if (!tasks || tasks.length === 0) return;
+  
+  const allDone = tasks.every((t: any) => t.status === "done");
+  
+  if (allDone && tasks.length > 0) {
+    await db
+      .from("projects")
+      .update({ status: "completed", progress_pct: 100 })
+      .eq("id", projectId);
+    
+    await db.from("agent_events").insert({
+      agent_id: null,
+      project_id: projectId,
+      event_type: "project_completed",
+      payload: { message: "All tasks completed" },
+    });
+    
+    console.log(`[Project] Marked as completed: ${projectId}`);
+  } else {
+    const doneCount = tasks.filter((t: any) => t.status === "done").length;
+    const progress = Math.round((doneCount / tasks.length) * 100);
+    await db
+      .from("projects")
+      .update({ progress_pct: progress })
+      .eq("id", projectId);
+  }
+}
+
 export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string; taskId: string }> }
@@ -35,9 +72,15 @@ export async function PATCH(
     // Log event
     await db.from("agent_events").insert({
       agent_id: null,
+      project_id: params.id,
       event_type: "task_updated",
       payload: { task_id: taskId, status, notes },
     });
+
+    // Check if project should be completed
+    if (status) {
+      await checkAndCompleteProject(db, params.id);
+    }
 
     return NextResponse.json({ task: data });
   } catch (e: unknown) {

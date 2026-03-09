@@ -41,6 +41,68 @@ function triggerAgentWork(agentId: string, projectName: string, taskTitle: strin
 }
 
 /**
+ * Create GitHub repository for development projects
+ */
+async function createGitHubRepo(projectName: string, projectId: string): Promise<string | null> {
+  const repoName = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  
+  try {
+    // Check if gh is authenticated
+    execSync('gh auth status', { encoding: 'utf8', timeout: 5000 });
+    
+    // Create repo (private, with .gitignore for Node/Next.js)
+    const cmd = `gh repo create projectmrwaffles/${repoName} --private --clone=false --gitignore Node`;
+    execSync(cmd, { encoding: 'utf8', timeout: 10000 });
+    
+    console.log(`[GitHub] Created repo: projectmrwaffles/${repoName}`);
+    return `https://github.com/projectmrwaffles/${repoName}`;
+  } catch (e) {
+    console.error(`[GitHub] Failed to create repo:`, e);
+    return null;
+  }
+}
+
+/**
+ * Check if all tasks are done and update project status
+ */
+async function checkAndCompleteProject(db: any, projectId: string): Promise<void> {
+  const { data: tasks } = await db
+    .from("sprint_items")
+    .select("status")
+    .eq("project_id", projectId);
+  
+  if (!tasks || tasks.length === 0) return;
+  
+  const allDone = tasks.every((t: any) => t.status === "done");
+  const anyInProgress = tasks.some((t: any) => t.status === "in_progress");
+  
+  if (allDone && tasks.length > 0) {
+    await db
+      .from("projects")
+      .update({ status: "completed", progress_pct: 100 })
+      .eq("id", projectId);
+    
+    // Log completion event
+    await db.from("agent_events").insert({
+      agent_id: null,
+      project_id: projectId,
+      event_type: "project_completed",
+      payload: { message: "All tasks completed" },
+    });
+    
+    console.log(`[Project] Marked as completed: ${projectId}`);
+  } else if (anyInProgress) {
+    // Update progress percentage
+    const doneCount = tasks.filter((t: any) => t.status === "done").length;
+    const progress = Math.round((doneCount / tasks.length) * 100);
+    await db
+      .from("projects")
+      .update({ progress_pct: progress })
+      .eq("id", projectId);
+  }
+}
+
+/**
  * Heuristic fallback when AI agent is unavailable
  */
 /**
@@ -248,7 +310,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ project, sprint, workload }, { status: 201 });
+    // Create GitHub repo for development projects
+    const devTypes = ["saas", "web_app", "native_app"];
+    let githubUrl: string | null = null;
+    if (devTypes.includes(type)) {
+      githubUrl = await createGitHubRepo(name, project.id);
+      if (githubUrl) {
+        await db.from("projects").update({ description: `${description || ""}\n\n🔗 GitHub: ${githubUrl}` }).eq("id", project.id);
+      }
+    }
+
+    return NextResponse.json({ project: { ...project, github_url: githubUrl }, sprint, workload }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

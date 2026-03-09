@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export type SupabaseServerClient = ReturnType<typeof createClient<any>>;
 
 let clientInstance: SupabaseServerClient | null = null;

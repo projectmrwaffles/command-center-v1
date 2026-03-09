@@ -11,6 +11,9 @@ const SUPABASE_URL = 'https://yhyxxjeiogvgdsfvdkfx.supabase.co';
 const AUTH_TOKEN = 'agent-log-123';
 const POLL_INTERVAL = 60000; // 1 minute
 
+// Track previous token counts to calculate delta
+const previousTokens = new Map();
+
 // Agent name to ID mapping
 const AGENT_MAP = {
   'main': '11111111-1111-1111-1111-000000000001',
@@ -36,7 +39,7 @@ function log(message) {
 async function pollAgents() {
   try {
     // Get active sessions from OpenClaw
-    const output = execSync('openclaw sessions --active 5 --json', { encoding: 'utf8' });
+    const output = execSync('openclaw sessions --active 15 --all-agents --json', { encoding: 'utf8' });
     const data = JSON.parse(output);
     
     if (!data.sessions || data.sessions.length === 0) {
@@ -69,28 +72,46 @@ async function pollAgents() {
         })
       });
       
-      // Log usage if available
+      // Log usage delta (new tokens since last check)
       if (session.totalTokensFresh && session.totalTokens > 0) {
-        const cost = session.totalTokens * 0.000001; // Rough estimate
+        const prev = previousTokens.get(agentName) || { input: 0, output: 0, total: 0 };
+        const currInput = session.inputTokens || 0;
+        const currOutput = session.outputTokens || 0;
+        const currTotal = session.totalTokens || 0;
         
-        await fetch('http://localhost:3000/api/agent/log', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${AUTH_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'usage',
-            data: {
-              agent_id: agentId,
-              model: session.model || 'minimax/minimax-m2.5',
-              provider: session.modelProvider || 'openrouter',
-              tokens_in: session.inputTokens || 0,
-              tokens_out: session.outputTokens || 0,
-              cost_usd: cost
-            }
-          })
-        });
+        // Calculate delta (new tokens used)
+        const deltaInput = Math.max(0, currInput - prev.input);
+        const deltaOutput = Math.max(0, currOutput - prev.output);
+        const deltaTotal = deltaInput + deltaOutput;
+        
+        // Only log if there's actual new usage
+        if (deltaTotal > 0) {
+          const cost = deltaTotal * 0.000001; // Rough estimate per 1M tokens
+          
+          await fetch('http://localhost:3000/api/agent/log', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${AUTH_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              action: 'usage',
+              data: {
+                agent_id: agentId,
+                model: session.model || 'minimax/minimax-m2.5',
+                provider: session.modelProvider || 'openrouter',
+                tokens_in: deltaInput,
+                tokens_out: deltaOutput,
+                cost_usd: cost
+              }
+            })
+          });
+          
+          log(`Logged usage for ${agentName}: +${deltaTotal} tokens`);
+        }
+        
+        // Update previous counts
+        previousTokens.set(agentName, { input: currInput, output: currOutput, total: currTotal });
       }
       
       log(`Logged ${agentName}: ${status}`);

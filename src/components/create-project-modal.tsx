@@ -72,7 +72,7 @@ export function CreateProjectModal({
       <div
         className={
           mobile
-            ? "absolute left-0 right-0 bottom-0 top-[15vh] bg-white rounded-t-2xl shadow-2xl flex flex-col"
+            ? "fixed inset-x-0 bottom-0 max-h-[90dvh] bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
             : "absolute left-1/2 top-1/2 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl"
         }
         onClick={(e) => e.stopPropagation()}

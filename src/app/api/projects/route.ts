@@ -3,6 +3,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { execSync } from "child_process";
 
 /**
+ * Get agent name from ID
+ */
+function getAgentNameFromId(agentId: string): string {
+  const agentMap: Record<string, string> = {
+    "11111111-1111-1111-1111-000000000001": "engineer",
+    "11111111-1111-1111-1111-000000000002": "design-lead",
+    "11111111-1111-1111-1111-000000000003": "product-lead",
+    "11111111-1111-1111-1111-000000000004": "marketing-lead",
+    "11111111-1111-1111-1111-000000000005": "qa-auditor",
+    "11111111-1111-1111-1111-000000000006": "tech-lead",
+    "11111111-1111-1111-1111-000000000007": "frontend-dev",
+    "11111111-1111-1111-1111-000000000008": "frontend-dev",
+    "11111111-1111-1111-1111-000000000009": "backend-dev",
+    "11111111-1111-1111-1111-000000000010": "backend-dev",
+    "11111111-1111-1111-1111-000000000014": "product-manager",
+  };
+  return agentMap[agentId] || "product-lead";
+}
+
+/**
+ * Trigger an agent to start working on a task
+ */
+function triggerAgentWork(agentId: string, projectName: string, taskTitle: string): void {
+  try {
+    const agentName = getAgentNameFromId(agentId);
+    const message = `New task assigned for project "${projectName}": ${taskTitle}. Please start working on this task and update the task status to "in_progress" when you begin.`;
+    
+    // Trigger agent asynchronously (don't wait for response)
+    const cmd = `openclaw agent --agent ${agentName} --message '${message.replace(/'/g, "'")}' --timeout 5 &`;
+    execSync(cmd, { encoding: 'utf8', timeout: 5000 });
+    console.log(`[Triggered] ${agentName} for task: ${taskTitle}`);
+  } catch (e) {
+    // Log but don't fail the request
+    console.error(`[Trigger] Failed to trigger agent ${agentId}:`, e);
+  }
+}
+
+/**
  * Heuristic fallback when AI agent is unavailable
  */
 /**
@@ -181,6 +219,9 @@ export async function POST(req: NextRequest) {
           assignee_agent_id: leadMember.agent_id,
           position: 1,
         });
+
+        // Trigger the assigned agent to start working
+        triggerAgentWork(leadMember.agent_id, name, teamTask);
 
         // Log team_assigned event
         await db.from("agent_events").insert({

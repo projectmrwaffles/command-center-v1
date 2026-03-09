@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { useCreateProject } from "@/hooks/use-create-project";
 import { supabaseRealtime } from "@/lib/supabase-realtime";
@@ -52,12 +52,13 @@ export function CreateProjectModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onOpenChange]);
 
-  // reset on open
-  useEffect(() => {
-    if (!open) return;
-    setDocs([]);
-    setDocsError(null);
-    setDocsBusy(false);
+  // reset on open - using useLayoutEffect to avoid render flash
+  useLayoutEffect(() => {
+    if (open) {
+      setDocs([]);
+      setDocsError(null);
+      setDocsBusy(false);
+    }
   }, [open]);
 
   if (!open) return null;

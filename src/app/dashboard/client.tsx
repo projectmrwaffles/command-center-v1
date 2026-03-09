@@ -167,7 +167,23 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     });
   }, [projectsById, sprintsById]);
 
+  // Use server-provided usage data (initial or fallback to realtime rollup)
   const usage24h = useMemo(() => {
+    // If we have initial data from server, use it
+    if (initialData.usage && initialData.usage.totalTokens24h > 0) {
+      return {
+        totalTokens: initialData.usage.totalTokens24h,
+        totalCost: initialData.usage.totalCost24h,
+        topModels: (initialData.usage.topModels || []).map((m: any) => ({
+          model: m.model,
+          provider: m.model?.split('/')[0] || 'openrouter',
+          tokens: m.tokens,
+          cost: m.cost
+        }))
+      };
+    }
+    
+    // Fallback to realtime rollup
     const now = Date.now();
     const cutoff = new Date(now - 24 * 60 * 60 * 1000).toISOString();
     const rows = Array.from(usageRollup.values()).filter((u) => u.bucket_minute >= cutoff);
@@ -189,7 +205,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       .slice(0, 5);
 
     return { totalTokens, totalCost, topModels };
-  }, [usageRollup]);
+  }, [initialData.usage, usageRollup]);
 
   const blockedJobs = useMemo(() => jobs.filter((j) => j.status === "blocked"), [jobs]);
 

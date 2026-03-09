@@ -175,7 +175,15 @@ export async function POST(req: NextRequest) {
       console.error("[API /projects] event log error:", eventError);
     }
 
-    // Add team members from ALL assigned teams
+    // Add team-specific tasks for each team
+    const teamTaskTemplates: Record<string, string> = {
+      [TEAMS.ENGINEERING]: "Set up development environment and architecture",
+      [TEAMS.DESIGN]: "Create initial wireframes and design system",
+      [TEAMS.PRODUCT]: "Define product requirements and user stories",
+      [TEAMS.MARKETING]: "Plan marketing strategy and messaging",
+      [TEAMS.QA]: "Create test plan and quality criteria",
+    };
+
     for (const teamId of autoTeamIds) {
       const { data: teamMembers } = await db
         .from("team_members")
@@ -183,17 +191,18 @@ export async function POST(req: NextRequest) {
         .eq("team_id", teamId);
 
       if (teamMembers?.length) {
-        // Create initial task for each team member
-        for (const member of teamMembers) {
-          await db.from("sprint_items").insert({
-            sprint_id: sprint?.id,
-            project_id: project.id,
-            title: `Initial planning: ${name}`,
-            status: "todo",
-            assignee_agent_id: member.agent_id,
-            position: 1,
-          });
-        }
+        const teamTask = teamTaskTemplates[teamId] || `Work on ${name}`;
+        
+        // Create task for the team lead/primary member
+        const leadMember = teamMembers[0];
+        await db.from("sprint_items").insert({
+          sprint_id: sprint?.id,
+          project_id: project.id,
+          title: teamTask,
+          status: "todo",
+          assignee_agent_id: leadMember.agent_id,
+          position: 1,
+        });
 
         // Log team_assigned event
         await db.from("agent_events").insert({
@@ -203,6 +212,7 @@ export async function POST(req: NextRequest) {
           payload: {
             team_id: teamId,
             member_count: teamMembers.length,
+            task: teamTask,
           },
         });
       }

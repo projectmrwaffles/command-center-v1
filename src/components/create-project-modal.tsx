@@ -92,7 +92,7 @@ export function CreateProjectModal({
         </div>
 
         {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-20">
         <CreateProjectForm
           onSubmit={async (data) => {
             const project = await createProject(data);

@@ -18,20 +18,21 @@ export default async function AgentDetailPage({
   let events: AgentEvent[] = [];
   let error: { message: string; details?: string } | null = null;
 
+  const db = createServerClient();
+  if (!db) {
+    return (
+      <div className="space-y-6">
+        <DbBanner />
+        <ErrorState
+          title="DB not initialized"
+          message="Supabase env missing or migrations not applied."
+          details="Apply migrations in Supabase SQL Editor, then refresh."
+        />
+      </div>
+    );
+  }
+
   try {
-    const db = createServerClient();
-    if (!db) {
-      return (
-        <div className="space-y-6">
-          <DbBanner />
-          <ErrorState
-            title="DB not initialized"
-            message="Supabase env missing or migrations not applied."
-            details="Apply migrations in Supabase SQL Editor, then refresh."
-          />
-        </div>
-      );
-    }
 
     const agentRes = await db
       .from("agents")

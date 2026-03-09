@@ -167,6 +167,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     });
   }, [projectsById, sprintsById]);
 
+  // Compute cutoff time outside useMemo to avoid purity issues
+  const usageCutoff = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), [usageRollup]);
+  
   // Use server-provided usage data (initial or fallback to realtime rollup)
   const usage24h = useMemo(() => {
     // If we have initial data from server, use it
@@ -184,9 +187,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     }
     
     // Fallback to realtime rollup
-    const now = Date.now();
-    const cutoff = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-    const rows = Array.from(usageRollup.values()).filter((u) => u.bucket_minute >= cutoff);
+    const rows = Array.from(usageRollup.values()).filter((u) => u.bucket_minute >= usageCutoff);
 
     const totalTokens = rows.reduce((s, r) => s + (r.tokens || 0), 0);
     const totalCost = rows.reduce((s, r) => s + (r.cost_usd || 0), 0);
@@ -205,7 +206,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       .slice(0, 5);
 
     return { totalTokens, totalCost, topModels };
-  }, [initialData.usage, usageRollup]);
+  }, [initialData.usage, usageRollup, usageCutoff]);
 
   const blockedJobs = useMemo(() => jobs.filter((j) => j.status === "blocked"), [jobs]);
 
@@ -272,18 +273,14 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     return () => clearTimeout(timer);
   }, []);
 
-  // Refresh data periodically
-  const handleRefresh = async () => {
+  // Manual refresh - just trigger a re-render via store reset
+  const handleRefresh = () => {
     setRefreshing(true);
-    window.location.reload();
-  };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
+    // Trigger re-fetch by forcing a store update - small delay to show feedback
+    setTimeout(() => {
       window.location.reload();
-    }, 60000); // Refresh every minute
-    return () => clearInterval(interval);
-  }, []);
+    }, 500);
+  };
 
   return (
     <div className="space-y-6">

@@ -348,6 +348,13 @@ export default function ProjectDetailPage() {
             >
               {actionLoading === "active" ? "..." : "Resume"}
             </button>
+          ) : project.status === "completed" && project.type !== "marketing" ? (
+            <button
+              onClick={() => window.location.href = "/campaigns"}
+              className="rounded-md bg-purple-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-purple-700"
+            >
+              Launch Campaign
+            </button>
           ) : null}
           <button
             onClick={() => setShowDeleteConfirm(true)}

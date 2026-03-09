@@ -6,8 +6,8 @@ import { execSync } from "child_process";
  * Heuristic fallback when AI agent is unavailable
  */
 /**
- * Estimate workload based on teams working in parallel
- * Returns the quickest time with quality output
+ * Estimate AI workload based on teams working in parallel
+ * Returns the quickest time for AI agents to complete
  */
 function estimateWorkloadFromTeams(teamIds: string[]): { 
   complexity: string; 
@@ -15,23 +15,24 @@ function estimateWorkloadFromTeams(teamIds: string[]): {
   reasoning: string;
 } {
   if (teamIds.length === 0) {
-    return { complexity: "low", hours: 2, reasoning: "No teams assigned" };
+    return { complexity: "low", hours: 0.25, reasoning: "No teams assigned" };
   }
   
-  // Each team has base hours for their work
-  const teamHours = teamIds.map(id => TEAM_BASE_HOURS[id] || 3);
-  const maxTeamHours = Math.max(...teamHours);
+  // Each team has base minutes for AI to complete their task
+  const teamMinutes = teamIds.map(id => TEAM_BASE_MINUTES[id] || 15);
+  const maxTeamMinutes = Math.max(...teamMinutes);
   
   // Teams work in parallel, so time is based on longest team work
-  // Add 20% buffer for quality assurance
-  const hoursWithBuffer = Math.ceil(maxTeamHours * 1.2);
+  // Add 30% buffer for AI iteration/refinement
+  const totalMinutes = Math.ceil(maxTeamMinutes * 1.3);
+  const hours = Math.round(totalMinutes / 60 * 10) / 10; // Round to 1 decimal
   
   const complexity = teamIds.length > 3 ? "high" : teamIds.length > 1 ? "medium" : "low";
   
   return { 
     complexity,
-    hours: hoursWithBuffer,
-    reasoning: `${teamIds.length} teams parallel, max ${maxTeamHours}h + 20% buffer`
+    hours: Math.max(0.25, hours), // Minimum 15 min
+    reasoning: `${teamIds.length} AI agents parallel, ~${totalMinutes}min each + 30% buffer`
   };
 }
 
@@ -48,13 +49,14 @@ const TEAMS = {
   QA: "11111111-1111-1111-1111-000000000005",
 };
 
-// Base hours per team type for quality work
-const TEAM_BASE_HOURS: Record<string, number> = {
-  [TEAMS.ENGINEERING]: 4,
-  [TEAMS.DESIGN]: 3,
-  [TEAMS.PRODUCT]: 2,
-  [TEAMS.MARKETING]: 2,
-  [TEAMS.QA]: 2,
+// Base minutes per team type for AI agents (AI works faster than humans)
+// These are estimates for AI to complete initial team task
+const TEAM_BASE_MINUTES: Record<string, number> = {
+  [TEAMS.ENGINEERING]: 30, // Setup + architecture
+  [TEAMS.DESIGN]: 20,      // Wireframes
+  [TEAMS.PRODUCT]: 15,     // Requirements
+  [TEAMS.MARKETING]: 15,   // Strategy
+  [TEAMS.QA]: 20,          // Test plan
 };
 
 // Auto-route projects to ALL relevant teams based on type

@@ -106,15 +106,9 @@ export default function ProjectDetailPage() {
     if (projectId) fetchProject();
   }, [projectId]);
 
-  // Subscribe to realtime updates for this project
+  // Subscribe to realtime updates for this project (live progress)
   useEffect(() => {
-    const handleProjectUpdate = (payload: any) => {
-      if (payload.eventType !== "DELETE" && payload.new?.id === projectId) {
-        setData((prev) => prev ? { ...prev, project: payload.new } : null);
-      }
-    };
-
-    // The store already subscribes, just trigger a refetch on changes
+    // Refetch every 10 seconds for live progress updates
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/projects/${projectId}`);
@@ -123,7 +117,7 @@ export default function ProjectDetailPage() {
           setData(json);
         }
       } catch {}
-    }, 30000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [projectId]);
@@ -361,6 +355,20 @@ export default function ProjectDetailPage() {
           >
             Delete
           </button>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="space-y-1">
+        <div className="flex justify-between text-xs text-zinc-500">
+          <span>Progress</span>
+          <span>{stats.totalTasks > 0 ? Math.round((stats.doneTasks / stats.totalTasks) * 100) : 0}%</span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-full bg-zinc-100">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500"
+            style={{ width: `${stats.totalTasks > 0 ? (stats.doneTasks / stats.totalTasks) * 100 : 0}%` }}
+          />
         </div>
       </div>
 

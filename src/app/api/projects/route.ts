@@ -15,8 +15,8 @@ function analyzeWorkloadFallback(name: string, type: string, description: string
   const highComplexity = ["ai", "ml", "machine learning", "database", "backend", "api", "authentication", "payment", "stripe", "real-time", "realtime", "websocket", "mobile", "ios", "android", "native", "security", "complex", "full-stack", "e-commerce", "admin"];
   const lowComplexity = ["simple", "basic", "landing", "marketing", "blog", "static", "demo", "test", "prototype", "mockup", "wireframe"];
   
-  let highCount = highComplexity.filter(w => text.includes(w)).length;
-  let lowCount = lowComplexity.filter(w => text.includes(w)).length;
+  const highCount = highComplexity.filter(w => text.includes(w)).length;
+  const lowCount = lowComplexity.filter(w => text.includes(w)).length;
   
   const typeBase: Record<string, number> = { saas: 8, web_app: 6, native_app: 10, marketing: 4, other: 4 };
   let baseHours = typeBase[type] || 4;

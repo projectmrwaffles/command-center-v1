@@ -6,8 +6,19 @@ import { useCreateProject } from "@/hooks/use-create-project";
 import { supabaseRealtime } from "@/lib/supabase-realtime";
 
 function useIsMobile() {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
 }
 
 function storageNotConfiguredMessage() {
@@ -26,7 +37,7 @@ export function CreateProjectModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const { isSubmitting, error, createProject } = useCreateProject();
-  const mobile = typeof window !== "undefined" ? useIsMobile() : false;
+  const mobile = useIsMobile();
 
   const [docs, setDocs] = useState<File[]>([]);
   const [docsError, setDocsError] = useState<string | null>(null);

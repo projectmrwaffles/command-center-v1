@@ -13,6 +13,10 @@ type UsageRow = {
   created_at: string;
 };
 
+function getOneDayAgo(): string {
+  return new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+}
+
 export default async function UsagePage() {
   const db = createServerClient();
 
@@ -21,7 +25,7 @@ export default async function UsagePage() {
 
   if (db) {
     try {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oneDayAgo = getOneDayAgo();
       const res = await db
         .from("ai_usage")
         .select("model, provider, total_tokens, cost_usd, created_at")

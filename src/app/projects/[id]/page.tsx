@@ -240,18 +240,50 @@ export default function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
+      <div className="flex flex-col items-center justify-center p-12 gap-4">
+        <div className="h-8 w-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin" />
         <div className="text-zinc-500">Loading project...</div>
       </div>
     );
   }
 
-  if (error || !data?.project) {
+  if (error) {
     return (
       <div className="p-6">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="py-6">
-            <p className="text-red-700">{error || "Project not found"}</p>
+            <div className="flex items-center gap-2 text-red-700 font-medium">
+              <span className="text-xl">⚠️</span>
+              <p>Error loading project</p>
+            </div>
+            <p className="mt-2 text-sm text-red-600">{error}</p>
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Retry
+              </button>
+              <Link href="/projects" className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                ← Back to Projects
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!data?.project) {
+    return (
+      <div className="p-6">
+        <Card className="border-zinc-200">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-2 text-zinc-700 font-medium">
+              <span className="text-xl">🔍</span>
+              <p>Project not found</p>
+            </div>
+            <p className="mt-2 text-sm text-zinc-500">The project you&apos;re looking for doesn&apos;t exist or has been deleted.</p>
             <Link href="/projects" className="mt-4 inline-block text-sm text-red-600 hover:underline">
               ← Back to Projects
             </Link>

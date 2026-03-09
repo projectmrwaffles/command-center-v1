@@ -273,13 +273,46 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     return () => clearTimeout(timer);
   }, []);
 
-  // Manual refresh - just trigger a re-render via store reset
-  const handleRefresh = () => {
+  // Manual refresh - refetch data from API and update store
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Trigger re-fetch by forcing a store update - small delay to show feedback
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
+    try {
+      // Fetch fresh data from API
+      const [agentsRes, projectsRes, needsRes, teamsRes] = await Promise.all([
+        fetch('/api/agent/agents'),
+        fetch('/api/projects'),
+        fetch('/api/agent/agents?filter=needs_you'),
+        fetch('/api/teams'),
+      ]);
+
+      const agentsData = agentsRes.ok ? await agentsRes.json() : [];
+      const projectsData = projectsRes.ok ? await projectsRes.json() : [];
+      const needsData = needsRes.ok ? await needsRes.json() : [];
+      const teamsData = teamsRes.ok ? await teamsRes.json() : [];
+
+      // Update store with fresh data
+      agentsData.forEach((a: any) => store.upsertAgent(a));
+      projectsData.forEach((p: any) => store.upsertProject({ ...p, progress_pct: p.activeSprint?.progress ?? 0 }));
+      needsData.forEach((n: any) => {
+        if (n.type === "approval") {
+          store.upsertApproval({
+            id: n.id,
+            status: "pending",
+            summary: n.title,
+            severity: n.severity,
+            project_id: n.projectId,
+            agent_id: n.agentId,
+            job_id: n.jobId,
+            created_at: n.createdAt,
+          });
+        }
+      });
+      teamsData.forEach((t: any) => store.upsertTeam(t));
+    } catch (e) {
+      console.error('Refresh failed:', e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (

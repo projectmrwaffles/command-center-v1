@@ -104,25 +104,25 @@ async function loadDashboardData(): Promise<DashboardData> {
 
     // Map teams
     const teamsById = new Map<string, string>();
-    (teamsRes.data ?? []).forEach((t: any) => teamsById.set(t.id, t.name));
+    (teamsRes.data ?? []).forEach((t) => teamsById.set(t.id, t.name));
 
     // Map sprints to projects and calculate progress
-    const sprintsByProjectId = new Map<string, any[]>();
-    (sprintsRes.data ?? []).forEach((s: any) => {
+    const sprintsByProjectId = new Map<string, typeof sprintsRes.data>();
+    (sprintsRes.data ?? []).forEach((s) => {
       const arr = sprintsByProjectId.get(s.project_id) ?? [];
       arr.push(s);
       sprintsByProjectId.set(s.project_id, arr);
     });
 
-    const itemsBySprintId = new Map<string, any[]>();
-    (sprintItemsRes.data ?? []).forEach((si: any) => {
+    const itemsBySprintId = new Map<string, typeof sprintItemsRes.data>();
+    (sprintItemsRes.data ?? []).forEach((si) => {
       if (!si.sprint_id) return;
       const arr = itemsBySprintId.get(si.sprint_id) ?? [];
       arr.push(si);
       itemsBySprintId.set(si.sprint_id, arr);
     });
 
-    const projects: ProjectSummary[] = (projectsRes.data ?? []).map((p: any) => {
+    const projects: ProjectSummary[] = (projectsRes.data ?? []).map((p) => {
       const teamName = p.team_id ? teamsById.get(p.team_id) : undefined;
       const projectSprints = sprintsByProjectId.get(p.id) ?? [];
       const activeSprint = projectSprints[0];
@@ -130,12 +130,12 @@ async function loadDashboardData(): Promise<DashboardData> {
       if (activeSprint) {
         const items = itemsBySprintId.get(activeSprint.id) ?? [];
         totalCount = items.length;
-        doneCount = items.filter((i: any) => i.status === "done").length;
+        doneCount = items.filter((i) => i.status === "done").length;
         progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
       }
       // Count approvals and blocked jobs per project
-      const approvalCount = approvals.filter((a: any) => a.project_id === p.id).length;
-      const blockedJobCount = (blockedJobs as any[]).filter((j) => j.project_id === p.id).length;
+      const approvalCount = approvals.filter((a) => a.project_id === p.id).length;
+      const blockedJobCount = blockedJobs.filter((j) => j.project_id === p.id).length;
       return {
         id: p.id,
         name: p.name,

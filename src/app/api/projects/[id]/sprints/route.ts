@@ -47,8 +47,9 @@ export async function POST(
     });
 
     return NextResponse.json({ sprint: data }, { status: 201 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects/:id/sprints] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -65,8 +65,8 @@ Project: name="${name}", type="${type}", description="${description || ""}"`;
       }
     }
     throw new Error("No parseable JSON");
-  } catch (e: any) {
-    console.error("[Workload Analysis] Agent failed:", e.message);
+  } catch (e: unknown) {
+    console.error("[Workload Analysis] Agent failed:", e instanceof Error ? e.message : "Unknown error");
     // Use fallback instead of failing
     return analyzeWorkloadFallback(name, type, description);
   }
@@ -220,8 +220,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ project, sprint, workload }, { status: 201 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

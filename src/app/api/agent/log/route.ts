@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
       case "task_update": {
         const { task_id, status, description } = data;
-        const update: any = { status };
+        const update: { status: string; description?: string } = { status };
         if (description) update.description = description;
         
         const { error } = await db
@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

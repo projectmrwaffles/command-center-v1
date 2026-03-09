@@ -16,7 +16,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const updateData: any = {};
+    const updateData: { status?: string; description?: string } = {};
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.description = notes;
 
@@ -40,9 +40,10 @@ export async function PATCH(
     });
 
     return NextResponse.json({ task: data });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects/:id/tasks/:taskId] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -70,8 +71,9 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects/:id/tasks/:taskId] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -20,10 +20,18 @@ export async function POST(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const { data, error } = await db
+    interface DocumentInput {
+  type: string;
+  title: string;
+  storage_path: string;
+  mime_type: string;
+  size_bytes: number;
+}
+
+const { data, error } = await db
       .from("project_documents")
       .insert(
-        documents.map((d: any) => ({
+        documents.map((d: DocumentInput) => ({
           project_id: projectId,
           type: d.type,
           title: d.title,
@@ -40,8 +48,9 @@ export async function POST(
     }
 
     return NextResponse.json({ documents: data }, { status: 201 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects/:id/documents] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

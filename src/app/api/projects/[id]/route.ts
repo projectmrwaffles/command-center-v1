@@ -57,32 +57,46 @@ export async function GET(
       .select("team_id, teams(id, name)")
       .eq("project_id", projectId);
 
-    const teams = projectTeams?.map((pt: any) => pt.teams).flat() || [];
+    interface TeamWithId {
+  id: string;
+  name: string;
+}
 
-    // Fetch team members with agent info
-    const teamIds = teams.map((t: any) => t?.id).filter(Boolean);
-    let teamMembers: any[] = [];
+interface TeamMemberWithAgent {
+  team_id: string;
+  agent_id: string | null;
+  agents: {
+    name: string;
+    title: string | null;
+    status: string;
+    last_seen: string | null;
+  } | null;
+}
+
+const teams: TeamWithId[] = (projectTeams?.map((pt) => pt.teams).flat().filter(Boolean) as TeamWithId[]) || [];
+    const teamIds = teams.map((t) => t?.id).filter(Boolean) as string[];
+    let teamMembers: TeamMemberWithAgent[] = [];
     if (teamIds.length > 0) {
       const { data: members } = await db
         .from("team_members")
         .select("*, agents(name, title, status, last_seen)")
         .in("team_id", teamIds)
         .eq("project_id", projectId);
-      teamMembers = members || [];
+      teamMembers = (members || []) as TeamMemberWithAgent[];
     }
 
     // Get team stats per team
-    const teamsWithStats = teams.map((team: any) => {
-      const members = teamMembers.filter((m: any) => m.team_id === team?.id);
-      const activeAgents = members.filter((m: any) => m.agents?.status === "active").length;
-      const teamTasks = tasks?.filter((t: any) => t.assignee_agent_id && members.some((m: any) => m.agent_id === t.assignee_agent_id)) || [];
-      const blockedTasks = teamTasks.filter((t: any) => t.status === "blocked").length;
-      const inProgressTasks = teamTasks.filter((t: any) => t.status === "in_progress").length;
+    const teamsWithStats = teams.map((team) => {
+      const members = teamMembers.filter((m) => m.team_id === team?.id);
+      const activeAgents = members.filter((m) => m.agents?.status === "active").length;
+      const teamTasks = tasks?.filter((t) => t.assignee_agent_id && members.some((m) => m.agent_id === t.assignee_agent_id)) || [];
+      const blockedTasks = teamTasks.filter((t) => t.status === "blocked").length;
+      const inProgressTasks = teamTasks.filter((t) => t.status === "in_progress").length;
       
-      let status = "waiting";
-      if (blockedTasks > 0) status = "blocked";
-      else if (inProgressTasks > 0) status = "active";
-      else if (teamTasks.length > 0) status = "on_track";
+      let teamStatus = "waiting";
+      if (blockedTasks > 0) teamStatus = "blocked";
+      else if (inProgressTasks > 0) teamStatus = "active";
+      else if (teamTasks.length > 0) teamStatus = "on_track";
 
       return {
         ...team,
@@ -90,13 +104,13 @@ export async function GET(
         activeAgents,
         taskCount: teamTasks.length,
         blockedTasks,
-        status,
-        members: members.map((m: any) => m.agents).filter(Boolean),
+        status: teamStatus,
+        members: members.map((m) => m.agents).filter(Boolean),
       };
     });
 
     // Calculate milestone-like aggregates from sprints
-    const milestones = sprints?.map((sprint: any) => ({
+    const milestones = sprints?.map((sprint) => ({
       id: sprint.id,
       name: sprint.name,
       goal: sprint.goal,
@@ -108,7 +122,7 @@ export async function GET(
 
     // Calculate overall progress
     const totalTasks = tasks?.length || 0;
-    const doneTasks = tasks?.filter((t: any) => t.status === "done").length || 0;
+    const doneTasks = tasks?.filter((t) => t.status === "done").length || 0;
     const overallProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : project.progress_pct || 0;
 
     return NextResponse.json({
@@ -124,13 +138,14 @@ export async function GET(
       stats: {
         totalTasks,
         doneTasks,
-        blockedTasks: tasks?.filter((t: any) => t.status === "blocked").length || 0,
-        inProgressTasks: tasks?.filter((t: any) => t.status === "in_progress").length || 0,
+        blockedTasks: tasks?.filter((t) => t.status === "blocked").length || 0,
+        inProgressTasks: tasks?.filter((t) => t.status === "in_progress").length || 0,
       },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects/:id] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -170,9 +185,10 @@ export async function PATCH(
     }
 
     return NextResponse.json({ project: data });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects/:id] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -233,8 +249,9 @@ export async function DELETE(
     }
 
     return NextResponse.json({ project: data });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[API /projects/:id] exception:", e);
-    return NextResponse.json({ error: e?.message || "Internal error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

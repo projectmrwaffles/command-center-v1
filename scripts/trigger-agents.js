@@ -40,15 +40,16 @@ async function triggerAgent(agentId, projectName, taskTitle) {
     return;
   }
   
-  const message = `New task for project "${projectName}": ${taskTitle}. Start working on this and update the task status to "in_progress" when you begin.`;
+  const message = `New task for project "${projectName}": ${taskTitle}. Start working on this.`;
   
   try {
     console.log(`Triggering ${agentName} for: ${taskTitle}`);
-    execSync(`openclaw agent --agent ${agentName} --message '${message.replace(/'/g, "'")}' --timeout 60`, {
+    // Run in background with nohup to avoid blocking
+    execSync(`nohup openclaw agent --agent ${agentName} --message '${message.replace(/'/g, "'")}' --timeout 30 > /tmp/agent-${agentName}.log 2>&1 &`, {
       encoding: 'utf8',
-      timeout: 60000
+      stdio: 'ignore'
     });
-    console.log(`✓ Triggered ${agentName}`);
+    console.log(`✓ Triggered ${agentName} (background)`);
   } catch (e) {
     console.error(`Failed to trigger ${agentName}:`, e.message);
   }

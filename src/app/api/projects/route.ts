@@ -6,18 +6,22 @@ import { execSync } from "child_process";
  * Get agent name from ID
  */
 function getAgentNameFromId(agentId: string): string {
+  // Map DB agent IDs to OpenClaw agent names (from openclaw agents list)
   const agentMap: Record<string, string> = {
-    "11111111-1111-1111-1111-000000000001": "engineer",
-    "11111111-1111-1111-1111-000000000002": "design-lead",
-    "11111111-1111-1111-1111-000000000003": "product-lead",
-    "11111111-1111-1111-1111-000000000004": "marketing-lead",
-    "11111111-1111-1111-1111-000000000005": "qa-auditor",
-    "11111111-1111-1111-1111-000000000006": "tech-lead",
-    "11111111-1111-1111-1111-000000000007": "frontend-dev",
-    "11111111-1111-1111-1111-000000000008": "frontend-dev",
-    "11111111-1111-1111-1111-000000000009": "backend-dev",
-    "11111111-1111-1111-1111-000000000010": "backend-dev",
-    "11111111-1111-1111-1111-000000000014": "product-manager",
+    "11111111-1111-1111-1111-000000000001": "main",              // Mr. Waffles (main orchestrator)
+    "11111111-1111-1111-1111-000000000002": "product-lead",
+    "11111111-1111-1111-1111-000000000003": "head-of-design",
+    "11111111-1111-1111-1111-000000000004": "product-designer-app",
+    "11111111-1111-1111-1111-000000000005": "web-designer-marketing",
+    "11111111-1111-1111-1111-000000000006": "tech-lead-architect",
+    "11111111-1111-1111-1111-000000000007": "frontend-engineer",
+    "11111111-1111-1111-1111-000000000008": "backend-engineer",
+    "11111111-1111-1111-1111-000000000009": "mobile-engineer",
+    "11111111-1111-1111-1111-000000000010": "seo-web-developer",
+    "11111111-1111-1111-1111-000000000011": "growth-lead",
+    "11111111-1111-1111-1111-000000000012": "marketing-producer",
+    "11111111-1111-1111-1111-000000000013": "marketing-ops-analytics",
+    "11111111-1111-1111-1111-000000000014": "qa-auditor",
   };
   return agentMap[agentId] || "product-lead";
 }
@@ -28,14 +32,14 @@ function getAgentNameFromId(agentId: string): string {
 function triggerAgentWork(agentId: string, projectName: string, taskTitle: string): void {
   try {
     const agentName = getAgentNameFromId(agentId);
-    const message = `New task assigned for project "${projectName}": ${taskTitle}. Please start working on this task and update the task status to "in_progress" when you begin.`;
+    const message = `New task for project "${projectName}": ${taskTitle}. Start working on this and update the task status to "in_progress" when you begin.`;
     
-    // Trigger agent asynchronously (don't wait for response)
-    const cmd = `openclaw agent --agent ${agentName} --message '${message.replace(/'/g, "'")}' --timeout 5 &`;
-    execSync(cmd, { encoding: 'utf8', timeout: 5000 });
-    console.log(`[Triggered] ${agentName} for task: ${taskTitle}`);
+    // Trigger agent - run in background to not block the request
+    // Use nohup to ensure it continues running
+    const cmd = `nohup openclaw agent --agent ${agentName} --message '${message.replace(/'/g, "'")}' --timeout 30 > /tmp/agent-${agentName}.log 2>&1 &`;
+    execSync(cmd, { encoding: 'utf8' });
+    console.log(`[Triggered] Agent ${agentName} (${agentId}) for task: ${taskTitle}`);
   } catch (e) {
-    // Log but don't fail the request
     console.error(`[Trigger] Failed to trigger agent ${agentId}:`, e);
   }
 }

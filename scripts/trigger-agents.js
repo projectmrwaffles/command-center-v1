@@ -61,17 +61,26 @@ const AGENT_MAP = {
   "11111111-1111-1111-1111-000000000014": "qa-auditor",
 };
 
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-async function triggerAgent(agentId, projectName, projectDescription, taskTitle) {
+async function triggerAgent(agentId, projectName, projectDescription, taskTitle, githubUrl) {
   const agentName = AGENT_MAP[agentId];
   if (!agentName) {
     console.log(`Unknown agent ID: ${agentId}`);
     return;
   }
   
-  const message = `TASK for project "${projectName}": ${taskTitle}\n\nProject description: ${projectDescription || 'No description'}\n\nDo this task now. Don't ask questions - just do the work and report when complete.`;
-  
+  const message = `TASK for project "${projectName}": ${taskTitle}
+
+Project description: ${projectDescription || 'No description'}
+GitHub repo: ${githubUrl || 'Not created yet'}
+
+INSTRUCTIONS:
+1. Clone the GitHub repo: git clone ${githubUrl}
+2. Do the work for: ${taskTitle}
+3. Commit and push your changes
+4. Report back with what you did
+
+Do NOT mark task as complete until you've actually pushed code to GitHub.`;
+
   try {
     console.log(`Triggering ${agentName} for: ${taskTitle}`);
     // Run in background with nohup to avoid blocking
@@ -106,7 +115,12 @@ async function processNewProjects() {
     console.log(`\nProcessing project: ${project.name}`);
     
     // Create GitHub repo for dev projects
-    await createGitHubRepo(project.name, project.id);
+    const githubUrl = await createGitHubRepo(project.name, project.id);
+    
+    // Get GitHub URL from project description if not returned
+    const projectGitHubUrl = githubUrl || (project.description && project.description.includes('github.com') 
+      ? project.description.match(/https:\/\/github\.com\/[^\s]+/)?.[0] 
+      : null);
     
     // Get tasks for this project that haven't been started
     const { data: tasks } = await db
@@ -123,7 +137,7 @@ async function processNewProjects() {
     // Trigger each task's assignee
     for (const task of tasks) {
       if (task.assignee_agent_id) {
-        await triggerAgent(task.assignee_agent_id, project.name, project.description || '', task.title);
+        await triggerAgent(task.assignee_agent_id, project.name, project.description || '', task.title, projectGitHubUrl);
         
         // Update task status to in_progress
         await db

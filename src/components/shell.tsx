@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
 
   return (
-    <div className="min-h-dvh bg-zinc-50 text-zinc-950">
+    <div className="bg-zinc-50 text-zinc-950">
       <div className="flex w-full">
         {/* Desktop sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-zinc-200 md:bg-white">

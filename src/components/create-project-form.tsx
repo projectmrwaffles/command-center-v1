@@ -82,7 +82,7 @@ export function CreateProjectForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-base focus:border-red-500 focus:outline-none"
           placeholder="e.g., Command Center V2"
         />
       </div>
@@ -95,7 +95,7 @@ export function CreateProjectForm({
           value={type}
           onChange={(e) => setType(e.target.value)}
           required
-          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-base focus:border-red-500 focus:outline-none"
         >
           {PROJECT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -112,7 +112,7 @@ export function CreateProjectForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-base focus:border-red-500 focus:outline-none"
           placeholder="Brief description..."
         />
       </div>

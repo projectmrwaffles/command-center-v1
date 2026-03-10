@@ -51,6 +51,20 @@ function drawBadge(content: string, color: "red" | "amber" | "blue" | "green") {
   );
 }
 
+function BentoBadge({ children, color }: { children: React.ReactNode; color: "red" | "amber" | "blue" | "green" }) {
+  const styles = {
+    red: "bg-red-100 text-red-700",
+    amber: "bg-amber-100 text-amber-700",
+    blue: "bg-blue-100 text-blue-700",
+    green: "bg-green-100 text-green-700",
+  };
+  return (
+    <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-medium", styles[color])}>
+      {children}
+    </span>
+  );
+}
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-sm font-semibold text-zinc-900">{children}</h2>;
 }
@@ -410,7 +424,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             <UsageCard usage={{ totalTokens: usage24h.totalTokens, totalCost: usage24h.totalCost, topModels: usage24h.topModels }} />
           </section>
 
-          {/* Teams */}
+          {/* Teams - Bento Grid */}
           <section>
             <div className="mb-3 flex items-center justify-between">
               <SectionTitle>Teams ({teams.length})</SectionTitle>
@@ -421,8 +435,8 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             {teams.length === 0 ? (
               <p className="text-sm text-zinc-500">No teams yet.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {teams.slice(0, 5).map((team) => {
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                {teams.slice(0, 6).map((team, index) => {
                   const teamAgents = agents.filter((a) => a.primary_team_id === team.id);
                   const onlineCount = teamAgents.filter((a) => a.status === "active").length;
                   const teamProjects = Array.from(projectsById.values()).filter((p: any) => p.team_id === team.id);
@@ -432,27 +446,51 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                     return proj?.team_id === team.id;
                   });
 
-                  // Determine team status based on activity
+                  // Determine team status
                   const hasActiveAgents = teamAgents.some((a) => a.status === "active");
                   const hasIdleAgents = teamAgents.some((a) => a.status === "idle");
                   const teamStatus = hasActiveAgents ? "active" : hasIdleAgents ? "idle" : "offline";
 
+                  // First team is larger (bento feature)
+                  const isFeatured = index === 0;
+
                   return (
-                    <Link key={team.id} href={`/teams/${team.id}`}>
-                      <Card className="cursor-pointer border-zinc-200 transition-shadow hover:shadow-md">
-                        <CardContent className="flex items-center justify-between py-3">
-                          <div className="min-w-0">
+                    <Link 
+                      key={team.id} 
+                      href={`/teams/${team.id}`}
+                      className={cn(
+                        isFeatured ? "col-span-2" : "col-span-1"
+                      )}
+                    >
+                      <Card className={cn(
+                        "cursor-pointer border-zinc-200 transition-all hover:shadow-md hover:border-zinc-300",
+                        isFeatured ? "bg-gradient-to-br from-zinc-50 to-zinc-100" : "bg-white"
+                      )}>
+                        <CardContent className={cn(
+                          "flex flex-col justify-between",
+                          isFeatured ? "p-4 sm:p-5" : "p-3"
+                        )}>
+                          <div>
                             <div className="flex items-center gap-2">
                               <StatusDot status={teamStatus} />
-                              <p className="text-sm font-medium text-zinc-900">{team.name}</p>
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-2">
-                              {drawBadge(`Online ${onlineCount}/${teamAgents.length}`, onlineCount > 0 ? "green" : "red")}
-                              {teamProjects && drawBadge(`Projects ${teamProjects.length}`, "blue")}
-                              {teamApprovals.length > 0 && drawBadge(`Approvals ${teamApprovals.length}`, "amber")}
+                              <p className={cn("font-medium text-zinc-900", isFeatured ? "text-base" : "text-sm")}>
+                                {team.name}
+                              </p>
                             </div>
                           </div>
-                          <span className="text-zinc-400">→</span>
+                          <div className={cn("mt-2 flex flex-wrap gap-1.5", isFeatured && "mt-3")}>
+                            <BentoBadge color={onlineCount > 0 ? "green" : "red"}>
+                              {onlineCount}/{teamAgents.length} online
+                            </BentoBadge>
+                            <BentoBadge color="blue">
+                              {teamProjects.length} projects
+                            </BentoBadge>
+                            {teamApprovals.length > 0 && (
+                              <BentoBadge color="amber">
+                                {teamApprovals.length} pending
+                              </BentoBadge>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     </Link>

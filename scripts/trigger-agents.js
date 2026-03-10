@@ -33,14 +33,14 @@ const AGENT_MAP = {
 
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function triggerAgent(agentId, projectName, taskTitle) {
+async function triggerAgent(agentId, projectName, projectDescription, taskTitle) {
   const agentName = AGENT_MAP[agentId];
   if (!agentName) {
     console.log(`Unknown agent ID: ${agentId}`);
     return;
   }
   
-  const message = `New task for project "${projectName}": ${taskTitle}. Start working on this.`;
+  const message = `TASK for project "${projectName}": ${taskTitle}\n\nProject description: ${projectDescription || 'No description'}\n\nDo this task now. Don't ask questions - just do the work and report when complete.`;
   
   try {
     console.log(`Triggering ${agentName} for: ${taskTitle}`);
@@ -90,7 +90,7 @@ async function processNewProjects() {
     // Trigger each task's assignee
     for (const task of tasks) {
       if (task.assignee_agent_id) {
-        await triggerAgent(task.assignee_agent_id, project.name, task.title);
+        await triggerAgent(task.assignee_agent_id, project.name, project.description || '', task.title);
         
         // Update task status to in_progress
         await db

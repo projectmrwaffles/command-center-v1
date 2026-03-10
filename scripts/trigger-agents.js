@@ -74,10 +74,9 @@ Project description: ${projectDescription || 'No description'}
 GitHub repo: ${githubUrl || 'Not created yet'}
 
 INSTRUCTIONS:
-1. Clone the GitHub repo: git clone ${githubUrl}
-2. Do the work for: ${taskTitle}
-3. Commit and push your changes
-4. Report back with what you did
+1. Work in your workspace
+2. Create the GitHub repo from your current directory: gh repo create ${githubUrl?.replace('https://github.com/', '')} --private --source . --push
+3. Or if repo already exists: add remote and push
 
 Do NOT mark task as complete until you've actually pushed code to GitHub.`;
 

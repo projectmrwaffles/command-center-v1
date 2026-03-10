@@ -165,11 +165,26 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   const jobsById = useRealtimeStore((s) => s.jobsById);
   const usageRollup = useRealtimeStore((s) => s.usageRollup);
   const teamsById = useRealtimeStore((s) => s.teamsById);
-  const events = useRealtimeStore((s) => s.events);
+  const storeEvents = useRealtimeStore((s) => s.events);
+
+  // Use initialData as primary source, fallback to store
+  const events = useMemo(() => {
+    if (initialData.events && initialData.events.length > 0) {
+      return initialData.events;
+    }
+    return storeEvents;
+  }, [initialData.events, storeEvents]);
+
+  // Use initialData teams as primary source, fallback to store
+  const teams = useMemo(() => {
+    if (initialData.teams && initialData.teams.length > 0) {
+      return initialData.teams;
+    }
+    return Array.from(teamsById.values());
+  }, [initialData.teams, teamsById]);
 
   const agents = useMemo(() => Array.from(agentsById.values()), [agentsById]);
   const jobs = useMemo(() => Array.from(jobsById.values()), [jobsById]);
-  const teams = useMemo(() => Array.from(teamsById.values()), [teamsById]);
 
   const pendingApprovals = useMemo(
     () => Array.from(approvalsById.values()).filter((a) => a.status === "pending"),

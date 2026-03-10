@@ -63,7 +63,7 @@ export default async function ProjectsPage() {
           <p className="text-sm text-zinc-500">Active projects with sprints and PRDs</p>
         </div>
         <Link
-          href="/projects/new"
+          href="/dashboard?new=true"
           className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
         >
           New Project

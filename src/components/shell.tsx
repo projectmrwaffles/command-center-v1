@@ -60,6 +60,14 @@ function TeamsIcon({ className }: { className?: string }) {
   );
 }
 
+// Mobile: essential items only
+const NAV_MOBILE = [
+  { href: "/dashboard", label: "Home", icon: OverviewIcon },
+  { href: "/projects", label: "Projects", icon: ProjectsIcon },
+  { href: "/campaigns", label: "Campaigns", icon: ProjectsIcon },
+] as const;
+
+// Desktop: full navigation
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: OverviewIcon },
   { href: "/projects", label: "Projects", icon: ProjectsIcon },
@@ -131,10 +139,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile bottom tabs */}
       <nav
         data-testid="mobile-tabs"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-100 bg-white/98 backdrop-blur md:hidden"
       >
-        <div className="mx-auto grid max-w-none grid-cols-5">
-          {NAV.map((item) => {
+        <div className="flex items-center justify-around">
+          {NAV_MOBILE.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
@@ -142,11 +150,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors",
-                  active ? "text-zinc-950" : "text-zinc-500"
+                  "flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
+                  active ? "text-zinc-900" : "text-zinc-400"
                 )}
               >
-                <Icon className={cn("h-5 w-5", active ? "text-red-600" : "text-zinc-400")} />
+                <Icon className={cn("h-5 w-5", active && "text-blue-600")} />
                 <span>{item.label}</span>
               </Link>
             );

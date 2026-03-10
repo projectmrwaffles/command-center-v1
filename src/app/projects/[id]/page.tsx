@@ -350,7 +350,7 @@ export default function ProjectDetailPage() {
             </button>
           ) : project.status === "completed" && project.type !== "marketing" ? (
             <button
-              onClick={() => window.location.href = "/campaigns"}
+              onClick={() => window.location.href = `/campaigns?project=${encodeURIComponent(project.name)}`}
               className="rounded-md bg-purple-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-purple-700"
             >
               Launch Campaign

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface CreateProjectFormProps {
   onSubmit: (data: {
@@ -11,6 +11,8 @@ interface CreateProjectFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   error?: string | null;
+  prefillName?: string;
+  prefillType?: string;
 }
 
 const PROJECT_TYPES = [
@@ -40,10 +42,18 @@ export function CreateProjectForm({
   onCancel,
   isSubmitting,
   error,
+  prefillName,
+  prefillType,
 }: CreateProjectFormProps) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState("saas");
+  const [name, setName] = useState(prefillName || "");
+  const [type, setType] = useState(prefillType || "saas");
   const [description, setDescription] = useState("");
+
+  // Update state if prefill props change
+  useEffect(() => {
+    if (prefillName) setName(prefillName);
+    if (prefillType) setType(prefillType);
+  }, [prefillName, prefillType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

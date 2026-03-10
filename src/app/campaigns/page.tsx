@@ -1,57 +1,85 @@
-import { createServerClient } from "@/lib/supabase-server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreateProjectModal } from "@/components/create-project-modal";
 
-export const dynamic = "force-dynamic";
+interface Campaign {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  description: string | null;
+  created_at: string;
+}
 
-export default async function CampaignsPage() {
-  const db = createServerClient();
+function CampaignsContent() {
+  const searchParams = useSearchParams();
+  const prefillName = searchParams.get("project") || "";
   
-  let campaigns: any[] = [];
-  let error: string | null = null;
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(!!prefillName);
 
-  if (!db) {
-    error = "Database not configured";
-  } else {
-    const { data, error: err } = await db
-      .from("projects")
-      .select("id, name, status, type, description, created_at, updated_at")
-      .eq("type", "marketing")
-      .order("created_at", { ascending: false });
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
 
-    if (err) {
-      error = err.message;
-    } else {
-      campaigns = data || [];
+  const fetchCampaigns = async () => {
+    try {
+      const res = await fetch("/api/projects?type=marketing");
+      const json = await res.json();
+      setCampaigns(json.projects || []);
+    } catch (e) {
+      console.error("Failed to load campaigns:", e);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50">
+      <CreateProjectModal 
+        open={showCreateModal} 
+        onOpenChange={(open) => {
+          setShowCreateModal(open);
+          if (!open) {
+            fetchCampaigns();
+          }
+        }}
+        prefillName={prefillName}
+        prefillType="marketing"
+      />
+
       <header className="bg-white border-b border-zinc-200 px-4 py-3 sm:px-6">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="text-zinc-400 hover:text-zinc-600">←</Link>
             <h1 className="text-lg font-semibold text-zinc-900">Marketing Campaigns</h1>
           </div>
-          <Link
-            href="/projects/new"
+          <button
+            onClick={() => setShowCreateModal(true)}
             className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
           >
             New Campaign
-          </Link>
+          </button>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {error ? (
-          <div className="text-center py-12 text-red-600">{error}</div>
+        {loading ? (
+          <div className="text-center py-12 text-zinc-500">Loading...</div>
         ) : campaigns.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-zinc-500">No marketing campaigns yet.</p>
-            <Link href="/projects/new" className="text-blue-600 hover:underline mt-2 inline-block">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="text-blue-600 hover:underline mt-2 inline-block"
+            >
               Create your first campaign
-            </Link>
+            </button>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -79,6 +107,18 @@ export default async function CampaignsPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function CampaignsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
+        <div className="text-zinc-500">Loading...</div>
+      </div>
+    }>
+      <CampaignsContent />
+    </Suspense>
   );
 }
 

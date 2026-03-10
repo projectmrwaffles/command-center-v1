@@ -171,6 +171,36 @@ function getAutoRouteTeamIds(type: string): string[] {
   return teamMap[type] || [TEAMS.PRODUCT, TEAMS.QA];
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get("type");
+    
+    const db = createRouteHandlerClient();
+    if (!db) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+    }
+
+    let query = db.from("projects").select("id, name, status, type, description, created_at, updated_at").order("created_at", { ascending: false });
+    
+    if (type) {
+      query = query.eq("type", type);
+    }
+
+    const { data, error } = await query;
+    
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ projects: data });
+  } catch (e: unknown) {
+    console.error("[API /projects GET] exception:", e);
+    const message = e instanceof Error ? e.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

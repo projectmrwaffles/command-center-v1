@@ -32,9 +32,13 @@ function storageNotConfiguredMessage() {
 export function CreateProjectModal({
   open,
   onOpenChange,
+  prefillName,
+  prefillType,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  prefillName?: string;
+  prefillType?: string;
 }) {
   const { isSubmitting, error, createProject } = useCreateProject();
   const mobile = useIsMobile();
@@ -94,6 +98,8 @@ export function CreateProjectModal({
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto px-4 pb-20">
         <CreateProjectForm
+          prefillName={prefillName}
+          prefillType={prefillType}
           onSubmit={async (data) => {
             const project = await createProject(data);
 

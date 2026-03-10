@@ -57,9 +57,17 @@ export default async function ProjectsPage() {
     <div className="space-y-6">
       <DbBanner />
 
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-900">Projects</h1>
-        <p className="text-sm text-zinc-500">Active projects with sprints and PRDs</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-zinc-900">Projects</h1>
+          <p className="text-sm text-zinc-500">Active projects with sprints and PRDs</p>
+        </div>
+        <Link
+          href="/projects/new"
+          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          New Project
+        </Link>
       </div>
 
       <div className="grid gap-4">

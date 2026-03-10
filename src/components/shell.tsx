@@ -131,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Main */}
         <div className="flex-1">
-          <main className="min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8 md:py-8 md:min-h-dvh pb-24 md:pb-8">
+          <main className="min-h-screen px-4 py-6 md:px-8 md:py-8 pb-24 md:pb-8">
             {children}
           </main>
         </div>

@@ -29,6 +29,23 @@ async function createGitHubRepo(projectName, projectId) {
   
   try {
     execSync('gh auth status', { encoding: 'utf8', timeout: 5000 });
+    
+    // Check if repo already exists
+    const checkCmd = `gh repo view projectmrwaffles/${repoName} 2>/dev/null`;
+    const existing = execSync(checkCmd, { encoding: 'utf8', timeout: 5000 });
+    
+    if (existing) {
+      console.log(`GitHub repo already exists: projectmrwaffles/${repoName}`);
+      const githubUrl = `https://github.com/projectmrwaffles/${repoName}`;
+      // Still update the project description
+      await db.from('projects').update({ description: `${projectName}\n🔗 GitHub: ${githubUrl}` }).eq('id', projectId);
+      return githubUrl;
+    }
+  } catch (e) {
+    // Repo doesn't exist, create it
+  }
+  
+  try {
     const cmd = `gh repo create projectmrwaffles/${repoName} --private --clone=false --gitignore Node`;
     execSync(cmd, { encoding: 'utf8', timeout: 15000 });
     

@@ -13,6 +13,36 @@ const { execSync } = require('child_process');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yhyxxjeiogvgdsfvdkfx.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InloeXh4amVpb2d2Z2RzZnZka2Z4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjIxOTUzNiwiZXhwIjoyMDg3Nzk1NTM2fQ.7AeC5aTtgzPhDoKNNv-8LERzWJKdf7L-x4bLJITF6z8';
 
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Create GitHub repo for dev projects
+async function createGitHubRepo(projectName, projectId) {
+  const devTypes = ['saas', 'web_app', 'native_app'];
+  
+  const { data: project } = await db.from('projects').select('type').eq('id', projectId).single();
+  if (!project || !devTypes.includes(project.type)) {
+    console.log('Not a dev project, skipping GitHub repo');
+    return null;
+  }
+  
+  const repoName = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  
+  try {
+    execSync('gh auth status', { encoding: 'utf8', timeout: 5000 });
+    const cmd = `gh repo create projectmrwaffles/${repoName} --private --clone=false --gitignore Node`;
+    execSync(cmd, { encoding: 'utf8', timeout: 15000 });
+    
+    const githubUrl = `https://github.com/projectmrwaffles/${repoName}`;
+    await db.from('projects').update({ description: `${projectName}\n🔗 GitHub: ${githubUrl}` }).eq('id', projectId);
+    
+    console.log(`✓ Created GitHub repo: ${githubUrl}`);
+    return githubUrl;
+  } catch (e) {
+    console.log('GitHub repo creation failed:', e.message);
+    return null;
+  }
+}
+
 // Map DB agent IDs to OpenClaw agent names
 const AGENT_MAP = {
   "11111111-1111-1111-1111-000000000001": "main",
@@ -74,6 +104,9 @@ async function processNewProjects() {
   
   for (const project of projects) {
     console.log(`\nProcessing project: ${project.name}`);
+    
+    // Create GitHub repo for dev projects
+    await createGitHubRepo(project.name, project.id);
     
     // Get tasks for this project that haven't been started
     const { data: tasks } = await db

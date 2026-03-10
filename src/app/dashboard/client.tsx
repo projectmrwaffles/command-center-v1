@@ -118,6 +118,8 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
         });
       }
     });
+    // Seed events from initial data
+    initialData.events?.forEach((e: any) => store.prependEvent(e));
     // Seed teams from initial data if available
     initialData.teams?.forEach((t: any) => store.upsertTeam(t));
   }, []);
@@ -147,6 +149,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       onTeam: (p) => {
         if (p.eventType !== "DELETE") store.upsertTeam(p.new);
       },
+      onAgentEvent: (p) => {
+        if (p.eventType === "INSERT") store.prependEvent(p.new);
+      },
     });
 
     return () => sub.unsubscribeAll();
@@ -160,6 +165,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   const jobsById = useRealtimeStore((s) => s.jobsById);
   const usageRollup = useRealtimeStore((s) => s.usageRollup);
   const teamsById = useRealtimeStore((s) => s.teamsById);
+  const events = useRealtimeStore((s) => s.events);
 
   const agents = useMemo(() => Array.from(agentsById.values()), [agentsById]);
   const jobs = useMemo(() => Array.from(jobsById.values()), [jobsById]);
@@ -392,6 +398,36 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                       </div>
                     </CardContent>
                   </Card>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Activity Feed */}
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <SectionTitle>Activity ({events.length})</SectionTitle>
+            </div>
+            {events.length === 0 ? (
+              <p className="text-sm text-zinc-500">No activity yet. Create a project to get started.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {events.slice(0, 20).map((evt: any) => (
+                  <div key={evt.id} className="flex items-start gap-3 rounded-md border border-zinc-200 bg-white p-3 text-sm">
+                    <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-medium text-zinc-600">
+                      {evt.agent_id?.slice(-2) || "?"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-zinc-900 truncate">{evt.event_type}</p>
+                      {evt.payload && typeof evt.payload === 'object' && (
+                        <p className="text-xs text-zinc-500 truncate">{JSON.stringify(evt.payload).slice(0, 100)}</p>
+                      )}
+                      <p className="text-xs text-zinc-400">
+                        {new Date(evt.timestamp).toLocaleTimeString()}
+                        {evt.project_id && ` • Project: ${evt.project_id.slice(0, 8)}`}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

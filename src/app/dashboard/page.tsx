@@ -195,7 +195,15 @@ async function loadDashboardData(): Promise<DashboardData> {
       })),
     ];
 
-    const events: EventItem[] = [];
+    const events: EventItem[] = (eventsRes.data ?? []).map((e: any) => ({
+    id: e.id,
+    type: e.event_type,
+    label: e.event_type,
+    severity: "info" as const,
+    timestamp: e.timestamp,
+    actorName: e.agent_id,
+    projectName: e.project_id,
+  }));
 
     // Usage aggregations
     const usageRows = usageRes.data ?? [];

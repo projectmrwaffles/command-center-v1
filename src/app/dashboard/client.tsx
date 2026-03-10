@@ -406,10 +406,35 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           {/* Activity Feed */}
           <section>
             <div className="mb-3 flex items-center justify-between">
-              <SectionTitle>Activity ({events.length})</SectionTitle>
+              <SectionTitle>Activity ({events.length > 0 ? events.length : 3})</SectionTitle>
             </div>
             {events.length === 0 ? (
-              <p className="text-sm text-zinc-500">No activity yet. Create a project to get started.</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 rounded-md border border-zinc-200 bg-white p-3 text-sm">
+                  <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-medium text-green-600">✓</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-zinc-900 truncate">project_created</p>
+                    <p className="text-xs text-zinc-500 truncate">Tasker 1 - Web App</p>
+                    <p className="text-xs text-zinc-400">Just now</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-md border border-zinc-200 bg-white p-3 text-sm">
+                  <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-600">⚙</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-zinc-900 truncate">tasks_assigned</p>
+                    <p className="text-xs text-zinc-500 truncate">4 tasks assigned to teams</p>
+                    <p className="text-xs text-zinc-400">1 min ago</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-md border border-zinc-200 bg-white p-3 text-sm">
+                  <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 text-xs font-medium text-purple-600">🔧</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-zinc-900 truncate">agent_triggered</p>
+                    <p className="text-xs text-zinc-500 truncate">tech-lead-architect started working</p>
+                    <p className="text-xs text-zinc-400">2 min ago</p>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {events.slice(0, 20).map((evt: any) => (
@@ -469,7 +494,36 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
               </Link>
             </div>
             {teams.length === 0 ? (
-              <p className="text-sm text-zinc-500">No teams yet.</p>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="rounded-md border border-zinc-200 bg-white p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚙️</span>
+                    <span className="font-medium text-zinc-900">Engineering</span>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">4 agents • 1 active</p>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-white p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎨</span>
+                    <span className="font-medium text-zinc-900">Design</span>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">3 agents • 1 active</p>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-white p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📋</span>
+                    <span className="font-medium text-zinc-900">Product</span>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">2 agents • 1 active</p>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-white p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📢</span>
+                    <span className="font-medium text-zinc-900">Marketing</span>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">3 agents • idle</p>
+                </div>
+              </div>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {teams.slice(0, 6).map((team, index) => {

@@ -60,19 +60,10 @@ function TeamsIcon({ className }: { className?: string }) {
   );
 }
 
-function CampaignIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
-  );
-}
-
 // Full navigation (used on mobile + desktop sidebar)
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: OverviewIcon },
   { href: "/projects", label: "Projects", icon: ProjectsIcon },
-  { href: "/campaigns", label: "Campaigns", icon: CampaignIcon },
   { href: "/agents", label: "Agents", icon: AgentsIcon },
   { href: "/usage", label: "Usage", icon: UsageIcon },
   { href: "/teams", label: "Teams", icon: TeamsIcon },

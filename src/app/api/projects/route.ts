@@ -41,8 +41,15 @@ async function triggerAgentWork(
   try {
     const agentName = getAgentNameFromId(agentId);
     
-    // Get the base URL from environment or construct it
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // Get the base URL from environment - try multiple sources
+    const vercelUrl = process.env.VERCEL_URL;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (vercelUrl ? `https://${vercelUrl}` : null);
+    
+    // Skip trigger in dev mode (localhost) - only trigger in production
+    if (!baseUrl) {
+      console.log(`[Trigger] Skipping - no production URL configured`);
+      return;
+    }
     
     // Call our new trigger API endpoint
     const response = await fetch(`${baseUrl}/api/agent/trigger`, {

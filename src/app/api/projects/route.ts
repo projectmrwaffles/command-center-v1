@@ -27,18 +27,45 @@ function getAgentNameFromId(agentId: string): string {
 }
 
 /**
- * Trigger an agent to start working on a task
+ * Trigger an agent to start working on a task via Supabase Realtime.
+ * This replaces the old approach of running `openclaw agent` on the server.
+ * Instead, we send a notification via the /api/agent/trigger endpoint
+ * which broadcasts to the agent listener running on the Mac mini.
  */
-function triggerAgentWork(agentId: string, projectName: string, taskTitle: string): void {
+async function triggerAgentWork(
+  agentId: string, 
+  projectName: string, 
+  taskTitle: string,
+  taskId: string
+): Promise<void> {
   try {
     const agentName = getAgentNameFromId(agentId);
-    const message = `New task for project "${projectName}": ${taskTitle}. Start working on this and update the task status to "in_progress" when you begin.`;
     
-    // Trigger agent - run in background to not block the request
-    // Use nohup to ensure it continues running
-    const cmd = `nohup openclaw agent --agent ${agentName} --message '${message.replace(/'/g, "'")}' --timeout 30 > /tmp/agent-${agentName}.log 2>&1 &`;
-    execSync(cmd, { encoding: 'utf8' });
-    console.log(`[Triggered] Agent ${agentName} (${agentId}) for task: ${taskTitle}`);
+    // Get the base URL from environment or construct it
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    
+    // Call our new trigger API endpoint
+    const response = await fetch(`${baseUrl}/api/agent/trigger`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        agentId,
+        taskId,
+        projectName,
+        taskTitle,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Trigger] API error: ${response.status} - ${errorText}`);
+      return;
+    }
+
+    const result = await response.json();
+    console.log(`[Trigger] Notified agent ${agentName} (${agentId}) for task: ${taskTitle}`);
   } catch (e) {
     console.error(`[Trigger] Failed to trigger agent ${agentId}:`, e);
   }
@@ -223,7 +250,7 @@ export async function POST(req: NextRequest) {
     const autoTeamIds = teamId ? [teamId] : getAutoRouteTeamIds(type);
     const primaryTeamId = autoTeamIds[0]; // For backward compatibility
 
-    // Calculate workload based on assigned teams (parallel work)
+    // Calculate workload for planning purposes (but don't create sprints)
     const workload = estimateWorkloadFromTeams(autoTeamIds);
     console.log(`[Workload Analysis] ${name}: ${workload.hours}h (${workload.complexity}) - ${workload.reasoning}`);
 
@@ -246,28 +273,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
     }
 
-    // Auto-create sprint based on AI-analyzed workload
-    const sprintName = "Sprint 1";
-    const startDate = new Date().toISOString().split("T")[0];
-    const endDate = new Date(Date.now() + workload.hours * 60 * 60 * 1000).toISOString();
-
-    const { data: sprint, error: sprintError } = await db
-      .from("sprints")
-      .insert({
-        project_id: project.id,
-        name: sprintName,
-        goal: `AI-analyzed workload: ${workload.complexity} complexity (${workload.hours}h estimated) - ${workload.reasoning}`,
-        start_date: startDate,
-        end_date: endDate,
-        status: "active",
-      })
-      .select()
-      .single();
-
-    if (sprintError) {
-      console.error("[API /projects] sprint insert error:", sprintError);
-    }
-
     // Log project_created event with AI analysis
     const { error: eventError } = await db.from("agent_events").insert({
       agent_id: null,
@@ -278,7 +283,6 @@ export async function POST(req: NextRequest) {
         type,
         team_ids: autoTeamIds,
         description: description || null,
-        sprint_id: sprint?.id || null,
         workload_analysis: workload,
       },
     });
@@ -287,7 +291,7 @@ export async function POST(req: NextRequest) {
       console.error("[API /projects] event log error:", eventError);
     }
 
-    // Add team-specific tasks for each team
+    // Add team-specific tasks for each team (no sprint needed)
     const teamTaskTemplates: Record<string, string> = {
       [TEAMS.ENGINEERING]: "Set up development environment and architecture",
       [TEAMS.DESIGN]: "Create initial wireframes and design system",
@@ -305,19 +309,29 @@ export async function POST(req: NextRequest) {
       if (teamMembers?.length) {
         const teamTask = teamTaskTemplates[teamId] || `Work on ${name}`;
         
-        // Create task for the team lead/primary member
+        // Create task directly without a sprint
         const leadMember = teamMembers[0];
-        await db.from("sprint_items").insert({
-          sprint_id: sprint?.id,
-          project_id: project.id,
-          title: teamTask,
-          status: "todo",
-          assignee_agent_id: leadMember.agent_id,
-          position: 1,
-        });
+        
+        // Insert task and capture the returned ID
+        const { data: createdTask, error: taskError } = await db
+          .from("sprint_items")
+          .insert({
+            sprint_id: null, // No sprint - tasks are project-level
+            project_id: project.id,
+            title: teamTask,
+            status: "todo",
+            assignee_agent_id: leadMember.agent_id,
+            position: 1,
+          })
+          .select("id")
+          .single();
 
-        // Trigger the assigned agent to start working
-        triggerAgentWork(leadMember.agent_id, name, teamTask);
+        if (taskError) {
+          console.error("[API /projects] task insert error:", taskError);
+        }
+
+        // Trigger the assigned agent to start working (now async with taskId)
+        triggerAgentWork(leadMember.agent_id, name, teamTask, createdTask?.id);
 
         // Log team_assigned event
         await db.from("agent_events").insert({
@@ -331,7 +345,7 @@ export async function POST(req: NextRequest) {
           },
         });
       }
-    } // End for loop
+    }
 
     // Log planning_started event
     await db.from("agent_events").insert({
@@ -354,7 +368,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ project: { ...project, github_url: githubUrl }, sprint, workload }, { status: 201 });
+    return NextResponse.json({ project: { ...project, github_url: githubUrl }, workload }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

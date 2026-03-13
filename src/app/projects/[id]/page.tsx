@@ -159,15 +159,13 @@ export default function ProjectDetailPage() {
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
     try {
-      const activeSprint = sprints.find((s: any) => s.status === "active");
-      if (!activeSprint) throw new Error("No active sprint");
-      
+      // Create task directly without requiring a sprint
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           title: newTaskTitle, 
-          sprint_id: activeSprint.id 
+          // No sprint_id needed - tasks are project-level
         }),
       });
       if (!res.ok) throw new Error("Failed to create task");

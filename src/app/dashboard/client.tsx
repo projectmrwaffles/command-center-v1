@@ -510,34 +510,42 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             </div>
             {teams.length === 0 ? (
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <div className="rounded-md border border-zinc-200 bg-white p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">⚙️</span>
-                    <span className="font-medium text-zinc-900">Engineering</span>
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-1">4 agents • 1 active</p>
-                </div>
-                <div className="rounded-md border border-zinc-200 bg-white p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🎨</span>
-                    <span className="font-medium text-zinc-900">Design</span>
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-1">3 agents • 1 active</p>
-                </div>
-                <div className="rounded-md border border-zinc-200 bg-white p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">📋</span>
-                    <span className="font-medium text-zinc-900">Product</span>
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-1">2 agents • 1 active</p>
-                </div>
-                <div className="rounded-md border border-zinc-200 bg-white p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">📢</span>
-                    <span className="font-medium text-zinc-900">Marketing</span>
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-1">3 agents • idle</p>
-                </div>
+                <Card className="border-zinc-200">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">⚙️</span>
+                      <span className="font-medium text-zinc-900">Engineering</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">4 agents • 1 active</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-zinc-200">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🎨</span>
+                      <span className="font-medium text-zinc-900">Design</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">3 agents • 1 active</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-zinc-200">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📋</span>
+                      <span className="font-medium text-zinc-900">Product</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">2 agents • 1 active</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-zinc-200">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📢</span>
+                      <span className="font-medium text-zinc-900">Marketing</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">3 agents • idle</p>
+                  </CardContent>
+                </Card>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:gap-3">

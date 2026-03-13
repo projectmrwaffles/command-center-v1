@@ -322,7 +322,7 @@ export default function ProjectDetailPage() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Link href="/projects" className="text-zinc-400 hover:text-zinc-600">←</Link>
-            <h1 className="text-lg sm:text-xl font-semibold text-zinc-900 truncate">{project.name}</h1>
+            <h1 className="text-2xl font-semibold text-zinc-900 truncate">{project.name}</h1>
             <StatusBadge status={project.status} />
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-500">
@@ -410,7 +410,7 @@ export default function ProjectDetailPage() {
       {/* Activity Timeline */}
       <Card className="border-zinc-200">
         <CardHeader className="pb-2 sm:pb-3">
-          <CardTitle className="text-xs sm:text-sm">Activity</CardTitle>
+          <CardTitle className="text-sm">Activity</CardTitle>
         </CardHeader>
         <CardContent>
           {events.length === 0 ? (
@@ -450,7 +450,7 @@ export default function ProjectDetailPage() {
         <div className="lg:col-span-1">
           <Card className="border-zinc-200">
             <CardHeader className="pb-2 sm:pb-3">
-              <CardTitle className="text-xs sm:text-sm">Teams</CardTitle>
+              <CardTitle className="text-sm">Teams</CardTitle>
             </CardHeader>
             <CardContent>
               {teams.length === 0 ? (
@@ -484,7 +484,7 @@ export default function ProjectDetailPage() {
           <Card className="border-zinc-200">
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs sm:text-sm">Sprints</CardTitle>
+                <CardTitle className="text-sm">Sprints</CardTitle>
                 <button onClick={() => setShowSprintModal(true)} className="text-[10px] sm:text-xs text-red-600 hover:underline">+ Create</button>
               </div>
             </CardHeader>
@@ -518,7 +518,7 @@ export default function ProjectDetailPage() {
           <Card className="border-zinc-200">
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs sm:text-sm">Tasks</CardTitle>
+                <CardTitle className="text-sm">Tasks</CardTitle>
                 <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="text-[10px] sm:text-xs text-red-600 hover:underline">+ New</button>
               </div>
             </CardHeader>

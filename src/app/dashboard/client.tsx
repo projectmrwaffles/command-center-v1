@@ -66,7 +66,7 @@ function BentoBadge({ children, color }: { children: React.ReactNode; color: "re
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-sm font-semibold text-zinc-900">{children}</h2>;
+  return <h2 className="text-lg font-semibold text-zinc-900">{children}</h2>;
 }
 
 type NeedsYouItem = {
@@ -355,7 +355,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       {/* Header row: title left, New Project right */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-900">Overview</h2>
+          <h1 className="text-2xl font-semibold text-zinc-900">Overview</h1>
           <p className="text-sm text-zinc-500 flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${connectionStatus === "connected" ? "bg-green-500" : connectionStatus === "connecting" ? "bg-amber-500" : "bg-red-500"}`}></span>
             {connectionStatus === "connected" ? "Live" : connectionStatus === "connecting" ? "Connecting..." : "Offline"}
@@ -670,9 +670,9 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-2 pt-0">
-        <div className="h-2 w-full rounded bg-zinc-200">
+        <div className="h-2 w-full rounded-full bg-zinc-200 overflow-hidden">
           <div
-            className="h-2 rounded bg-red-600 transition-all"
+            className="h-2 rounded-full bg-gradient-to-r from-red-500 to-red-600 transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>

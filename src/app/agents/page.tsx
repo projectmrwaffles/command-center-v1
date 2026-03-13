@@ -11,6 +11,27 @@ function getAgentDisplayName(name: string) {
   return name;
 }
 
+// Map of agent name to emoji from their IDENTITY.md
+const AGENT_EMOJIS: Record<string, string> = {
+  "tech-lead-architect": "🔮",
+  "frontend-engineer": "🎨",
+  "backend-engineer": "⚡",
+  "mobile-engineer": "📱",
+  "qa-auditor": "🛡️",
+  "seo-web-developer": "🔍",
+  "head-of-design": "✨",
+  "product-designer-app": "📐",
+  "web-designer-marketing": "💡",
+  "product-lead": "🧭",
+  "growth-lead": "🚀",
+  "marketing-producer": "📣",
+  "marketing-ops-analytics": "📊",
+};
+
+function getAgentEmoji(name: string): string {
+  return AGENT_EMOJIS[name] || "🤖";
+}
+
 export default async function AgentsPage() {
   const db = createServerClient();
   let agents:
@@ -65,16 +86,19 @@ export default async function AgentsPage() {
     <div className="space-y-6">
       <DbBanner />
       {mockBanner}
-      <h1 className="text-2xl font-bold text-red-600">Agents</h1>
+      <h1 className="text-2xl font-semibold text-red-600">Agents</h1>
 
       {/* Mobile cards */}
       <div className="grid gap-4 md:hidden">
         {(agents || []).map((a) => (
           <Link key={a.id} href={`/agents/${a.id}`} className="block">
-            <Card className="active:bg-zinc-50">
+            <Card className="border-zinc-200 transition-all hover:shadow-md hover:border-zinc-300">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-base">{getAgentDisplayName(a.name)}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{getAgentEmoji(a.name)}</span>
+                    <CardTitle className="text-base">{getAgentDisplayName(a.name)}</CardTitle>
+                  </div>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                       a.status === "active"
@@ -96,7 +120,15 @@ export default async function AgentsPage() {
           </Link>
         ))}
         {(!agents || agents.length === 0) && (
-          <p className="text-sm text-zinc-400">No agents registered.</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 py-16">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
+              <svg className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p className="text-lg font-medium text-zinc-700">No agents registered</p>
+            <p className="text-sm text-zinc-500">Agents will appear here once they connect</p>
+          </div>
         )}
       </div>
 
@@ -115,7 +147,8 @@ export default async function AgentsPage() {
             {(agents || []).map((a) => (
               <tr key={a.id} className="hover:bg-zinc-50">
                 <td className="px-4 py-3">
-                  <Link href={`/agents/${a.id}`} className="font-medium text-zinc-900 hover:underline">
+                  <Link href={`/agents/${a.id}`} className="flex items-center gap-2 font-medium text-zinc-900 hover:underline">
+                    <span className="text-lg">{getAgentEmoji(a.name)}</span>
                     {getAgentDisplayName(a.name)}
                   </Link>
                 </td>
@@ -138,8 +171,11 @@ export default async function AgentsPage() {
             ))}
             {(!agents || agents.length === 0) && (
               <tr>
-                <td className="px-4 py-4 text-zinc-400" colSpan={4}>
-                  No agents registered.
+                <td className="px-4 py-8 text-center text-zinc-400" colSpan={4}>
+                  <div className="flex flex-col items-center">
+                    <p>No agents registered</p>
+                    <p className="text-xs">Agents will appear here once they connect</p>
+                  </div>
                 </td>
               </tr>
             )}

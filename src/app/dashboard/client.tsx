@@ -516,7 +516,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                       <span className="text-lg">⚙️</span>
                       <span className="font-medium text-zinc-900">Engineering</span>
                     </div>
-                    <p className="text-xs text-zinc-500 mt-1">4 agents • 1 active</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <BentoBadge color="green">4 agents • 1 active</BentoBadge>
+                    </div>
                   </CardContent>
                 </Card>
                 <Card className="border-zinc-200">

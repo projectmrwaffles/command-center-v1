@@ -43,7 +43,7 @@ async function triggerAgentWork(
     
     // Get the base URL from environment - try multiple sources
     const vercelUrl = process.env.VERCEL_URL;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (vercelUrl ? `https://${vercelUrl}` : null);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (vercelUrl ? `https://${vercelUrl}` : "https://command-center-v1.vercel.app");
     
     // Skip trigger in dev mode (localhost) - only trigger in production
     if (!baseUrl) {

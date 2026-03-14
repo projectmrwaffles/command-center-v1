@@ -51,37 +51,55 @@ export async function GET(
       .order("timestamp", { ascending: false })
       .limit(50);
 
-    // Fetch teams for this project
-    const { data: projectTeams } = await db
-      .from("team_members")
-      .select("team_id, teams(id, name)")
-      .eq("project_id", projectId);
-
     interface TeamWithId {
-  id: string;
-  name: string;
-}
+      id: string;
+      name: string;
+    }
 
-interface TeamMemberWithAgent {
-  team_id: string;
-  agent_id: string | null;
-  agents: {
-    name: string;
-    title: string | null;
-    status: string;
-    last_seen: string | null;
-  } | null;
-}
+    interface TeamMemberWithAgent {
+      team_id: string;
+      agent_id: string | null;
+      agents: {
+        name: string;
+        title: string | null;
+        status: string;
+        last_seen: string | null;
+      } | null;
+    }
 
-const teams: TeamWithId[] = (projectTeams?.map((pt) => pt.teams).flat().filter(Boolean) as TeamWithId[]) || [];
-    const teamIds = teams.map((t) => t?.id).filter(Boolean) as string[];
+    // Resolve project teams from the project's primary team_id plus the teams of assigned task owners.
+    // team_members does not have a project_id column, so filtering it by project_id breaks this page.
+    const assignedAgentIds = Array.from(
+      new Set((tasks || []).map((task) => task.assignee_agent_id).filter(Boolean))
+    ) as string[];
+
+    let derivedTeamIds: string[] = [];
+    if (assignedAgentIds.length > 0) {
+      const { data: memberships } = await db
+        .from("team_members")
+        .select("team_id, agent_id")
+        .in("agent_id", assignedAgentIds);
+      derivedTeamIds = Array.from(new Set((memberships || []).map((membership) => membership.team_id).filter(Boolean)));
+    }
+
+    const teamIds = Array.from(new Set([project.team_id, ...derivedTeamIds].filter(Boolean))) as string[];
+
+    let teams: TeamWithId[] = [];
+    if (teamIds.length > 0) {
+      const { data: teamRows } = await db
+        .from("teams")
+        .select("id, name")
+        .in("id", teamIds)
+        .order("name", { ascending: true });
+      teams = (teamRows || []) as TeamWithId[];
+    }
+
     let teamMembers: TeamMemberWithAgent[] = [];
     if (teamIds.length > 0) {
       const { data: members } = await db
         .from("team_members")
-        .select("*, agents(name, title, status, last_seen)")
-        .in("team_id", teamIds)
-        .eq("project_id", projectId);
+        .select("team_id, agent_id, agents(name, title, status, last_seen)")
+        .in("team_id", teamIds);
       teamMembers = (members || []) as TeamMemberWithAgent[];
     }
 

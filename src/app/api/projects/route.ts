@@ -280,25 +280,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
     }
 
-    // Log project_created event with AI analysis
-    const { error: eventError } = await db.from("agent_events").insert({
-      agent_id: null,
-      project_id: project.id,
-      event_type: "project_created",
-      payload: {
-        name,
-        type,
-        team_ids: autoTeamIds,
-        description: description || null,
-        workload_analysis: workload,
-      },
-    });
+    // Create a kickoff sprint so task creation works even if sprint_items.sprint_id is still NOT NULL
+    const { data: kickoffSprint, error: sprintError } = await db
+      .from("sprints")
+      .insert({
+        project_id: project.id,
+        name: "Kickoff",
+        goal: "Initial cross-functional project kickoff and routing",
+        status: "active",
+      })
+      .select("id")
+      .single();
 
-    if (eventError) {
-      console.error("[API /projects] event log error:", eventError);
+    if (sprintError || !kickoffSprint?.id) {
+      console.error("[API /projects] kickoff sprint insert error:", sprintError);
+      return NextResponse.json(
+        { error: sprintError?.message || "Failed to create kickoff sprint" },
+        { status: 500 }
+      );
     }
 
-    // Add team-specific tasks for each team (no sprint needed)
+    // Add team-specific tasks for each team
     const teamTaskTemplates: Record<string, string> = {
       [TEAMS.ENGINEERING]: "Set up development environment and architecture",
       [TEAMS.DESIGN]: "Create initial wireframes and design system",
@@ -316,14 +318,13 @@ export async function POST(req: NextRequest) {
       if (teamMembers?.length) {
         const teamTask = teamTaskTemplates[teamId] || `Work on ${name}`;
         
-        // Create task directly without a sprint
         const leadMember = teamMembers[0];
-        
+
         // Insert task and capture the returned ID
         const { data: createdTask, error: taskError } = await db
           .from("sprint_items")
           .insert({
-            sprint_id: null, // No sprint - tasks are project-level
+            sprint_id: kickoffSprint.id,
             project_id: project.id,
             title: teamTask,
             status: "todo",
@@ -337,33 +338,13 @@ export async function POST(req: NextRequest) {
           console.error("[API /projects] task insert error:", taskError);
         }
 
-        // Trigger the assigned agent to start working (now async with taskId)
-        triggerAgentWork(leadMember.agent_id, name, teamTask, createdTask?.id);
+        if (createdTask?.id) {
+          // Trigger the assigned agent to start working (now async with taskId)
+          triggerAgentWork(leadMember.agent_id, name, teamTask, createdTask.id);
+        }
 
-        // Log team_assigned event
-        await db.from("agent_events").insert({
-          agent_id: null,
-          project_id: project.id,
-          event_type: "team_assigned",
-          payload: {
-            team_id: teamId,
-            member_count: teamMembers.length,
-            task: teamTask,
-          },
-        });
       }
     }
-
-    // Log planning_started event
-    await db.from("agent_events").insert({
-      agent_id: null,
-      project_id: project.id,
-      event_type: "planning_started",
-      payload: {
-        teams_assigned: autoTeamIds.length,
-        team_ids: autoTeamIds,
-      },
-    });
 
     // Create GitHub repo for development projects
     const devTypes = ["saas", "web_app", "native_app"];

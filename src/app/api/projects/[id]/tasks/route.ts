@@ -1,5 +1,6 @@
 import { ensureDefaultSprint, getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -7,6 +8,9 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
+
     const params = await ctx.params;
     const projectId = params.id;
     const body = await req.json();

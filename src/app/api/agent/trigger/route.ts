@@ -1,4 +1,5 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -43,6 +44,9 @@ export function getAgentNameFromId(agentId: string): string | null {
  */
 export async function POST(req: NextRequest) {
   try {
+    const auth = authorizeApiRequest(req, { bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { agentId, taskId, projectName, taskTitle } = body;
 
@@ -140,7 +144,10 @@ export async function POST(req: NextRequest) {
  * 
  * Returns the list of mapped agents for reference
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = authorizeApiRequest(req, { bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+  if (!auth.ok) return auth.response;
+
   return NextResponse.json({
     agents: Object.entries(AGENT_MAP).map(([id, name]) => ({
       id,

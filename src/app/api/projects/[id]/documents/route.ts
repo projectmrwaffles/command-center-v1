@@ -1,4 +1,5 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 function normalizeDocumentType(value: string) {
@@ -29,6 +30,9 @@ export async function GET(
   const params = await ctx.params;
 
   try {
+    const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
+
     const projectId = params.id;
 
     if (!projectId) {
@@ -65,6 +69,9 @@ export async function POST(
 ) {
   const params = await ctx.params;
   try {
+    const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
+
     const projectId = params.id;
     const body = await req.json();
     const { documents } = body;

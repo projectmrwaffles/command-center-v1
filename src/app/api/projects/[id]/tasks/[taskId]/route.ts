@@ -1,5 +1,6 @@
 import { normalizeTaskPatch, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 async function getProjectTask(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, projectId: string, taskId: string) {
@@ -22,6 +23,9 @@ export async function PATCH(
   ctx: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
+    const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
+
     const params = await ctx.params;
     const projectId = params.id;
     const taskId = params.taskId;
@@ -95,6 +99,9 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
+    const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
+
     const params = await ctx.params;
     const projectId = params.id;
     const taskId = params.taskId;

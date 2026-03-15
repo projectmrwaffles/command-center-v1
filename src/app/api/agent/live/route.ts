@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { execSync } from "child_process";
+import { authorizeApiRequest } from "@/lib/server-auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+  if (!auth.ok) return auth.response;
   try {
     // Get live sessions from OpenClaw
     const sessionsOutput = execSync("openclaw sessions", {

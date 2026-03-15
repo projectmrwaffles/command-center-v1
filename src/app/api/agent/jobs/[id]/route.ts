@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { authorizeApiRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = authorizeApiRequest(request, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+  if (!auth.ok) return auth.response;
+
   const { id } = await params;
   const db = createServerClient();
   

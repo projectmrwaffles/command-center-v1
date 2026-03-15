@@ -2,6 +2,7 @@ import { ensureDefaultSprint, getProjectTaskPosition, syncProjectState } from "@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
 import { sanitizeProjectLinks } from "@/lib/project-links";
+import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -58,6 +59,7 @@ async function triggerAgentWork(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(process.env.AGENT_AUTH_TOKEN ? { Authorization: `Bearer ${process.env.AGENT_AUTH_TOKEN}` } : {}),
       },
       body: JSON.stringify({
         agentId,
@@ -156,6 +158,8 @@ function getAutoRouteTeamIds(type: string): string[] {
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
     
@@ -164,19 +168,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    let query = db.from("projects").select("id, name, status, type, description, intake_summary, progress_pct, links, created_at, updated_at").order("created_at", { ascending: false });
-    
-    if (type) {
-      query = query.eq("type", type);
+    const selectWithLinks = "id, name, status, type, description, intake_summary, progress_pct, links, created_at, updated_at";
+    const selectWithoutLinks = "id, name, status, type, description, intake_summary, progress_pct, created_at, updated_at";
+
+    const runQuery = async (selectClause: string) => {
+      let query = db.from("projects").select(selectClause).order("created_at", { ascending: false });
+      if (type) query = query.eq("type", type);
+      return query;
+    };
+
+    const initial = await runQuery(selectWithLinks);
+    let projects: any[] = initial.data ?? [];
+    let error = initial.error;
+
+    if (error?.code === "PGRST204" && error.message.includes("'links' column")) {
+      const fallback = await runQuery(selectWithoutLinks);
+      projects = (fallback.data ?? []).map((project) => ({ ...(project as any), links: null }));
+      error = fallback.error;
     }
 
-    const { data, error } = await query;
-    
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ projects: data });
+    return NextResponse.json({ projects });
   } catch (e: unknown) {
     console.error("[API /projects GET] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";
@@ -186,6 +201,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
+    if (!auth.ok) return auth.response;
     const body = await req.json();
     const { name, type, teamId, description, intake, links } = body as {
       name?: string;

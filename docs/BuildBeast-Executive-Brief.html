@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BuildBeast Executive Brief</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; margin: 0; color: #111827; background: #fff; }
+    .page { max-width: 860px; margin: 0 auto; padding: 48px 56px 64px; line-height: 1.55; }
+    h1 { font-size: 30px; margin: 0 0 12px; }
+    h2 { font-size: 20px; margin: 28px 0 10px; }
+    h3 { font-size: 16px; margin: 20px 0 8px; }
+    p { margin: 10px 0; }
+    ul, ol { margin: 8px 0 8px 22px; }
+    li { margin: 6px 0; }
+    .meta { color: #4b5563; font-size: 14px; }
+    .callout { margin: 18px 0; padding: 14px 16px; background: #f9fafb; border-left: 4px solid #dc2626; font-weight: 600; }
+    .strong { font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>BuildBeast Executive Brief</h1>
+    <p class="meta"><strong>Date:</strong> 2026-03-14 &nbsp; • &nbsp; <strong>Status:</strong> 1-page internal executive brief &nbsp; • &nbsp; <strong>Owners:</strong> Compass + Oracle</p>
+
+    <h2>What BuildBeast is</h2>
+    <p>BuildBeast is the productized future of Command Center: a <strong>control plane for agent-assisted delivery</strong>.</p>
+    <p>It gives operators one place to move work from:</p>
+    <div class="callout">messy request → structured intake → routed ownership → supervised execution → approvals → signals → shipped outcome</div>
+    <p>This is not just a PM dashboard and not just a wrapper around OpenClaw. The value is the operating layer between AI runtimes and real delivery work.</p>
+
+    <h2>The problem</h2>
+    <ul>
+      <li>requests arrive vague</li>
+      <li>routing is inconsistent</li>
+      <li>execution state is fragmented</li>
+      <li>approvals arrive late or without context</li>
+      <li>logs are noisy and hard to act on</li>
+      <li>docs and PRDs are not integrated into the delivery loop</li>
+    </ul>
+
+    <h2>Product promise</h2>
+    <div class="callout">One place to intake, route, orchestrate, supervise, and audit agent-assisted work until it ships.</div>
+
+    <h2>Milestone 1 focus</h2>
+    <p>Milestone 1 is not SaaS. It is the internal proving ground that locks the core product model.</p>
+
+    <h3>In scope</h3>
+    <ul>
+      <li>guided intake with structured fields</li>
+      <li>explainable owner + QC routing</li>
+      <li>project creation with starter tasks</li>
+      <li>trusted project workspace</li>
+      <li>task board distinct from jobs/runs</li>
+      <li>approvals with severity and audit trail</li>
+      <li>recent signals derived from events/state</li>
+      <li>documents + PRDs attached to project context</li>
+      <li>project-level usage visibility</li>
+    </ul>
+
+    <h3>Out of scope</h3>
+    <ul>
+      <li>workspaces / multi-tenancy</li>
+      <li>enterprise RBAC / SSO</li>
+      <li>workflow builder</li>
+      <li>multi-runtime support beyond OpenClaw</li>
+      <li>billing and self-serve onboarding</li>
+    </ul>
+
+    <h2>Core design decisions</h2>
+    <ol>
+      <li><strong>Project, task, and job are different objects.</strong> Project = durable outcome. Task = scoped work. Job/run = execution attempt.</li>
+      <li><strong>Owner and QC stay separate.</strong> BuildBeast is supervised operations, not self-approval.</li>
+      <li><strong>Routing is a product feature.</strong> Intake + routing logic is part of the moat.</li>
+      <li><strong>Signals are curated summaries, not raw logs.</strong> The product should answer “what changed that matters?”</li>
+      <li><strong>Documents are part of execution context.</strong> PRDs, screenshots, and links belong inside the project workspace.</li>
+    </ol>
+
+    <h2>Milestone 1 routing rules</h2>
+    <ul>
+      <li><strong>Product</strong> owns first when confidence is low, stage is early, or request is hybrid/strategy-heavy</li>
+      <li><strong>Engineering</strong> owns first when build-heavy capabilities dominate or shape = new product</li>
+      <li><strong>Marketing</strong> owns first for launch/growth work</li>
+      <li><strong>Design</strong> owns first when UX/UI is the main need and the work is already scoped</li>
+    </ul>
+    <p><strong>QC lane:</strong> Engineering → QA, Design → Product, Marketing → Product, Product → QA</p>
+
+    <h2>What success looks like</h2>
+    <ul>
+      <li>median project creation time is under 2 minutes</li>
+      <li>every new project gets an owner + QC recommendation</li>
+      <li>operators can trust the project workspace as the operational source of truth</li>
+      <li>approvals are actionable without opening raw logs</li>
+      <li>recent signals are more useful than the raw event feed</li>
+      <li>documents and PRDs are visible in the same context as tasks and approvals</li>
+    </ul>
+
+    <h2>Biggest risks</h2>
+    <ul>
+      <li>overfitting to Milo/Vertillo-specific language</li>
+      <li>confusing tasks with jobs/runs</li>
+      <li>shipping noisy activity instead of real signals</li>
+      <li>weak approval state design</li>
+      <li>treating documents like detached files instead of working context</li>
+      <li>trying to jump to SaaS before the internal model is trusted</li>
+    </ul>
+
+    <h2>Bottom line</h2>
+    <p>BuildBeast has a credible wedge: <strong>the control plane for serious agent operations</strong>.</p>
+    <p>The smart move is to prove the model internally first, then productize the abstractions that survive real use: intake, routing, approvals, signals, documents, and supervised execution.</p>
+  </main>
+</body>
+</html>

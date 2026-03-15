@@ -1,5 +1,55 @@
+import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+
+type TeamWithId = {
+  id: string;
+  name: string;
+};
+
+type TeamMemberWithAgent = {
+  team_id: string;
+  agent_id: string | null;
+  agents: {
+    name: string;
+    title: string | null;
+    status: string;
+    last_seen: string | null;
+  } | null;
+};
+
+type RecentSignal = {
+  id: string;
+  kind: "blocked" | "approval" | "completed" | "progress" | "activity";
+  title: string;
+  detail: string;
+  timestamp: string;
+  actorName?: string | null;
+};
+
+function formatEventType(eventType: string) {
+  return eventType
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function toTeamMembers(rows: any[]): TeamMemberWithAgent[] {
+  return rows.map((row) => {
+    const agentRow = Array.isArray(row.agents) ? row.agents[0] : row.agents;
+    return {
+      team_id: row.team_id,
+      agent_id: row.agent_id ?? null,
+      agents: agentRow
+        ? {
+            name: agentRow.name,
+            title: agentRow.title ?? null,
+            status: agentRow.status,
+            last_seen: agentRow.last_seen ?? null,
+          }
+        : null,
+    };
+  });
+}
 
 export async function GET(
   req: NextRequest,
@@ -18,7 +68,6 @@ export async function GET(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    // Fetch project
     const { data: project, error: projectError } = await db
       .from("projects")
       .select("*")
@@ -29,46 +78,30 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Fetch sprints
-    const { data: sprints } = await db
-      .from("sprints")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: true });
+    const [{ data: tasks }, { data: events }, { data: approvals }, { data: jobs }] = await Promise.all([
+      db.from("sprint_items").select("*").eq("project_id", projectId).order("position", { ascending: true }),
+      db
+        .from("agent_events")
+        .select("id, event_type, payload, timestamp, agents(name)")
+        .eq("project_id", projectId)
+        .order("timestamp", { ascending: false })
+        .limit(50),
+      db
+        .from("approvals")
+        .select("id, summary, severity, status, created_at")
+        .eq("project_id", projectId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(10),
+      db
+        .from("jobs")
+        .select("id, title, status, updated_at, owner_agent_id")
+        .eq("project_id", projectId)
+        .in("status", ["blocked", "in_progress"])
+        .order("updated_at", { ascending: false })
+        .limit(10),
+    ]);
 
-    // Fetch sprint_items (tasks)
-    const { data: tasks } = await db
-      .from("sprint_items")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("position", { ascending: true });
-
-    // Fetch project events (activity timeline)
-    const { data: events } = await db
-      .from("agent_events")
-      .select("id, event_type, payload, timestamp, agents(name)")
-      .eq("project_id", projectId)
-      .order("timestamp", { ascending: false })
-      .limit(50);
-
-    interface TeamWithId {
-      id: string;
-      name: string;
-    }
-
-    interface TeamMemberWithAgent {
-      team_id: string;
-      agent_id: string | null;
-      agents: {
-        name: string;
-        title: string | null;
-        status: string;
-        last_seen: string | null;
-      } | null;
-    }
-
-    // Resolve project teams from the project's primary team_id plus the teams of assigned task owners.
-    // team_members does not have a project_id column, so filtering it by project_id breaks this page.
     const assignedAgentIds = Array.from(
       new Set((tasks || []).map((task) => task.assignee_agent_id).filter(Boolean))
     ) as string[];
@@ -79,7 +112,9 @@ export async function GET(
         .from("team_members")
         .select("team_id, agent_id")
         .in("agent_id", assignedAgentIds);
-      derivedTeamIds = Array.from(new Set((memberships || []).map((membership) => membership.team_id).filter(Boolean)));
+      derivedTeamIds = Array.from(
+        new Set((memberships || []).map((membership) => membership.team_id).filter(Boolean))
+      );
     }
 
     const teamIds = Array.from(new Set([project.team_id, ...derivedTeamIds].filter(Boolean))) as string[];
@@ -100,21 +135,24 @@ export async function GET(
         .from("team_members")
         .select("team_id, agent_id, agents(name, title, status, last_seen)")
         .in("team_id", teamIds);
-      teamMembers = (members || []) as TeamMemberWithAgent[];
+      teamMembers = toTeamMembers(members || []);
     }
 
-    // Get team stats per team
     const teamsWithStats = teams.map((team) => {
-      const members = teamMembers.filter((m) => m.team_id === team?.id);
-      const activeAgents = members.filter((m) => m.agents?.status === "active").length;
-      const teamTasks = tasks?.filter((t) => t.assignee_agent_id && members.some((m) => m.agent_id === t.assignee_agent_id)) || [];
-      const blockedTasks = teamTasks.filter((t) => t.status === "blocked").length;
-      const inProgressTasks = teamTasks.filter((t) => t.status === "in_progress").length;
-      
+      const members = teamMembers.filter((member) => member.team_id === team.id);
+      const teamTasks =
+        tasks?.filter(
+          (task) => task.assignee_agent_id && members.some((member) => member.agent_id === task.assignee_agent_id)
+        ) || [];
+      const activeAgents = members.filter((member) => member.agents?.status === "active").length;
+      const blockedTasks = teamTasks.filter((task) => task.status === "blocked").length;
+      const inProgressTasks = teamTasks.filter((task) => task.status === "in_progress").length;
+      const completedTasks = teamTasks.filter((task) => task.status === "done").length;
+
       let teamStatus = "waiting";
       if (blockedTasks > 0) teamStatus = "blocked";
       else if (inProgressTasks > 0) teamStatus = "active";
-      else if (teamTasks.length > 0) teamStatus = "on_track";
+      else if (completedTasks > 0) teamStatus = "on_track";
 
       return {
         ...team,
@@ -122,26 +160,51 @@ export async function GET(
         activeAgents,
         taskCount: teamTasks.length,
         blockedTasks,
+        inProgressTasks,
+        completedTasks,
         status: teamStatus,
-        members: members.map((m) => m.agents).filter(Boolean),
+        members: members.map((member) => member.agents).filter(Boolean),
       };
     });
 
-    // Calculate milestone-like aggregates from sprints
-    const milestones = sprints?.map((sprint) => ({
-      id: sprint.id,
-      name: sprint.name,
-      goal: sprint.goal,
-      status: sprint.status,
-      progress_pct: sprint.progress_pct,
-      start_date: sprint.start_date,
-      end_date: sprint.end_date,
-    })) || [];
-
-    // Calculate overall progress
     const totalTasks = tasks?.length || 0;
-    const doneTasks = tasks?.filter((t) => t.status === "done").length || 0;
+    const doneTasks = tasks?.filter((task) => task.status === "done").length || 0;
     const overallProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : project.progress_pct || 0;
+
+    const recentSignals: RecentSignal[] = [
+      ...(approvals || []).map((approval) => ({
+        id: `approval-${approval.id}`,
+        kind: "approval" as const,
+        title: approval.summary || "Approval requested",
+        detail: approval.severity ? `${approval.severity} priority approval is waiting` : "Approval is waiting",
+        timestamp: approval.created_at,
+      })),
+      ...(jobs || []).map((job) => ({
+        id: `job-${job.id}`,
+        kind: job.status === "blocked" ? ("blocked" as const) : ("progress" as const),
+        title: job.title || (job.status === "blocked" ? "Blocked job" : "Active job"),
+        detail: job.status === "blocked" ? "A job is blocked and needs attention" : "A job is currently running",
+        timestamp: job.updated_at || new Date().toISOString(),
+      })),
+      ...(events || []).map((event: any) => ({
+        id: `event-${event.id}`,
+        kind:
+          event.event_type === "task_completed"
+            ? ("completed" as const)
+            : event.event_type.includes("blocked")
+              ? ("blocked" as const)
+              : ("activity" as const),
+        title: formatEventType(event.event_type),
+        detail:
+          event.payload?.title ||
+          event.payload?.message ||
+          (event.payload && Object.keys(event.payload).length > 0 ? JSON.stringify(event.payload).slice(0, 120) : "Recent project activity"),
+        timestamp: event.timestamp,
+        actorName: Array.isArray(event.agents) ? event.agents[0]?.name : event.agents?.name,
+      })),
+    ]
+      .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
+      .slice(0, 12);
 
     return NextResponse.json({
       project: {
@@ -149,15 +212,17 @@ export async function GET(
         progress_pct: overallProgress,
       },
       teams: teamsWithStats,
-      milestones,
-      sprints: sprints || [],
+      milestones: [],
+      sprints: [],
       tasks: tasks || [],
       events: events || [],
+      recentSignals,
       stats: {
         totalTasks,
         doneTasks,
-        blockedTasks: tasks?.filter((t) => t.status === "blocked").length || 0,
-        inProgressTasks: tasks?.filter((t) => t.status === "in_progress").length || 0,
+        blockedTasks: tasks?.filter((task) => task.status === "blocked").length || 0,
+        inProgressTasks: tasks?.filter((task) => task.status === "in_progress").length || 0,
+        pendingApprovals: approvals?.length || 0,
       },
     });
   } catch (e: unknown) {
@@ -175,14 +240,29 @@ export async function PATCH(
     const params = await ctx.params;
     const projectId = params.id;
     const body = await req.json();
-    const { status } = body;
+    const { status, links } = body;
 
     if (!projectId) {
       return NextResponse.json({ error: "Project ID required" }, { status: 400 });
     }
 
-    if (!["active", "paused", "completed", "archived"].includes(status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    const update: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status !== undefined) {
+      if (!["active", "paused", "completed", "archived"].includes(status)) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      }
+      update.status = status;
+    }
+
+    if (links !== undefined) {
+      update.links = sanitizeProjectLinks(links);
+    }
+
+    if (Object.keys(update).length === 1) {
+      return NextResponse.json({ error: "No valid changes provided" }, { status: 400 });
     }
 
     const db = createRouteHandlerClient();
@@ -192,7 +272,7 @@ export async function PATCH(
 
     const { data, error } = await db
       .from("projects")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(update)
       .eq("id", projectId)
       .select()
       .single();
@@ -227,23 +307,22 @@ export async function DELETE(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    // Get all related records to cascade delete
     const [sprintsRes, jobsRes, approvalsRes] = await Promise.all([
       db.from("sprints").select("id").eq("project_id", projectId),
       db.from("jobs").select("id").eq("project_id", projectId),
       db.from("approvals").select("id").eq("project_id", projectId),
     ]);
 
-    const sprintIds = sprintsRes.data?.map(s => s.id) ?? [];
-    const jobIds = jobsRes.data?.map(j => j.id) ?? [];
-    const approvalIds = approvalsRes.data?.map(a => a.id) ?? [];
+    const sprintIds = sprintsRes.data?.map((s) => s.id) ?? [];
+    const jobIds = jobsRes.data?.map((j) => j.id) ?? [];
+    const approvalIds = approvalsRes.data?.map((a) => a.id) ?? [];
 
-    // Delete in order (respecting FK constraints)
     if (approvalIds.length > 0) {
       await db.from("approvals").delete().in("id", approvalIds);
     }
+    // Delete all project tasks first, including project-level tasks with null sprint_id.
+    await db.from("sprint_items").delete().eq("project_id", projectId);
     if (sprintIds.length > 0) {
-      await db.from("sprint_items").delete().in("sprint_id", sprintIds);
       await db.from("sprints").delete().in("id", sprintIds);
     }
     if (jobIds.length > 0) {
@@ -253,7 +332,6 @@ export async function DELETE(
     await db.from("ai_usage").delete().eq("project_id", projectId);
     await db.from("agent_events").delete().eq("project_id", projectId);
 
-    // Now delete the project
     const { data, error } = await db
       .from("projects")
       .delete()

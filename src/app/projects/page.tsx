@@ -1,43 +1,45 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateProjectModal } from "@/components/create-project-modal";
 import { DbBanner } from "@/components/db-banner";
+import { legacyTypeToLabel } from "@/lib/project-intake";
 
 function ProjectsContent() {
   const searchParams = useSearchParams();
   const showNew = searchParams.get("new") === "true";
-  
+
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(showNew);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const res = await fetch("/api/projects");
       const data = await res.json();
       setProjects(data.projects || []);
-    } catch (e) {
+      setError(null);
+    } catch {
       setError("Failed to load data");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return (
     <div className="space-y-6">
       <DbBanner />
 
-      <CreateProjectModal 
-        open={showCreateModal} 
+      <CreateProjectModal
+        open={showCreateModal}
         onOpenChange={(open) => {
           setShowCreateModal(open);
           if (!open) {
@@ -49,12 +51,9 @@ function ProjectsContent() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Projects</h1>
-          <p className="text-sm text-zinc-500">Active projects with sprints and PRDs</p>
+          <p className="text-sm text-zinc-500">Active projects, progress, and delivery health</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
-        >
+        <button onClick={() => setShowCreateModal(true)} className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700">
           New Project
         </button>
       </div>
@@ -73,7 +72,7 @@ function ProjectsContent() {
           ))}
         </div>
       ) : error ? (
-        <div className="text-center py-12 text-red-600">{error}</div>
+        <div className="py-12 text-center text-red-600">{error}</div>
       ) : projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 py-16">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
@@ -83,10 +82,7 @@ function ProjectsContent() {
           </div>
           <p className="mb-2 text-lg font-medium text-zinc-700">No projects yet</p>
           <p className="mb-4 text-sm text-zinc-500">Create your first project to get started</p>
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          >
+          <button onClick={() => setShowCreateModal(true)} className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
             Create your first project
           </button>
         </div>
@@ -94,15 +90,16 @@ function ProjectsContent() {
         <div className="grid gap-4">
           {projects.map((p) => (
             <Link key={p.id} href={`/projects/${p.id}`} className="block">
-              <Card className="border-zinc-200 transition-all hover:shadow-md hover:border-zinc-300">
+              <Card className="border-zinc-200 transition-all hover:border-zinc-300 hover:shadow-md">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">{p.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="py-2">
                   <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
-                    <span className="capitalize">{p.type || "other"}</span>
+                    <span>{legacyTypeToLabel(p.type || "other")}</span>
                     <span className="capitalize">{p.status || "active"}</span>
                     <span>{p.progress_pct || 0}% complete</span>
+                    {p.intake_summary ? <span className="max-w-full truncate">{p.intake_summary}</span> : null}
                   </div>
                 </CardContent>
               </Card>
@@ -116,12 +113,14 @@ function ProjectsContent() {
 
 export default function ProjectsPage() {
   return (
-    <Suspense fallback={
-      <div className="space-y-6">
-        <DbBanner />
-        <div className="text-center py-12 text-zinc-500">Loading...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <DbBanner />
+          <div className="py-12 text-center text-zinc-500">Loading...</div>
+        </div>
+      }
+    >
       <ProjectsContent />
     </Suspense>
   );

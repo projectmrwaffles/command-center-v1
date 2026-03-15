@@ -18,6 +18,10 @@ interface Subscription {
 }
 
 function subscribe(table: TableName, onEvent: (payload: any) => void): Subscription {
+  if (!supabaseRealtime) {
+    return { unsubscribe: () => {} };
+  }
+
   const channel = supabaseRealtime
     .channel(`public:${table}`)
     .on(
@@ -46,7 +50,6 @@ function subscribe(table: TableName, onEvent: (payload: any) => void): Subscript
   };
 }
 
-// Single entry point to subscribe to all required tables
 export function subscribeToAllTables(handlers: {
   onAgent?: (p: any) => void;
   onAgentEvent?: (p: any) => void;

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BuildBeast PRD</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif; color: #111827; margin: 0; background: #f8fafc; }
+    .page { max-width: 860px; margin: 0 auto; background: white; padding: 56px 64px; box-sizing: border-box; }
+    h1 { font-size: 34px; margin: 0 0 8px; }
+    h2 { font-size: 22px; margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+    h3 { font-size: 18px; margin-top: 22px; }
+    p, li { font-size: 14px; line-height: 1.65; }
+    ul { padding-left: 20px; }
+    .meta { color: #4b5563; font-size: 13px; margin-bottom: 24px; }
+    .callout { background: #f3f4f6; border-left: 4px solid #4f46e5; padding: 14px 16px; margin: 16px 0; }
+    .small { color: #6b7280; font-size: 12px; }
+    @media print {
+      body { background: white; }
+      .page { max-width: none; margin: 0; padding: 32px 40px; }
+      h2 { break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>BuildBeast PRD</h1>
+    <div class="meta">
+      <div><strong>Version:</strong> v0.1</div>
+      <div><strong>Status:</strong> Draft / Internal</div>
+      <div><strong>Owner:</strong> Milo / Vertillo</div>
+      <div><strong>Prepared by:</strong> Mr. Waffles</div>
+      <div><strong>Date:</strong> 2026-03-14</div>
+    </div>
+
+    <h2>1. Product Summary</h2>
+    <p>BuildBeast is the future product direction emerging from Command Center V1.</p>
+    <p>Command Center V1 is currently the internal proving ground: a control interface used by Vertillo to intake projects, route work to specialist teams, track execution, manage approvals, and surface operational signals.</p>
+    <p>BuildBeast is the productized vision of that system.</p>
+    <p>BuildBeast will begin as a control plane that can orchestrate an existing OpenClaw environment and, over time, evolve into a runtime-capable system that can operate independently without requiring an OpenClaw gateway.</p>
+    <p>At its core, BuildBeast helps users turn ideas into shipped outcomes through structured intake, intelligent routing, AI-assisted execution, human approvals, and operational visibility.</p>
+
+    <h2>2. Vision</h2>
+    <h3>Long-term vision</h3>
+    <p>BuildBeast becomes the operating system for turning ideas into executed projects.</p>
+    <ul>
+      <li>describe what they want to build</li>
+      <li>provide context, goals, and supporting documents</li>
+      <li>have the system scope and route the work intelligently</li>
+      <li>coordinate design, product, engineering, marketing, and QA work</li>
+      <li>approve key decisions at the right moments</li>
+      <li>monitor progress, blockers, costs, and outcomes</li>
+    </ul>
+    <div class="callout"><strong>Product framing:</strong> BuildBeast is the control plane for agent operations.</div>
+
+    <h2>3. Problem</h2>
+    <p>People have ideas they want executed, but the path from idea to shipped outcome is fragmented.</p>
+    <ul>
+      <li>intake is vague and poorly structured</li>
+      <li>project routing depends on whoever reads the request</li>
+      <li>task assignment is inconsistent</li>
+      <li>project status is noisy or misleading</li>
+      <li>approvals happen too late or in the wrong place</li>
+      <li>AI tools can perform work but lack a reliable operational control plane</li>
+      <li>internal tools often overfit to one operator's workflow and do not productize well</li>
+    </ul>
+
+    <h2>4. Opportunity</h2>
+    <p>BuildBeast can become the layer that structures intake, maps user needs to execution lanes, coordinates project work, surfaces decisions and blockers, provides trustworthy operational visibility, and creates a repeatable delivery model for humans and AI working together.</p>
+
+    <h2>5. Product Principles</h2>
+    <ol>
+      <li><strong>Human override is first-class</strong></li>
+      <li><strong>Routing is a product capability</strong></li>
+      <li><strong>Project != run</strong></li>
+      <li><strong>The event log is sacred</strong></li>
+      <li><strong>Opinionated defaults beat empty flexibility</strong></li>
+      <li><strong>Governance and visibility matter</strong></li>
+      <li><strong>Abstractions should survive productization</strong></li>
+    </ol>
+
+    <h2>6. Command Center V1 vs BuildBeast</h2>
+    <h3>Command Center V1</h3>
+    <p>Internal proving ground for Vertillo. Used to validate intake, routing, project pages, signals, approvals, and team assignment.</p>
+    <h3>BuildBeast</h3>
+    <p>Future product that exposes the best abstractions from Command Center V1 and generalizes them for broader users.</p>
+
+    <h2>7. Core Jobs to Be Done</h2>
+    <p><strong>Primary job:</strong> “When I have something I want built, help me turn it into structured work, assign it to the right lanes, and keep it moving until it ships.”</p>
+
+    <h2>8. V1 Scope (Internal)</h2>
+    <ul>
+      <li>guided project intake</li>
+      <li>structured project creation</li>
+      <li>project-level task orchestration</li>
+      <li>team/owner assignment</li>
+      <li>recent signals / activity summary</li>
+      <li>approvals / needs-attention queue</li>
+      <li>project visibility on desktop and mobile</li>
+      <li>supporting document upload</li>
+      <li>QC-aware operating model</li>
+    </ul>
+
+    <h2>9. Product Requirements</h2>
+    <h3>9.1 Guided Intake</h3>
+    <p>Users should create projects through a structured, selection-first flow with plain language, examples, hybrid support, and optional notes/documents.</p>
+    <h3>9.2 Routing</h3>
+    <p>The system should route work using structured intake signals, not a single rigid type field.</p>
+    <h3>9.3 Project Workspace</h3>
+    <p>Each project should answer what this project is, current status, who owns what, what is blocked, what changed, and what needs approval.</p>
+    <h3>9.4 Recent Signals</h3>
+    <p>Activity should be curated, human-readable, and high-signal.</p>
+    <h3>9.5 Supporting Documents</h3>
+    <p>Projects should support attached briefs, PRDs, screenshots, mockups, notes, and technical context.</p>
+    <h3>9.6 Approvals / Needs Attention</h3>
+    <p>The system should clearly surface approvals, blocked work, stalled projects, and intervention points.</p>
+    <h3>9.7 Runtime Orchestration</h3>
+    <p>In the first phase, BuildBeast orchestrates through the current OpenClaw environment.</p>
+    <h3>9.8 Future Runtime Independence</h3>
+    <p>Over time, BuildBeast should support execution without depending entirely on an OpenClaw gateway.</p>
+
+    <h2>10. Architecture Direction</h2>
+    <ol>
+      <li><strong>System of record</strong> — projects, tasks, approvals, teams, documents, events, usage</li>
+      <li><strong>Orchestration / control layer</strong> — routing, task state, approvals, triggers, signals</li>
+      <li><strong>Runtime adapter layer</strong> — OpenClaw first, other adapters later</li>
+    </ol>
+
+    <h2>11. Risks</h2>
+    <ul>
+      <li>Overfitting to Milo/Vertillo workflow</li>
+      <li>Confusing internal dashboard behavior with product-ready abstractions</li>
+      <li>Inconsistent domain models</li>
+      <li>Noisy or untrustworthy status surfaces</li>
+      <li>OpenClaw-specific implementation details becoming permanent concepts</li>
+      <li>Trying SaaS before identity, tenancy, security, and workspace abstractions exist</li>
+    </ul>
+
+    <h2>12. Non-Goals (for now)</h2>
+    <ul>
+      <li>launching public SaaS immediately</li>
+      <li>solving every PM workflow</li>
+      <li>replacing every external tool at once</li>
+      <li>exposing raw runtime concepts directly to end users</li>
+    </ul>
+
+    <h2>13. Success Criteria</h2>
+    <h3>Internal V1 success</h3>
+    <ul>
+      <li>BuildBeast is tracked as a real project inside Command Center V1</li>
+      <li>intake feels guided and useful</li>
+      <li>routing feels smarter and less rigid</li>
+      <li>project pages are trusted operational views</li>
+      <li>approvals and recent signals are genuinely useful</li>
+    </ul>
+    <h3>Productization success</h3>
+    <ul>
+      <li>the model can be generalized beyond Milo-specific assumptions</li>
+      <li>core abstractions survive contact with outside users/teams</li>
+      <li>routing and intake remain understandable without coaching</li>
+    </ul>
+
+    <h2>14. Immediate Next Steps</h2>
+    <ol>
+      <li>Create <strong>BuildBeast</strong> as the first canonical tracked project in Command Center V1</li>
+      <li>Attach this PRD as the supporting project document</li>
+      <li>Use BuildBeast to test intake, routing, project page usefulness, approvals, recent signals, and team assignment</li>
+      <li>Refine Command Center V1 using real BuildBeast usage</li>
+    </ol>
+
+    <h2>15. Suggested First Milestone</h2>
+    <p><strong>BuildBeast Foundation</strong></p>
+    <p>Make Command Center V1 good enough to manage BuildBeast credibly as a real internal product.</p>
+    <ul>
+      <li>stable project intake</li>
+      <li>clean project page experience</li>
+      <li>useful team/owner visibility</li>
+      <li>approvals that work</li>
+      <li>recent signals that matter</li>
+      <li>supporting document attachment flow</li>
+      <li>reliable task/project state updates</li>
+    </ul>
+
+    <h2>16. Final Summary</h2>
+    <p>Command Center V1 is the proving ground. BuildBeast is the product.</p>
+    <p>The job now is not to pretend the internal tool is already a SaaS. The job is to use it to discover and solidify the abstractions that can become one.</p>
+    <p class="small">Prepared for internal project submission and supporting document attachment in Command Center V1.</p>
+  </main>
+</body>
+</html>

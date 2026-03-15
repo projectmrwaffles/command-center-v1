@@ -251,11 +251,14 @@ export function useRealtimeSubscriptions() {
   const store = useRealtimeStore();
 
   useEffect(() => {
+    const realtime = supabaseRealtime;
+    if (!realtime) return;
+
     console.log("[Realtime] Subscribing to all tables...");
     const channels: any[] = [];
 
     const add = (table: string, cb: (payload: any) => void) => {
-      const ch = supabaseRealtime
+      const ch = realtime
         .channel(`public:${table}`)
         .on(
           "postgres_changes",
@@ -314,7 +317,7 @@ export function useRealtimeSubscriptions() {
       console.log("[Realtime] Unsubscribing...");
       channels.forEach((c) => c.unsubscribe());
     };
-  }, []);
+  }, [store]);
 }
 
 import { useEffect } from "react";

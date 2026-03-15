@@ -1,0 +1,288 @@
+export type IntakeOption = {
+  value: string;
+  label: string;
+  description: string;
+  examples: string[];
+  hint?: string;
+};
+
+import type { ProjectLinks } from "@/lib/project-links";
+
+export type ProjectIntake = {
+  shape: string;
+  context: string[];
+  capabilities: string[];
+  stage: string;
+  confidence: string;
+  projectName?: string;
+  summary?: string;
+  goals?: string;
+  links?: ProjectLinks;
+};
+
+export const PROJECT_SHAPES: IntakeOption[] = [
+  {
+    value: "new-product",
+    label: "New product or MVP",
+    description: "You’re creating something new from scratch or close to it.",
+    examples: ["Launch a new SaaS idea", "Build an internal tool MVP", "Create a first mobile app version"],
+  },
+  {
+    value: "improve-existing",
+    label: "Improve something existing",
+    description: "You already have a site, app, funnel, or workflow and want to make it better.",
+    examples: ["Redesign key screens", "Add onboarding", "Speed up an existing site"],
+  },
+  {
+    value: "launch-campaign",
+    label: "Launch a campaign or growth push",
+    description: "You need messaging, assets, experiments, or launch coordination.",
+    examples: ["Product launch campaign", "New landing page + ads", "Email and social rollout"],
+  },
+  {
+    value: "ops-system",
+    label: "Set up a system or workflow",
+    description: "You need an operating system behind the scenes, not just a public-facing product.",
+    examples: ["CRM or lead pipeline", "Client portal workflow", "Team dashboard or automation"],
+  },
+  {
+    value: "research-strategy",
+    label: "Figure out what to build",
+    description: "You need clarity before execution: direction, structure, positioning, or requirements.",
+    examples: ["Scope a roadmap", "Define the product plan", "Audit what’s broken and recommend next steps"],
+  },
+  {
+    value: "hybrid-not-sure",
+    label: "Not sure / hybrid",
+    description: "It spans a few things, or you’re not sure what bucket it belongs in yet.",
+    examples: ["Part redesign, part growth", "Need strategy first, then execution", "I know the problem, not the solution"],
+    hint: "Best safe option if you’re unsure.",
+  },
+];
+
+export const PROJECT_CONTEXTS: IntakeOption[] = [
+  {
+    value: "customer-facing",
+    label: "Customer-facing",
+    description: "Used by prospects, customers, or the public.",
+    examples: ["Marketing site", "Client portal", "Consumer app"],
+  },
+  {
+    value: "internal-team",
+    label: "Internal team use",
+    description: "Built mainly for your team or operations.",
+    examples: ["Ops dashboard", "Sales workflow", "Internal knowledge tool"],
+  },
+  {
+    value: "new-initiative",
+    label: "Brand-new initiative",
+    description: "This is a new idea or business line, not a tune-up.",
+    examples: ["New venture", "Fresh offer", "First version of a concept"],
+  },
+  {
+    value: "existing-asset",
+    label: "Existing site/app/process",
+    description: "There’s already something in place and this work builds on it.",
+    examples: ["Existing website", "Current app", "Established workflow"],
+  },
+  {
+    value: "ai-enabled",
+    label: "AI is part of it",
+    description: "AI is a meaningful part of the experience, workflow, or automation.",
+    examples: ["AI assistant", "Prompt workflow", "Auto-generated content or analysis"],
+  },
+];
+
+export const PROJECT_CAPABILITIES: IntakeOption[] = [
+  {
+    value: "strategy",
+    label: "Strategy and scoping",
+    description: "Clarify direction, requirements, priorities, or what to do first.",
+    examples: ["Roadmap", "PRD", "Offer positioning"],
+  },
+  {
+    value: "ux-ui",
+    label: "UX/UI design",
+    description: "Shape flows, screens, interactions, and visuals.",
+    examples: ["Wireframes", "Design system", "Responsive UI"],
+  },
+  {
+    value: "frontend",
+    label: "Website or app build",
+    description: "Build the visible product, interface, or experience.",
+    examples: ["Landing page", "Web app", "Dashboard"],
+  },
+  {
+    value: "backend-data",
+    label: "Backend, data, or integrations",
+    description: "APIs, database work, automations, and systems behind the scenes.",
+    examples: ["Supabase setup", "CRM sync", "Internal automation"],
+  },
+  {
+    value: "content-copy",
+    label: "Messaging, copy, or content",
+    description: "Words and content that explain, sell, or guide.",
+    examples: ["Website copy", "Launch messaging", "Email sequence"],
+  },
+  {
+    value: "growth-marketing",
+    label: "Growth and acquisition",
+    description: "Traffic, experiments, campaigns, and conversion work.",
+    examples: ["Paid campaigns", "SEO improvements", "Conversion testing"],
+  },
+  {
+    value: "qa-optimization",
+    label: "QA, polish, or optimization",
+    description: "Test, refine, improve performance, and reduce risk.",
+    examples: ["Bug bash", "Responsive cleanup", "Performance pass"],
+  },
+];
+
+export const PROJECT_STAGES: IntakeOption[] = [
+  {
+    value: "idea",
+    label: "Just an idea",
+    description: "You need help turning a rough idea into a plan.",
+    examples: ["Still framing the problem", "Need options", "No spec yet"],
+  },
+  {
+    value: "planning",
+    label: "Needs a clear plan",
+    description: "The direction is known, but scope and decisions need to be shaped.",
+    examples: ["Need a brief", "Need architecture", "Need priorities"],
+  },
+  {
+    value: "ready-to-design",
+    label: "Ready for design",
+    description: "The concept is clear enough to move into flows, wireframes, or UI.",
+    examples: ["Requirements exist", "Need screens", "Need visual direction"],
+  },
+  {
+    value: "ready-to-build",
+    label: "Ready to build",
+    description: "Enough is defined to start implementation now.",
+    examples: ["Spec exists", "Design exists", "Just need execution"],
+  },
+  {
+    value: "already-live",
+    label: "Already live, needs improvement",
+    description: "Something exists today and needs fixes, improvements, or growth.",
+    examples: ["Improve conversion", "Add features", "Clean up UX or performance"],
+  },
+];
+
+export const CONFIDENCE_OPTIONS: IntakeOption[] = [
+  {
+    value: "clear",
+    label: "I know what I need",
+    description: "You want the team to move fast on a clear direction.",
+    examples: ["I have a spec", "I know the deliverable", "I just need execution"],
+  },
+  {
+    value: "somewhat-clear",
+    label: "I know the outcome, not the exact path",
+    description: "You know the goal, but want help shaping the best approach.",
+    examples: ["Need recommendations", "Open to a few options", "Want the right mix of teams"],
+  },
+  {
+    value: "not-sure",
+    label: "I’m not sure yet",
+    description: "You want a safe intake path that starts with discovery and recommendation.",
+    examples: ["Not sure if this is product or marketing", "Need help naming the work", "Want someone to triage it"],
+  },
+];
+
+export function formatIntakeValue(value?: string) {
+  if (!value) return "—";
+  const all = [...PROJECT_SHAPES, ...PROJECT_CONTEXTS, ...PROJECT_CAPABILITIES, ...PROJECT_STAGES, ...CONFIDENCE_OPTIONS];
+  return all.find((item) => item.value === value)?.label || value.replace(/-/g, " ");
+}
+
+export function legacyTypeToLabel(type?: string | null) {
+  switch (type) {
+    case "product_build":
+      return "Product build";
+    case "marketing_growth":
+      return "Marketing / growth";
+    case "ops_enablement":
+      return "Ops / internal systems";
+    case "strategy_research":
+      return "Strategy / discovery";
+    case "hybrid":
+      return "Hybrid / not sure";
+    case "saas":
+      return "SaaS";
+    case "web_app":
+      return "Web app";
+    case "native_app":
+      return "Native app";
+    case "marketing":
+      return "Marketing";
+    case "other":
+      return "Other";
+    default:
+      return type ? type.replace(/_/g, " ") : "Other";
+  }
+}
+
+export function summarizeIntake(intake: ProjectIntake) {
+  const shape = formatIntakeValue(intake.shape);
+  const stage = formatIntakeValue(intake.stage);
+  const capabilities = intake.capabilities.map(formatIntakeValue).join(", ");
+  return [shape, stage, capabilities].filter(Boolean).join(" • ");
+}
+
+export function deriveLegacyProjectType(intake: ProjectIntake) {
+  if (intake.shape === "launch-campaign") return "marketing_growth";
+  if (intake.shape === "ops-system") return "ops_enablement";
+  if (intake.shape === "research-strategy") return "strategy_research";
+  if (intake.shape === "hybrid-not-sure" || intake.confidence === "not-sure") return "hybrid";
+  return "product_build";
+}
+
+export function getAutoRouteTeamIdsFromIntake(intake: ProjectIntake, teams: Record<string, string>) {
+  const selected = new Set<string>();
+
+  const needsProductFirst = intake.confidence !== "clear" || ["idea", "planning"].includes(intake.stage) || intake.shape === "research-strategy" || intake.shape === "hybrid-not-sure";
+  if (needsProductFirst) selected.add(teams.PRODUCT);
+
+  if (["new-product", "improve-existing", "ops-system"].includes(intake.shape)) {
+    selected.add(teams.ENGINEERING);
+  }
+
+  if (["launch-campaign"].includes(intake.shape)) {
+    selected.add(teams.MARKETING);
+  }
+
+  if (["new-product", "improve-existing", "launch-campaign", "ops-system", "hybrid-not-sure"].includes(intake.shape)) {
+    selected.add(teams.DESIGN);
+  }
+
+  if (intake.capabilities.includes("strategy")) selected.add(teams.PRODUCT);
+  if (intake.capabilities.includes("ux-ui")) selected.add(teams.DESIGN);
+  if (intake.capabilities.includes("frontend") || intake.capabilities.includes("backend-data")) selected.add(teams.ENGINEERING);
+  if (intake.capabilities.includes("content-copy") || intake.capabilities.includes("growth-marketing")) selected.add(teams.MARKETING);
+  if (intake.capabilities.includes("qa-optimization") || intake.stage === "ready-to-build" || intake.stage === "already-live") selected.add(teams.QA);
+
+  if (selected.size === 0) {
+    selected.add(teams.PRODUCT);
+    selected.add(teams.DESIGN);
+  }
+
+  return Array.from(selected).filter(Boolean);
+}
+
+export function getRoutingSummary(intake: ProjectIntake) {
+  const ownerTeam = intake.confidence === "not-sure" || ["idea", "planning"].includes(intake.stage)
+    ? "Product"
+    : intake.capabilities.includes("growth-marketing") || intake.shape === "launch-campaign"
+      ? "Marketing"
+      : intake.capabilities.includes("frontend") || intake.capabilities.includes("backend-data") || intake.shape === "new-product"
+        ? "Engineering"
+        : intake.capabilities.includes("ux-ui")
+          ? "Design"
+          : "Product";
+
+  const qcTeam = ownerTeam === "Engineering" ? "QA" : ownerTeam === "Marketing" ? "Product" : ownerTeam === "Design" ? "Product" : "QA";
+  return { ownerTeam, qcTeam };
+}

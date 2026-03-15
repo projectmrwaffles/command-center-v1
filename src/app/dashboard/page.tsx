@@ -1,7 +1,6 @@
 import { createServerClient } from "@/lib/supabase-server";
 import { ErrorState } from "@/components/error-state";
 import { DbBanner } from "@/components/db-banner";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { OverviewClient } from "./client";
 
 export const dynamic = "force-dynamic";
@@ -95,16 +94,21 @@ async function loadDashboardData(): Promise<DashboardData> {
     const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status").eq("status", "active");
     const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status");
     const agentsRes = await db.from("agents").select("id, name, status, last_seen, current_job_id");
-    const jobsRes = await db.from("jobs").select("id, project_id, title, status, prd_id, owner_agent_id");
     const eventsRes = await db.from("agent_events").select("id, event_type, payload, agent_id, project_id, job_id, timestamp").order("timestamp", { ascending: false }).limit(10);
 
     // Usage last 24h
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const usageRes = await db.from("ai_usage").select("model, tokens_in, tokens_out, total_tokens, cost_usd, created_at").gte("created_at", oneDayAgo);
 
-    // Map teams
+    // Map names for readable operator context
     const teamsById = new Map<string, string>();
     (teamsRes.data ?? []).forEach((t) => teamsById.set(t.id, t.name));
+
+    const projectsById = new Map<string, string>();
+    (projectsRes.data ?? []).forEach((p) => projectsById.set(p.id, p.name));
+
+    const agentsById = new Map<string, string>();
+    (agentsRes.data ?? []).forEach((a) => agentsById.set(a.id, a.name));
 
     // Map sprints to projects and calculate progress
     const sprintsByProjectId = new Map<string, typeof sprintsRes.data>();
@@ -136,6 +140,7 @@ async function loadDashboardData(): Promise<DashboardData> {
       // Count approvals and blocked jobs per project
       const approvalCount = approvals.filter((a) => a.project_id === p.id).length;
       const blockedJobCount = blockedJobs.filter((j) => j.project_id === p.id).length;
+      const blockedItemCount = blockedItems.filter((item) => item.project_id === p.id).length;
       return {
         id: p.id,
         name: p.name,
@@ -152,7 +157,7 @@ async function loadDashboardData(): Promise<DashboardData> {
             }
           : null,
         approvalCount,
-        blockedCount: blockedJobCount,
+        blockedCount: blockedJobCount + blockedItemCount,
       };
     });
 
@@ -196,14 +201,17 @@ async function loadDashboardData(): Promise<DashboardData> {
     ];
 
     const events: EventItem[] = (eventsRes.data ?? []).map((e: any) => ({
-    id: e.id,
-    type: e.event_type,
-    label: e.event_type,
-    severity: "info" as const,
-    timestamp: e.timestamp,
-    actorName: e.agent_id,
-    projectName: e.project_id,
-  }));
+      id: e.id,
+      type: e.event_type,
+      label: e.event_type.replace(/_/g, " "),
+      severity:
+        e.event_type?.includes("blocked") || e.event_type === "approval_decided"
+          ? ("warn" as const)
+          : ("info" as const),
+      timestamp: e.timestamp,
+      actorName: e.agent_id ? agentsById.get(e.agent_id) : undefined,
+      projectName: e.project_id ? projectsById.get(e.project_id) : undefined,
+    }));
 
     // Usage aggregations
     const usageRows = usageRes.data ?? [];

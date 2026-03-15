@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BuildBeast PRD</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; margin: 0; color: #111827; background: #fff; }
+    .page { max-width: 920px; margin: 0 auto; padding: 48px 56px 72px; line-height: 1.55; }
+    h1 { font-size: 30px; margin: 0 0 12px; }
+    h2 { font-size: 22px; margin: 28px 0 10px; padding-top: 8px; border-top: 1px solid #e5e7eb; }
+    h3 { font-size: 17px; margin: 20px 0 8px; }
+    p { margin: 10px 0; }
+    ul, ol { margin: 8px 0 8px 22px; }
+    li { margin: 6px 0; }
+    .meta { color: #4b5563; font-size: 14px; }
+    .callout { margin: 18px 0; padding: 14px 16px; background: #f9fafb; border-left: 4px solid #dc2626; font-weight: 600; }
+    .small { color: #6b7280; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+    th, td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; text-align: left; }
+    th { background: #f9fafb; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95em; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>BuildBeast PRD</h1>
+    <p class="meta"><strong>Version:</strong> v1.0 &nbsp; • &nbsp; <strong>Status:</strong> Implementation-ready for Milestone 1 &nbsp; • &nbsp; <strong>Product owner:</strong> Compass (Product) &nbsp; • &nbsp; <strong>Architecture owner:</strong> Oracle (Tech Lead) &nbsp; • &nbsp; <strong>Repo:</strong> command-center &nbsp; • &nbsp; <strong>Date:</strong> 2026-03-14</p>
+
+    <h2>1. Document purpose</h2>
+    <p>This PRD defines the <strong>implementation-ready Milestone 1</strong> for BuildBeast, the productized future of Command Center.</p>
+    <p>BuildBeast is the <strong>control plane for agent-assisted delivery</strong>: one system to intake work, route it to the right lane, coordinate execution, request approvals, surface meaningful signals, and preserve an audit trail.</p>
+    <ul>
+      <li>rigorous domain definitions</li>
+      <li>a real Milestone 1 scope table</li>
+      <li>concrete routing rules</li>
+      <li>concrete approval spec</li>
+      <li>concrete signal spec</li>
+      <li>concrete document/artifact spec</li>
+      <li>core user flows</li>
+      <li>measurable acceptance criteria</li>
+      <li>a separate concise 1-page executive brief</li>
+    </ul>
+
+    <h2>2. Product thesis</h2>
+    <p>Teams do not just need AI that can do work. They need a trustworthy operating layer between <strong>messy requests</strong> and <strong>shipped outcomes</strong>.</p>
+    <div class="callout">Messy request → structured intake → explainable routing → supervised execution → approvals → readable signals → auditable outcome</div>
+    <p><strong>Product promise:</strong> Give operators one place to intake, route, orchestrate, supervise, and audit agent-assisted work until it ships.</p>
+    <p><strong>Milestone 1 objective:</strong> Use Command Center V1 as the proving ground for the core BuildBeast abstractions and make them credible enough that the team can build against this document without re-litigating the model every sprint.</p>
+
+    <h2>3. Problem statement</h2>
+    <ol>
+      <li><strong>Requests arrive vague</strong> — users describe goals in chat, not structured fields.</li>
+      <li><strong>Routing is inconsistent</strong> — ownership depends on who saw the request first.</li>
+      <li><strong>State is fragmented</strong> — projects, tasks, jobs, approvals, docs, events, and usage live in different places.</li>
+      <li><strong>Approvals are under-specified</strong> — decisions arrive without enough context.</li>
+      <li><strong>Signals are noisy</strong> — raw event feeds are not good operational summaries.</li>
+      <li><strong>Documents are weakly integrated into execution</strong> — PRDs and uploaded docs exist, but are not clearly defined as part of the operating model.</li>
+    </ol>
+
+    <h2>4. Product goals and non-goals</h2>
+    <h3>Goals</h3>
+    <ol>
+      <li>Make project creation fast and structured.</li>
+      <li>Recommend owner and QC lanes immediately and explain why.</li>
+      <li>Give every project a single trustworthy workspace.</li>
+      <li>Distinguish durable work items from execution attempts.</li>
+      <li>Make approvals explicit, contextual, and auditable.</li>
+      <li>Convert raw events into readable, high-signal updates.</li>
+      <li>Tie documents and usage back to projects.</li>
+    </ol>
+    <h3>Non-goals for Milestone 1</h3>
+    <ol>
+      <li>Multi-tenant SaaS</li>
+      <li>Generic workflow builder</li>
+      <li>Full enterprise permissions model</li>
+      <li>Runtime-agnostic adapters beyond OpenClaw</li>
+      <li>Billing and self-serve onboarding</li>
+      <li>Replacing Linear/Jira/Asana for every workflow</li>
+    </ol>
+
+    <h2>5. Target users</h2>
+    <p><strong>Primary user now:</strong> Operator / chief of staff / delivery lead running cross-functional, agent-assisted work.</p>
+    <p>Needs: fast triage, owner/QC recommendation, intervention queue, readable progress, confidence in the audit trail.</p>
+    <p><strong>Secondary users:</strong> requester, owner lane, QC approver, contributor, stakeholder.</p>
+    <p><strong>Best future ICPs:</strong> AI-native agencies / studios, founder-led product teams, internal ops / innovation teams.</p>
+
+    <h2>6. Locked domain definitions</h2>
+    <p><strong>Project:</strong> the durable business container for a desired outcome.</p>
+    <p><strong>Intake:</strong> the structured request payload stored on the project and used for routing.</p>
+    <p><strong>Team / lane:</strong> a functional ownership queue such as Product, Design, Engineering, Marketing, QA.</p>
+    <p><strong>Task:</strong> a durable scoped work item within a project. Milestone 1 should treat <code>sprint_items</code> as tasks/work items even if the table name remains unchanged.</p>
+    <p><strong>Job / run:</strong> a discrete execution attempt or assignment. A job is not the same thing as a task.</p>
+    <p><strong>Approval:</strong> a first-class decision object requiring human review.</p>
+    <p><strong>Event:</strong> a durable record of a meaningful change.</p>
+    <p><strong>Signal:</strong> a human-readable projection derived from events and state changes.</p>
+    <p><strong>Document / artifact:</strong> a file or link attached to project context.</p>
+    <p><strong>PRD:</strong> a structured planning document attached to a project.</p>
+
+    <h2>7. Product principles</h2>
+    <ol>
+      <li>Human override is first-class.</li>
+      <li>Routing is product value, not setup glue.</li>
+      <li>Project, task, and job must remain distinct.</li>
+      <li>Approvals are first-class objects, not status flags.</li>
+      <li>Signals should increase trust, not noise.</li>
+      <li>Documents belong inside the operating model, not beside it.</li>
+      <li>Realtime is a projection; durable state is the truth.</li>
+      <li>Internal Vertillo personas are presets, not the long-term product model.</li>
+    </ol>
+
+    <h2>8. Milestone 1 scope table</h2>
+    <table>
+      <thead><tr><th>Area</th><th>In scope for M1</th><th>Out of scope for M1</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Guided intake</td><td>Selection-first flow, structured payload, intake summary, optional notes/docs</td><td>Natural-language-only freeform intake as primary path</td><td>Already partly implemented in repo</td></tr>
+        <tr><td>Routing</td><td>Owner lane + QC lane recommendation, explainable logic, manual override path</td><td>ML-based routing, user-configurable playbooks</td><td>Use deterministic rules now</td></tr>
+        <tr><td>Project creation</td><td>Create project, assign primary team, create starter tasks, attach docs</td><td>Workspace templates, complex setup wizards</td><td>Must feel &lt; 2 min</td></tr>
+        <tr><td>Project workspace</td><td>Overview, task board, recent signals, docs, teams, progress, approvals count</td><td>Deep analytics, customizable layouts</td><td>Current page exists and needs model clarity</td></tr>
+        <tr><td>Tasks</td><td>Create/update task, assign to agent, status progression, blocked state</td><td>Dependencies, due dates, SLA engine</td><td>Implement via <code>sprint_items</code></td></tr>
+        <tr><td>Jobs/runs</td><td>Link jobs to project/PRD and show status</td><td>Full run orchestration UI</td><td>Current support exists at data layer</td></tr>
+        <tr><td>Approvals</td><td>Queue + project context, severity, summary, decision trail</td><td>Multi-step approval workflows, policy builder</td><td>Must preserve owner/QC separation</td></tr>
+        <tr><td>Signals</td><td>Curated recent activity from core event types</td><td>Generic event-rule builder</td><td>Needs clear taxonomy</td></tr>
+        <tr><td>Documents</td><td>Upload/list project docs, link PRDs and artifacts</td><td>Versioned document workflows beyond PRD basics</td><td>Keep <code>project_documents</code> + <code>prds</code> for M1</td></tr>
+      </tbody>
+    </table>
+    <p><strong>M1 is complete only when:</strong> an operator can create a project in under 2 minutes, every new project gets an owner + QC recommendation, the workspace answers core status questions, approvals are actionable with context, recent signals beat raw events, and project state can be reconstructed from system data without relying on chat memory.</p>
+
+    <h2>9. Functional specification</h2>
+    <h3>9.1 Intake</h3>
+    <p>Turn an ambiguous request into structured data that can drive routing and execution.</p>
+    <p><strong>Required fields:</strong> project name, shape, stage, confidence.</p>
+    <p><strong>Optional fields:</strong> context, capabilities, goals/notes, uploaded docs.</p>
+    <p><strong>Acceptance criteria:</strong> hybrid/uncertain requests have a safe path, intake persists to the project record, and the summary is readable in list/detail views.</p>
+
+    <h3>9.2 Routing</h3>
+    <p>Recommend a primary owner lane and QC lane immediately using deterministic, explainable logic.</p>
+    <ul>
+      <li>Product owns first when confidence is low, stage is early, or request is hybrid/strategy-heavy.</li>
+      <li>Marketing owns first for launch/growth-heavy work.</li>
+      <li>Engineering owns first for build-heavy work or new-product shape.</li>
+      <li>Design owns first when UX/UI is the main need and the request is already scoped.</li>
+    </ul>
+    <p><strong>QC rules:</strong> Engineering → QA, Design → Product, Marketing → Product, Product → QA.</p>
+
+    <h3>9.3 Project creation</h3>
+    <ol>
+      <li>Create <code>projects</code> row</li>
+      <li>Persist <code>type</code>, <code>team_id</code>, <code>description</code>, <code>intake</code>, <code>intake_summary</code></li>
+      <li>Set <code>status = active</code> and <code>progress_pct = 0</code></li>
+      <li>Create starter tasks per routed team using <code>sprint_items</code></li>
+      <li>Upload/store any project docs in <code>project_documents</code></li>
+      <li>Sync/roll up project state</li>
+    </ol>
+
+    <h3>9.4 Tasks and jobs</h3>
+    <p>Tasks are durable project-scoped work. Jobs are execution attempts against that work. They must remain distinct.</p>
+
+    <h3>9.5 Approvals</h3>
+    <p>Approvals are first-class decisions with context, severity, status, and audit trail. Owner lane cannot self-QC for the same gate.</p>
+
+    <h3>9.6 Signals</h3>
+    <p>Signals are curated, stakeholder-readable updates derived from events and state changes. Minimum canonical signal events include project created/routed, task created/blocked/completed, approval requested/decided, document uploaded, PRD created/updated, and project completed.</p>
+
+    <h3>9.7 Documents and PRDs</h3>
+    <p>Documents are operational context, not detached attachments. Project detail must show docs in one predictable section, and uploads should generate signals.</p>
+
+    <h2>10. Core user flows</h2>
+    <ol>
+      <li><strong>Create a project from ambiguous request</strong> — structured intake, routing preview, project creation, starter tasks, workspace opens.</li>
+      <li><strong>Review routing on a hybrid request</strong> — Product owns first, supporting teams are pulled in, rationale is visible.</li>
+      <li><strong>Run delivery and monitor progress</strong> — starter tasks, state updates, progress and signals refresh, blocked work is visible.</li>
+      <li><strong>Request and resolve approval</strong> — queue, context, decision trail, project updates.</li>
+      <li><strong>Inspect project documents and planning context</strong> — intake, goals, routing, docs, PRDs, signals, and tasks all live together.</li>
+    </ol>
+
+    <h2>11. Information architecture</h2>
+    <p><strong>Top-level modules:</strong> Dashboard, Projects list, Project workspace, Approvals queue, Agents/runtime registry, Usage view.</p>
+    <p><strong>Required project workspace sections:</strong> Overview/brief, Tasks/work board, Recent signals, Documents, Teams, Approvals summary.</p>
+
+    <h2>12. Data model grounding</h2>
+    <p>Current tables directly relevant to M1: <code>projects</code>, <code>teams</code>, <code>team_members</code>, <code>sprint_items</code>, <code>jobs</code>, <code>approvals</code>, <code>prds</code>, <code>project_documents</code>, <code>agent_events</code>, <code>ai_usage_events</code>, <code>usage_rollup_minute</code>.</p>
+
+    <h2>13. Success metrics</h2>
+    <ul>
+      <li>Median time to create project: &lt; 2 minutes</li>
+      <li>Routing stickiness: ≥ 80%</li>
+      <li>Approval clarity: ≥ 90%</li>
+      <li>Project state trust: ≥ 90%</li>
+      <li>Signal usefulness: operators prefer signals to raw logs for daily triage</li>
+      <li>Document visibility: docs accessible from workspace for ≥ 95% of projects with uploads</li>
+    </ul>
+
+    <h2>14. Risks</h2>
+    <ol>
+      <li>Overfitting to Vertillo internal language</li>
+      <li>Confusing tasks and jobs</li>
+      <li>Treating raw events as signals</li>
+      <li>Weak approval state model</li>
+      <li>Documents behaving like detached attachments</li>
+      <li>Trying to jump to workspaces before M1 is trusted</li>
+    </ol>
+
+    <h2>15. Recommended implementation sequence</h2>
+    <ol>
+      <li>Lock terminology in product copy</li>
+      <li>Finish project workspace as the single operational page</li>
+      <li>Strengthen approvals queue + project approval context</li>
+      <li>Formalize signal generation rules from current events/state</li>
+      <li>Tighten document + PRD display and linking</li>
+      <li>Validate routing explanation and override path</li>
+    </ol>
+
+    <h2>16. Final summary</h2>
+    <p>BuildBeast should not be treated as just a dashboard or OpenClaw with UI.</p>
+    <p>Milestone 1 is where the product model becomes concrete: structured intake, explainable routing, durable projects, tasks distinct from jobs, explicit approvals, readable signals, and documents inside the operating loop.</p>
+    <p class="small">If M1 is done correctly, Command Center becomes a credible internal control plane and the foundation for productization.</p>
+  </main>
+</body>
+</html>

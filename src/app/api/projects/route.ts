@@ -1,6 +1,8 @@
+import { ensureDefaultSprint, getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
+import { sanitizeProjectLinks } from "@/lib/project-links";
 import { NextRequest, NextResponse } from "next/server";
-import { execSync } from "child_process";
 
 /**
  * Get agent name from ID
@@ -71,32 +73,10 @@ async function triggerAgentWork(
       return;
     }
 
-    const result = await response.json();
+    await response.json();
     console.log(`[Trigger] Notified agent ${agentName} (${agentId}) for task: ${taskTitle}`);
   } catch (e) {
     console.error(`[Trigger] Failed to trigger agent ${agentId}:`, e);
-  }
-}
-
-/**
- * Create GitHub repository for development projects
- */
-async function createGitHubRepo(projectName: string, projectId: string): Promise<string | null> {
-  const repoName = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  
-  try {
-    // Check if gh is authenticated
-    execSync('gh auth status', { encoding: 'utf8', timeout: 5000 });
-    
-    // Create repo (private, with .gitignore for Node/Next.js)
-    const cmd = `gh repo create projectmrwaffles/${repoName} --private --clone=false --gitignore Node`;
-    execSync(cmd, { encoding: 'utf8', timeout: 10000 });
-    
-    console.log(`[GitHub] Created repo: projectmrwaffles/${repoName}`);
-    return `https://github.com/projectmrwaffles/${repoName}`;
-  } catch (e) {
-    console.error(`[GitHub] Failed to create repo:`, e);
-    return null;
   }
 }
 
@@ -197,13 +177,18 @@ const TEAM_BASE_MINUTES: Record<string, number> = {
   [TEAMS.QA]: 20,          // Test plan
 };
 
-// Auto-route projects to ALL relevant teams based on type
+// Legacy fallback routing for older callers that only send type
 function getAutoRouteTeamIds(type: string): string[] {
   const teamMap: Record<string, string[]> = {
     saas: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
     web_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
     native_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
-    marketing: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT], // No QA for marketing
+    marketing: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT],
+    product_build: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
+    marketing_growth: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT],
+    ops_enablement: [TEAMS.PRODUCT, TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.QA],
+    strategy_research: [TEAMS.PRODUCT, TEAMS.DESIGN],
+    hybrid: [TEAMS.PRODUCT, TEAMS.DESIGN, TEAMS.ENGINEERING, TEAMS.QA],
     other: [TEAMS.PRODUCT, TEAMS.ENGINEERING, TEAMS.QA],
   };
   return teamMap[type] || [TEAMS.PRODUCT, TEAMS.QA];
@@ -219,7 +204,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    let query = db.from("projects").select("id, name, status, type, description, created_at, updated_at").order("created_at", { ascending: false });
+    let query = db.from("projects").select("id, name, status, type, description, intake_summary, progress_pct, links, created_at, updated_at").order("created_at", { ascending: false });
     
     if (type) {
       query = query.eq("type", type);
@@ -242,7 +227,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, type, teamId, description } = body;
+    const { name, type, teamId, description, intake, links } = body as {
+      name?: string;
+      type?: string;
+      teamId?: string;
+      description?: string;
+      intake?: ProjectIntake;
+      links?: Record<string, string>;
+    };
 
     if (!name || !type) {
       return NextResponse.json({ error: "Name and type are required" }, { status: 400 });
@@ -253,54 +245,65 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    // Auto-route to team based on type (if no team specified)
-    const autoTeamIds = teamId ? [teamId] : getAutoRouteTeamIds(type);
-    const primaryTeamId = autoTeamIds[0]; // For backward compatibility
+    const sanitizedLinks = sanitizeProjectLinks(links || intake?.links);
+
+    // Auto-route using composable intake when present, else legacy type routing
+    const autoTeamIds = teamId
+      ? [teamId]
+      : intake
+        ? getAutoRouteTeamIdsFromIntake(intake, TEAMS)
+        : getAutoRouteTeamIds(type);
+    const primaryTeamId = autoTeamIds[0];
 
     // Calculate workload for planning purposes (but don't create sprints)
     const workload = estimateWorkloadFromTeams(autoTeamIds);
     console.log(`[Workload Analysis] ${name}: ${workload.hours}h (${workload.complexity}) - ${workload.reasoning}`);
 
-    // Create project
-    const { data: project, error } = await db
+    // Create project. Some deployed DBs do not have the newer `links` column yet,
+    // so retry without it instead of failing intake entirely.
+    const projectInsertBase = {
+      name,
+      type,
+      team_id: primaryTeamId,
+      description: description || null,
+      intake: intake || null,
+      intake_summary: intake?.summary || null,
+      status: "active",
+      progress_pct: 0,
+    };
+
+    let project: any = null;
+    let error: { message: string; code?: string } | null = null;
+
+    const firstInsert = await db
       .from("projects")
       .insert({
-        name,
-        type,
-        team_id: primaryTeamId,
-        description: description || null,
-        status: "active",
-        progress_pct: 0,
+        ...projectInsertBase,
+        links: sanitizedLinks,
       })
       .select()
       .single();
 
-    if (error) {
+    project = firstInsert.data;
+    error = firstInsert.error;
+
+    if (error?.code === "PGRST204" && error.message.includes("'links' column")) {
+      const fallbackInsert = await db
+        .from("projects")
+        .insert(projectInsertBase)
+        .select()
+        .single();
+      project = fallbackInsert.data;
+      error = fallbackInsert.error;
+    }
+
+    if (error || !project) {
       console.error("[API /projects] insert error:", error);
-      return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+      return NextResponse.json({ error: error?.message || "Failed to create project", code: error?.code }, { status: 500 });
     }
 
-    // Create a kickoff sprint so task creation works even if sprint_items.sprint_id is still NOT NULL
-    const { data: kickoffSprint, error: sprintError } = await db
-      .from("sprints")
-      .insert({
-        project_id: project.id,
-        name: "Kickoff",
-        goal: "Initial cross-functional project kickoff and routing",
-        status: "active",
-      })
-      .select("id")
-      .single();
-
-    if (sprintError || !kickoffSprint?.id) {
-      console.error("[API /projects] kickoff sprint insert error:", sprintError);
-      return NextResponse.json(
-        { error: sprintError?.message || "Failed to create kickoff sprint" },
-        { status: 500 }
-      );
-    }
-
-    // Add team-specific tasks for each team
+    // Add team-specific tasks for each team. Some deployed DBs still require sprint_id,
+    // so we provision a fallback kickoff sprint when needed.
     const teamTaskTemplates: Record<string, string> = {
       [TEAMS.ENGINEERING]: "Set up development environment and architecture",
       [TEAMS.DESIGN]: "Create initial wireframes and design system",
@@ -308,55 +311,50 @@ export async function POST(req: NextRequest) {
       [TEAMS.MARKETING]: "Plan marketing strategy and messaging",
       [TEAMS.QA]: "Create test plan and quality criteria",
     };
+    const kickoffSprintId = await ensureDefaultSprint(db, project.id);
+    let nextTaskPosition = await getProjectTaskPosition(db, project.id);
 
     for (const teamId of autoTeamIds) {
       const { data: teamMembers } = await db
         .from("team_members")
-        .select("agent_id")
-        .eq("team_id", teamId);
+        .select("agent_id, role")
+        .eq("team_id", teamId)
+        .order("role", { ascending: true });
 
       if (teamMembers?.length) {
         const teamTask = teamTaskTemplates[teamId] || `Work on ${name}`;
-        
-        const leadMember = teamMembers[0];
+        const leadMember = teamMembers.find((member: { role?: string }) => member.role === "lead") || teamMembers[0];
 
         // Insert task and capture the returned ID
         const { data: createdTask, error: taskError } = await db
           .from("sprint_items")
           .insert({
-            sprint_id: kickoffSprint.id,
+            sprint_id: kickoffSprintId,
             project_id: project.id,
             title: teamTask,
             status: "todo",
             assignee_agent_id: leadMember.agent_id,
-            position: 1,
+            position: nextTaskPosition,
           })
           .select("id")
           .single();
 
         if (taskError) {
           console.error("[API /projects] task insert error:", taskError);
+        } else {
+          nextTaskPosition += 1;
         }
 
         if (createdTask?.id) {
           // Trigger the assigned agent to start working (now async with taskId)
           triggerAgentWork(leadMember.agent_id, name, teamTask, createdTask.id);
         }
-
       }
     }
 
-    // Create GitHub repo for development projects
-    const devTypes = ["saas", "web_app", "native_app"];
-    let githubUrl: string | null = null;
-    if (devTypes.includes(type)) {
-      githubUrl = await createGitHubRepo(name, project.id);
-      if (githubUrl) {
-        await db.from("projects").update({ description: `${description || ""}\n\n🔗 GitHub: ${githubUrl}` }).eq("id", project.id);
-      }
-    }
+    await syncProjectState(db, project.id);
 
-    return NextResponse.json({ project: { ...project, github_url: githubUrl }, workload }, { status: 201 });
+    return NextResponse.json({ project: { ...project, links: sanitizedLinks }, workload }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

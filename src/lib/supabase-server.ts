@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 
- 
 export type SupabaseServerClient = ReturnType<typeof createClient<any>>;
 
 let clientInstance: SupabaseServerClient | null = null;
@@ -37,6 +36,7 @@ export function getDbHealth(): DbHealth {
 /**
  * V1 behavior: never throw during render.
  * - If env missing, return null (caller should render DB-not-initialized banner).
+ * - If the server role key is missing, also return null so route handlers fail gracefully.
  */
 export function createServerClient(): SupabaseServerClient | null {
   if (clientInstance) return clientInstance;
@@ -44,8 +44,12 @@ export function createServerClient(): SupabaseServerClient | null {
   const health = getDbHealth();
   if (!health.ok) return null;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    return null;
+  }
 
   clientInstance = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -54,10 +58,6 @@ export function createServerClient(): SupabaseServerClient | null {
   return clientInstance;
 }
 
-/**
- * Route handlers should use the same trusted server client.
- * Alias used by newer API handlers.
- */
 export const createRouteHandlerClient = createServerClient;
 
 export function isMockMode(): boolean {

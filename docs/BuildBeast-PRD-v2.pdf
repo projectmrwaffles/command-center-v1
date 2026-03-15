@@ -1,0 +1,999 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 10 /Kids [ 4 0 R 6 0 R 8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R 22 0 R ] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+6 0 obj
+<< /Length 1761 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(BUILDBEAST PRD) Tj
+T*
+() Tj
+T*
+(Version: v0.1) Tj
+T*
+(Status: Draft / Internal) Tj
+T*
+(Owner: Milo / Vertillo) Tj
+T*
+(Prepared by: Mr. Waffles) Tj
+T*
+(Date: 2026-03-14) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(1. PRODUCT SUMMARY) Tj
+T*
+() Tj
+T*
+(BuildBeast is the future product direction emerging from Command Center V1.) Tj
+T*
+() Tj
+T*
+(Command Center V1 is currently the internal proving ground: a control interface used by) Tj
+T*
+(Vertillo to intake projects, route work to specialist teams, track execution, manage) Tj
+T*
+(approvals, and surface operational signals.) Tj
+T*
+() Tj
+T*
+(BuildBeast is the productized vision of that system.) Tj
+T*
+() Tj
+T*
+(BuildBeast will begin as a control plane that can orchestrate an existing OpenClaw) Tj
+T*
+(environment and, over time, evolve into a runtime-capable system that can operate) Tj
+T*
+(independently without requiring an OpenClaw gateway.) Tj
+T*
+() Tj
+T*
+(At its core, BuildBeast helps users turn ideas into shipped outcomes through structured) Tj
+T*
+(intake, intelligent routing, AI-assisted execution, human approvals, and operational) Tj
+T*
+(visibility.) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(2. VISION) Tj
+T*
+() Tj
+T*
+(LONG-TERM VISION) Tj
+T*
+() Tj
+T*
+(BuildBeast becomes the operating system for turning ideas into executed projects.) Tj
+T*
+() Tj
+T*
+(A user should be able to:) Tj
+T*
+(? describe what they want to build) Tj
+T*
+(? provide context, goals, and supporting documents) Tj
+T*
+(? have the system scope and route the work intelligently) Tj
+T*
+(? coordinate design, product, engineering, marketing, and QA work) Tj
+T*
+(? approve key decisions at the right moments) Tj
+T*
+(? monitor progress, blockers, costs, and outcomes) Tj
+T*
+() Tj
+T*
+(PRODUCT FRAMING) Tj
+T*
+() Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+8 0 obj
+<< /Length 1823 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(BuildBeast is not just:) Tj
+T*
+(? another PM tool) Tj
+T*
+(? a dashboard wrapper around OpenClaw) Tj
+T*
+(? a task board with AI attached) Tj
+T*
+() Tj
+T*
+(BuildBeast is:) Tj
+T*
+(? a control plane for agent operations) Tj
+T*
+(? a system that coordinates human + AI work across project lifecycles) Tj
+T*
+(? an orchestration layer that can sit on top of OpenClaw first, then eventually support a) Tj
+T*
+(native runtime and/or additional adapters later) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(3. PROBLEM) Tj
+T*
+() Tj
+T*
+(People have ideas they want executed, but the path from idea to shipped outcome is) Tj
+T*
+(fragmented.) Tj
+T*
+() Tj
+T*
+(Common pain points:) Tj
+T*
+(? intake is vague and poorly structured) Tj
+T*
+(? project routing depends on whoever reads the request) Tj
+T*
+(? task assignment is inconsistent) Tj
+T*
+(? project status is noisy or misleading) Tj
+T*
+(? approvals happen too late or in the wrong place) Tj
+T*
+(? AI tools can perform work but lack a reliable operational control plane) Tj
+T*
+(? internal tools often overfit to one operator's workflow and do not productize well) Tj
+T*
+() Tj
+T*
+(Vertillo is experiencing these same pains internally while using Command Center V1.) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(4. OPPORTUNITY) Tj
+T*
+() Tj
+T*
+(There is an opportunity to create a product that sits between raw AI runtimes and real) Tj
+T*
+(delivery work.) Tj
+T*
+() Tj
+T*
+(BuildBeast can become the layer that:) Tj
+T*
+(? structures intake) Tj
+T*
+(? maps user needs to execution lanes) Tj
+T*
+(? coordinates project work) Tj
+T*
+(? surfaces decisions and blockers) Tj
+T*
+(? provides trustworthy operational visibility) Tj
+T*
+(? creates a repeatable delivery model for humans and AI working together) Tj
+T*
+() Tj
+T*
+(Initial target users may include:) Tj
+T*
+(? founder-led teams) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+10 0 obj
+<< /Length 1765 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(? agencies) Tj
+T*
+(? internal ops/product teams) Tj
+T*
+(? advanced OpenClaw users who want a structured project and execution layer) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(5. PRODUCT PRINCIPLES) Tj
+T*
+() Tj
+T*
+(1. Human override is first-class) Tj
+T*
+(   Users must be able to review, redirect, approve, and override critical decisions.) Tj
+T*
+() Tj
+T*
+(2. Routing is a product capability) Tj
+T*
+(   Intelligent intake and team/work routing are core value, not side features.) Tj
+T*
+() Tj
+T*
+(3. Project != run) Tj
+T*
+(   Projects are durable containers for goals and progress. Runs/jobs are execution events) Tj
+T*
+(within that project.) Tj
+T*
+() Tj
+T*
+(4. The event log is sacred) Tj
+T*
+(   Meaningful, human-readable operational signals matter. Activity should increase trust,) Tj
+T*
+(not create noise.) Tj
+T*
+() Tj
+T*
+(5. Opinionated defaults beat empty flexibility) Tj
+T*
+(   The product should guide users clearly while still allowing ambiguity and hybrid cases.) Tj
+T*
+() Tj
+T*
+(6. Governance and visibility matter) Tj
+T*
+(   Usage, approvals, cost awareness, auditability, and blockers are product features.) Tj
+T*
+() Tj
+T*
+(7. Abstractions should survive productization) Tj
+T*
+(   Avoid hard-baking Milo/Vertillo-specific assumptions where they should become general) Tj
+T*
+(product models instead.) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(6. COMMAND CENTER V1 VS BUILDBEAST) Tj
+T*
+() Tj
+T*
+(COMMAND CENTER V1) Tj
+T*
+() Tj
+T*
+(Internal proving ground for Vertillo.) Tj
+T*
+() Tj
+T*
+(Purpose:) Tj
+T*
+(? manage real internal projects) Tj
+T*
+(? validate intake and routing models) Tj
+T*
+(? pressure-test project pages, signals, approvals, and team assignment) Tj
+T*
+(? refine the operator workflow before productization) Tj
+T*
+() Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >>
+endobj
+12 0 obj
+<< /Length 1641 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(BUILDBEAST) Tj
+T*
+() Tj
+T*
+(Future product.) Tj
+T*
+() Tj
+T*
+(Purpose:) Tj
+T*
+(? expose the best abstractions from Command Center V1) Tj
+T*
+(? generalize them for broader users) Tj
+T*
+(? support orchestration across multiple execution contexts) Tj
+T*
+(? eventually run with or without OpenClaw as the underlying runtime) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(7. CORE JOBS TO BE DONE) Tj
+T*
+() Tj
+T*
+(PRIMARY JOB) Tj
+T*
+() Tj
+T*
+(?When I have something I want built, help me turn it into structured work, assign it to the) Tj
+T*
+(right lanes, and keep it moving until it ships.?) Tj
+T*
+() Tj
+T*
+(SUPPORTING JOBS) Tj
+T*
+() Tj
+T*
+(? Help me describe what I need even if I do not know the right terminology.) Tj
+T*
+(? Translate project needs into a sensible execution plan.) Tj
+T*
+(? Route work to the right teams automatically.) Tj
+T*
+(? Show me what needs attention right now.) Tj
+T*
+(? Make progress and blockers obvious.) Tj
+T*
+(? Keep a trustworthy record of what happened and why.) Tj
+T*
+(? Let me intervene only when needed.) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(8. V1 SCOPE \(INTERNAL\)) Tj
+T*
+() Tj
+T*
+(BuildBeast is not shipping as a standalone SaaS in this phase. Instead, the internal scope) Tj
+T*
+(is:) Tj
+T*
+() Tj
+T*
+(MUST-HAVE CAPABILITIES) Tj
+T*
+(? guided project intake) Tj
+T*
+(? structured project creation) Tj
+T*
+(? project-level task orchestration) Tj
+T*
+(? team/owner assignment) Tj
+T*
+(? recent signals / activity summary) Tj
+T*
+(? approvals / needs-attention queue) Tj
+T*
+(? project visibility on desktop and mobile) Tj
+T*
+(? supporting document upload) Tj
+T*
+(? QC-aware operating model) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 13 0 R >>
+endobj
+14 0 obj
+<< /Length 1504 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+() Tj
+T*
+(INTERNAL USER ASSUMPTIONS) Tj
+T*
+(? primary operator is Milo / Vertillo team) Tj
+T*
+(? OpenClaw is the initial runtime layer) Tj
+T*
+(? agent personas and team routing may still reflect internal structure) Tj
+T*
+(? Telegram and internal workflows may still be part of the operational loop) Tj
+T*
+() Tj
+T*
+(NOT YET IN SCOPE FOR STANDALONE SAAS) Tj
+T*
+(? multi-tenant workspaces) Tj
+T*
+(? general-purpose onboarding for outside organizations) Tj
+T*
+(? billing/plan management) Tj
+T*
+(? generalized permissions and customer admin) Tj
+T*
+(? fully runtime-independent execution) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(9. PRODUCT REQUIREMENTS) Tj
+T*
+() Tj
+T*
+(9.1 GUIDED INTAKE) Tj
+T*
+() Tj
+T*
+(Users should create projects through a structured, selection-first flow.) Tj
+T*
+() Tj
+T*
+(The intake flow should capture:) Tj
+T*
+(? project shape) Tj
+T*
+(? business/product context) Tj
+T*
+(? capabilities needed) Tj
+T*
+(? stage) Tj
+T*
+(? confidence / uncertainty) Tj
+T*
+(? optional notes and supporting documents) Tj
+T*
+() Tj
+T*
+(It should:) Tj
+T*
+(? use plain language) Tj
+T*
+(? include examples) Tj
+T*
+(? support hybrid or evolving projects) Tj
+T*
+(? improve routing quality) Tj
+T*
+(? feel guided rather than bureaucratic) Tj
+T*
+() Tj
+T*
+(9.2 ROUTING) Tj
+T*
+() Tj
+T*
+(The system should route work using structured intake signals, not just a single rigid type) Tj
+T*
+(field.) Tj
+T*
+() Tj
+T*
+(Routing should support:) Tj
+T*
+(? Product) Tj
+T*
+(? Design) Tj
+T*
+(? Engineering) Tj
+ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 15 0 R >>
+endobj
+16 0 obj
+<< /Length 1336 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(? Marketing/Growth) Tj
+T*
+(? QA) Tj
+T*
+() Tj
+T*
+(Routing should be explainable.) Tj
+T*
+() Tj
+T*
+(9.3 PROJECT WORKSPACE) Tj
+T*
+() Tj
+T*
+(Each project should have a trustworthy project page that clearly answers:) Tj
+T*
+(? what this project is) Tj
+T*
+(? current stage/status) Tj
+T*
+(? who owns what) Tj
+T*
+(? what is blocked) Tj
+T*
+(? what changed recently) Tj
+T*
+(? what needs approval or intervention) Tj
+T*
+() Tj
+T*
+(9.4 RECENT SIGNALS) Tj
+T*
+() Tj
+T*
+(Replace raw or noisy activity feeds with curated, human-readable signals.) Tj
+T*
+() Tj
+T*
+(Examples:) Tj
+T*
+(? Project created) Tj
+T*
+(? Intake routed to Design + Engineering) Tj
+T*
+(? QA blocked launch due to missing mobile QA) Tj
+T*
+(? Approval requested for homepage direction) Tj
+T*
+(? 4 tasks completed today) Tj
+T*
+() Tj
+T*
+(9.5 SUPPORTING DOCUMENTS) Tj
+T*
+() Tj
+T*
+(Projects should support attached documents such as:) Tj
+T*
+(? PRDs) Tj
+T*
+(? briefs) Tj
+T*
+(? screenshots) Tj
+T*
+(? mockups) Tj
+T*
+(? notes) Tj
+T*
+(? technical context) Tj
+T*
+() Tj
+T*
+(These should be easy to upload and discover from the project page.) Tj
+T*
+() Tj
+T*
+(9.6 APPROVALS / NEEDS ATTENTION) Tj
+T*
+() Tj
+T*
+(The system should clearly surface:) Tj
+T*
+(? pending approvals) Tj
+T*
+(? blocked work) Tj
+T*
+(? user decisions required) Tj
+T*
+(? stalled projects) Tj
+T*
+() Tj
+ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 17 0 R >>
+endobj
+18 0 obj
+<< /Length 1578 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(9.7 RUNTIME ORCHESTRATION \(INITIALLY VIA OPENCLAW\)) Tj
+T*
+() Tj
+T*
+(In the first phase, BuildBeast should orchestrate work through the current OpenClaw) Tj
+T*
+(environment.) Tj
+T*
+() Tj
+T*
+(This includes:) Tj
+T*
+(? routing work to the appropriate internal agent/team lane) Tj
+T*
+(? tracking progress/events) Tj
+T*
+(? surfacing execution status to the operator) Tj
+T*
+() Tj
+T*
+(9.8 FUTURE RUNTIME INDEPENDENCE) Tj
+T*
+() Tj
+T*
+(Over time, BuildBeast should evolve to support execution without depending entirely on an) Tj
+T*
+(OpenClaw gateway.) Tj
+T*
+() Tj
+T*
+(This implies a future runtime adapter layer where OpenClaw is the first adapter, not the) Tj
+T*
+(only one.) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(10. ARCHITECTURE DIRECTION) Tj
+T*
+() Tj
+T*
+(NEAR-TERM ARCHITECTURE) Tj
+T*
+() Tj
+T*
+(BuildBeast-on-Command-Center should be thought of as 3 layers:) Tj
+T*
+() Tj
+T*
+(1. System of record) Tj
+T*
+(   Projects, tasks, approvals, teams, documents, events, usage.) Tj
+T*
+() Tj
+T*
+(2. Orchestration / control layer) Tj
+T*
+(   Routing, task state, approvals, triggers, needs-attention logic, event generation.) Tj
+T*
+() Tj
+T*
+(3. Runtime adapter layer) Tj
+T*
+(   OpenClaw adapter first. Future adapters possible later.) Tj
+T*
+() Tj
+T*
+(FUTURE ARCHITECTURE) Tj
+T*
+() Tj
+T*
+(Eventually BuildBeast should support:) Tj
+T*
+(? workspace/account abstraction) Tj
+T*
+(? configurable teams/roles) Tj
+T*
+(? generalized runtime adapters) Tj
+T*
+(? durable job execution state) Tj
+T*
+(? stronger governance, auth, and permissions) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 19 0 R >>
+endobj
+20 0 obj
+<< /Length 1979 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(11. RISKS) Tj
+T*
+() Tj
+T*
+(1. Overfitting the product to Milo/Vertillo?s current workflow.) Tj
+T*
+(2. Confusing internal dashboard behavior with product-ready abstractions.) Tj
+T*
+(3. Keeping domain models inconsistent \(e.g. projects/tasks/runs/approvals/signals\).) Tj
+T*
+(4. Shipping noisy or untrustworthy status surfaces.) Tj
+T*
+(5. Treating OpenClaw-specific implementation details as permanent product concepts.) Tj
+T*
+(6. Attempting SaaS before identity, tenancy, security, and workspace abstractions exist.) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(12. NON-GOALS \(FOR NOW\)) Tj
+T*
+() Tj
+T*
+(? launching public SaaS immediately) Tj
+T*
+(? solving every PM workflow) Tj
+T*
+(? replacing every external tool at once) Tj
+T*
+(? exposing raw technical runtime concepts directly to end users) Tj
+T*
+(? supporting all possible user archetypes before validating narrower ones first) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(13. SUCCESS CRITERIA) Tj
+T*
+() Tj
+T*
+(INTERNAL V1 SUCCESS) Tj
+T*
+(? BuildBeast is tracked as a real project inside Command Center V1) Tj
+T*
+(? project intake feels guided and useful) Tj
+T*
+(? routing feels smarter and less rigid) Tj
+T*
+(? project pages are trusted operational views) Tj
+T*
+(? approvals and recent signals are genuinely useful) Tj
+T*
+(? the system helps coordinate real work without obvious contradictions) Tj
+T*
+() Tj
+T*
+(PRODUCTIZATION SUCCESS) Tj
+T*
+(? the model can be generalized beyond Milo-specific assumptions) Tj
+T*
+(? core abstractions survive contact with 2?3 outside users/teams) Tj
+T*
+(? routing and intake remain understandable without coaching) Tj
+T*
+(? the product promise is clear and distinct) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(14. IMMEDIATE NEXT STEPS) Tj
+T*
+() Tj
+T*
+(1. Create BuildBeast as the first canonical tracked project in Command Center V1.) Tj
+T*
+(2. Attach this PRD as the supporting project document.) Tj
+T*
+(3. Use BuildBeast to test:) Tj
+T*
+(   - intake) Tj
+T*
+(   - routing) Tj
+ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 21 0 R >>
+endobj
+22 0 obj
+<< /Length 1635 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(   - project page usefulness) Tj
+T*
+(   - approvals) Tj
+T*
+(   - recent signals) Tj
+T*
+(   - team assignment) Tj
+T*
+(4. Continue refining Command Center V1 based on real BuildBeast project usage.) Tj
+T*
+(5. Define the first milestone for BuildBeast:) Tj
+T*
+(   - internal V1 stabilization) Tj
+T*
+(   - product abstraction cleanup) Tj
+T*
+(   - productized V2 planning) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(15. SUGGESTED FIRST MILESTONE) Tj
+T*
+() Tj
+T*
+(MILESTONE: BUILDBEAST FOUNDATION) Tj
+T*
+() Tj
+T*
+(Goal:) Tj
+T*
+(Make Command Center V1 good enough to manage BuildBeast credibly as a real internal product.) Tj
+T*
+() Tj
+T*
+(Deliverables:) Tj
+T*
+(? stable project intake) Tj
+T*
+(? clean project page experience) Tj
+T*
+(? useful team/owner visibility) Tj
+T*
+(? approvals that work) Tj
+T*
+(? recent signals that matter) Tj
+T*
+(? supporting document attachment flow) Tj
+T*
+(? reliable task/project state updates) Tj
+T*
+() Tj
+T*
+(Acceptance criteria:) Tj
+T*
+(? BuildBeast can be created as a project with this PRD attached) Tj
+T*
+(? team routing is sensible) Tj
+T*
+(? tasks are created and visible) Tj
+T*
+(? project page surfaces useful information) Tj
+T*
+(? mobile and desktop experience are both workable) Tj
+T*
+(? QC can verify core workflow without major blockers) Tj
+T*
+() Tj
+T*
+(---) Tj
+T*
+() Tj
+T*
+(16. FINAL SUMMARY) Tj
+T*
+() Tj
+T*
+(Command Center V1 is the proving ground.) Tj
+T*
+(BuildBeast is the product.) Tj
+T*
+() Tj
+T*
+(The job now is not to pretend the internal tool is already a SaaS. The job is to use it to) Tj
+T*
+(discover and solidify the abstractions that can become one.) Tj
+T*
+() Tj
+ET
+endstream
+endobj
+23 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 23 0 R >>
+endobj
+24 0 obj
+<< /Length 271 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+14 TL
+(BuildBeast should evolve into the control plane for agent operations: a system that helps) Tj
+T*
+(people turn ideas into structured, executed outcomes ? first on top of OpenClaw, and later) Tj
+T*
+(with the ability to stand on its own.) Tj
+ET
+endstream
+endobj
+xref
+0 25
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000179 00000 n 
+0000000249 00000 n 
+0000000265 00000 n 
+0000000391 00000 n 
+0000002204 00000 n 
+0000002330 00000 n 
+0000004205 00000 n 
+0000004331 00000 n 
+0000006149 00000 n 
+0000006277 00000 n 
+0000007971 00000 n 
+0000008099 00000 n 
+0000009656 00000 n 
+0000009784 00000 n 
+0000011173 00000 n 
+0000011301 00000 n 
+0000012932 00000 n 
+0000013060 00000 n 
+0000015092 00000 n 
+0000015220 00000 n 
+0000016908 00000 n 
+0000017036 00000 n 
+trailer
+<< /Size 25 /Root 1 0 R >>
+startxref
+17359
+%%EOF

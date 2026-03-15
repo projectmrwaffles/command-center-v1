@@ -1,41 +1,20 @@
+import { normalizeTaskPatch, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Check if all tasks are done and update project status
- */
-async function checkAndCompleteProject(db: any, projectId: string): Promise<void> {
-  const { data: tasks } = await db
+async function getProjectTask(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, projectId: string, taskId: string) {
+  const { data: task, error } = await db
     .from("sprint_items")
-    .select("status")
-    .eq("project_id", projectId);
-  
-  if (!tasks || tasks.length === 0) return;
-  
-  const allDone = tasks.every((t: any) => t.status === "done");
-  
-  if (allDone && tasks.length > 0) {
-    await db
-      .from("projects")
-      .update({ status: "completed", progress_pct: 100 })
-      .eq("id", projectId);
-    
-    await db.from("agent_events").insert({
-      agent_id: null,
-      project_id: projectId,
-      event_type: "project_completed",
-      payload: { message: "All tasks completed" },
-    });
-    
-    console.log(`[Project] Marked as completed: ${projectId}`);
-  } else {
-    const doneCount = tasks.filter((t: any) => t.status === "done").length;
-    const progress = Math.round((doneCount / tasks.length) * 100);
-    await db
-      .from("projects")
-      .update({ progress_pct: progress })
-      .eq("id", projectId);
+    .select("id, project_id, sprint_id, title, status, description")
+    .eq("id", taskId)
+    .eq("project_id", projectId)
+    .single();
+
+  if (error || !task) {
+    return null;
   }
+
+  return task;
 }
 
 export async function PATCH(
@@ -44,23 +23,41 @@ export async function PATCH(
 ) {
   try {
     const params = await ctx.params;
+    const projectId = params.id;
     const taskId = params.taskId;
     const body = await req.json();
-    const { status, notes } = body;
+
+    if (!projectId || !taskId) {
+      return NextResponse.json({ error: "Project ID and task ID required" }, { status: 400 });
+    }
 
     const db = createRouteHandlerClient();
     if (!db) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const updateData: { status?: string; description?: string } = {};
-    if (status) updateData.status = status;
-    if (notes !== undefined) updateData.description = notes;
+    const existingTask = await getProjectTask(db, projectId, taskId);
+    if (!existingTask) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    let updateData: Record<string, string>;
+    try {
+      updateData = normalizeTaskPatch(body);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Invalid task update";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
 
     const { data, error } = await db
       .from("sprint_items")
       .update(updateData)
       .eq("id", taskId)
+      .eq("project_id", projectId)
       .select()
       .single();
 
@@ -69,20 +66,23 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Log event
+    const projectState = await syncProjectState(db, projectId);
+
     await db.from("agent_events").insert({
       agent_id: null,
-      project_id: params.id,
+      project_id: projectId,
       event_type: "task_updated",
-      payload: { task_id: taskId, status, notes },
+      payload: {
+        task_id: taskId,
+        previous_status: existingTask.status,
+        status: data.status,
+        title: data.title,
+        notes: data.description,
+        project_progress_pct: projectState.progressPct,
+      },
     });
 
-    // Check if project should be completed
-    if (status) {
-      await checkAndCompleteProject(db, params.id);
-    }
-
-    return NextResponse.json({ task: data });
+    return NextResponse.json({ task: data, projectState });
   } catch (e: unknown) {
     console.error("[API /projects/:id/tasks/:taskId] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";
@@ -96,24 +96,49 @@ export async function DELETE(
 ) {
   try {
     const params = await ctx.params;
+    const projectId = params.id;
     const taskId = params.taskId;
+
+    if (!projectId || !taskId) {
+      return NextResponse.json({ error: "Project ID and task ID required" }, { status: 400 });
+    }
 
     const db = createRouteHandlerClient();
     if (!db) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    const existingTask = await getProjectTask(db, projectId, taskId);
+    if (!existingTask) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
     const { error } = await db
       .from("sprint_items")
       .delete()
-      .eq("id", taskId);
+      .eq("id", taskId)
+      .eq("project_id", projectId);
 
     if (error) {
       console.error("[API /projects/:id/tasks/:taskId] delete error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    const projectState = await syncProjectState(db, projectId);
+
+    await db.from("agent_events").insert({
+      agent_id: null,
+      project_id: projectId,
+      event_type: "task_deleted",
+      payload: {
+        task_id: taskId,
+        title: existingTask.title,
+        previous_status: existingTask.status,
+        project_progress_pct: projectState.progressPct,
+      },
+    });
+
+    return NextResponse.json({ success: true, projectState });
   } catch (e: unknown) {
     console.error("[API /projects/:id/tasks/:taskId] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

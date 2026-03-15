@@ -1,27 +1,62 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  formatIntakeValue,
+  getRoutingSummary,
+  legacyTypeToLabel,
+} from "@/lib/project-intake";
+import { getProjectLinkEntries, type ProjectLinks } from "@/lib/project-links";
 import { useRealtimeStore } from "@/lib/realtime-store";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
+type ProjectDocument = {
+  id: string;
+  type: string;
+  title: string;
+  url?: string | null;
+  storage_path?: string | null;
+  mime_type?: string | null;
+  size_bytes?: number | null;
+  created_at: string;
+};
+
 type ProjectDetail = {
-  project: any;
+  project: {
+    name: string;
+    status: string;
+    type?: string | null;
+    progress_pct: number;
+    intake_summary?: string | null;
+    updated_at: string;
+    description?: string | null;
+    intake?: any;
+    links?: ProjectLinks | null;
+    [key: string]: any;
+  };
   teams: any[];
-  milestones: any[];
-  sprints: any[];
   tasks: any[];
   events: any[];
+  recentSignals?: Array<{
+    id: string;
+    kind: "blocked" | "approval" | "completed" | "progress" | "activity";
+    title: string;
+    detail: string;
+    timestamp: string;
+    actorName?: string | null;
+  }>;
   stats: {
     totalTasks: number;
     doneTasks: number;
     blockedTasks: number;
     inProgressTasks: number;
+    pendingApprovals?: number;
   };
 };
 
@@ -39,19 +74,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function TeamStatusDot({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    active: "bg-green-500",
-    on_track: "bg-green-500",
-    at_risk: "bg-amber-500",
-    waiting: "bg-zinc-400",
-    blocked: "bg-red-500",
-    complete: "bg-blue-500",
-    paused: "bg-amber-500",
-  };
-  return <span className={cn("h-2 w-2 rounded-full", colors[status] || "bg-zinc-400")} />;
-}
-
 function TaskStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     todo: "bg-zinc-100 text-zinc-600",
@@ -67,60 +89,81 @@ function TaskStatusBadge({ status }: { status: string }) {
   );
 }
 
+function SignalBadge({ kind }: { kind: string }) {
+  const styles: Record<string, string> = {
+    blocked: "bg-red-100 text-red-700",
+    approval: "bg-amber-100 text-amber-700",
+    completed: "bg-green-100 text-green-700",
+    progress: "bg-blue-100 text-blue-700",
+    activity: "bg-zinc-100 text-zinc-700",
+  };
+  return <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium uppercase", styles[kind] || styles.activity)}>{kind}</span>;
+}
+
+function formatBytes(value?: number | null) {
+  if (!value) return null;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
+  const agentsById = useRealtimeStore((s) => s.agentsById);
+
   const [data, setData] = useState<ProjectDetail | null>(null);
+  const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showSprintModal, setShowSprintModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [taskDesc, setTaskDesc] = useState("");
-  const [newSprintName, setNewSprintName] = useState("");
-  const [newSprintGoal, setNewSprintGoal] = useState("");
 
-  const store = useRealtimeStore();
-  const agentsById = useRealtimeStore((s) => s.agentsById);
+  const fetchProject = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    try {
+      const [projectRes, docsRes] = await Promise.all([
+        fetch(`/api/projects/${projectId}`, { cache: "no-store" }),
+        fetch(`/api/projects/${projectId}/documents`, { cache: "no-store" }),
+      ]);
 
-  useEffect(() => {
-    async function fetchProject() {
-      try {
-        const res = await fetch(`/api/projects/${projectId}`);
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Failed to load project");
-        }
-        const json = await res.json();
-        setData(json);
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
+      if (!projectRes.ok) {
+        const err = await projectRes.json().catch(() => ({ error: "Failed to load project" }));
+        throw new Error(err.error || "Failed to load project");
       }
+
+      const json = await projectRes.json();
+      setData(json);
+
+      if (docsRes.ok) {
+        const docsJson = await docsRes.json();
+        setDocuments(docsJson.documents || []);
+      } else {
+        setDocuments([]);
+      }
+
+      setError(null);
+    } catch (e: any) {
+      setError(e.message || "Failed to load project");
+    } finally {
+      if (showSpinner) setLoading(false);
     }
-    if (projectId) fetchProject();
   }, [projectId]);
 
-  // Subscribe to realtime updates for this project (live progress)
   useEffect(() => {
-    // Refetch every 10 seconds for live progress updates
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/projects/${projectId}`);
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
-        }
-      } catch {}
-    }, 10000);
+    if (projectId) fetchProject(true);
+  }, [projectId, fetchProject]);
 
+  useEffect(() => {
+    if (!projectId) return;
+    const interval = setInterval(() => fetchProject(false), 12000);
     return () => clearInterval(interval);
-  }, [projectId]);
+  }, [projectId, fetchProject]);
 
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(newStatus);
@@ -132,7 +175,7 @@ export default function ProjectDetailPage() {
       });
       if (!res.ok) throw new Error("Failed to update");
       const json = await res.json();
-      setData((prev) => prev ? { ...prev, project: json.project } : null);
+      setData((prev) => (prev ? { ...prev, project: { ...prev.project, ...json.project } } : prev));
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -143,9 +186,7 @@ export default function ProjectDetailPage() {
   const handleDelete = async () => {
     setActionLoading("delete");
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       window.location.href = "/projects";
     } catch (e: any) {
@@ -159,66 +200,46 @@ export default function ProjectDetailPage() {
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
     try {
-      // Create task directly without requiring a sprint
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          title: newTaskTitle, 
-          // No sprint_id needed - tasks are project-level
-        }),
+        body: JSON.stringify({ title: newTaskTitle, description: newTaskDesc }),
       });
       if (!res.ok) throw new Error("Failed to create task");
-      
       setNewTaskTitle("");
       setNewTaskDesc("");
       setShowTaskModal(false);
-      // Refresh data
-      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
-      setData(json);
+      await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
     }
   };
 
-  const handleUpdateTaskDesc = async () => {
-    if (!selectedTask || !taskDesc.trim()) return;
+  const handleUpdateTask = async () => {
+    if (!selectedTask) return;
     try {
-      await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: taskDesc }),
+        body: JSON.stringify({ notes: taskDesc, status: selectedTask.status }),
       });
-      
+      if (!res.ok) throw new Error("Failed to save task");
       setShowTaskModal(false);
-      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
-      setData(json);
+      await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
     }
   };
 
-  const handleCreateSprint = async () => {
-    if (!newSprintName.trim()) return;
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
     try {
-      const res = await fetch(`/api/projects/${projectId}/sprints`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name: newSprintName, 
-          goal: newSprintGoal || "Sprint goals",
-          start_date: new Date().toISOString().split("T")[0],
-          end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        }),
+      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
+        method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to create sprint");
-      
-      setNewSprintName("");
-      setNewSprintGoal("");
-      setShowSprintModal(false);
-      // Refresh data
-      const json = await fetch(`/api/projects/${projectId}`).then(r => r.json());
-      setData(json);
+      if (!res.ok) throw new Error("Failed to delete task");
+      setShowTaskModal(false);
+      await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
     }
@@ -230,11 +251,21 @@ export default function ProjectDetailPage() {
     setShowTaskModal(true);
   };
 
+  const taskGroups = useMemo(() => {
+    const list = data?.tasks || [];
+    return {
+      todo: list.filter((task: any) => task.status === "todo"),
+      inProgress: list.filter((task: any) => task.status === "in_progress" || task.status === "review"),
+      done: list.filter((task: any) => task.status === "done"),
+      blocked: list.filter((task: any) => task.status === "blocked"),
+    };
+  }, [data?.tasks]);
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 gap-4">
-        <div className="h-8 w-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin" />
-        <div className="text-zinc-500">Loading project...</div>
+      <div className="flex flex-col items-center justify-center gap-4 p-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-red-200 border-t-red-600" />
+        <div className="text-zinc-500">Loading project…</div>
       </div>
     );
   }
@@ -244,16 +275,13 @@ export default function ProjectDetailPage() {
       <div className="p-6">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="py-6">
-            <div className="flex items-center gap-2 text-red-700 font-medium">
+            <div className="flex items-center gap-2 font-medium text-red-700">
               <span className="text-xl">⚠️</span>
               <p>Error loading project</p>
             </div>
             <p className="mt-2 text-sm text-red-600">{error}</p>
             <div className="mt-4 flex gap-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
+              <button onClick={() => fetchProject(true)} className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
                 Retry
               </button>
               <Link href="/projects" className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
@@ -267,47 +295,24 @@ export default function ProjectDetailPage() {
   }
 
   if (!data?.project) {
-    return (
-      <div className="p-6">
-        <Card className="border-zinc-200">
-          <CardContent className="py-6">
-            <div className="flex items-center gap-2 text-zinc-700 font-medium">
-              <span className="text-xl">🔍</span>
-              <p>Project not found</p>
-            </div>
-            <p className="mt-2 text-sm text-zinc-500">The project you&apos;re looking for doesn&apos;t exist or has been deleted.</p>
-            <Link href="/projects" className="mt-4 inline-block text-sm text-red-600 hover:underline">
-              ← Back to Projects
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return null;
   }
 
-  const { project, teams, sprints, tasks, events, stats } = data;
-  const agents = Array.from(agentsById.values());
+  const { project, teams, tasks, recentSignals = [], stats } = data;
+  const intake = project.intake || null;
+  const routing = intake ? getRoutingSummary(intake) : null;
+  const projectLinks = getProjectLinkEntries(project.links);
 
   return (
-    <div className="space-y-6 overflow-x-hidden">
-      {/* Delete Confirmation Modal */}
+    <div className="space-y-6 overflow-x-hidden pb-10">
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-zinc-900">Delete this project?</h3>
             <p className="mt-2 text-sm text-zinc-600">This cannot be undone.</p>
             <div className="mt-4 flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={actionLoading === "delete"}
-                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancel</button>
+              <button onClick={handleDelete} disabled={actionLoading === "delete"} className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
                 {actionLoading === "delete" ? "Deleting..." : "Delete"}
               </button>
             </div>
@@ -315,157 +320,170 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link href="/projects" className="text-zinc-400 hover:text-zinc-600">←</Link>
-            <h1 className="text-2xl font-semibold text-zinc-900 truncate">{project.name}</h1>
+            <h1 className="truncate text-2xl font-semibold text-zinc-900">{project.name}</h1>
             <StatusBadge status={project.status} />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-500">
-            {project.type && <span className="capitalize">{project.type}</span>}
-            <span>{project.progress_pct}%</span>
-            <span>{new Date(project.updated_at).toLocaleDateString()}</span>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 sm:text-sm">
+            {project.type && <span>{legacyTypeToLabel(project.type)}</span>}
+            <span>{project.progress_pct}% complete</span>
+            {project.intake_summary ? <span className="max-w-full truncate">{project.intake_summary}</span> : null}
+            <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
           </div>
+          {project.description && <p className="mt-3 max-w-3xl text-sm text-zinc-600">{project.description}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {project.status === "active" ? (
-            <button
-              onClick={() => handleStatusChange("paused")}
-              disabled={actionLoading === "paused"}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs sm:text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-            >
-              {actionLoading === "paused" ? "..." : "Pause"}
-            </button>
+            <button onClick={() => handleStatusChange("paused")} disabled={actionLoading === "paused"} className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 sm:text-sm disabled:opacity-50">{actionLoading === "paused" ? "..." : "Pause"}</button>
           ) : project.status === "paused" ? (
-            <button
-              onClick={() => handleStatusChange("active")}
-              disabled={actionLoading === "active"}
-              className="rounded-md bg-green-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              {actionLoading === "active" ? "..." : "Resume"}
-            </button>
-          ) : project.status === "completed" && project.type !== "marketing" ? (
-            <button
-              onClick={() => window.location.href = `/campaigns?project=${encodeURIComponent(project.name)}`}
-              className="rounded-md bg-purple-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-purple-700"
-            >
-              Launch Campaign
-            </button>
+            <button onClick={() => handleStatusChange("active")} disabled={actionLoading === "active"} className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 sm:text-sm disabled:opacity-50">{actionLoading === "active" ? "..." : "Resume"}</button>
           ) : null}
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="rounded-md border border-red-200 px-3 py-1.5 text-xs sm:text-sm font-medium text-red-600 hover:bg-red-50"
-          >
-            Delete
-          </button>
+          <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 sm:text-sm">New Task</button>
+          <button onClick={() => setShowDeleteConfirm(true)} className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 sm:text-sm">Delete</button>
         </div>
       </div>
 
-      {/* Progress Bar */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {[
+          ["Tasks", stats.totalTasks, "text-zinc-900"],
+          ["In Progress", stats.inProgressTasks, "text-blue-600"],
+          ["Done", stats.doneTasks, "text-green-600"],
+          ["Blocked", stats.blockedTasks, "text-red-600"],
+          ["Approvals", stats.pendingApprovals || 0, "text-amber-600"],
+        ].map(([label, value, valueClass]) => (
+          <Card key={String(label)} className="border-zinc-200">
+            <CardContent className="py-3">
+              <div className="text-[10px] text-zinc-500 sm:text-xs">{label}</div>
+              <div className={cn("text-xl font-semibold", String(valueClass))}>{value}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <div className="space-y-1">
         <div className="flex justify-between text-xs text-zinc-500">
-          <span>Progress</span>
-          <span>{stats.totalTasks > 0 ? Math.round((stats.doneTasks / stats.totalTasks) * 100) : 0}%</span>
+          <span>Completion</span>
+          <span>{project.progress_pct}%</span>
         </div>
         <div className="h-3 w-full overflow-hidden rounded-full bg-zinc-100">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500"
-            style={{ width: `${stats.totalTasks > 0 ? (stats.doneTasks / stats.totalTasks) * 100 : 0}%` }}
-          />
+          <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500" style={{ width: `${project.progress_pct}%` }} />
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Card className="border-zinc-200">
-          <CardContent className="py-2 sm:py-3">
-            <div className="text-[10px] sm:text-xs text-zinc-500">Tasks</div>
-            <div className="text-lg sm:text-xl font-semibold">{stats.totalTasks}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200">
-          <CardContent className="py-2 sm:py-3">
-            <div className="text-[10px] sm:text-xs text-zinc-500">In Progress</div>
-            <div className="text-lg sm:text-xl font-semibold text-blue-600">{stats.inProgressTasks}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200">
-          <CardContent className="py-2 sm:py-3">
-            <div className="text-[10px] sm:text-xs text-zinc-500">Done</div>
-            <div className="text-lg sm:text-xl font-semibold text-green-600">{stats.doneTasks}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200">
-          <CardContent className="py-2 sm:py-3">
-            <div className="text-[10px] sm:text-xs text-zinc-500">Blocked</div>
-            <div className="text-lg sm:text-xl font-semibold text-red-600">{stats.blockedTasks}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-4">
+          <Card className="border-zinc-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Project Brief</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {routing ? (
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
+                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
+                </div>
+              ) : null}
 
-      {/* Activity Timeline */}
-      <Card className="border-zinc-200">
-        <CardHeader className="pb-2 sm:pb-3">
-          <CardTitle className="text-sm">Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {events.length === 0 ? (
-            <p className="text-xs sm:text-sm text-zinc-500">No activity yet</p>
-          ) : (
-            <div className="space-y-3">
-              {events.map((event: any) => (
-                <div key={event.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="h-2 w-2 rounded-full bg-red-500" />
-                    <div className="w-px flex-1 bg-zinc-200" />
+              {intake ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Shape</div>
+                    <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.shape)}</div>
                   </div>
-                  <div className="flex-1 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm font-medium text-zinc-900">
-                        {event.event_type.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                      </span>
-                      <span className="text-[10px] sm:text-xs text-zinc-400">
-                        {new Date(event.timestamp).toLocaleString()}
-                      </span>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Stage</div>
+                    <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.stage)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Context</div>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {(intake.context || []).length > 0 ? (
+                        intake.context.map((value: string) => (
+                          <span key={value} className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-zinc-500">None selected</span>
+                      )}
                     </div>
-                    {event.payload && Object.keys(event.payload).length > 0 && (
-                      <p className="mt-1 text-[10px] sm:text-xs text-zinc-500">
-                        {JSON.stringify(event.payload).slice(0, 100)}
-                      </p>
-                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Capabilities</div>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {(intake.capabilities || []).length > 0 ? (
+                        intake.capabilities.map((value: string) => (
+                          <span key={value} className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-zinc-500">None selected</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Confidence</div>
+                    <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.confidence)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
+                    <div className="mt-1 text-sm text-zinc-900">{project.intake_summary || intake.summary || "—"}</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : (
+                <p className="text-sm text-zinc-500">No structured intake captured for this project.</p>
+              )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-        {/* Left: Teams */}
-        <div className="lg:col-span-1">
+              {intake?.goals ? (
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Goals / notes</div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{intake.goals}</p>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card className="border-zinc-200">
-            <CardHeader className="pb-2 sm:pb-3">
-              <CardTitle className="text-sm">Teams</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Task Board</CardTitle>
             </CardHeader>
             <CardContent>
-              {teams.length === 0 ? (
-                <p className="text-xs sm:text-sm text-zinc-500">No teams assigned</p>
+              {tasks.length === 0 ? (
+                <p className="text-sm text-zinc-500">No tasks yet. Add the first task to kick off delivery.</p>
               ) : (
-                <div className="space-y-2 sm:space-y-3">
-                  {teams.map((team: any) => (
-                    <div key={team.id} className="rounded-lg border border-zinc-100 p-2 sm:p-3">
-                      <div className="flex items-center gap-2">
-                        <TeamStatusDot status={team.status} />
-                        <span className="text-xs sm:text-sm font-medium text-zinc-900 truncate">{team.name}</span>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    ["Backlog", taskGroups.todo],
+                    ["In Flight", taskGroups.inProgress],
+                    ["Blocked", taskGroups.blocked],
+                    ["Done", taskGroups.done],
+                  ].map(([label, bucket]) => (
+                    <div key={String(label)} className="rounded-xl border border-zinc-100 bg-zinc-50/70 p-3">
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-zinc-900">{label}</h3>
+                        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-zinc-500">{(bucket as any[]).length}</span>
                       </div>
-                      <div className="mt-1 sm:mt-2 flex flex-wrap gap-1 sm:gap-2">
-                        <span className="text-[10px] sm:text-xs text-zinc-500">{team.activeAgents || 0} active</span>
-                        <span className="text-[10px] sm:text-xs text-zinc-500">{team.taskCount || 0} tasks</span>
-                        {team.blockedTasks > 0 && (
-                          <span className="text-[10px] sm:text-xs text-red-600">{team.blockedTasks} blocked</span>
+                      <div className="space-y-2">
+                        {(bucket as any[]).length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No items</div>
+                        ) : (
+                          (bucket as any[]).map((task: any) => {
+                            const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
+                            return (
+                              <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm transition hover:border-zinc-300 hover:shadow">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
+                                  <TaskStatusBadge status={task.status} />
+                                </div>
+                                {(task.description || assignee) && (
+                                  <div className="mt-2 space-y-1">
+                                    {task.description && <p className="line-clamp-2 text-xs text-zinc-500">{task.description}</p>}
+                                    {assignee && <p className="text-[11px] text-zinc-400">Owner: {assignee.name}</p>}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -476,34 +494,55 @@ export default function ProjectDetailPage() {
           </Card>
         </div>
 
-        {/* Right: Sprints & Tasks */}
-        <div className="space-y-4 lg:space-y-6 lg:col-span-2">
-          {/* Sprints */}
+        <div className="space-y-4">
           <Card className="border-zinc-200">
-            <CardHeader className="pb-2 sm:pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Sprints</CardTitle>
-                <button onClick={() => setShowSprintModal(true)} className="text-[10px] sm:text-xs text-red-600 hover:underline">+ Create</button>
-              </div>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Project Links</CardTitle>
             </CardHeader>
             <CardContent>
-              {sprints.length === 0 ? (
-                <p className="text-xs sm:text-sm text-zinc-500">No sprints yet</p>
+              {projectLinks.length === 0 ? (
+                <p className="text-sm text-zinc-500">No deployment or reference links added yet.</p>
               ) : (
-                <div className="space-y-2 sm:space-y-3">
-                  {sprints.map((sprint: any) => (
-                    <div key={sprint.id} className="rounded-lg border border-zinc-100 p-2 sm:p-3">
-                      <div className="flex items-center justify-between gap-2">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {projectLinks.map((link) => (
+                    <a
+                      key={link.key}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-zinc-100 p-3 transition hover:border-zinc-300 hover:shadow-sm"
+                    >
+                      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
+                      <div className="mt-1 line-clamp-2 text-sm font-medium text-zinc-900">{link.url}</div>
+                      <div className="mt-2 text-xs font-medium text-red-600">Open ↗</div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-zinc-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Recent Signals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentSignals.length === 0 ? (
+                <p className="text-sm text-zinc-500">No meaningful signals yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {recentSignals.map((signal) => (
+                    <div key={signal.id} className="rounded-xl border border-zinc-100 p-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <span className="text-xs sm:text-sm font-medium text-zinc-900 truncate">{sprint.name}</span>
-                          {sprint.goal && <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs text-zinc-500 line-clamp-1">- {sprint.goal}</span>}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <SignalBadge kind={signal.kind} />
+                            <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-500">{signal.detail}</p>
+                          {signal.actorName && <p className="mt-1 text-[11px] text-zinc-400">By {signal.actorName}</p>}
                         </div>
-                        <TaskStatusBadge status={sprint.status === "active" ? "in_progress" : sprint.status === "completed" ? "done" : "todo"} />
-                      </div>
-                      <div className="mt-1 sm:mt-2 flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-zinc-500">
-                        {sprint.start_date && <span className="truncate">{sprint.start_date}</span>}
-                        {sprint.end_date && <span className="truncate">→ {sprint.end_date}</span>}
-                        <span>{sprint.progress_pct}%</span>
+                        <span className="whitespace-nowrap text-[11px] text-zinc-400">{new Date(signal.timestamp).toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
@@ -512,37 +551,63 @@ export default function ProjectDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Tasks */}
           <Card className="border-zinc-200">
-            <CardHeader className="pb-2 sm:pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Tasks</CardTitle>
-                <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="text-[10px] sm:text-xs text-red-600 hover:underline">+ New</button>
-              </div>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              {tasks.length === 0 ? (
-                <p className="text-xs sm:text-sm text-zinc-500">No tasks yet</p>
+              {documents.length === 0 ? (
+                <p className="text-sm text-zinc-500">No project documents uploaded yet.</p>
               ) : (
-                <div className="space-y-2">
-                  {tasks.map((task: any) => {
-                    const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
-                    return (
-                      <div 
-                        key={task.id} 
-                        onClick={() => handleTaskClick(task)}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 p-2 cursor-pointer hover:bg-zinc-50"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <span className="text-xs sm:text-sm text-zinc-900 truncate block">{task.title}</span>
-                          {assignee && (
-                            <span className="text-[10px] sm:text-xs text-zinc-500">@{assignee.name}</span>
-                          )}
+                <div className="space-y-3">
+                  {documents.map((doc) => (
+                    <div key={doc.id} className="rounded-xl border border-zinc-100 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
+                            <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {formatBytes(doc.size_bytes)}
+                            {doc.mime_type ? ` • ${doc.mime_type}` : ""}
+                            {` • Added ${new Date(doc.created_at).toLocaleDateString()}`}
+                          </p>
+                          {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
+                          {doc.url ? <a href={doc.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-red-600 hover:underline">Open link</a> : null}
                         </div>
-                        <TaskStatusBadge status={task.status} />
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-zinc-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Teams</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {teams.length === 0 ? (
+                <p className="text-sm text-zinc-500">No teams assigned.</p>
+              ) : (
+                <div className="space-y-3">
+                  {teams.map((team: any) => (
+                    <div key={team.id} className="rounded-xl border border-zinc-100 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-zinc-900">{team.name}</p>
+                        <StatusBadge status={team.status === "on_track" ? "active" : team.status === "waiting" ? "archived" : team.status} />
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-500">
+                        <span>{team.memberCount} members</span>
+                        <span>{team.activeAgents} active now</span>
+                        <span>{team.taskCount} owned tasks</span>
+                        <span>{team.completedTasks || 0} completed</span>
+                      </div>
+                      {team.blockedTasks > 0 && <p className="mt-2 text-xs text-red-600">{team.blockedTasks} blocked task{team.blockedTasks === 1 ? "" : "s"}</p>}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -550,118 +615,54 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Task Modal */}
       {showTaskModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowTaskModal(false)}>
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-zinc-900">
-              {selectedTask ? "Task Details" : "New Task"}
-            </h3>
-            
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTaskModal(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-zinc-900">{selectedTask ? "Task Details" : "New Task"}</h3>
             {selectedTask ? (
               <div className="mt-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Task</label>
                   <p className="text-sm font-medium text-zinc-900">{selectedTask.title}</p>
-                  <p className="text-xs text-zinc-500 mt-1">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "AI"}</p>
+                  <p className="mt-1 text-xs text-zinc-500">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "Unassigned"}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700">Description / Directions</label>
-                  <textarea 
-                    value={taskDesc}
-                    onChange={e => setTaskDesc(e.target.value)}
-                    placeholder="Add notes or directions for the AI..."
-                    rows={4}
+                  <label className="block text-sm font-medium text-zinc-700">Status</label>
+                  <select
+                    value={selectedTask.status}
+                    onChange={(e) => setSelectedTask((prev: any) => (prev ? { ...prev, status: e.target.value } : prev))}
                     className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  />
+                  >
+                    <option value="todo">To do</option>
+                    <option value="in_progress">In progress</option>
+                    <option value="done">Done</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700">Description / directions</label>
+                  <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the AI..." rows={5} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
                 </div>
               </div>
             ) : (
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700">Task Name</label>
-                  <input
-                    type="text"
-                    value={newTaskTitle}
-                    onChange={e => setNewTaskTitle(e.target.value)}
-                    placeholder="What needs to be done..."
-                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  />
+                  <label className="block text-sm font-medium text-zinc-700">Task name</label>
+                  <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="What needs to be done..." className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Description</label>
-                  <textarea
-                    value={newTaskDesc}
-                    onChange={e => setNewTaskDesc(e.target.value)}
-                    placeholder="Details for the AI..."
-                    rows={3}
-                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  />
+                  <textarea value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Details for the AI..." rows={4} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
                 </div>
               </div>
             )}
-            
             <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => setShowTaskModal(false)}
-                className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={selectedTask ? handleUpdateTaskDesc : handleCreateTask}
-                disabled={selectedTask ? false : !newTaskTitle.trim()}
-                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {selectedTask ? "Save" : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sprint Modal */}
-      {showSprintModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSprintModal(false)}>
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-zinc-900">New Sprint</h3>
-            
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700">Sprint Name</label>
-                <input
-                  type="text"
-                  value={newSprintName}
-                  onChange={e => setNewSprintName(e.target.value)}
-                  placeholder="e.g., Sprint 3"
-                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700">Goal</label>
-                <input
-                  type="text"
-                  value={newSprintGoal}
-                  onChange={e => setNewSprintGoal(e.target.value)}
-                  placeholder="Sprint goal..."
-                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={() => setShowSprintModal(false)}
-                className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateSprint}
-                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
-                Create
-              </button>
+              <button onClick={() => setShowTaskModal(false)} className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancel</button>
+              {selectedTask ? (
+                <button onClick={handleDeleteTask} className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
+              ) : null}
+              <button onClick={selectedTask ? handleUpdateTask : handleCreateTask} disabled={selectedTask ? false : !newTaskTitle.trim()} className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">{selectedTask ? "Save" : "Create"}</button>
             </div>
           </div>
         </div>

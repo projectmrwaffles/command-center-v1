@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRealtimeStore } from "@/lib/realtime-store";
-import { subscribeToAllTables } from "@/lib/realtime-subscribe";
 
 export function useCreateProject() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,6 +12,8 @@ export function useCreateProject() {
     type: string;
     teamId?: string;
     description?: string;
+    intake?: Record<string, unknown>;
+    links?: Record<string, string>;
   }) => {
     setIsSubmitting(true);
     setError(null);

@@ -127,37 +127,39 @@ async function main() {
   let createdProjectId = null;
 
   try {
-    const { count: serviceTeamMembers, error: serviceTeamError } = await service
-      .from("team_members")
-      .select("id", { count: "exact", head: true });
-    if (serviceTeamError) throw serviceTeamError;
+    const restrictedAnonReads = [
+      { table: "team_members", label: "internal team membership", requireServiceRows: true },
+      { table: "projects", label: "projects", requireServiceRows: true },
+      { table: "sprints", label: "sprints", requireServiceRows: true },
+      { table: "sprint_items", label: "sprint items", requireServiceRows: true },
+      { table: "agents", label: "agents", requireServiceRows: true },
+      { table: "jobs", label: "jobs", requireServiceRows: true },
+      { table: "approvals", label: "approvals", requireServiceRows: true },
+      { table: "project_documents", label: "project documents", requireServiceRows: false },
+      { table: "prds", label: "PRDs", requireServiceRows: false },
+      { table: "agent_events", label: "agent events", requireServiceRows: false },
+    ];
 
-    const { count: anonTeamMembers, error: anonTeamError } = await anon
-      .from("team_members")
-      .select("id", { count: "exact", head: true });
-    if (anonTeamError) throw anonTeamError;
+    for (const check of restrictedAnonReads) {
+      const { count: serviceCount, error: serviceError } = await service
+        .from(check.table)
+        .select("id", { count: "exact", head: true });
+      if (serviceError) throw serviceError;
 
-    logResult(
-      Number(serviceTeamMembers || 0) > 0 && Number(anonTeamMembers || 0) === 0,
-      "anon cannot read internal team membership",
-      `service sees ${serviceTeamMembers ?? 0}, anon sees ${anonTeamMembers ?? 0}`
-    );
+      const { count: anonCount, error: anonError } = await anon
+        .from(check.table)
+        .select("id", { count: "exact", head: true });
+      if (anonError) throw anonError;
 
-    const { count: serviceTaskCount, error: serviceTaskError } = await service
-      .from("sprint_items")
-      .select("id", { count: "exact", head: true });
-    if (serviceTaskError) throw serviceTaskError;
+      const serviceHasRows = Number(serviceCount || 0) > 0;
+      const ok = Number(anonCount || 0) === 0 && (!check.requireServiceRows || serviceHasRows);
 
-    const { count: anonTaskCount, error: anonTaskError } = await anon
-      .from("sprint_items")
-      .select("id", { count: "exact", head: true });
-    if (anonTaskError) throw anonTaskError;
-
-    logResult(
-      Number(serviceTaskCount || 0) > 0 && Number(anonTaskCount || 0) === 0,
-      "anon cannot read sprint items",
-      `service sees ${serviceTaskCount ?? 0}, anon sees ${anonTaskCount ?? 0}`
-    );
+      logResult(
+        ok,
+        `anon cannot read ${check.label}`,
+        `table ${check.table}: service sees ${serviceCount ?? 0}, anon sees ${anonCount ?? 0}`
+      );
+    }
 
     if (startLocalServer) {
       serverProcess = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", port], {

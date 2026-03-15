@@ -228,7 +228,7 @@ export function legacyTypeToLabel(type?: string | null) {
 export function summarizeIntake(intake: ProjectIntake) {
   const shape = formatIntakeValue(intake.shape);
   const stage = formatIntakeValue(intake.stage);
-  const capabilities = intake.capabilities.map(formatIntakeValue).join(", ");
+  const capabilities = (intake.capabilities ?? []).map(formatIntakeValue).join(", ");
   return [shape, stage, capabilities].filter(Boolean).join(" • ");
 }
 
@@ -242,27 +242,31 @@ export function deriveLegacyProjectType(intake: ProjectIntake) {
 
 export function getAutoRouteTeamIdsFromIntake(intake: ProjectIntake, teams: Record<string, string>) {
   const selected = new Set<string>();
+  const capabilities = intake.capabilities ?? [];
+  const stage = intake.stage ?? "";
+  const shape = intake.shape ?? "";
+  const confidence = intake.confidence ?? "";
 
-  const needsProductFirst = intake.confidence !== "clear" || ["idea", "planning"].includes(intake.stage) || intake.shape === "research-strategy" || intake.shape === "hybrid-not-sure";
+  const needsProductFirst = confidence !== "clear" || ["idea", "planning"].includes(stage) || shape === "research-strategy" || shape === "hybrid-not-sure";
   if (needsProductFirst) selected.add(teams.PRODUCT);
 
-  if (["new-product", "improve-existing", "ops-system"].includes(intake.shape)) {
+  if (["new-product", "improve-existing", "ops-system"].includes(shape)) {
     selected.add(teams.ENGINEERING);
   }
 
-  if (["launch-campaign"].includes(intake.shape)) {
+  if (["launch-campaign"].includes(shape)) {
     selected.add(teams.MARKETING);
   }
 
-  if (["new-product", "improve-existing", "launch-campaign", "ops-system", "hybrid-not-sure"].includes(intake.shape)) {
+  if (["new-product", "improve-existing", "launch-campaign", "ops-system", "hybrid-not-sure"].includes(shape)) {
     selected.add(teams.DESIGN);
   }
 
-  if (intake.capabilities.includes("strategy")) selected.add(teams.PRODUCT);
-  if (intake.capabilities.includes("ux-ui")) selected.add(teams.DESIGN);
-  if (intake.capabilities.includes("frontend") || intake.capabilities.includes("backend-data")) selected.add(teams.ENGINEERING);
-  if (intake.capabilities.includes("content-copy") || intake.capabilities.includes("growth-marketing")) selected.add(teams.MARKETING);
-  if (intake.capabilities.includes("qa-optimization") || intake.stage === "ready-to-build" || intake.stage === "already-live") selected.add(teams.QA);
+  if (capabilities.includes("strategy")) selected.add(teams.PRODUCT);
+  if (capabilities.includes("ux-ui")) selected.add(teams.DESIGN);
+  if (capabilities.includes("frontend") || capabilities.includes("backend-data")) selected.add(teams.ENGINEERING);
+  if (capabilities.includes("content-copy") || capabilities.includes("growth-marketing")) selected.add(teams.MARKETING);
+  if (capabilities.includes("qa-optimization") || stage === "ready-to-build" || stage === "already-live") selected.add(teams.QA);
 
   if (selected.size === 0) {
     selected.add(teams.PRODUCT);
@@ -273,13 +277,18 @@ export function getAutoRouteTeamIdsFromIntake(intake: ProjectIntake, teams: Reco
 }
 
 export function getRoutingSummary(intake: ProjectIntake) {
-  const ownerTeam = intake.confidence === "not-sure" || ["idea", "planning"].includes(intake.stage)
+  const capabilities = intake.capabilities ?? [];
+  const stage = intake.stage ?? "";
+  const shape = intake.shape ?? "";
+  const confidence = intake.confidence ?? "";
+
+  const ownerTeam = confidence === "not-sure" || ["idea", "planning"].includes(stage)
     ? "Product"
-    : intake.capabilities.includes("growth-marketing") || intake.shape === "launch-campaign"
+    : capabilities.includes("growth-marketing") || shape === "launch-campaign"
       ? "Marketing"
-      : intake.capabilities.includes("frontend") || intake.capabilities.includes("backend-data") || intake.shape === "new-product"
+      : capabilities.includes("frontend") || capabilities.includes("backend-data") || shape === "new-product"
         ? "Engineering"
-        : intake.capabilities.includes("ux-ui")
+        : capabilities.includes("ux-ui")
           ? "Design"
           : "Product";
 

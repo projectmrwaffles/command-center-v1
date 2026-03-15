@@ -373,7 +373,7 @@ async function main() {
 
       const serviceEventInsert = await service.from("agent_events").insert({
         agent_id: "11111111-1111-1111-1111-000000000008",
-        event_type: "internal_ready_smoke_event",
+        event_type: "task_updated",
         project_id: createdProjectId,
         payload: { source: "internal-ready-smoke" },
       });

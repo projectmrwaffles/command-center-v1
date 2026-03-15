@@ -1,24 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { hasBearerToken } from "@/lib/server-auth";
 
-// Telegram notification function
 async function sendTelegramNotification(message: string) {
-  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
 
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+  if (!botToken || !chatId) {
     console.log("[Webhook] Telegram not configured, skipping notification");
     return;
   }
 
   try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-      }),
+      body: JSON.stringify({ chat_id: chatId, text: message }),
     });
   } catch (e) {
     console.error("[Webhook] Failed to send Telegram notification:", e);
@@ -27,22 +24,27 @@ async function sendTelegramNotification(message: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    
-    console.log("[Webhook] Received:", JSON.stringify(body, null, 2));
+    if (!hasBearerToken(req, "INBOUND_WEBHOOK_TOKEN")) {
+      const configured = Boolean(process.env.INBOUND_WEBHOOK_TOKEN?.trim());
+      return NextResponse.json(
+        { error: configured ? "Unauthorized" : "INBOUND_WEBHOOK_TOKEN is not configured" },
+        { status: configured ? 401 : 503 }
+      );
+    }
 
-    // Extract email details from webhook payload
+    const body = await req.json();
     const subject = body.subject || body.subjectLine || "New Email";
     const from = body.from || body.sender || "Unknown";
     const snippet = body.snippet || body.preview || "";
 
-    // Format notification message
-    const notification = `📧 *New Email*\n\n*From:* ${from}\n*Subject:* ${subject}\n${snippet ? `\`${snippet}\`` : ""}`;
+    const notification = `📧 New Email
 
-    // Send Telegram notification
+From: ${from}
+Subject: ${subject}${snippet ? `
+
+${snippet}` : ""}`;
     await sendTelegramNotification(notification);
 
-    // Log to database if Supabase is configured
     try {
       const db = createRouteHandlerClient();
       if (db) {
@@ -52,15 +54,11 @@ export async function POST(req: NextRequest) {
           payload: { subject, from, snippet },
         });
       }
-    } catch (e) {
+    } catch {
       console.log("[Webhook] DB not available, skipping log");
     }
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: "Notification sent",
-      timestamp: new Date().toISOString()
-    });
+
+    return NextResponse.json({ success: true, message: "Notification sent", timestamp: new Date().toISOString() });
   } catch (e) {
     console.error("[Webhook] Error:", e);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -68,9 +66,5 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ 
-    status: "ok", 
-    message: "Webhook endpoint is running",
-    timestamp: new Date().toISOString()
-  });
+  return NextResponse.json({ status: "ok", message: "Webhook endpoint is running", timestamp: new Date().toISOString() });
 }

@@ -161,8 +161,28 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (!projectId) return;
-    const interval = setInterval(() => fetchProject(false), 12000);
-    return () => clearInterval(interval);
+
+    let cancelled = false;
+
+    const tick = async () => {
+      if (cancelled || document.visibilityState !== "visible" || !navigator.onLine) return;
+      await fetchProject(false);
+    };
+
+    const interval = window.setInterval(tick, 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
+    };
   }, [projectId, fetchProject]);
 
   const handleStatusChange = async (newStatus: string) => {
@@ -348,7 +368,7 @@ export default function ProjectDetailPage() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {[
-          ["Tasks", stats.totalTasks, "text-zinc-900"],
+          ["Delivery tasks", stats.totalTasks, "text-zinc-900"],
           ["In Progress", stats.inProgressTasks, "text-blue-600"],
           ["Done", stats.doneTasks, "text-green-600"],
           ["Blocked", stats.blockedTasks, "text-red-600"],
@@ -449,7 +469,7 @@ export default function ProjectDetailPage() {
             </CardHeader>
             <CardContent>
               {tasks.length === 0 ? (
-                <p className="text-sm text-zinc-500">No tasks yet. Add the first task to kick off delivery.</p>
+                <p className="text-sm text-zinc-500">No delivery tasks yet. Add the first task to kick off execution.</p>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   {[
@@ -618,7 +638,7 @@ export default function ProjectDetailPage() {
       {showTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTaskModal(false)}>
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-zinc-900">{selectedTask ? "Task Details" : "New Task"}</h3>
+            <h3 className="text-lg font-semibold text-zinc-900">{selectedTask ? "Task Details" : "New delivery task"}</h3>
             {selectedTask ? (
               <div className="mt-4 space-y-4">
                 <div>
@@ -642,18 +662,18 @@ export default function ProjectDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Description / directions</label>
-                  <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the AI..." rows={5} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+                  <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={5} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
                 </div>
               </div>
             ) : (
               <div className="mt-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Task name</label>
-                  <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="What needs to be done..." className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+                  <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="What outcome should be delivered..." className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">Description</label>
-                  <textarea value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Details for the AI..." rows={4} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+                  <textarea value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Execution notes, acceptance criteria, or handoff details..." rows={4} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
                 </div>
               </div>
             )}

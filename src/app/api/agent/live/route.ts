@@ -32,7 +32,7 @@ export async function GET() {
     try {
       const status = JSON.parse(statusOutput);
       heartbeatAgents = status.heartbeat?.agents || [];
-    } catch (e) {
+    } catch {
       // Ignore parse errors
     }
 

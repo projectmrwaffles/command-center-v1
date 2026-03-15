@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardData } from "./page";
 import { useRealtimeStore } from "@/lib/realtime-store";
-import { subscribeToAllTables } from "@/lib/realtime-subscribe";
 import { CreateProjectModal } from "@/components/create-project-modal";
 
 function cn(...classes: Array<string | undefined | false | null>) {
@@ -105,37 +104,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     initialData.teams?.forEach((t: any) => store.upsertTeam(t));
   }, [initialData, store]);
 
-  useEffect(() => {
-    const sub = subscribeToAllTables({
-      onAgent: (p) => {
-        if (p.eventType !== "DELETE") store.upsertAgent(p.new);
-      },
-      onApproval: (p) => {
-        if (p.eventType === "DELETE") store.removeApproval(p.old.id);
-        else store.upsertApproval(p.new);
-      },
-      onProject: (p) => {
-        if (p.eventType !== "DELETE") store.upsertProject(p.new);
-      },
-      onSprint: (p) => {
-        if (p.eventType !== "DELETE") store.upsertSprint(p.new);
-      },
-      onJob: (p) => {
-        if (p.eventType !== "DELETE") store.upsertJob(p.new);
-      },
-      onUsageRollup: (p) => {
-        if (p.eventType !== "DELETE") store.upsertUsageRollup(p.new);
-      },
-      onTeam: (p) => {
-        if (p.eventType !== "DELETE") store.upsertTeam(p.new);
-      },
-      onAgentEvent: (p) => {
-        if (p.eventType === "INSERT") store.prependEvent(p.new);
-      },
-    });
-
-    return () => sub.unsubscribeAll();
-  }, [store]);
 
   const agentsById = useRealtimeStore((s) => s.agentsById);
   const projectsById = useRealtimeStore((s) => s.projectsById);
@@ -147,12 +115,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
   const [selectedNeedsYou, setSelectedNeedsYou] = useState<NeedsYouItem | null>(null);
   const [showCreateProject, setShowCreateProject] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
-
-  useEffect(() => {
-    const timer = setTimeout(() => setConnectionStatus("connected"), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+  const connectionStatus = "connected" as const;
 
   const agents = useMemo(() => Array.from(agentsById.values()), [agentsById]);
   const jobs = useMemo(() => Array.from(jobsById.values()), [jobsById]);

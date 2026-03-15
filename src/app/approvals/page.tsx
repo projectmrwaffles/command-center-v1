@@ -168,7 +168,7 @@ export default async function ApprovalsPage({
 
       <div>
         <h1 className="text-lg font-semibold text-zinc-900">Approvals</h1>
-        <p className="text-sm text-zinc-500">Review and approve agent work with linked project context and auditability.</p>
+        <p className="text-sm text-zinc-500">Review operator decisions with project context, current job state, and an audit trail. Use approvals for trust gates; use project tasks for the delivery plan.</p>
       </div>
 
       {sp.error === "note_required" && (
@@ -201,7 +201,7 @@ export default async function ApprovalsPage({
                       <CardDescription className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                         <span>Project: {project?.name || "Unknown project"}</span>
                         <span>Agent: {agent?.name || "Unknown agent"}</span>
-                        <span>Job: {job?.title || "Unknown job"}</span>
+                        <span>Execution job: {job?.title || "Unknown job"}</span>
                       </CardDescription>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -213,7 +213,7 @@ export default async function ApprovalsPage({
                 <CardContent className="space-y-3">
                   <div className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
                     <span>Requester: {a.requester_name || "—"}</span>
-                    <span>Job status: {formatStatus(job?.status)}</span>
+                    <span>Execution status: {formatStatus(job?.status)}</span>
                   </div>
 
                   {a.project_id ? (

@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
         message: notificationPayload.message,
         status: "pending",
       });
-    } catch (e) {
+    } catch {
       // Table might not exist, that's OK - we still broadcast via realtime
       console.log("[Agent Trigger] agent_notifications table not available, using broadcast only");
     }

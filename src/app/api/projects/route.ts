@@ -81,46 +81,6 @@ async function triggerAgentWork(
 }
 
 /**
- * Check if all tasks are done and update project status
- */
-async function checkAndCompleteProject(db: any, projectId: string): Promise<void> {
-  const { data: tasks } = await db
-    .from("sprint_items")
-    .select("status")
-    .eq("project_id", projectId);
-  
-  if (!tasks || tasks.length === 0) return;
-  
-  const allDone = tasks.every((t: any) => t.status === "done");
-  const anyInProgress = tasks.some((t: any) => t.status === "in_progress");
-  
-  if (allDone && tasks.length > 0) {
-    await db
-      .from("projects")
-      .update({ status: "completed", progress_pct: 100 })
-      .eq("id", projectId);
-    
-    // Log completion event
-    await db.from("agent_events").insert({
-      agent_id: null,
-      project_id: projectId,
-      event_type: "project_completed",
-      payload: { message: "All tasks completed" },
-    });
-    
-    console.log(`[Project] Marked as completed: ${projectId}`);
-  } else if (anyInProgress) {
-    // Update progress percentage
-    const doneCount = tasks.filter((t: any) => t.status === "done").length;
-    const progress = Math.round((doneCount / tasks.length) * 100);
-    await db
-      .from("projects")
-      .update({ progress_pct: progress })
-      .eq("id", projectId);
-  }
-}
-
-/**
  * Heuristic fallback when AI agent is unavailable
  */
 /**

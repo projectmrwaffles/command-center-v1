@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "verify:closeout": "node scripts/verify-closeout.js"
+    "verify:closeout": "node scripts/verify-closeout.js",
+    "verify:smoke": "node scripts/internal-ready-smoke.js"
   },
   "dependencies": {
     "@playwright/test": "^1.58.2",

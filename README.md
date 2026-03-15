@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Command Center V1
 
-## Getting Started
+Internal command-and-control surface for projects, agents, approvals, usage, and real-time orchestration.
 
-First, run the development server:
+## Core commands
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run typecheck
+npm run build
+npm run verify:closeout
+npm run verify:smoke
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Required environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Local verification expects these env vars:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `AGENT_AUTH_TOKEN` *(optional but recommended for full `/api/agent/log` route verification)*
 
-## Learn More
+Optional:
 
-To learn more about Next.js, take a look at the following resources:
+- `SMOKE_BASE_URL` — target an already-running app instead of auto-starting local dev server
+- `SMOKE_PORT` — port for the local smoke-runner server (default `3210`)
+- `SMOKE_START_LOCAL_SERVER=0` — skip auto-start when `SMOKE_BASE_URL` is not set
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Verification flow
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Static closeout verifier
 
-## Deploy on Vercel
+```bash
+npm run verify:closeout
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Checks for:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- auth guards on all API routes
+- scoped task updates in `/api/agent/log`
+- project existence + payload sanitization in `/api/projects/[id]/documents`
+- no hardcoded production fallback URL in project-trigger flow
+
+### Internal-ready smoke verifier
+
+```bash
+npm run verify:smoke
+```
+
+Runs a disposable end-to-end backend smoke pass against local or provided app URL:
+
+- confirms anon cannot read `team_members` or `sprint_items`
+- confirms `/api/projects` rejects unauthorized requests and accepts trusted bearer auth
+- creates a disposable project through the API
+- verifies initial task bootstrap
+- proves malformed document payloads are rejected
+- proves valid document uploads are sanitized and persisted
+- if `AGENT_AUTH_TOKEN` is present: proves `/api/agent/log` rejects cross-project task tampering, scoped task updates succeed, and usage validation rejects negative metrics
+- if `AGENT_AUTH_TOKEN` is absent: proves anon cannot write `agent_events`/`ai_usage` directly while service-role backends can
+- cleans up all disposable records afterward
+
+## Notes
+
+- `verify:smoke` is meant for internal verification, not public CI, because it needs live Supabase credentials.
+- The smoke script cleans up the disposable project and related rows on success or failure.

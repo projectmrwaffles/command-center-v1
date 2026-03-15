@@ -25,10 +25,12 @@ for (const file of routeFiles) {
 const agentLogPath = path.join(apiRoot, "agent", "log", "route.ts");
 const docsRoutePath = path.join(apiRoot, "projects", "[id]", "documents", "route.ts");
 const projectsRoutePath = path.join(apiRoot, "projects", "route.ts");
+const publicReadMigrationPath = path.join(repoRoot, "supabase", "migrations", "20260315143000_close_remaining_public_reads.sql");
 
 const agentLog = fs.readFileSync(agentLogPath, "utf8");
 const docsRoute = fs.readFileSync(docsRoutePath, "utf8");
 const projectsRoute = fs.readFileSync(projectsRoutePath, "utf8");
+const publicReadMigration = fs.readFileSync(publicReadMigrationPath, "utf8");
 
 const assertions = [
   {
@@ -50,6 +52,19 @@ const assertions = [
     name: "project trigger path has no hardcoded production fallback URL",
     ok: !projectsRoute.includes("command-center-v1.vercel.app"),
     detail: "agent trigger uses configured app URL only",
+  },
+  {
+    name: "latest RLS cleanup migration removes legacy public read policies",
+    ok:
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_projects_select"') &&
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_sprint_items_select"') &&
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_agents_select"') &&
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_jobs_select"') &&
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_agent_events_select"') &&
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_approvals_select"') &&
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_documents_select"') &&
+      publicReadMigration.includes('DROP POLICY IF EXISTS "anon_prds_select"'),
+    detail: "closeout migration strips remaining realtime-era anon policies",
   },
 ];
 

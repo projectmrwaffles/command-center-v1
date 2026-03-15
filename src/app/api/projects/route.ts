@@ -44,13 +44,12 @@ async function triggerAgentWork(
   try {
     const agentName = getAgentNameFromId(agentId);
     
-    // Get the base URL from environment - try multiple sources
-    const vercelUrl = process.env.VERCEL_URL;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (vercelUrl ? `https://${vercelUrl}` : "https://command-center-v1.vercel.app");
-    
-    // Skip trigger in dev mode (localhost) - only trigger in production
+    const vercelUrl = process.env.VERCEL_URL?.trim();
+    const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    const baseUrl = configuredAppUrl || (vercelUrl ? `https://${vercelUrl}` : "");
+
     if (!baseUrl) {
-      console.log(`[Trigger] Skipping - no production URL configured`);
+      console.log("[Trigger] Skipping - no app URL configured for agent notification callback");
       return;
     }
     

@@ -52,6 +52,7 @@ function SelectionCard({
   onClick,
   hint,
   multi,
+  compact,
 }: {
   selected: boolean;
   label: string;
@@ -60,6 +61,7 @@ function SelectionCard({
   onClick: () => void;
   hint?: string;
   multi?: boolean;
+  compact?: boolean;
 }) {
   return (
     <button
@@ -67,6 +69,7 @@ function SelectionCard({
       onClick={onClick}
       className={cn(
         "group relative w-full overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
+        compact ? "min-h-[220px] snap-center" : "",
         "focus:outline-none focus:ring-2 focus:ring-red-300",
         selected
           ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
@@ -105,6 +108,23 @@ function SelectionCard({
 
       {hint ? <p className="mt-3 text-xs font-medium text-red-700">{hint}</p> : null}
     </button>
+  );
+}
+
+function OptionBrowser({
+  children,
+  columns = 2,
+}: {
+  children: ReactNode;
+  columns?: 1 | 2;
+}) {
+  return (
+    <>
+      <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 md:hidden [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        {children}
+      </div>
+      <div className={cn("hidden gap-3 md:grid", columns === 2 ? "md:grid-cols-2" : "md:grid-cols-1")}>{children}</div>
+    </>
   );
 }
 
@@ -271,7 +291,12 @@ export function CreateProjectForm({
   const currentStepValid = getStepValidity(activeStep.id, stateForValidity);
   const completedCount = flow.filter((step) => getStepValidity(step.id, stateForValidity)).length;
   const progress = Math.max(8, Math.round((completedCount / flow.length) * 100));
-  const unlockedStepIds = new Set(flow.slice(0, currentStep + 1).map((step) => step.id));
+  const furthestUnlockedIndex = Math.min(
+    flow.findIndex((step) => !getStepValidity(step.id, stateForValidity)) === -1
+      ? flow.length - 1
+      : flow.findIndex((step) => !getStepValidity(step.id, stateForValidity)),
+    flow.length - 1
+  );
 
   useEffect(() => {
     if (currentStep > flow.length - 1) {
@@ -371,27 +396,37 @@ export function CreateProjectForm({
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-5 -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
               {flow.map((step, index) => {
                 const isActive = index === currentStep;
-                const isCompleted = index < currentStep && getStepValidity(step.id, stateForValidity);
-                const isUnlocked = index <= currentStep;
+                const isCompleted = getStepValidity(step.id, stateForValidity);
+                const isReachable = index <= furthestUnlockedIndex;
 
-                return (
-                  <div
+                return isReachable ? (
+                  <button
                     key={step.id}
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(index);
+                      setShowValidation(false);
+                    }}
                     className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                       isActive
                         ? "border-red-200 bg-red-50 text-red-700"
                         : isCompleted
-                          ? "border-zinc-200 bg-white text-zinc-700"
-                          : isUnlocked
-                            ? "border-zinc-200 bg-zinc-50 text-zinc-500"
-                            : "border-dashed border-zinc-200 bg-transparent text-zinc-300"
+                          ? "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                     )}
                   >
-                    {isUnlocked ? `${index + 1}. ${step.title}` : `${index + 1}. Locked`}
+                    {index + 1}. {step.title}
+                  </button>
+                ) : (
+                  <div
+                    key={step.id}
+                    className="shrink-0 rounded-full border border-dashed border-zinc-200 bg-transparent px-3 py-1.5 text-xs font-medium text-zinc-400"
+                  >
+                    {index + 1}. Up next: {step.title}
                   </div>
                 );
               })}
@@ -416,29 +451,39 @@ export function CreateProjectForm({
             </div>
 
             <div className="max-w-4xl rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-sm backdrop-blur sm:p-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{activeStep.title}</h3>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">{activeStep.description}</p>
-              <div className="mt-3 inline-flex rounded-full border border-dashed border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
-                {activeStep.helper}
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{activeStep.title}</h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">{activeStep.description}</p>
+                </div>
+                <div className="inline-flex w-fit rounded-full border border-dashed border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
+                  {activeStep.helper}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[22px] border border-zinc-200 bg-zinc-50/80 px-4 py-3 text-sm text-zinc-600 md:hidden">
+                Swipe through options horizontally if that feels easier.
               </div>
 
               <div className="mt-6">
                 {activeStep.id === "shape" ? (
                   <div className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <OptionBrowser columns={2}>
                       {PROJECT_SHAPES.map((option) => (
-                        <SelectionCard
-                          key={option.value}
-                          selected={shape === option.value}
-                          label={option.label}
-                          description={option.description}
-                          examples={option.examples}
-                          hint={option.hint}
-                          onClick={() => handleSingleChoice("shape", option.value)}
-                        />
+                        <div key={option.value} className="w-[85%] shrink-0 md:w-auto">
+                          <SelectionCard
+                            selected={shape === option.value}
+                            label={option.label}
+                            description={option.description}
+                            examples={option.examples}
+                            hint={option.hint}
+                            compact
+                            onClick={() => handleSingleChoice("shape", option.value)}
+                          />
+                        </div>
                       ))}
-                    </div>
+                    </OptionBrowser>
                     {showValidation && !shape ? <FieldHint tone="error">Pick the closest project shape to continue.</FieldHint> : null}
                   </div>
                 ) : null}
@@ -448,22 +493,24 @@ export function CreateProjectForm({
                     <div className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
                       Choose every context that changes the work. This can be more than one.
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <OptionBrowser columns={2}>
                       {PROJECT_CONTEXTS.map((option) => (
-                        <SelectionCard
-                          key={option.value}
-                          selected={context.includes(option.value)}
-                          label={option.label}
-                          description={option.description}
-                          examples={option.examples}
-                          multi
-                          onClick={() => {
-                            setContext(toggleValue(context, option.value));
-                            setShowValidation(false);
-                          }}
-                        />
+                        <div key={option.value} className="w-[85%] shrink-0 md:w-auto">
+                          <SelectionCard
+                            selected={context.includes(option.value)}
+                            label={option.label}
+                            description={option.description}
+                            examples={option.examples}
+                            multi
+                            compact
+                            onClick={() => {
+                              setContext(toggleValue(context, option.value));
+                              setShowValidation(false);
+                            }}
+                          />
+                        </div>
                       ))}
-                    </div>
+                    </OptionBrowser>
                     {showValidation && context.length === 0 ? <FieldHint tone="error">Choose at least one context.</FieldHint> : null}
                   </div>
                 ) : null}
@@ -473,58 +520,64 @@ export function CreateProjectForm({
                     <div className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
                       Pick the help you expect to need. If you only know the outcome, choose the obvious ones.
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <OptionBrowser columns={2}>
                       {PROJECT_CAPABILITIES.map((option) => (
-                        <SelectionCard
-                          key={option.value}
-                          selected={capabilities.includes(option.value)}
-                          label={option.label}
-                          description={option.description}
-                          examples={option.examples}
-                          multi
-                          onClick={() => {
-                            setCapabilities(toggleValue(capabilities, option.value));
-                            setShowValidation(false);
-                          }}
-                        />
+                        <div key={option.value} className="w-[85%] shrink-0 md:w-auto">
+                          <SelectionCard
+                            selected={capabilities.includes(option.value)}
+                            label={option.label}
+                            description={option.description}
+                            examples={option.examples}
+                            multi
+                            compact
+                            onClick={() => {
+                              setCapabilities(toggleValue(capabilities, option.value));
+                              setShowValidation(false);
+                            }}
+                          />
+                        </div>
                       ))}
-                    </div>
+                    </OptionBrowser>
                     {showValidation && capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability.</FieldHint> : null}
                   </div>
                 ) : null}
 
                 {activeStep.id === "stage" ? (
                   <div className="space-y-4">
-                    <div className="grid gap-3">
+                    <OptionBrowser columns={1}>
                       {PROJECT_STAGES.map((option) => (
-                        <SelectionCard
-                          key={option.value}
-                          selected={stage === option.value}
-                          label={option.label}
-                          description={option.description}
-                          examples={option.examples}
-                          onClick={() => handleSingleChoice("stage", option.value)}
-                        />
+                        <div key={option.value} className="w-[88%] shrink-0 md:w-auto">
+                          <SelectionCard
+                            selected={stage === option.value}
+                            label={option.label}
+                            description={option.description}
+                            examples={option.examples}
+                            compact
+                            onClick={() => handleSingleChoice("stage", option.value)}
+                          />
+                        </div>
                       ))}
-                    </div>
+                    </OptionBrowser>
                     {showValidation && !stage ? <FieldHint tone="error">Choose the current stage.</FieldHint> : null}
                   </div>
                 ) : null}
 
                 {activeStep.id === "confidence" ? (
                   <div className="space-y-4">
-                    <div className="grid gap-3">
+                    <OptionBrowser columns={1}>
                       {CONFIDENCE_OPTIONS.map((option) => (
-                        <SelectionCard
-                          key={option.value}
-                          selected={confidence === option.value}
-                          label={option.label}
-                          description={option.description}
-                          examples={option.examples}
-                          onClick={() => handleSingleChoice("confidence", option.value)}
-                        />
+                        <div key={option.value} className="w-[88%] shrink-0 md:w-auto">
+                          <SelectionCard
+                            selected={confidence === option.value}
+                            label={option.label}
+                            description={option.description}
+                            examples={option.examples}
+                            compact
+                            onClick={() => handleSingleChoice("confidence", option.value)}
+                          />
+                        </div>
                       ))}
-                    </div>
+                    </OptionBrowser>
                     {showValidation && !confidence ? <FieldHint tone="error">Choose how certain the path feels right now.</FieldHint> : null}
                   </div>
                 ) : null}
@@ -685,7 +738,9 @@ export function CreateProjectForm({
                     ? "Final check. Creating the project keeps the same routing and submission behavior."
                     : activeStep.id === "brief"
                       ? "Add a working name, then review everything at the end."
-                      : "Answer this step and the next one will open."}
+                      : activeStep.id === "context" || activeStep.id === "capabilities"
+                        ? "Pick what matters, then keep moving — you can still come back."
+                        : "Answer this step and the next one will open."}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
@@ -744,13 +799,13 @@ export function CreateProjectForm({
                 <span className="text-zinc-400">QC</span>
                 <span className="font-medium text-white">{routing.qcTeam}</span>
               </div>
-              {unlockedStepIds.has("stage") ? (
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "stage") ? (
                 <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                   <span className="text-zinc-400">Stage</span>
                   <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
                 </div>
               ) : null}
-              {unlockedStepIds.has("confidence") ? (
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "confidence") ? (
                 <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                   <span className="text-zinc-400">Confidence</span>
                   <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
@@ -760,14 +815,14 @@ export function CreateProjectForm({
           </section>
 
           <section className="rounded-[28px] border border-zinc-200 bg-white p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Unlocked so far</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Current path</p>
             <div className="mt-4 space-y-3">
-              {unlockedStepIds.has("shape") ? <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} /> : null}
-              {unlockedStepIds.has("context") ? <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : undefined} /> : null}
-              {unlockedStepIds.has("capabilities") ? <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} /> : null}
-              {unlockedStepIds.has("stage") ? <TinyAnswer label="Stage" value={PROJECT_STAGES.find((item) => item.value === stage)?.label} /> : null}
-              {unlockedStepIds.has("confidence") ? <TinyAnswer label="Confidence" value={CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label} /> : null}
-              {unlockedStepIds.has("brief") ? <TinyAnswer label="Brief" value={name.trim() ? "Named and ready" : undefined} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "shape") ? <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "context") ? <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : undefined} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "capabilities") ? <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "stage") ? <TinyAnswer label="Stage" value={PROJECT_STAGES.find((item) => item.value === stage)?.label} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "confidence") ? <TinyAnswer label="Confidence" value={CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "brief") ? <TinyAnswer label="Brief" value={name.trim() ? "Named and ready" : undefined} /> : null}
             </div>
           </section>
         </aside>

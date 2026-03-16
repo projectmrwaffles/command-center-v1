@@ -29,12 +29,14 @@ interface CreateProjectFormProps {
   prefillType?: string;
 }
 
-type WizardStep = {
-  id: string;
+type FlowStepId = "shape" | "context" | "capabilities" | "stage" | "confidence" | "brief" | "review";
+
+type FlowStep = {
+  id: FlowStepId;
   eyebrow: string;
   title: string;
   description: string;
-  cta: string;
+  helper: string;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -49,7 +51,6 @@ function SelectionCard({
   onClick,
   hint,
   multi,
-  compact,
 }: {
   selected: boolean;
   label: string;
@@ -58,15 +59,13 @@ function SelectionCard({
   onClick: () => void;
   hint?: string;
   multi?: boolean;
-  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative w-full overflow-hidden rounded-[24px] border text-left transition-all duration-200",
-        compact ? "p-3.5" : "p-4",
+        "group relative w-full overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
         "focus:outline-none focus:ring-2 focus:ring-red-300",
         selected
           ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
@@ -77,7 +76,7 @@ function SelectionCard({
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="text-sm font-semibold text-zinc-950">{label}</div>
-          <p className={cn("text-zinc-600", compact ? "text-sm leading-5" : "text-sm leading-6")}>{description}</p>
+          <p className="text-sm leading-6 text-zinc-600">{description}</p>
         </div>
         <div
           className={cn(
@@ -89,8 +88,8 @@ function SelectionCard({
         </div>
       </div>
 
-      <div className={cn("flex flex-wrap gap-2", compact ? "mt-3" : "mt-4")}>
-        {examples.slice(0, compact ? 2 : examples.length).map((example) => (
+      <div className="mt-4 flex flex-wrap gap-2">
+        {examples.map((example) => (
           <span
             key={example}
             className={cn(
@@ -108,75 +107,120 @@ function SelectionCard({
   );
 }
 
-function ProgressPill({
-  active,
-  complete,
-  index,
-  label,
-  locked,
-}: {
-  active: boolean;
-  complete: boolean;
-  index: number;
-  label: string;
-  locked?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 items-center gap-3 rounded-2xl border px-3 py-2 transition-all",
-        active
-          ? "border-red-200 bg-red-50 text-red-900"
-          : complete
-            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-            : locked
-              ? "border-zinc-100 bg-zinc-50 text-zinc-400"
-              : "border-zinc-200 bg-white text-zinc-500"
-      )}
-    >
-      <div
-        className={cn(
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-          active ? "bg-red-600 text-white" : complete ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-500"
-        )}
-      >
-        {complete ? "✓" : index + 1}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-[11px] uppercase tracking-[0.18em] opacity-70">Step {index + 1}</p>
-        <p className="truncate text-sm font-medium">{label}</p>
-      </div>
-    </div>
-  );
-}
-
 function FieldHint({ children, tone = "muted" }: { children: string; tone?: "muted" | "error" }) {
+  return <p className={cn("mt-2 text-xs", tone === "error" ? "text-red-600" : "text-zinc-500")}>{children}</p>;
+}
+
+function TinyAnswer({ label, value }: { label: string; value?: string | null }) {
   return (
-    <p className={cn("mt-2 text-xs", tone === "error" ? "text-red-600" : "text-zinc-500")}>{children}</p>
+    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">{label}</p>
+      <p className="mt-1 text-sm font-medium text-zinc-900">{value || "Pending"}</p>
+    </div>
   );
 }
 
-function StepStatusBadge({
-  label,
-  value,
-  pendingLabel = "Nothing selected yet",
-}: {
-  label: string;
-  value?: string | null;
-  pendingLabel?: string;
-}) {
-  const hasValue = Boolean(value);
+function buildFlow(shape: string): FlowStep[] {
+  const root: FlowStep = {
+    id: "shape",
+    eyebrow: "Start here",
+    title: "What kind of project is this?",
+    description: "Pick the closest shape. We’ll only ask what matters next.",
+    helper: "One choice is enough to get started.",
+  };
 
-  return (
-    <div
-      className={cn(
-        "rounded-full px-3 py-1 text-xs font-medium shadow-sm",
-        hasValue ? "bg-red-50 text-red-700" : "bg-white text-zinc-500"
-      )}
-    >
-      {label}: {hasValue ? value : pendingLabel}
-    </div>
-  );
+  const brief: FlowStep = {
+    id: "brief",
+    eyebrow: "A few details",
+    title: "Give it a name and anything useful",
+    description: "Keep it light. A working name is enough, then add notes or links only if they help.",
+    helper: "The long review happens at the end, not here.",
+  };
+
+  const review: FlowStep = {
+    id: "review",
+    eyebrow: "Final review",
+    title: "Quick check before we create it",
+    description: "This is the only review step. Routing and submission stay exactly the same.",
+    helper: "Go back if anything feels off.",
+  };
+
+  const context: FlowStep = {
+    id: "context",
+    eyebrow: "Context",
+    title: "Where does this live?",
+    description: "Choose the contexts that materially change how this should be planned or built.",
+    helper: "Pick all that matter. Skip nothing important.",
+  };
+
+  const capabilities: FlowStep = {
+    id: "capabilities",
+    eyebrow: "Help needed",
+    title: "What kind of help should this pull in?",
+    description: "Choose the specialties you expect to need. Don’t overthink it.",
+    helper: "Pick the obvious ones and keep moving.",
+  };
+
+  const stage: FlowStep = {
+    id: "stage",
+    eyebrow: "Readiness",
+    title: "How far along is it?",
+    description: "This tells us whether the intake should lean toward discovery, design, or execution.",
+    helper: "Choose the closest current state.",
+  };
+
+  const confidence: FlowStep = {
+    id: "confidence",
+    eyebrow: "Certainty",
+    title: "How sure are you about the path?",
+    description: "This helps us know whether to move fast on execution or start with guidance.",
+    helper: "Be honest. Unclear is a valid answer.",
+  };
+
+  if (shape === "research-strategy" || shape === "hybrid-not-sure") {
+    return [root, confidence, stage, context, capabilities, brief, review];
+  }
+
+  if (shape === "launch-campaign") {
+    return [root, capabilities, context, stage, confidence, brief, review];
+  }
+
+  if (shape === "ops-system") {
+    return [root, context, capabilities, stage, confidence, brief, review];
+  }
+
+  if (shape === "new-product" || shape === "improve-existing") {
+    return [root, stage, capabilities, context, confidence, brief, review];
+  }
+
+  return [root, context, capabilities, stage, confidence, brief, review];
+}
+
+function getStepValidity(stepId: FlowStepId, state: {
+  name: string;
+  shape: string;
+  context: string[];
+  capabilities: string[];
+  stage: string;
+  confidence: string;
+}) {
+  switch (stepId) {
+    case "shape":
+      return Boolean(state.shape);
+    case "context":
+      return state.context.length > 0;
+    case "capabilities":
+      return state.capabilities.length > 0;
+    case "stage":
+      return Boolean(state.stage);
+    case "confidence":
+      return Boolean(state.confidence);
+    case "brief":
+    case "review":
+      return Boolean(state.name.trim());
+    default:
+      return false;
+  }
 }
 
 export function CreateProjectForm({
@@ -217,6 +261,20 @@ export function CreateProjectForm({
   );
 
   const routing = useMemo(() => getRoutingSummary(intake), [intake]);
+  const flow = useMemo(() => buildFlow(shape), [shape]);
+  const activeStep = flow[currentStep];
+  const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
+
+  const stateForValidity = { name, shape, context, capabilities, stage, confidence };
+  const currentStepValid = getStepValidity(activeStep.id, stateForValidity);
+  const completedCount = flow.filter((step) => getStepValidity(step.id, stateForValidity)).length;
+  const progress = Math.max(8, Math.round((completedCount / flow.length) * 100));
+
+  useEffect(() => {
+    if (currentStep > flow.length - 1) {
+      setCurrentStep(flow.length - 1);
+    }
+  }, [currentStep, flow.length]);
 
   const toggleValue = (current: string[], value: string) =>
     current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -230,93 +288,42 @@ export function CreateProjectForm({
     });
   };
 
-  const steps: WizardStep[] = [
-    {
-      id: "shape",
-      eyebrow: "Step 1 · Position the work",
-      title: "What are we creating?",
-      description: "Start with the closest project shape. This sets the routing bias before we refine the details.",
-      cta: "Choose a project shape to continue.",
-    },
-    {
-      id: "context",
-      eyebrow: "Step 2 · Operating context",
-      title: "What context should shape the work?",
-      description: "Choose the environments, constraints, or business conditions that matter here.",
-      cta: "Pick at least one context.",
-    },
-    {
-      id: "capabilities",
-      eyebrow: "Step 3 · Delivery mix",
-      title: "Which specialties should this project pull in?",
-      description: "Select the help you expect to need. This drives ownership and cross-functional involvement.",
-      cta: "Pick at least one capability.",
-    },
-    {
-      id: "readiness",
-      eyebrow: "Step 4 · Readiness",
-      title: "How ready is this project right now?",
-      description: "Set the stage and confidence level so the intake can bias toward triage or execution appropriately.",
-      cta: "Confirm the stage and confidence to keep going.",
-    },
-    {
-      id: "brief",
-      eyebrow: "Step 5 · Brief",
-      title: "Add the useful details",
-      description: "Give the receiving team a sharper starting point with a working name, notes, and any relevant links.",
-      cta: "Add a project name before review.",
-    },
-    {
-      id: "review",
-      eyebrow: "Step 6 · Review",
-      title: "Review the routing before you create the project",
-      description: "One last confirmation. You can still go back and adjust anything without changing submission behavior.",
-      cta: "Everything looks ready.",
-    },
-  ];
-
-  const stepValidity = [
-    Boolean(shape),
-    context.length > 0,
-    capabilities.length > 0,
-    Boolean(stage && confidence),
-    Boolean(name.trim()),
-    Boolean(name.trim()),
-  ];
-
-  const progress = ((currentStep + 1) / steps.length) * 100;
-  const canGoNext = stepValidity[currentStep];
-  const firstInvalidStep = stepValidity.findIndex((valid) => !valid);
-  const furthestAvailableStep = firstInvalidStep === -1 ? steps.length - 1 : firstInvalidStep;
-  const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
-
-  const goToStep = (index: number) => {
-    if (index <= furthestAvailableStep) {
-      setCurrentStep(index);
-      setShowValidation(false);
-    }
-  };
-
-  const nextStep = () => {
-    if (!canGoNext) {
-      setShowValidation(true);
-      return;
-    }
-
+  const advance = () => {
     setShowValidation(false);
-    setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
+    setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
   };
 
-  const prevStep = () => {
+  const goBack = () => {
     setShowValidation(false);
     setCurrentStep((step) => Math.max(step - 1, 0));
   };
 
+  const requireAndAdvance = () => {
+    if (!currentStepValid) {
+      setShowValidation(true);
+      return;
+    }
+    advance();
+  };
+
+  const handleSingleChoice = (stepId: FlowStepId, value: string) => {
+    if (stepId === "shape") setShape(value);
+    if (stepId === "stage") setStage(value);
+    if (stepId === "confidence") setConfidence(value);
+    setShowValidation(false);
+    window.setTimeout(() => {
+      setCurrentStep((step) => Math.min(step + 1, buildFlow(stepId === "shape" ? value : shape).length - 1));
+    }, 120);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stepValidity.slice(0, 5).every(Boolean)) {
-      const firstInvalid = stepValidity.slice(0, 5).findIndex((valid) => !valid);
-      setCurrentStep(firstInvalid === -1 ? 0 : firstInvalid);
+
+    const requiredSteps: FlowStepId[] = ["shape", "context", "capabilities", "stage", "confidence", "brief"];
+    const firstInvalidIndex = flow.findIndex((step) => requiredSteps.includes(step.id) && !getStepValidity(step.id, stateForValidity));
+
+    if (firstInvalidIndex !== -1) {
+      setCurrentStep(firstInvalidIndex);
       setShowValidation(true);
       return;
     }
@@ -330,223 +337,136 @@ export function CreateProjectForm({
     });
   };
 
-  const stepMessage = (() => {
-    if (currentStep === steps.length - 1) return "Final confirmation. Creating the project uses the same intake payload, routing logic, and submission flow.";
-    if (canGoNext) return steps[currentStep].cta.replace("Choose", "Chosen").replace("Pick", "Picked").replace("Confirm", "Confirmed").replace("Add", "Added");
-    return steps[currentStep].cta;
-  })();
+  const stepCounter = `${currentStep + 1} of ${flow.length}`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_38%,rgba(250,250,250,1)_100%)] p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] sm:p-5">
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Guided intake wizard</p>
-              <h3 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950 sm:text-2xl">
-                Build the brief one decision at a time.
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-zinc-600">
-                Focus on one decision per step, then review before the project is created.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
-              <div className="mt-2 flex items-end gap-2">
-                <span className="text-3xl font-semibold tracking-tight text-zinc-950">{currentStep + 1}</span>
-                <span className="pb-1 text-sm text-zinc-500">/ {steps.length}</span>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="rounded-[30px] border border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] p-4 shadow-[0_16px_48px_rgba(24,24,27,0.06)] sm:p-6">
+          <div className="border-b border-zinc-100 pb-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Guided intake</p>
+                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
+                  One clear question at a time.
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  The flow adapts as you answer, keeps the form light, and saves the full review for the end.
+                </p>
               </div>
-              <div className="mt-3 h-2.5 w-56 max-w-full overflow-hidden rounded-full bg-zinc-200">
-                <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+
+              <div className="rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
+                <div className="mt-2 flex items-end gap-2">
+                  <span className="text-3xl font-semibold tracking-tight text-zinc-950">{stepCounter}</span>
+                </div>
+                <div className="mt-3 h-2.5 w-56 max-w-full overflow-hidden rounded-full bg-zinc-200">
+                  <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {steps.map((step, index) => {
-              const locked = index > furthestAvailableStep;
-              return (
+          <div className="mt-6 min-h-[480px]">
+            <div className="mb-6 flex flex-wrap gap-2">
+              {flow.slice(0, currentStep).map((step) => (
                 <button
                   key={step.id}
                   type="button"
-                  onClick={() => goToStep(index)}
-                  disabled={locked}
-                  className={cn("text-left", locked && "cursor-not-allowed opacity-75")}
-                  aria-current={currentStep === index ? "step" : undefined}
+                  onClick={() => {
+                    setCurrentStep(flow.findIndex((item) => item.id === step.id));
+                    setShowValidation(false);
+                  }}
+                  className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
                 >
-                  <ProgressPill active={currentStep === index} complete={stepValidity[index]} index={index} label={step.title} locked={locked} />
+                  {step.title}
                 </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-[0_16px_48px_rgba(24,24,27,0.06)] sm:p-5">
-          <div className="mb-5 border-b border-zinc-100 pb-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{steps[currentStep].eyebrow}</p>
-                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{steps[currentStep].title}</h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-600">{steps[currentStep].description}</p>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2 lg:w-[320px] lg:grid-cols-1">
-                <StepStatusBadge
-                  label="Current step"
-                  value={
-                    currentStep === 0
-                      ? PROJECT_SHAPES.find((option) => option.value === shape)?.label
-                      : currentStep === 1
-                        ? context.length
-                          ? `${context.length} selected`
-                          : ""
-                        : currentStep === 2
-                          ? capabilities.length
-                            ? `${capabilities.length} selected`
-                            : ""
-                          : currentStep === 3
-                            ? stage && confidence
-                              ? `${PROJECT_STAGES.find((option) => option.value === stage)?.label} · ${CONFIDENCE_OPTIONS.find((option) => option.value === confidence)?.label}`
-                              : ""
-                            : currentStep === 4
-                              ? name.trim()
-                              : currentStep === 5
-                                ? "Ready for confirmation"
-                                : ""
-                  }
-                  pendingLabel={currentStep === 5 ? "Review the details below" : "Nothing selected yet"}
-                />
-                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-3 text-sm text-zinc-600">
-                  {currentStep === 0
-                    ? "Start blank, then pick the closest shape. The rest of the wizard stays neutral until you decide."
-                    : currentStep === 3
-                      ? "Both fields start empty on purpose. Pick one option in each column to unlock review."
-                      : "Only this step is in focus right now—make a choice here, then move on."}
-                </div>
-              </div>
+              ))}
             </div>
-          </div>
 
-          <div className="min-h-[320px] max-w-4xl">
-            {currentStep === 0 ? (
-              <div className="space-y-4">
-                <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50/80 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-zinc-800">Start by choosing the closest project shape</p>
-                      <FieldHint>This starts blank on purpose so the wizard feels like an intake, not a prefilled form.</FieldHint>
+            <div className="max-w-4xl rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-sm backdrop-blur sm:p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
+              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{activeStep.title}</h3>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">{activeStep.description}</p>
+              <div className="mt-3 inline-flex rounded-full border border-dashed border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
+                {activeStep.helper}
+              </div>
+
+              <div className="mt-6">
+                {activeStep.id === "shape" ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {PROJECT_SHAPES.map((option) => (
+                        <SelectionCard
+                          key={option.value}
+                          selected={shape === option.value}
+                          label={option.label}
+                          description={option.description}
+                          examples={option.examples}
+                          hint={option.hint}
+                          onClick={() => handleSingleChoice("shape", option.value)}
+                        />
+                      ))}
                     </div>
-                    <StepStatusBadge
-                      label="Shape"
-                      value={PROJECT_SHAPES.find((option) => option.value === shape)?.label}
-                    />
+                    {showValidation && !shape ? <FieldHint tone="error">Pick the closest project shape to continue.</FieldHint> : null}
                   </div>
-                </div>
+                ) : null}
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {PROJECT_SHAPES.map((option) => (
-                    <SelectionCard
-                      key={option.value}
-                      selected={shape === option.value}
-                      label={option.label}
-                      description={option.description}
-                      examples={option.examples}
-                      hint={option.hint}
-                      compact
-                      onClick={() => {
-                        setShape(option.value);
-                        setShowValidation(false);
-                      }}
-                    />
-                  ))}
-                </div>
-
-                {showValidation && !shape ? <FieldHint tone="error">Choose a project shape to continue.</FieldHint> : null}
-              </div>
-            ) : null}
-
-            {currentStep === 1 ? (
-              <div className="space-y-4">
-                <div className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>Pick every context that materially changes how this should be designed, built, or prioritized.</span>
-                    <StepStatusBadge label="Context" value={context.length ? `${context.length} selected` : ""} />
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {PROJECT_CONTEXTS.map((option) => (
-                    <SelectionCard
-                      key={option.value}
-                      selected={context.includes(option.value)}
-                      label={option.label}
-                      description={option.description}
-                      examples={option.examples}
-                      multi
-                      compact
-                      onClick={() => {
-                        setContext(toggleValue(context, option.value));
-                        setShowValidation(false);
-                      }}
-                    />
-                  ))}
-                </div>
-                {showValidation && context.length === 0 ? <FieldHint tone="error">Choose at least one context before moving on.</FieldHint> : null}
-              </div>
-            ) : null}
-
-            {currentStep === 2 ? (
-              <div className="space-y-4">
-                <div className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>Choose the mix of specialties you expect to need. If you only know the outcome, pick the obvious ones and keep moving.</span>
-                    <StepStatusBadge label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : ""} />
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {PROJECT_CAPABILITIES.map((option) => (
-                    <SelectionCard
-                      key={option.value}
-                      selected={capabilities.includes(option.value)}
-                      label={option.label}
-                      description={option.description}
-                      examples={option.examples}
-                      multi
-                      compact
-                      onClick={() => {
-                        setCapabilities(toggleValue(capabilities, option.value));
-                        setShowValidation(false);
-                      }}
-                    />
-                  ))}
-                </div>
-                {showValidation && capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability before continuing.</FieldHint> : null}
-              </div>
-            ) : null}
-
-            {currentStep === 3 ? (
-              <div className="space-y-5">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">Project stage</h4>
-                        <p className="mt-1 text-sm text-zinc-500">How close is this to execution?</p>
-                      </div>
-                      <StepStatusBadge
-                        label="Stage"
-                        value={PROJECT_STAGES.find((option) => option.value === stage)?.label}
-                      />
+                {activeStep.id === "context" ? (
+                  <div className="space-y-4">
+                    <div className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
+                      Choose every context that changes the work. This can be more than one.
                     </div>
-                    <div className="mt-4 grid gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {PROJECT_CONTEXTS.map((option) => (
+                        <SelectionCard
+                          key={option.value}
+                          selected={context.includes(option.value)}
+                          label={option.label}
+                          description={option.description}
+                          examples={option.examples}
+                          multi
+                          onClick={() => {
+                            setContext(toggleValue(context, option.value));
+                            setShowValidation(false);
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {showValidation && context.length === 0 ? <FieldHint tone="error">Choose at least one context.</FieldHint> : null}
+                  </div>
+                ) : null}
+
+                {activeStep.id === "capabilities" ? (
+                  <div className="space-y-4">
+                    <div className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
+                      Pick the help you expect to need. If you only know the outcome, choose the obvious ones.
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {PROJECT_CAPABILITIES.map((option) => (
+                        <SelectionCard
+                          key={option.value}
+                          selected={capabilities.includes(option.value)}
+                          label={option.label}
+                          description={option.description}
+                          examples={option.examples}
+                          multi
+                          onClick={() => {
+                            setCapabilities(toggleValue(capabilities, option.value));
+                            setShowValidation(false);
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {showValidation && capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability.</FieldHint> : null}
+                  </div>
+                ) : null}
+
+                {activeStep.id === "stage" ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3">
                       {PROJECT_STAGES.map((option) => (
                         <SelectionCard
                           key={option.value}
@@ -554,27 +474,17 @@ export function CreateProjectForm({
                           label={option.label}
                           description={option.description}
                           examples={option.examples}
-                          compact
-                          onClick={() => {
-                            setStage(option.value);
-                            setShowValidation(false);
-                          }}
+                          onClick={() => handleSingleChoice("stage", option.value)}
                         />
                       ))}
                     </div>
-                  </section>
+                    {showValidation && !stage ? <FieldHint tone="error">Choose the current stage.</FieldHint> : null}
+                  </div>
+                ) : null}
 
-                  <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">Confidence</h4>
-                        <p className="mt-1 text-sm text-zinc-500">How certain is the direction right now?</p>
-                      </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-500 shadow-sm">
-                        {CONFIDENCE_OPTIONS.find((option) => option.value === confidence)?.label || "Choose one"}
-                      </span>
-                    </div>
-                    <div className="mt-4 grid gap-3">
+                {activeStep.id === "confidence" ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3">
                       {CONFIDENCE_OPTIONS.map((option) => (
                         <SelectionCard
                           key={option.value}
@@ -582,196 +492,203 @@ export function CreateProjectForm({
                           label={option.label}
                           description={option.description}
                           examples={option.examples}
-                          compact
-                          onClick={() => {
-                            setConfidence(option.value);
-                            setShowValidation(false);
-                          }}
+                          onClick={() => handleSingleChoice("confidence", option.value)}
                         />
                       ))}
                     </div>
-                  </section>
+                    {showValidation && !confidence ? <FieldHint tone="error">Choose how certain the path feels right now.</FieldHint> : null}
+                  </div>
+                ) : null}
+
+                {activeStep.id === "brief" ? (
+                  <div className="space-y-6">
+                    <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                      <label className="block text-sm font-medium text-zinc-700">
+                        Project name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => {
+                          setName(e.target.value);
+                          setShowValidation(false);
+                        }}
+                        required
+                        className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                        placeholder="e.g., Command Center V2"
+                      />
+                      {showValidation && !name.trim() ? (
+                        <FieldHint tone="error">Add a working project name.</FieldHint>
+                      ) : (
+                        <FieldHint>A rough name is fine. You can rename it later.</FieldHint>
+                      )}
+                    </section>
+
+                    {name.trim() ? (
+                      <>
+                        <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                          <div>
+                            <h4 className="text-sm font-semibold text-zinc-900">Optional notes</h4>
+                            <p className="mt-1 text-sm text-zinc-500">Goals, constraints, urgency, or anything the team should know on day one.</p>
+                          </div>
+                          <textarea
+                            value={goals}
+                            onChange={(e) => setGoals(e.target.value)}
+                            rows={5}
+                            className="mt-4 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                            placeholder="Example: We need something client-ready in 2 weeks. It should feel premium, work beautifully on mobile, and eventually connect to HubSpot."
+                          />
+                        </section>
+
+                        <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
+                          <div>
+                            <h4 className="text-sm font-semibold text-zinc-900">Optional links</h4>
+                            <p className="mt-1 text-sm text-zinc-500">Add anything that gives the receiving team fast context.</p>
+                          </div>
+                          <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            {PROJECT_LINK_FIELDS.map((key) => (
+                              <label key={key} className="block">
+                                <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+                                <input
+                                  type="url"
+                                  value={links[key] || ""}
+                                  onChange={(e) => handleLinkChange(key, e.target.value)}
+                                  className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                  placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </section>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {activeStep.id === "review" ? (
+                  <div className="space-y-6">
+                    <section className="rounded-[28px] border border-red-100 bg-[linear-gradient(135deg,rgba(254,242,242,0.9),rgba(255,255,255,1),rgba(255,247,237,0.9))] p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Routing preview</p>
+                          <h4 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950">{name.trim()}</h4>
+                          <p className="mt-2 text-sm leading-6 text-zinc-600">{intake.summary}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-zinc-600 shadow-sm">
+                          <div className="flex items-center justify-between gap-4">
+                            <span>Legacy type</span>
+                            <span className="font-medium text-zinc-900">{deriveLegacyProjectType(intake).replace(/_/g, " ")}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Primary route: {routing.ownerTeam}</span>
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">QC: {routing.qcTeam}</span>
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Stage: {PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Confidence: {CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
+                      </div>
+                    </section>
+
+                    <section className="grid gap-4 lg:grid-cols-2">
+                      <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
+                        <p className="text-sm font-semibold text-zinc-900">Selections</p>
+                        <dl className="mt-4 space-y-4 text-sm text-zinc-600">
+                          <div>
+                            <dt className="font-medium text-zinc-900">Project shape</dt>
+                            <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
+                          </div>
+                          <div>
+                            <dt className="font-medium text-zinc-900">Context</dt>
+                            <dd className="mt-2 flex flex-wrap gap-2">
+                              {context.map((value) => (
+                                <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                  {PROJECT_CONTEXTS.find((item) => item.value === value)?.label}
+                                </span>
+                              ))}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="font-medium text-zinc-900">Capabilities</dt>
+                            <dd className="mt-2 flex flex-wrap gap-2">
+                              {capabilities.map((value) => (
+                                <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                  {PROJECT_CAPABILITIES.find((item) => item.value === value)?.label}
+                                </span>
+                              ))}
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+
+                      <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
+                        <p className="text-sm font-semibold text-zinc-900">Brief + links</p>
+                        <div className="mt-4 space-y-4 text-sm text-zinc-600">
+                          <div>
+                            <p className="font-medium text-zinc-900">Notes</p>
+                            <p className="mt-1 whitespace-pre-wrap leading-6 text-zinc-600">{goals.trim() || "No additional notes added."}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-zinc-900">Linked surfaces</p>
+                            {linkedSurfaces.length > 0 ? (
+                              <ul className="mt-2 space-y-2">
+                                {linkedSurfaces.map((key) => (
+                                  <li key={key} className="break-all rounded-2xl bg-zinc-50 px-3 py-2">
+                                    <span className="font-medium text-zinc-900">{PROJECT_LINK_LABELS[key]}:</span> {links[key]}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-1 text-zinc-500">No links added.</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-8 flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className={cn("text-sm", showValidation && !currentStepValid ? "text-red-600" : "text-zinc-500")}>
+                  {activeStep.id === "review"
+                    ? "Final check. Creating the project keeps the same routing and submission behavior."
+                    : activeStep.id === "brief"
+                      ? "Add a working name, then review everything at the end."
+                      : "Answer this step and the next one will open."}
                 </div>
 
-                {showValidation && !(stage && confidence) ? <FieldHint tone="error">Choose both the stage and confidence before continuing.</FieldHint> : null}
-              </div>
-            ) : null}
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={currentStep === 0 ? onCancel : goBack}
+                    className="rounded-2xl px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
+                  >
+                    {currentStep === 0 ? "Cancel" : "Back"}
+                  </button>
 
-            {currentStep === 4 ? (
-              <div className="space-y-6">
-                <section className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-4">
-                  <label className="block text-sm font-medium text-zinc-700">
-                    Project name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setShowValidation(false);
-                    }}
-                    required
-                    className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                    placeholder="e.g., Command Center V2"
-                  />
-                  {showValidation && !name.trim() ? (
-                    <FieldHint tone="error">Add a project name before continuing to review.</FieldHint>
+                  {activeStep.id === "review" ? (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || !name.trim()}
+                      className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Creating..." : "Confirm and create project"}
+                    </button>
+                  ) : activeStep.id === "shape" || activeStep.id === "stage" || activeStep.id === "confidence" ? (
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
+                      Tap a choice to continue
+                    </div>
                   ) : (
-                    <FieldHint>Give it a working name now. You can always rename it later.</FieldHint>
+                    <button
+                      type="button"
+                      onClick={requireAndAdvance}
+                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+                    >
+                      {activeStep.id === "brief" ? "Review project" : "Continue"}
+                    </button>
                   )}
-                </section>
-
-                <section className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-4">
-                  <div>
-                    <h4 className="text-sm font-semibold text-zinc-900">Final brief</h4>
-                    <p className="mt-1 text-sm text-zinc-500">Optional, but helpful. Add goals, constraints, urgency, or anything the team should know on day one.</p>
-                  </div>
-                  <textarea
-                    value={goals}
-                    onChange={(e) => setGoals(e.target.value)}
-                    rows={5}
-                    className="mt-4 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                    placeholder="Example: We need something client-ready in 2 weeks. It should feel premium, work beautifully on mobile, and eventually connect to HubSpot."
-                  />
-                </section>
-
-                <section className="rounded-[28px] border border-zinc-200 bg-white p-4">
-                  <div>
-                    <h4 className="text-sm font-semibold text-zinc-900">Project links</h4>
-                    <p className="mt-1 text-sm text-zinc-500">Add the surfaces that already exist so the receiving team has immediate context.</p>
-                  </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    {PROJECT_LINK_FIELDS.map((key) => (
-                      <label key={key} className="block">
-                        <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-                        <input
-                          type="url"
-                          value={links[key] || ""}
-                          onChange={(e) => handleLinkChange(key, e.target.value)}
-                          className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                          placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </section>
+                </div>
               </div>
-            ) : null}
-
-            {currentStep === 5 ? (
-              <div className="space-y-6">
-                <section className="rounded-[28px] border border-red-100 bg-[linear-gradient(135deg,rgba(254,242,242,0.9),rgba(255,255,255,1),rgba(255,247,237,0.9))] p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Routing preview</p>
-                      <h4 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950">{name.trim()}</h4>
-                      <p className="mt-2 text-sm leading-6 text-zinc-600">{intake.summary}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-zinc-600 shadow-sm">
-                      <div className="flex items-center justify-between gap-4">
-                        <span>Legacy type</span>
-                        <span className="font-medium text-zinc-900">{deriveLegacyProjectType(intake).replace(/_/g, " ")}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Primary route: {routing.ownerTeam}</span>
-                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">QC: {routing.qcTeam}</span>
-                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Stage: {PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
-                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Confidence: {CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
-                  </div>
-                </section>
-
-                <section className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-zinc-900">Selections</p>
-                    <dl className="mt-4 space-y-4 text-sm text-zinc-600">
-                      <div>
-                        <dt className="font-medium text-zinc-900">Project shape</dt>
-                        <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-medium text-zinc-900">Context</dt>
-                        <dd className="mt-2 flex flex-wrap gap-2">
-                          {context.map((value) => (
-                            <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
-                              {PROJECT_CONTEXTS.find((item) => item.value === value)?.label}
-                            </span>
-                          ))}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="font-medium text-zinc-900">Capabilities</dt>
-                        <dd className="mt-2 flex flex-wrap gap-2">
-                          {capabilities.map((value) => (
-                            <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
-                              {PROJECT_CAPABILITIES.find((item) => item.value === value)?.label}
-                            </span>
-                          ))}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-
-                  <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-zinc-900">Brief + links</p>
-                    <div className="mt-4 space-y-4 text-sm text-zinc-600">
-                      <div>
-                        <p className="font-medium text-zinc-900">Notes</p>
-                        <p className="mt-1 whitespace-pre-wrap leading-6 text-zinc-600">{goals.trim() || "No additional notes added."}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-zinc-900">Linked surfaces</p>
-                        {linkedSurfaces.length > 0 ? (
-                          <ul className="mt-2 space-y-2">
-                            {linkedSurfaces.map((key) => (
-                              <li key={key} className="break-all rounded-2xl bg-zinc-50 px-3 py-2">
-                                <span className="font-medium text-zinc-900">{PROJECT_LINK_LABELS[key]}:</span> {links[key]}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-1 text-zinc-500">No links added.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className={cn("text-sm", showValidation && !canGoNext ? "text-red-600" : "text-zinc-500")}>
-              {stepMessage}
-            </div>
-
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={currentStep === 0 ? onCancel : prevStep}
-                className="rounded-2xl px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
-              >
-                {currentStep === 0 ? "Cancel" : "Back"}
-              </button>
-
-              {currentStep < steps.length - 1 ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
-                >
-                  {currentStep === steps.length - 2 ? "Review project" : "Next step"}
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !name.trim()}
-                  className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isSubmitting ? "Creating..." : "Confirm and create project"}
-                </button>
-              )}
             </div>
           </div>
         </section>
@@ -781,7 +698,7 @@ export function CreateProjectForm({
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-300">Live summary</p>
             <h4 className="mt-3 text-xl font-semibold tracking-tight">{name.trim() || "Untitled project"}</h4>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              {shape || stage || capabilities.length > 0 ? intake.summary : "Pick a shape and a few signals. The routing summary will build as you go."}
+              {shape || stage || capabilities.length > 0 ? intake.summary : "Choose the project shape first. The summary will build itself as you answer."}
             </p>
             <div className="mt-5 space-y-3 text-sm text-zinc-300">
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
@@ -794,26 +711,23 @@ export function CreateProjectForm({
               </div>
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                 <span className="text-zinc-400">Stage</span>
-                <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Choose one"}</span>
+                <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                 <span className="text-zinc-400">Confidence</span>
-                <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
+                <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
               </div>
             </div>
           </section>
 
           <section className="rounded-[28px] border border-zinc-200 bg-white p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Checklist</p>
-            <div className="mt-4 space-y-3 text-sm text-zinc-600">
-              {steps.slice(0, 5).map((step, index) => (
-                <div key={step.id} className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-50 px-3 py-2">
-                  <span className="text-zinc-700">{step.title}</span>
-                  <span className={cn("text-xs font-semibold uppercase tracking-[0.18em]", stepValidity[index] ? "text-emerald-600" : "text-zinc-400")}>
-                    {stepValidity[index] ? "Ready" : "Pending"}
-                  </span>
-                </div>
-              ))}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Answers so far</p>
+            <div className="mt-4 space-y-3">
+              <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
+              <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : undefined} />
+              <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />
+              <TinyAnswer label="Stage" value={PROJECT_STAGES.find((item) => item.value === stage)?.label} />
+              <TinyAnswer label="Confidence" value={CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label} />
             </div>
           </section>
         </aside>

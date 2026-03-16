@@ -142,7 +142,7 @@ export function CreateProjectModal({
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">Command Center V1</p>
             <h2 className="mt-1 text-lg font-semibold tracking-tight text-zinc-950 sm:text-xl">Create a new project</h2>
-            <p className="mt-1 text-sm text-zinc-500">Guided intake, one section at a time. Same routing logic, better signal collection.</p>
+            <p className="mt-1 text-sm text-zinc-500">Progressive intake that adapts as you answer. Same routing logic, less form fatigue.</p>
           </div>
           <button onClick={() => onOpenChange(false)} className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100" aria-label="Close">
             ✕

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
   CONFIDENCE_OPTIONS,
   PROJECT_CAPABILITIES,
@@ -27,6 +27,7 @@ interface CreateProjectFormProps {
   error?: string | null;
   prefillName?: string;
   prefillType?: string;
+  reviewSupplement?: ReactNode;
 }
 
 type FlowStepId = "shape" | "context" | "capabilities" | "stage" | "confidence" | "brief" | "review";
@@ -229,6 +230,7 @@ export function CreateProjectForm({
   isSubmitting,
   error,
   prefillName,
+  reviewSupplement,
 }: CreateProjectFormProps) {
   const [name, setName] = useState(prefillName || "");
   const [shape, setShape] = useState("");
@@ -269,6 +271,7 @@ export function CreateProjectForm({
   const currentStepValid = getStepValidity(activeStep.id, stateForValidity);
   const completedCount = flow.filter((step) => getStepValidity(step.id, stateForValidity)).length;
   const progress = Math.max(8, Math.round((completedCount / flow.length) * 100));
+  const unlockedStepIds = new Set(flow.slice(0, currentStep + 1).map((step) => step.id));
 
   useEffect(() => {
     if (currentStep > flow.length - 1) {
@@ -366,6 +369,32 @@ export function CreateProjectForm({
                   <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
                 </div>
               </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {flow.map((step, index) => {
+                const isActive = index === currentStep;
+                const isCompleted = index < currentStep && getStepValidity(step.id, stateForValidity);
+                const isUnlocked = index <= currentStep;
+
+                return (
+                  <div
+                    key={step.id}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                      isActive
+                        ? "border-red-200 bg-red-50 text-red-700"
+                        : isCompleted
+                          ? "border-zinc-200 bg-white text-zinc-700"
+                          : isUnlocked
+                            ? "border-zinc-200 bg-zinc-50 text-zinc-500"
+                            : "border-dashed border-zinc-200 bg-transparent text-zinc-300"
+                    )}
+                  >
+                    {isUnlocked ? `${index + 1}. ${step.title}` : `${index + 1}. Locked`}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -644,6 +673,8 @@ export function CreateProjectForm({
                         </div>
                       </div>
                     </section>
+
+                    {reviewSupplement ? <section>{reviewSupplement}</section> : null}
                   </div>
                 ) : null}
               </div>
@@ -693,12 +724,16 @@ export function CreateProjectForm({
           </div>
         </section>
 
-        <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+        <aside className="hidden space-y-4 xl:sticky xl:top-4 xl:block xl:self-start">
           <section className="rounded-[28px] border border-zinc-200 bg-zinc-950 p-5 text-white shadow-[0_20px_60px_rgba(24,24,27,0.18)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-300">Live summary</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-300">
+              {activeStep.id === "review" ? "Ready to submit" : "Current snapshot"}
+            </p>
             <h4 className="mt-3 text-xl font-semibold tracking-tight">{name.trim() || "Untitled project"}</h4>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              {shape || stage || capabilities.length > 0 ? intake.summary : "Choose the project shape first. The summary will build itself as you answer."}
+              {shape || stage || capabilities.length > 0
+                ? intake.summary
+                : "Choose the project shape first. The summary will build itself as you answer."}
             </p>
             <div className="mt-5 space-y-3 text-sm text-zinc-300">
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
@@ -709,25 +744,30 @@ export function CreateProjectForm({
                 <span className="text-zinc-400">QC</span>
                 <span className="font-medium text-white">{routing.qcTeam}</span>
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                <span className="text-zinc-400">Stage</span>
-                <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                <span className="text-zinc-400">Confidence</span>
-                <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
-              </div>
+              {unlockedStepIds.has("stage") ? (
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
+                  <span className="text-zinc-400">Stage</span>
+                  <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
+                </div>
+              ) : null}
+              {unlockedStepIds.has("confidence") ? (
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
+                  <span className="text-zinc-400">Confidence</span>
+                  <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
+                </div>
+              ) : null}
             </div>
           </section>
 
           <section className="rounded-[28px] border border-zinc-200 bg-white p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Answers so far</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Unlocked so far</p>
             <div className="mt-4 space-y-3">
-              <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
-              <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : undefined} />
-              <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />
-              <TinyAnswer label="Stage" value={PROJECT_STAGES.find((item) => item.value === stage)?.label} />
-              <TinyAnswer label="Confidence" value={CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label} />
+              {unlockedStepIds.has("shape") ? <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} /> : null}
+              {unlockedStepIds.has("context") ? <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : undefined} /> : null}
+              {unlockedStepIds.has("capabilities") ? <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} /> : null}
+              {unlockedStepIds.has("stage") ? <TinyAnswer label="Stage" value={PROJECT_STAGES.find((item) => item.value === stage)?.label} /> : null}
+              {unlockedStepIds.has("confidence") ? <TinyAnswer label="Confidence" value={CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label} /> : null}
+              {unlockedStepIds.has("brief") ? <TinyAnswer label="Brief" value={name.trim() ? "Named and ready" : undefined} /> : null}
             </div>
           </section>
         </aside>

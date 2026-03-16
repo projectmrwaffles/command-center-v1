@@ -124,6 +124,47 @@ export function CreateProjectModal({
     }
   }
 
+  const docsSection = (
+    <div className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-[0_12px_30px_rgba(24,24,27,0.04)]">
+      <div className="mb-2 text-sm font-medium text-zinc-900">Upload docs (optional)</div>
+      <p className="mb-3 text-xs text-zinc-500">PRD PDFs or images. These upload after project creation and stay private in project_docs.</p>
+
+      {docsError && (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {docsError}
+        </div>
+      )}
+
+      <input
+        type="file"
+        multiple
+        accept="application/pdf,image/*"
+        onChange={(e) => setDocs(Array.from(e.target.files ?? []))}
+        className="block w-full text-sm"
+      />
+
+      {docs.length > 0 && (
+        <ul className="mt-3 space-y-1 text-xs text-zinc-600">
+          {docs.map((f) => (
+            <li key={`${f.name}-${f.size}`} className="flex items-center justify-between gap-3">
+              <span className="truncate">{f.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-400">{Math.round(f.size / 1024)}KB</span>
+                <button
+                  type="button"
+                  onClick={() => setDocs((current) => current.filter((doc) => !(doc.name === f.name && doc.size === f.size && doc.lastModified === f.lastModified)))}
+                  className="rounded px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
+                >
+                  Remove
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
   if (!open) return null;
 
   return (
@@ -153,6 +194,7 @@ export function CreateProjectModal({
           <CreateProjectForm
             prefillName={prefillName}
             prefillType={prefillType}
+            reviewSupplement={docsSection}
             onSubmit={async (data) => {
               const project = await createProject(data);
               const docsResult = await uploadProjectDocs(project.id);
@@ -168,45 +210,6 @@ export function CreateProjectModal({
             isSubmitting={isSubmitting || docsBusy}
             error={error}
           />
-
-          <div className="mt-5 rounded-[28px] border border-zinc-200 bg-white p-4 shadow-[0_12px_30px_rgba(24,24,27,0.04)]">
-            <div className="mb-2 text-sm font-medium text-zinc-900">Upload docs (optional)</div>
-            <p className="mb-3 text-xs text-zinc-500">PRD PDFs or images. These upload after project creation and stay private in project_docs.</p>
-
-            {docsError && (
-              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                {docsError}
-              </div>
-            )}
-
-            <input
-              type="file"
-              multiple
-              accept="application/pdf,image/*"
-              onChange={(e) => setDocs(Array.from(e.target.files ?? []))}
-              className="block w-full text-sm"
-            />
-
-            {docs.length > 0 && (
-              <ul className="mt-3 space-y-1 text-xs text-zinc-600">
-                {docs.map((f) => (
-                  <li key={`${f.name}-${f.size}`} className="flex items-center justify-between gap-3">
-                    <span className="truncate">{f.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-zinc-400">{Math.round(f.size / 1024)}KB</span>
-                      <button
-                        type="button"
-                        onClick={() => setDocs((current) => current.filter((doc) => !(doc.name === f.name && doc.size === f.size && doc.lastModified === f.lastModified)))}
-                        className="rounded px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </div>
       </div>
     </div>

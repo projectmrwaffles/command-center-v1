@@ -49,6 +49,7 @@ function SelectionCard({
   onClick,
   hint,
   multi,
+  compact,
 }: {
   selected: boolean;
   label: string;
@@ -57,13 +58,15 @@ function SelectionCard({
   onClick: () => void;
   hint?: string;
   multi?: boolean;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative w-full overflow-hidden rounded-[28px] border p-4 text-left transition-all duration-200",
+        "group relative w-full overflow-hidden rounded-[24px] border text-left transition-all duration-200",
+        compact ? "p-3.5" : "p-4",
         "focus:outline-none focus:ring-2 focus:ring-red-300",
         selected
           ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
@@ -74,7 +77,7 @@ function SelectionCard({
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="text-sm font-semibold text-zinc-950">{label}</div>
-          <p className="text-sm leading-6 text-zinc-600">{description}</p>
+          <p className={cn("text-zinc-600", compact ? "text-sm leading-5" : "text-sm leading-6")}>{description}</p>
         </div>
         <div
           className={cn(
@@ -86,8 +89,8 @@ function SelectionCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {examples.map((example) => (
+      <div className={cn("flex flex-wrap gap-2", compact ? "mt-3" : "mt-4")}>
+        {examples.slice(0, compact ? 2 : examples.length).map((example) => (
           <span
             key={example}
             className={cn(
@@ -153,6 +156,29 @@ function FieldHint({ children, tone = "muted" }: { children: string; tone?: "mut
   );
 }
 
+function StepStatusBadge({
+  label,
+  value,
+  pendingLabel = "Nothing selected yet",
+}: {
+  label: string;
+  value?: string | null;
+  pendingLabel?: string;
+}) {
+  const hasValue = Boolean(value);
+
+  return (
+    <div
+      className={cn(
+        "rounded-full px-3 py-1 text-xs font-medium shadow-sm",
+        hasValue ? "bg-red-50 text-red-700" : "bg-white text-zinc-500"
+      )}
+    >
+      {label}: {hasValue ? value : pendingLabel}
+    </div>
+  );
+}
+
 export function CreateProjectForm({
   onSubmit,
   onCancel,
@@ -161,11 +187,11 @@ export function CreateProjectForm({
   prefillName,
 }: CreateProjectFormProps) {
   const [name, setName] = useState(prefillName || "");
-  const [shape, setShape] = useState("new-product");
+  const [shape, setShape] = useState("");
   const [context, setContext] = useState<string[]>([]);
   const [capabilities, setCapabilities] = useState<string[]>([]);
-  const [stage, setStage] = useState("planning");
-  const [confidence, setConfidence] = useState("somewhat-clear");
+  const [stage, setStage] = useState("");
+  const [confidence, setConfidence] = useState("");
   const [goals, setGoals] = useState("");
   const [links, setLinks] = useState<ProjectLinks>({});
   const [currentStep, setCurrentStep] = useState(0);
@@ -260,7 +286,8 @@ export function CreateProjectForm({
 
   const progress = ((currentStep + 1) / steps.length) * 100;
   const canGoNext = stepValidity[currentStep];
-  const furthestAvailableStep = Math.min(stepValidity.findIndex((valid) => !valid) + 1 || steps.length - 1, steps.length - 1);
+  const firstInvalidStep = stepValidity.findIndex((valid) => !valid);
+  const furthestAvailableStep = firstInvalidStep === -1 ? steps.length - 1 : firstInvalidStep;
   const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
 
   const goToStep = (index: number) => {
@@ -317,16 +344,16 @@ export function CreateProjectForm({
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[32px] border border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_38%,rgba(250,250,250,1)_100%)] p-5 shadow-[0_24px_80px_rgba(24,24,27,0.08)] sm:p-6">
+      <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_38%,rgba(250,250,250,1)_100%)] p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] sm:p-5">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
+            <div className="max-w-xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Guided intake wizard</p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-[2rem]">
+              <h3 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950 sm:text-2xl">
                 Build the brief one decision at a time.
               </h3>
-              <p className="mt-3 text-sm leading-6 text-zinc-600 sm:text-[15px]">
-                One section at a time, clear progress, no endless stacked form. Finish with a proper review before the project is created.
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                Focus on one decision per step, then review before the project is created.
               </p>
             </div>
 
@@ -362,20 +389,67 @@ export function CreateProjectForm({
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="rounded-[32px] border border-zinc-200 bg-white p-5 shadow-[0_20px_60px_rgba(24,24,27,0.06)] sm:p-6">
-          <div className="mb-6 border-b border-zinc-100 pb-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{steps[currentStep].eyebrow}</p>
-            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{steps[currentStep].title}</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">{steps[currentStep].description}</p>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-[0_16px_48px_rgba(24,24,27,0.06)] sm:p-5">
+          <div className="mb-5 border-b border-zinc-100 pb-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{steps[currentStep].eyebrow}</p>
+                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{steps[currentStep].title}</h3>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">{steps[currentStep].description}</p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:w-[320px] lg:grid-cols-1">
+                <StepStatusBadge
+                  label="Current step"
+                  value={
+                    currentStep === 0
+                      ? PROJECT_SHAPES.find((option) => option.value === shape)?.label
+                      : currentStep === 1
+                        ? context.length
+                          ? `${context.length} selected`
+                          : ""
+                        : currentStep === 2
+                          ? capabilities.length
+                            ? `${capabilities.length} selected`
+                            : ""
+                          : currentStep === 3
+                            ? stage && confidence
+                              ? `${PROJECT_STAGES.find((option) => option.value === stage)?.label} · ${CONFIDENCE_OPTIONS.find((option) => option.value === confidence)?.label}`
+                              : ""
+                            : currentStep === 4
+                              ? name.trim()
+                              : currentStep === 5
+                                ? "Ready for confirmation"
+                                : ""
+                  }
+                  pendingLabel={currentStep === 5 ? "Review the details below" : "Nothing selected yet"}
+                />
+                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-3 text-sm text-zinc-600">
+                  {currentStep === 0
+                    ? "Start blank, then pick the closest shape. The rest of the wizard stays neutral until you decide."
+                    : currentStep === 3
+                      ? "Both fields start empty on purpose. Pick one option in each column to unlock review."
+                      : "Only this step is in focus right now—make a choice here, then move on."}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="min-h-[420px]">
+          <div className="min-h-[320px] max-w-4xl">
             {currentStep === 0 ? (
-              <div className="space-y-5">
-                <div className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-4">
-                  <p className="text-sm font-medium text-zinc-700">Project shape</p>
-                  <FieldHint>Select the nearest fit. If it spans multiple buckets, pick the closest and refine it in the next steps.</FieldHint>
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50/80 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-800">Start by choosing the closest project shape</p>
+                      <FieldHint>This starts blank on purpose so the wizard feels like an intake, not a prefilled form.</FieldHint>
+                    </div>
+                    <StepStatusBadge
+                      label="Shape"
+                      value={PROJECT_SHAPES.find((option) => option.value === shape)?.label}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -387,6 +461,7 @@ export function CreateProjectForm({
                       description={option.description}
                       examples={option.examples}
                       hint={option.hint}
+                      compact
                       onClick={() => {
                         setShape(option.value);
                         setShowValidation(false);
@@ -394,13 +469,18 @@ export function CreateProjectForm({
                     />
                   ))}
                 </div>
+
+                {showValidation && !shape ? <FieldHint tone="error">Choose a project shape to continue.</FieldHint> : null}
               </div>
             ) : null}
 
             {currentStep === 1 ? (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
-                  Pick every context that materially changes how this should be designed, built, or prioritized.
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>Pick every context that materially changes how this should be designed, built, or prioritized.</span>
+                    <StepStatusBadge label="Context" value={context.length ? `${context.length} selected` : ""} />
+                  </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {PROJECT_CONTEXTS.map((option) => (
@@ -411,6 +491,7 @@ export function CreateProjectForm({
                       description={option.description}
                       examples={option.examples}
                       multi
+                      compact
                       onClick={() => {
                         setContext(toggleValue(context, option.value));
                         setShowValidation(false);
@@ -423,9 +504,12 @@ export function CreateProjectForm({
             ) : null}
 
             {currentStep === 2 ? (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
-                  Choose the mix of specialties you expect to need. If you only know the outcome, pick the obvious ones and keep moving.
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>Choose the mix of specialties you expect to need. If you only know the outcome, pick the obvious ones and keep moving.</span>
+                    <StepStatusBadge label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : ""} />
+                  </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {PROJECT_CAPABILITIES.map((option) => (
@@ -436,6 +520,7 @@ export function CreateProjectForm({
                       description={option.description}
                       examples={option.examples}
                       multi
+                      compact
                       onClick={() => {
                         setCapabilities(toggleValue(capabilities, option.value));
                         setShowValidation(false);
@@ -448,46 +533,67 @@ export function CreateProjectForm({
             ) : null}
 
             {currentStep === 3 ? (
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-sm font-semibold text-zinc-900">Project stage</h4>
-                  <p className="mt-1 text-sm text-zinc-500">This separates work that needs discovery from work that is ready to move.</p>
-                  <div className="mt-4 grid gap-3">
-                    {PROJECT_STAGES.map((option) => (
-                      <SelectionCard
-                        key={option.value}
-                        selected={stage === option.value}
-                        label={option.label}
-                        description={option.description}
-                        examples={option.examples}
-                        onClick={() => {
-                          setStage(option.value);
-                          setShowValidation(false);
-                        }}
+              <div className="space-y-5">
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-semibold text-zinc-900">Project stage</h4>
+                        <p className="mt-1 text-sm text-zinc-500">How close is this to execution?</p>
+                      </div>
+                      <StepStatusBadge
+                        label="Stage"
+                        value={PROJECT_STAGES.find((option) => option.value === stage)?.label}
                       />
-                    ))}
-                  </div>
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      {PROJECT_STAGES.map((option) => (
+                        <SelectionCard
+                          key={option.value}
+                          selected={stage === option.value}
+                          label={option.label}
+                          description={option.description}
+                          examples={option.examples}
+                          compact
+                          onClick={() => {
+                            setStage(option.value);
+                            setShowValidation(false);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-semibold text-zinc-900">Confidence</h4>
+                        <p className="mt-1 text-sm text-zinc-500">How certain is the direction right now?</p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-500 shadow-sm">
+                        {CONFIDENCE_OPTIONS.find((option) => option.value === confidence)?.label || "Choose one"}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      {CONFIDENCE_OPTIONS.map((option) => (
+                        <SelectionCard
+                          key={option.value}
+                          selected={confidence === option.value}
+                          label={option.label}
+                          description={option.description}
+                          examples={option.examples}
+                          compact
+                          onClick={() => {
+                            setConfidence(option.value);
+                            setShowValidation(false);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </section>
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-semibold text-zinc-900">Confidence</h4>
-                  <p className="mt-1 text-sm text-zinc-500">If you’re uncertain, routing will bias toward triage and recommendation first.</p>
-                  <div className="mt-4 grid gap-3">
-                    {CONFIDENCE_OPTIONS.map((option) => (
-                      <SelectionCard
-                        key={option.value}
-                        selected={confidence === option.value}
-                        label={option.label}
-                        description={option.description}
-                        examples={option.examples}
-                        onClick={() => {
-                          setConfidence(option.value);
-                          setShowValidation(false);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                {showValidation && !(stage && confidence) ? <FieldHint tone="error">Choose both the stage and confidence before continuing.</FieldHint> : null}
               </div>
             ) : null}
 
@@ -674,7 +780,9 @@ export function CreateProjectForm({
           <section className="rounded-[28px] border border-zinc-200 bg-zinc-950 p-5 text-white shadow-[0_20px_60px_rgba(24,24,27,0.18)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-300">Live summary</p>
             <h4 className="mt-3 text-xl font-semibold tracking-tight">{name.trim() || "Untitled project"}</h4>
-            <p className="mt-3 text-sm leading-6 text-zinc-300">{intake.summary || "Your selections will compose a routing summary here."}</p>
+            <p className="mt-3 text-sm leading-6 text-zinc-300">
+              {shape || stage || capabilities.length > 0 ? intake.summary : "Pick a shape and a few signals. The routing summary will build as you go."}
+            </p>
             <div className="mt-5 space-y-3 text-sm text-zinc-300">
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                 <span className="text-zinc-400">Owner</span>
@@ -686,7 +794,7 @@ export function CreateProjectForm({
               </div>
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                 <span className="text-zinc-400">Stage</span>
-                <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
+                <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Choose one"}</span>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                 <span className="text-zinc-400">Confidence</span>

@@ -81,14 +81,18 @@ function eventTitle(eventType: string) {
 }
 
 export function OverviewClient({ initialData }: { initialData: DashboardData }) {
-  const store = useRealtimeStore();
+  const upsertAgent = useRealtimeStore((s) => s.upsertAgent);
+  const upsertProject = useRealtimeStore((s) => s.upsertProject);
+  const upsertApproval = useRealtimeStore((s) => s.upsertApproval);
+  const prependEvent = useRealtimeStore((s) => s.prependEvent);
+  const upsertTeam = useRealtimeStore((s) => s.upsertTeam);
 
   useEffect(() => {
-    initialData.agents.forEach((a: any) => store.upsertAgent(a));
-    initialData.projects.forEach((p: any) => store.upsertProject({ ...p, progress_pct: p.activeSprint?.progress ?? p.progress_pct ?? 0 }));
+    initialData.agents.forEach((a: any) => upsertAgent(a));
+    initialData.projects.forEach((p: any) => upsertProject({ ...p, progress_pct: p.activeSprint?.progress ?? p.progress_pct ?? 0 }));
     initialData.needsYou.forEach((n: any) => {
       if (n.type === "approval") {
-        store.upsertApproval({
+        upsertApproval({
           id: n.id,
           status: "pending",
           summary: n.title,
@@ -100,9 +104,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
         });
       }
     });
-    initialData.events?.forEach((e: any) => store.prependEvent(e));
-    initialData.teams?.forEach((t: any) => store.upsertTeam(t));
-  }, [initialData, store]);
+    initialData.events?.forEach((e: any) => prependEvent(e));
+    initialData.teams?.forEach((t: any) => upsertTeam(t));
+  }, [initialData, prependEvent, upsertAgent, upsertApproval, upsertProject, upsertTeam]);
 
 
   const agentsById = useRealtimeStore((s) => s.agentsById);

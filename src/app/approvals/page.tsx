@@ -57,10 +57,10 @@ async function handleApproval(formData: FormData) {
   }
 
   const id = formData.get("id") as string;
-  const action = formData.get("action") as string;
+  const decision = formData.get("decision") as string;
   const note = formData.get("note") as string;
 
-  if (action === "changes_requested" && (!note || note.trim() === "")) {
+  if (decision === "changes_requested" && (!note || note.trim() === "")) {
     redirect("/approvals?error=note_required");
   }
 
@@ -73,7 +73,7 @@ async function handleApproval(formData: FormData) {
   await db
     .from("approvals")
     .update({
-      status: action === "approve" ? "approved" : "changes_requested",
+      status: decision === "approve" ? "approved" : "changes_requested",
       note: note || null,
       decided_at: new Date().toISOString(),
     })
@@ -83,7 +83,7 @@ async function handleApproval(formData: FormData) {
     await db
       .from("jobs")
       .update({
-        status: action === "approve" ? "in_progress" : "blocked",
+        status: decision === "approve" ? "in_progress" : "blocked",
         updated_at: new Date().toISOString(),
       })
       .eq("id", existingApproval.job_id);
@@ -99,7 +99,7 @@ async function handleApproval(formData: FormData) {
         approval_id: id,
         summary: existingApproval.summary,
         previous_status: existingApproval.status,
-        decision: action === "approve" ? "approved" : "changes_requested",
+        decision: decision === "approve" ? "approved" : "changes_requested",
         note: note || null,
       },
     });
@@ -239,7 +239,7 @@ export default async function ApprovalsPage({
                   <Button
                     type="submit"
                     form={`form-${a.id}`}
-                    name="action"
+                    name="decision"
                     value="approve"
                     variant="default"
                     className="flex-1 bg-red-600 text-white hover:bg-red-700"
@@ -249,7 +249,7 @@ export default async function ApprovalsPage({
                   <Button
                     type="submit"
                     form={`form-${a.id}`}
-                    name="action"
+                    name="decision"
                     value="changes_requested"
                     variant="secondary"
                     className="flex-1 bg-zinc-100 text-zinc-900 hover:bg-zinc-200"

@@ -333,7 +333,8 @@ export function CreateProjectForm({
   const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
   const stateForValidity = { name, shape, context, capabilities, stage: inferredReadiness.stage, confidence: inferredReadiness.confidence, goals };
   const currentStepValid = getStepValidity(activeStep.id, mode, stateForValidity);
-  const stepProgress = Math.max(12, Math.round(((currentStep + 1) / flow.length) * 100));
+  const isChoosingPath = !mode && activeStep.id === "mode";
+  const stepProgress = isChoosingPath ? 0 : Math.max(12, Math.round(((currentStep + 1) / flow.length) * 100));
   const furthestUnlockedIndex = Math.min(
     flow.findIndex((step) => !getStepValidity(step.id, mode, stateForValidity)) === -1
       ? flow.length - 1
@@ -418,7 +419,8 @@ export function CreateProjectForm({
     });
   };
 
-  const stepCounter = `${currentStep + 1} of ${flow.length}`;
+  const stepCounter = isChoosingPath ? "Not started" : `${currentStep + 1} of ${flow.length}`;
+  const stepStatusLabel = isChoosingPath ? "Choosing path" : "Current step";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -439,7 +441,7 @@ export function CreateProjectForm({
               </div>
 
               <div className="hidden rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur sm:block">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Current step</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">{stepStatusLabel}</p>
                 <div className="mt-2 flex items-end gap-2">
                   <span className="text-3xl font-semibold tracking-tight text-zinc-950">{stepCounter}</span>
                 </div>
@@ -451,7 +453,7 @@ export function CreateProjectForm({
 
             <div className="space-y-2.5 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">Choose your path</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">{isChoosingPath ? "Choosing path" : "Choose your path"}</p>
                 <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                   {stepCounter}
                 </div>

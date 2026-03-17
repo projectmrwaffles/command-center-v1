@@ -364,7 +364,7 @@ export function CreateProjectForm({
   const switchMode = (nextMode: IntakeMode) => {
     setMode(nextMode);
     setShowValidation(false);
-    setCurrentStep(0);
+    setCurrentStep(1);
 
     if (nextMode === "quick") {
       if (!shape) setShape("hybrid-not-sure");

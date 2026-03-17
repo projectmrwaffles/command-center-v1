@@ -30,7 +30,7 @@ interface CreateProjectFormProps {
   reviewSupplement?: ReactNode;
 }
 
-type FlowStepId = "shape" | "context" | "capabilities" | "stage" | "confidence" | "brief" | "review";
+type FlowStepId = "shape" | "scope" | "signals" | "brief" | "review";
 
 type FlowStep = {
   id: FlowStepId;
@@ -141,80 +141,84 @@ function TinyAnswer({ label, value }: { label: string; value?: string | null }) 
   );
 }
 
-function buildFlow(shape: string): FlowStep[] {
-  const root: FlowStep = {
-    id: "shape",
-    eyebrow: "Start here",
-    title: "What kind of project is this?",
-    description: "Pick the closest shape. We’ll only ask what matters next.",
-    helper: "One choice is enough to get started.",
-  };
+function buildFlow(): FlowStep[] {
+  return [
+    {
+      id: "shape",
+      eyebrow: "Start here",
+      title: "What kind of project is this?",
+      description: "Pick the closest shape. We’ll keep the rest short and adapt from there.",
+      helper: "One choice is enough to get started.",
+    },
+    {
+      id: "scope",
+      eyebrow: "Readiness",
+      title: "How ready is this, and how clear is the path?",
+      description: "These two answers tell us whether to route toward discovery, design, or execution.",
+      helper: "Choose the closest fit for both.",
+    },
+    {
+      id: "signals",
+      eyebrow: "Team signals",
+      title: "What kind of help does this need?",
+      description: "We’ve preselected the likely help based on your project shape. Adjust only what matters.",
+      helper: "Capabilities are required. Context is optional.",
+    },
+    {
+      id: "brief",
+      eyebrow: "A few details",
+      title: "Name it and add anything useful",
+      description: "A working name is required. Notes and links are optional if they help the receiving team move faster.",
+      helper: "Keep it light. You can refine later.",
+    },
+    {
+      id: "review",
+      eyebrow: "Final review",
+      title: "Quick check before we create it",
+      description: "This is the only review step. Routing and submission behavior stay the same.",
+      helper: "Go back if anything feels off.",
+    },
+  ];
+}
 
-  const brief: FlowStep = {
-    id: "brief",
-    eyebrow: "A few details",
-    title: "Give it a name and anything useful",
-    description: "Keep it light. A working name is enough, then add notes or links only if they help.",
-    helper: "The long review happens at the end, not here.",
-  };
-
-  const review: FlowStep = {
-    id: "review",
-    eyebrow: "Final review",
-    title: "Quick check before we create it",
-    description: "This is the only review step. Routing and submission stay exactly the same.",
-    helper: "Go back if anything feels off.",
-  };
-
-  const context: FlowStep = {
-    id: "context",
-    eyebrow: "Context",
-    title: "Where does this live?",
-    description: "Choose the contexts that materially change how this should be planned or built.",
-    helper: "Pick all that matter. Skip nothing important.",
-  };
-
-  const capabilities: FlowStep = {
-    id: "capabilities",
-    eyebrow: "Help needed",
-    title: "What kind of help should this pull in?",
-    description: "Choose the specialties you expect to need. Don’t overthink it.",
-    helper: "Pick the obvious ones and keep moving.",
-  };
-
-  const stage: FlowStep = {
-    id: "stage",
-    eyebrow: "Readiness",
-    title: "How far along is it?",
-    description: "This tells us whether the intake should lean toward discovery, design, or execution.",
-    helper: "Choose the closest current state.",
-  };
-
-  const confidence: FlowStep = {
-    id: "confidence",
-    eyebrow: "Certainty",
-    title: "How sure are you about the path?",
-    description: "This helps us know whether to move fast on execution or start with guidance.",
-    helper: "Be honest. Unclear is a valid answer.",
-  };
-
-  if (shape === "research-strategy" || shape === "hybrid-not-sure") {
-    return [root, confidence, stage, context, capabilities, brief, review];
+function getRecommendedSelections(shape: string) {
+  switch (shape) {
+    case "new-product":
+      return {
+        context: ["customer-facing", "new-initiative"],
+        capabilities: ["ux-ui", "frontend"],
+      };
+    case "improve-existing":
+      return {
+        context: ["existing-asset"],
+        capabilities: ["ux-ui", "qa-optimization"],
+      };
+    case "launch-campaign":
+      return {
+        context: ["customer-facing"],
+        capabilities: ["content-copy", "growth-marketing"],
+      };
+    case "ops-system":
+      return {
+        context: ["internal-team"],
+        capabilities: ["backend-data"],
+      };
+    case "research-strategy":
+      return {
+        context: [],
+        capabilities: ["strategy"],
+      };
+    case "hybrid-not-sure":
+      return {
+        context: [],
+        capabilities: ["strategy"],
+      };
+    default:
+      return {
+        context: [],
+        capabilities: [],
+      };
   }
-
-  if (shape === "launch-campaign") {
-    return [root, capabilities, context, stage, confidence, brief, review];
-  }
-
-  if (shape === "ops-system") {
-    return [root, context, capabilities, stage, confidence, brief, review];
-  }
-
-  if (shape === "new-product" || shape === "improve-existing") {
-    return [root, stage, capabilities, context, confidence, brief, review];
-  }
-
-  return [root, context, capabilities, stage, confidence, brief, review];
 }
 
 function getStepValidity(stepId: FlowStepId, state: {
@@ -228,14 +232,10 @@ function getStepValidity(stepId: FlowStepId, state: {
   switch (stepId) {
     case "shape":
       return Boolean(state.shape);
-    case "context":
-      return state.context.length > 0;
-    case "capabilities":
+    case "scope":
+      return Boolean(state.stage && state.confidence);
+    case "signals":
       return state.capabilities.length > 0;
-    case "stage":
-      return Boolean(state.stage);
-    case "confidence":
-      return Boolean(state.confidence);
     case "brief":
     case "review":
       return Boolean(state.name.trim());
@@ -283,14 +283,14 @@ export function CreateProjectForm({
   );
 
   const routing = useMemo(() => getRoutingSummary(intake), [intake]);
-  const flow = useMemo(() => buildFlow(shape), [shape]);
+  const flow = useMemo(() => buildFlow(), []);
   const activeStep = flow[currentStep];
   const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
 
   const stateForValidity = { name, shape, context, capabilities, stage, confidence };
   const currentStepValid = getStepValidity(activeStep.id, stateForValidity);
   const completedCount = flow.filter((step) => getStepValidity(step.id, stateForValidity)).length;
-  const progress = Math.max(8, Math.round((completedCount / flow.length) * 100));
+  const progress = Math.max(10, Math.round((completedCount / flow.length) * 100));
   const furthestUnlockedIndex = Math.min(
     flow.findIndex((step) => !getStepValidity(step.id, stateForValidity)) === -1
       ? flow.length - 1
@@ -334,20 +334,21 @@ export function CreateProjectForm({
     advance();
   };
 
-  const handleSingleChoice = (stepId: FlowStepId, value: string) => {
-    if (stepId === "shape") setShape(value);
-    if (stepId === "stage") setStage(value);
-    if (stepId === "confidence") setConfidence(value);
+  const handleShapeChoice = (value: string) => {
+    setShape(value);
+    const recommended = getRecommendedSelections(value);
+    setContext((current) => (current.length === 0 ? recommended.context : current));
+    setCapabilities((current) => (current.length === 0 ? recommended.capabilities : current));
     setShowValidation(false);
     window.setTimeout(() => {
-      setCurrentStep((step) => Math.min(step + 1, buildFlow(stepId === "shape" ? value : shape).length - 1));
+      setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
     }, 120);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const requiredSteps: FlowStepId[] = ["shape", "context", "capabilities", "stage", "confidence", "brief"];
+    const requiredSteps: FlowStepId[] = ["shape", "scope", "signals", "brief"];
     const firstInvalidIndex = flow.findIndex((step) => requiredSteps.includes(step.id) && !getStepValidity(step.id, stateForValidity));
 
     if (firstInvalidIndex !== -1) {
@@ -366,6 +367,7 @@ export function CreateProjectForm({
   };
 
   const stepCounter = `${currentStep + 1} of ${flow.length}`;
+  const recommended = getRecommendedSelections(shape);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -378,10 +380,10 @@ export function CreateProjectForm({
               <div className="hidden max-w-2xl sm:block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Guided intake</p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  One clear question at a time.
+                  Fewer steps. Clearer choices.
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  The flow adapts as you answer, keeps the form light, and saves the full review for the end.
+                  Start with the project shape, confirm readiness, then adjust the recommended team signals before review.
                 </p>
               </div>
 
@@ -471,7 +473,7 @@ export function CreateProjectForm({
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
                   <h3 className="mt-2 text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-2xl">{activeStep.title}</h3>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 hidden sm:block">{activeStep.description}</p>
+                  <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block">{activeStep.description}</p>
                 </div>
                 <div className="hidden w-fit rounded-full border border-dashed border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500 sm:inline-flex">
                   {activeStep.helper}
@@ -493,7 +495,7 @@ export function CreateProjectForm({
                             examples={option.examples}
                             hint={option.hint}
                             compact
-                            onClick={() => handleSingleChoice("shape", option.value)}
+                            onClick={() => handleShapeChoice(option.value)}
                           />
                         </div>
                       ))}
@@ -502,97 +504,128 @@ export function CreateProjectForm({
                   </div>
                 ) : null}
 
-                {activeStep.id === "context" ? (
-                  <div className="space-y-4">
-                    <div className="hidden rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600 sm:block">
-                      Choose every context that changes the work. This can be more than one.
-                    </div>
-                    <OptionBrowser columns={2}>
-                      {PROJECT_CONTEXTS.map((option) => (
-                        <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
-                          <SelectionCard
-                            selected={context.includes(option.value)}
-                            label={option.label}
-                            description={option.description}
-                            examples={option.examples}
-                            multi
-                            compact
-                            onClick={() => {
-                              setContext(toggleValue(context, option.value));
-                              setShowValidation(false);
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </OptionBrowser>
-                    {showValidation && context.length === 0 ? <FieldHint tone="error">Choose at least one context.</FieldHint> : null}
+                {activeStep.id === "scope" ? (
+                  <div className="space-y-6">
+                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-zinc-900">Current stage</h4>
+                        <p className="mt-1 text-sm text-zinc-500">Where is this project right now?</p>
+                      </div>
+                      <OptionBrowser columns={1}>
+                        {PROJECT_STAGES.map((option) => (
+                          <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
+                            <SelectionCard
+                              selected={stage === option.value}
+                              label={option.label}
+                              description={option.description}
+                              examples={option.examples}
+                              compact
+                              onClick={() => {
+                                setStage(option.value);
+                                setShowValidation(false);
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </OptionBrowser>
+                      {showValidation && !stage ? <FieldHint tone="error">Choose the current stage.</FieldHint> : null}
+                    </section>
+
+                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-white p-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-zinc-900">Path clarity</h4>
+                        <p className="mt-1 text-sm text-zinc-500">How much direction do you already have?</p>
+                      </div>
+                      <OptionBrowser columns={1}>
+                        {CONFIDENCE_OPTIONS.map((option) => (
+                          <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
+                            <SelectionCard
+                              selected={confidence === option.value}
+                              label={option.label}
+                              description={option.description}
+                              examples={option.examples}
+                              compact
+                              onClick={() => {
+                                setConfidence(option.value);
+                                setShowValidation(false);
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </OptionBrowser>
+                      {showValidation && !confidence ? <FieldHint tone="error">Choose how clear the path feels right now.</FieldHint> : null}
+                    </section>
                   </div>
                 ) : null}
 
-                {activeStep.id === "capabilities" ? (
-                  <div className="space-y-4">
-                    <div className="hidden rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600 sm:block">
-                      Pick the help you expect to need. If you only know the outcome, choose the obvious ones.
-                    </div>
-                    <OptionBrowser columns={2}>
-                      {PROJECT_CAPABILITIES.map((option) => (
-                        <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
-                          <SelectionCard
-                            selected={capabilities.includes(option.value)}
-                            label={option.label}
-                            description={option.description}
-                            examples={option.examples}
-                            multi
-                            compact
-                            onClick={() => {
-                              setCapabilities(toggleValue(capabilities, option.value));
-                              setShowValidation(false);
-                            }}
-                          />
+                {activeStep.id === "signals" ? (
+                  <div className="space-y-6">
+                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold text-zinc-900">Capabilities needed</h4>
+                          <p className="mt-1 text-sm text-zinc-500">Start with the preselected help, then add or remove only what materially changes the route.</p>
                         </div>
-                      ))}
-                    </OptionBrowser>
-                    {showValidation && capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability.</FieldHint> : null}
-                  </div>
-                ) : null}
+                        {shape ? (
+                          <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                            Recommended from {PROJECT_SHAPES.find((item) => item.value === shape)?.label}
+                          </div>
+                        ) : null}
+                      </div>
+                      <OptionBrowser columns={2}>
+                        {PROJECT_CAPABILITIES.map((option) => {
+                          const isRecommended = recommended.capabilities.includes(option.value);
+                          return (
+                            <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
+                              <SelectionCard
+                                selected={capabilities.includes(option.value)}
+                                label={option.label}
+                                description={option.description}
+                                examples={option.examples}
+                                hint={isRecommended ? "Recommended starting point" : undefined}
+                                multi
+                                compact
+                                onClick={() => {
+                                  setCapabilities(toggleValue(capabilities, option.value));
+                                  setShowValidation(false);
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </OptionBrowser>
+                      {showValidation && capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability.</FieldHint> : null}
+                    </section>
 
-                {activeStep.id === "stage" ? (
-                  <div className="space-y-4">
-                    <OptionBrowser columns={1}>
-                      {PROJECT_STAGES.map((option) => (
-                        <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
-                          <SelectionCard
-                            selected={stage === option.value}
-                            label={option.label}
-                            description={option.description}
-                            examples={option.examples}
-                            compact
-                            onClick={() => handleSingleChoice("stage", option.value)}
-                          />
-                        </div>
-                      ))}
-                    </OptionBrowser>
-                    {showValidation && !stage ? <FieldHint tone="error">Choose the current stage.</FieldHint> : null}
-                  </div>
-                ) : null}
-
-                {activeStep.id === "confidence" ? (
-                  <div className="space-y-4">
-                    <OptionBrowser columns={1}>
-                      {CONFIDENCE_OPTIONS.map((option) => (
-                        <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
-                          <SelectionCard
-                            selected={confidence === option.value}
-                            label={option.label}
-                            description={option.description}
-                            examples={option.examples}
-                            compact
-                            onClick={() => handleSingleChoice("confidence", option.value)}
-                          />
-                        </div>
-                      ))}
-                    </OptionBrowser>
-                    {showValidation && !confidence ? <FieldHint tone="error">Choose how certain the path feels right now.</FieldHint> : null}
+                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-white p-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-zinc-900">Context</h4>
+                        <p className="mt-1 text-sm text-zinc-500">Optional. Add context only if it changes how the team should approach the work.</p>
+                      </div>
+                      <OptionBrowser columns={2}>
+                        {PROJECT_CONTEXTS.map((option) => {
+                          const isRecommended = recommended.context.includes(option.value);
+                          return (
+                            <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
+                              <SelectionCard
+                                selected={context.includes(option.value)}
+                                label={option.label}
+                                description={option.description}
+                                examples={option.examples}
+                                hint={isRecommended ? "Common for this project shape" : undefined}
+                                multi
+                                compact
+                                onClick={() => {
+                                  setContext(toggleValue(context, option.value));
+                                  setShowValidation(false);
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </OptionBrowser>
+                      <FieldHint>Leaving context blank is okay. The route is driven mostly by shape, readiness, and capabilities.</FieldHint>
+                    </section>
                   </div>
                 ) : null}
 
@@ -694,13 +727,14 @@ export function CreateProjectForm({
                             <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
                           </div>
                           <div>
-                            <dt className="font-medium text-zinc-900">Context</dt>
+                            <dt className="font-medium text-zinc-900">Stage + clarity</dt>
                             <dd className="mt-2 flex flex-wrap gap-2">
-                              {context.map((value) => (
-                                <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
-                                  {PROJECT_CONTEXTS.find((item) => item.value === value)?.label}
-                                </span>
-                              ))}
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                {PROJECT_STAGES.find((item) => item.value === stage)?.label}
+                              </span>
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                {CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}
+                              </span>
                             </dd>
                           </div>
                           <div>
@@ -711,6 +745,20 @@ export function CreateProjectForm({
                                   {PROJECT_CAPABILITIES.find((item) => item.value === value)?.label}
                                 </span>
                               ))}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="font-medium text-zinc-900">Context</dt>
+                            <dd className="mt-2 flex flex-wrap gap-2">
+                              {context.length > 0 ? (
+                                context.map((value) => (
+                                  <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                    {PROJECT_CONTEXTS.find((item) => item.value === value)?.label}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-zinc-500">No extra context added.</span>
+                              )}
                             </dd>
                           </div>
                         </dl>
@@ -752,9 +800,11 @@ export function CreateProjectForm({
                     ? "Final check. Creating the project keeps the same routing and submission behavior."
                     : activeStep.id === "brief"
                       ? "Add a working name, then review everything at the end."
-                      : activeStep.id === "context" || activeStep.id === "capabilities"
-                        ? "Pick what matters, then keep moving — you can still come back."
-                        : "Answer this step and the next one will open."}
+                      : activeStep.id === "signals"
+                        ? "Use the recommended signals as a starting point, then keep moving."
+                        : activeStep.id === "scope"
+                          ? "Answer both readiness questions, then continue."
+                          : "Pick the closest shape and we’ll prefill the likely path."}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
@@ -774,7 +824,7 @@ export function CreateProjectForm({
                     >
                       {isSubmitting ? "Creating..." : "Confirm and create project"}
                     </button>
-                  ) : activeStep.id === "shape" || activeStep.id === "stage" || activeStep.id === "confidence" ? (
+                  ) : activeStep.id === "shape" ? (
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
                       Tap a choice to continue
                     </div>
@@ -813,13 +863,13 @@ export function CreateProjectForm({
                 <span className="text-zinc-400">QC</span>
                 <span className="font-medium text-white">{routing.qcTeam}</span>
               </div>
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "stage") ? (
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "scope") ? (
                 <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                   <span className="text-zinc-400">Stage</span>
                   <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
                 </div>
               ) : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "confidence") ? (
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "scope") ? (
                 <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
                   <span className="text-zinc-400">Confidence</span>
                   <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
@@ -832,10 +882,9 @@ export function CreateProjectForm({
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Current path</p>
             <div className="mt-4 space-y-3">
               {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "shape") ? <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "context") ? <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : undefined} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "capabilities") ? <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "stage") ? <TinyAnswer label="Stage" value={PROJECT_STAGES.find((item) => item.value === stage)?.label} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "confidence") ? <TinyAnswer label="Confidence" value={CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "scope") ? <TinyAnswer label="Scope" value={stage && confidence ? "Set" : undefined} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "signals") ? <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} /> : null}
+              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "signals") ? <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : "Optional"} /> : null}
               {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "brief") ? <TinyAnswer label="Brief" value={name.trim() ? "Named and ready" : undefined} /> : null}
             </div>
           </section>

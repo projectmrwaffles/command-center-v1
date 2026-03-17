@@ -183,7 +183,7 @@ export function CreateProjectModal({
           <div className="min-w-0">
             <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500 sm:block">Command Center V1</p>
             <h2 className="text-base font-semibold tracking-tight text-zinc-950 sm:mt-1 sm:text-xl">Create a new project</h2>
-            <p className="mt-1 hidden text-sm text-zinc-500 sm:block">Progressive intake that adapts as you answer. Same routing logic, less form fatigue.</p>
+            <p className="mt-1 hidden text-sm text-zinc-500 sm:block">A simple intake that stays clear as you go. Routing and submission stay the same.</p>
           </div>
           <button onClick={() => onOpenChange(false)} className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100" aria-label="Close">
             ✕

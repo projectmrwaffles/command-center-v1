@@ -148,7 +148,7 @@ function buildFlow(mode: IntakePath): FlowStep[] {
         id: "mode",
         eyebrow: "Choose a starting point",
         title: "How would you like to start this project?",
-        description: "Pick the intake path that feels most natural. Both paths create the same kind of project and use the same submission flow—one is freer-form, the other adds a little structure up front.",
+        description: "Choose the path that feels easiest. Both options create the same project and follow the same submission flow. Quick brief is more open, and Guided setup adds a little structure first.",
         helper: "You can switch paths before submitting.",
       },
     ];
@@ -434,10 +434,10 @@ export function CreateProjectForm({
               <div className="hidden max-w-2xl sm:block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">{mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : "Choose your path"}</p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  Start a new project without overthinking the intake.
+                  Start a new project with a simple intake.
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Choose the path that fits how you want to explain the work. You can stay lightweight, or add a little more structure before the project is created.
+                  Choose the path that feels easiest. You can keep it light, or add a little structure before you create the project.
                 </p>
               </div>
 

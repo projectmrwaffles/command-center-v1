@@ -467,7 +467,7 @@ function UsageCard({ usage }: { usage: UsageModel }) {
 }
 
 function timeAgo(ts?: string) {
-  if (!ts) return "—";
+  if (!ts) return "Not available";
   const then = new Date(ts).getTime();
   const now = Date.now();
   const diff = now - then;

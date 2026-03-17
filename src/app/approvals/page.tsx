@@ -32,12 +32,12 @@ function getJoinedRow<T>(value: T | T[] | null | undefined): T | null {
 }
 
 function formatStatus(status: string | null | undefined) {
-  if (!status) return "—";
+  if (!status) return "Not set";
   return status.replace(/_/g, " ");
 }
 
 function timeAgo(ts?: string | null) {
-  if (!ts) return "—";
+  if (!ts) return "Not available";
   const diffMs = Date.now() - new Date(ts).getTime();
   const minutes = Math.max(0, Math.floor(diffMs / 60000));
   if (minutes < 1) return "just now";
@@ -212,7 +212,7 @@ export default async function ApprovalsPage({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
-                    <span>Requester: {a.requester_name || "—"}</span>
+                    <span>Requester: {a.requester_name || "Unknown requester"}</span>
                     <span>Execution status: {formatStatus(job?.status)}</span>
                   </div>
 
@@ -292,7 +292,7 @@ export default async function ApprovalsPage({
                     {a.note && <p className="mt-1 text-xs italic text-zinc-500">Note: {a.note}</p>}
                   </div>
                   <span className="whitespace-nowrap text-xs text-zinc-400">
-                    {a.decided_at ? new Date(a.decided_at).toLocaleString() : "—"}
+                    {a.decided_at ? new Date(a.decided_at).toLocaleString() : "Not available"}
                   </span>
                 </div>
               </div>

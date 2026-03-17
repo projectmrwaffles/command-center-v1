@@ -554,7 +554,7 @@ export default function ProjectDetailPage() {
                   </div>
                   <div>
                     <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
-                    <div className="mt-1 text-sm text-zinc-900">{project.intake_summary || intake.summary || "—"}</div>
+                    <div className="mt-1 text-sm text-zinc-900">{project.intake_summary || intake.summary || "Not set"}</div>
                   </div>
                 </div>
               ) : (

@@ -49,7 +49,7 @@ export default async function TeamsPage() {
             <Card className="border-zinc-200 transition-all hover:shadow-md hover:border-zinc-300">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{t.name}</CardTitle>
-                <CardDescription>{t.description ?? "—"}</CardDescription>
+                <CardDescription>{t.description ?? "No description yet"}</CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="text-xs text-zinc-500">View rollups →</p>

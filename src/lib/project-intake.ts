@@ -230,7 +230,7 @@ export function getReadinessOption(stage?: string, confidence?: string) {
 }
 
 export function formatIntakeValue(value?: string) {
-  if (!value) return "—";
+  if (!value) return "Not set";
   const all = [...PROJECT_SHAPES, ...PROJECT_CONTEXTS, ...PROJECT_CAPABILITIES, ...PROJECT_STAGES, ...CONFIDENCE_OPTIONS, ...READINESS_OPTIONS];
   return all.find((item) => item.value === value)?.label || value.replace(/-/g, " ");
 }

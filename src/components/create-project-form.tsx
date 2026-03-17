@@ -120,9 +120,7 @@ function OptionBrowser({
 }) {
   return (
     <>
-      <div className="flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-2 md:hidden [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        {children}
-      </div>
+      <div className="grid min-w-0 gap-3 md:hidden">{children}</div>
       <div className={cn("hidden gap-3 md:grid", columns === 2 ? "md:grid-cols-2" : "md:grid-cols-1")}>{children}</div>
     </>
   );
@@ -487,7 +485,7 @@ export function CreateProjectForm({
                   <div className="space-y-4">
                     <OptionBrowser columns={2}>
                       {PROJECT_SHAPES.map((option) => (
-                        <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
+                        <div key={option.value} className="w-full max-w-full md:w-auto">
                           <SelectionCard
                             selected={shape === option.value}
                             label={option.label}
@@ -513,7 +511,7 @@ export function CreateProjectForm({
                       </div>
                       <OptionBrowser columns={1}>
                         {PROJECT_STAGES.map((option) => (
-                          <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
+                          <div key={option.value} className="w-full max-w-full md:w-auto">
                             <SelectionCard
                               selected={stage === option.value}
                               label={option.label}
@@ -538,7 +536,7 @@ export function CreateProjectForm({
                       </div>
                       <OptionBrowser columns={1}>
                         {CONFIDENCE_OPTIONS.map((option) => (
-                          <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
+                          <div key={option.value} className="w-full max-w-full md:w-auto">
                             <SelectionCard
                               selected={confidence === option.value}
                               label={option.label}
@@ -576,7 +574,7 @@ export function CreateProjectForm({
                         {PROJECT_CAPABILITIES.map((option) => {
                           const isRecommended = recommended.capabilities.includes(option.value);
                           return (
-                            <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
+                            <div key={option.value} className="w-full max-w-full md:w-auto">
                               <SelectionCard
                                 selected={capabilities.includes(option.value)}
                                 label={option.label}
@@ -606,7 +604,7 @@ export function CreateProjectForm({
                         {PROJECT_CONTEXTS.map((option) => {
                           const isRecommended = recommended.context.includes(option.value);
                           return (
-                            <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
+                            <div key={option.value} className="w-full max-w-full md:w-auto">
                               <SelectionCard
                                 selected={context.includes(option.value)}
                                 label={option.label}
@@ -826,7 +824,7 @@ export function CreateProjectForm({
                     </button>
                   ) : activeStep.id === "shape" ? (
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
-                      Tap a choice to continue
+                      Choose the best-fit option below to continue
                     </div>
                   ) : (
                     <button

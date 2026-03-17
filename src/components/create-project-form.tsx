@@ -385,7 +385,7 @@ export function CreateProjectForm({
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur">
+              <div className="hidden rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur sm:block">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
                 <div className="mt-2 flex items-end gap-2">
                   <span className="text-3xl font-semibold tracking-tight text-zinc-950">{stepCounter}</span>
@@ -396,7 +396,28 @@ export function CreateProjectForm({
               </div>
             </div>
 
-            <div className="mt-5 -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div className="mt-5 rounded-[24px] border border-white/80 bg-white/90 p-4 shadow-sm backdrop-blur sm:hidden">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Step {stepCounter}</p>
+                  <h4 className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">{activeStep.title}</h4>
+                </div>
+                <div className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
+                  {progress}%
+                </div>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-200">
+                <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+              </div>
+              <p className="mt-3 text-sm leading-6 text-zinc-600">{activeStep.description}</p>
+              {flow[currentStep + 1] ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  <span className="font-medium text-zinc-700">Up next:</span> {flow[currentStep + 1]?.title}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-5 hidden -mx-1 snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
               {flow.map((step, index) => {
                 const isActive = index === currentStep;
                 const isCompleted = getStepValidity(step.id, stateForValidity);
@@ -434,7 +455,7 @@ export function CreateProjectForm({
           </div>
 
           <div className="mt-6 min-h-[480px]">
-            <div className="mb-6 flex flex-wrap gap-2">
+            <div className="mb-6 hidden flex-wrap gap-2 md:flex">
               {flow.slice(0, currentStep).map((step) => (
                 <button
                   key={step.id}

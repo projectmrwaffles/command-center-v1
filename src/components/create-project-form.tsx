@@ -68,7 +68,7 @@ function SelectionCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative w-full overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
+        "group relative block w-full min-w-0 overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
         compact ? "min-h-[180px] snap-center sm:min-h-[220px]" : "",
         "focus:outline-none focus:ring-2 focus:ring-red-300",
         selected
@@ -78,7 +78,7 @@ function SelectionCard({
     >
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-70" />
       <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <div className="text-sm font-semibold text-zinc-950">{label}</div>
           <p className="text-sm leading-6 text-zinc-600">{description}</p>
         </div>
@@ -120,7 +120,7 @@ function OptionBrowser({
 }) {
   return (
     <>
-      <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 md:hidden [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+      <div className="flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-2 md:hidden [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {children}
       </div>
       <div className={cn("hidden gap-3 md:grid", columns === 2 ? "md:grid-cols-2" : "md:grid-cols-1")}>{children}</div>
@@ -371,8 +371,8 @@ export function CreateProjectForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="p-0 sm:rounded-[30px] sm:border sm:border-zinc-200 sm:bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] sm:p-6 sm:shadow-[0_16px_48px_rgba(24,24,27,0.06)]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="min-w-0 p-0 sm:rounded-[30px] sm:border sm:border-zinc-200 sm:bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] sm:p-6 sm:shadow-[0_16px_48px_rgba(24,24,27,0.06)]">
           <div className="border-b border-zinc-100 pb-4 sm:pb-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div className="max-w-2xl">
@@ -466,7 +466,7 @@ export function CreateProjectForm({
               ))}
             </div>
 
-            <div className="max-w-4xl p-0 sm:rounded-[28px] sm:border sm:border-white/80 sm:bg-white/85 sm:p-6 sm:shadow-sm sm:backdrop-blur">
+            <div className="min-w-0 max-w-4xl p-0 sm:rounded-[28px] sm:border sm:border-white/80 sm:bg-white/85 sm:p-6 sm:shadow-sm sm:backdrop-blur">
               <div className="flex flex-col gap-2 sm:gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
@@ -485,7 +485,7 @@ export function CreateProjectForm({
                   <div className="space-y-4">
                     <OptionBrowser columns={2}>
                       {PROJECT_SHAPES.map((option) => (
-                        <div key={option.value} className="w-[85%] shrink-0 md:w-auto">
+                        <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
                           <SelectionCard
                             selected={shape === option.value}
                             label={option.label}
@@ -509,7 +509,7 @@ export function CreateProjectForm({
                     </div>
                     <OptionBrowser columns={2}>
                       {PROJECT_CONTEXTS.map((option) => (
-                        <div key={option.value} className="w-[85%] shrink-0 md:w-auto">
+                        <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
                           <SelectionCard
                             selected={context.includes(option.value)}
                             label={option.label}
@@ -536,7 +536,7 @@ export function CreateProjectForm({
                     </div>
                     <OptionBrowser columns={2}>
                       {PROJECT_CAPABILITIES.map((option) => (
-                        <div key={option.value} className="w-[85%] shrink-0 md:w-auto">
+                        <div key={option.value} className="w-[min(85vw,26rem)] max-w-full shrink-0 md:w-auto">
                           <SelectionCard
                             selected={capabilities.includes(option.value)}
                             label={option.label}
@@ -560,7 +560,7 @@ export function CreateProjectForm({
                   <div className="space-y-4">
                     <OptionBrowser columns={1}>
                       {PROJECT_STAGES.map((option) => (
-                        <div key={option.value} className="w-[88%] shrink-0 md:w-auto">
+                        <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
                           <SelectionCard
                             selected={stage === option.value}
                             label={option.label}
@@ -580,7 +580,7 @@ export function CreateProjectForm({
                   <div className="space-y-4">
                     <OptionBrowser columns={1}>
                       {CONFIDENCE_OPTIONS.map((option) => (
-                        <div key={option.value} className="w-[88%] shrink-0 md:w-auto">
+                        <div key={option.value} className="w-[min(88vw,32rem)] max-w-full shrink-0 md:w-auto">
                           <SelectionCard
                             selected={confidence === option.value}
                             label={option.label}

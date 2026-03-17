@@ -174,8 +174,8 @@ export function CreateProjectModal({
       <div
         className={
           mobile
-            ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-[28px] bg-[#fcfcfd] shadow-2xl"
-            : "absolute left-1/2 top-1/2 w-[min(1180px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[32px] bg-[#fcfcfd] shadow-[0_32px_120px_rgba(15,23,42,0.24)]"
+            ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[28px] bg-[#fcfcfd] shadow-2xl"
+            : "absolute left-1/2 top-1/2 w-[min(1180px,calc(100vw-32px))] min-w-0 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[32px] bg-[#fcfcfd] shadow-[0_32px_120px_rgba(15,23,42,0.24)]"
         }
         onClick={(e) => e.stopPropagation()}
       >
@@ -190,7 +190,7 @@ export function CreateProjectModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3 pb-20 sm:px-6 sm:py-4">
+        <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-4 py-3 pb-20 sm:px-6 sm:py-4">
           <CreateProjectForm
             prefillName={prefillName}
             prefillType={prefillType}

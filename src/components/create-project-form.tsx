@@ -142,27 +142,21 @@ function TinyAnswer({ label, value }: { label: string; value?: string | null }) 
 }
 
 function buildFlow(mode: IntakePath): FlowStep[] {
+  const chooserStep: FlowStep = {
+    id: "mode",
+    eyebrow: "Choose a starting point",
+    title: "How would you like to start this project?",
+    description: "Choose the path that feels easiest. Both options create the same project and follow the same submission flow. Quick brief is more open, and Guided setup adds a little structure first.",
+    helper: "You can switch paths before submitting.",
+  };
+
   if (!mode) {
-    return [
-      {
-        id: "mode",
-        eyebrow: "Choose a starting point",
-        title: "How would you like to start this project?",
-        description: "Choose the path that feels easiest. Both options create the same project and follow the same submission flow. Quick brief is more open, and Guided setup adds a little structure first.",
-        helper: "You can switch paths before submitting.",
-      },
-    ];
+    return [chooserStep];
   }
 
   if (mode === "quick") {
     return [
-      {
-        id: "mode",
-        eyebrow: "Choose a starting point",
-        title: "Pick the path that fits how you want to explain it",
-        description: "Quick brief lets you describe the work in your own words and add context fast. Guided setup asks for one extra project-type choice before you continue.",
-        helper: "Choose whichever feels easier.",
-      },
+      chooserStep,
       {
         id: "brief",
         eyebrow: "Quick brief",
@@ -181,13 +175,7 @@ function buildFlow(mode: IntakePath): FlowStep[] {
   }
 
   return [
-    {
-      id: "mode",
-      eyebrow: "Choose a starting point",
-      title: "Pick the path that fits how you want to explain it",
-      description: "Quick brief is freer-form. Guided setup adds one structured choice before you write the brief. Both paths keep the same routing and submission flow.",
-      helper: "You can switch before submitting.",
-    },
+    chooserStep,
     {
       id: "shape",
       eyebrow: "Project type",
@@ -432,7 +420,7 @@ export function CreateProjectForm({
           <div className="border-b border-zinc-100 pb-3 sm:pb-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="hidden max-w-2xl sm:block">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">{mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : "Choose your path"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Choose your path</p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
                   Start a new project with a simple intake.
                 </h3>
@@ -454,7 +442,7 @@ export function CreateProjectForm({
 
             <div className="space-y-2.5 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">{mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : "Choose your path"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">Choose your path</p>
                 <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                   {stepCounter}
                 </div>
@@ -586,11 +574,7 @@ export function CreateProjectForm({
                     </div>
 
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                      {mode === "quick"
-                        ? "Quick brief starts with safe routing defaults and lets you refine them only if you want to."
-                        : mode === "guided"
-                          ? "Guided setup uses project type, readiness, and capabilities to suggest a tighter starting route."
-                          : "Choose either path to continue. Both lead to the same project creation flow."}
+                      Choose either path to continue. Both lead to the same project creation flow.
                     </div>
                   </div>
                 ) : null}

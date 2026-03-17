@@ -302,6 +302,7 @@ export function CreateProjectForm({
   const [goals, setGoals] = useState("");
   const [links, setLinks] = useState<ProjectLinks>({});
   const [showAdvancedQuickRouting, setShowAdvancedQuickRouting] = useState(false);
+  const [showOptionalLinks, setShowOptionalLinks] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
 
@@ -792,24 +793,40 @@ export function CreateProjectForm({
                     {docsSection ? <section>{docsSection}</section> : null}
 
                     <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
-                      <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">Optional links</h4>
-                        <p className="mt-1 text-sm text-zinc-500">Add anything that gives the receiving team fast context.</p>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold text-zinc-900">Optional links</h4>
+                          <p className="mt-1 text-sm text-zinc-500">Skip this during intake unless a link is critical for day-one context. The project page is the canonical place to add and manage links later.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowOptionalLinks((current) => !current)}
+                          className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400"
+                        >
+                          {showOptionalLinks ? "Hide link fields" : linkedSurfaces.length > 0 ? `Edit ${linkedSurfaces.length} added link${linkedSurfaces.length === 1 ? "" : "s"}` : "Add links now"}
+                        </button>
                       </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        {PROJECT_LINK_FIELDS.map((key) => (
-                          <label key={key} className="block">
-                            <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-                            <input
-                              type="url"
-                              value={links[key] || ""}
-                              onChange={(e) => handleLinkChange(key, e.target.value)}
-                              className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                              placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
-                            />
-                          </label>
-                        ))}
-                      </div>
+
+                      {!showOptionalLinks ? (
+                        <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+                          Better default: create the project first, then add the right links and artifacts from the project page once the work type is clearer.
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {PROJECT_LINK_FIELDS.map((key) => (
+                            <label key={key} className="block">
+                              <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+                              <input
+                                type="url"
+                                value={links[key] || ""}
+                                onChange={(e) => handleLinkChange(key, e.target.value)}
+                                className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      )}
                     </section>
 
                     {mode === "quick" ? (

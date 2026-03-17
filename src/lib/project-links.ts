@@ -61,3 +61,43 @@ export function getProjectLinkEntries(links?: ProjectLinks | null) {
     return url ? [{ key, label: PROJECT_LINK_LABELS[key], url }] : [];
   });
 }
+
+export function getProjectLinkSuggestions(projectType?: string | null, intake?: { shape?: string | null; capabilities?: string[] | null }) {
+  const suggestions = new Set<ProjectLinkKey>();
+
+  suggestions.add("docs");
+
+  if (["product_build", "ops_enablement", "saas", "web_app", "native_app"].includes(projectType || "")) {
+    suggestions.add("github");
+    suggestions.add("preview");
+    suggestions.add("production");
+    suggestions.add("admin");
+    suggestions.add("figma");
+  }
+
+  if (["marketing_growth", "marketing"].includes(projectType || "") || intake?.shape === "launch-campaign") {
+    suggestions.add("docs");
+    suggestions.add("figma");
+    suggestions.add("preview");
+    suggestions.add("production");
+  }
+
+  if (["strategy_research", "hybrid"].includes(projectType || "") || intake?.shape === "research-strategy") {
+    suggestions.add("docs");
+    suggestions.add("figma");
+  }
+
+  const capabilities = intake?.capabilities || [];
+  if (capabilities.includes("frontend") || capabilities.includes("backend-data")) {
+    suggestions.add("github");
+    suggestions.add("preview");
+    suggestions.add("production");
+    suggestions.add("admin");
+  }
+  if (capabilities.includes("ux-ui")) suggestions.add("figma");
+  if (capabilities.includes("strategy") || capabilities.includes("content-copy") || capabilities.includes("growth-marketing")) {
+    suggestions.add("docs");
+  }
+
+  return PROJECT_LINK_FIELDS.filter((key) => suggestions.has(key));
+}

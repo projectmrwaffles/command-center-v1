@@ -9,7 +9,7 @@ import {
   getRoutingSummary,
   legacyTypeToLabel,
 } from "@/lib/project-intake";
-import { getProjectLinkEntries, type ProjectLinks } from "@/lib/project-links";
+import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 import { useRealtimeStore } from "@/lib/realtime-store";
 
 function cn(...classes: Array<string | undefined | false | null>) {
@@ -105,6 +105,111 @@ function formatBytes(value?: number | null) {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function artifactEmptyState(projectType?: string | null, intake?: any) {
+  if (intake?.shape === "launch-campaign" || ["marketing_growth", "marketing"].includes(projectType || "")) {
+    return "No campaign links or creative artifacts added yet.";
+  }
+  if (["product_build", "ops_enablement", "saas", "web_app", "native_app"].includes(projectType || "")) {
+    return "No repo, environment, or build links added yet.";
+  }
+  return "No project links or artifacts added yet.";
+}
+
+function LinkEditor({
+  projectId,
+  projectType,
+  intake,
+  links,
+  onSaved,
+}: {
+  projectId: string;
+  projectType?: string | null;
+  intake?: any;
+  links?: ProjectLinks | null;
+  onSaved: (links: ProjectLinks | null) => void;
+}) {
+  const [draft, setDraft] = useState<ProjectLinks>(links || {});
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const suggestedFields = useMemo(() => getProjectLinkSuggestions(projectType, intake), [projectType, intake]);
+
+  useEffect(() => {
+    setDraft(links || {});
+  }, [links]);
+
+  const orderedFields = useMemo(() => {
+    const used = PROJECT_LINK_FIELDS.filter((key) => Boolean(draft[key]));
+    const suggestedUnused = suggestedFields.filter((key) => !used.includes(key));
+    const remaining = PROJECT_LINK_FIELDS.filter((key) => !used.includes(key) && !suggestedUnused.includes(key));
+    return [...used, ...suggestedUnused, ...remaining];
+  }, [draft, suggestedFields]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: draft }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || "Failed to save links");
+      onSaved(payload.project?.links || null);
+      setMessage("Saved");
+    } catch (e: any) {
+      setMessage(e.message || "Failed to save links");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-600">
+        Add links here after intake. This page is the canonical home for the repo, designs, previews, docs, campaign assets, and other working artifacts.
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {suggestedFields.map((key) => (
+          <span key={key} className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Suggested: {PROJECT_LINK_LABELS[key]}</span>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {orderedFields.map((key) => (
+          <label key={key} className="block">
+            <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+            <input
+              type="url"
+              value={draft[key] || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDraft((current) => {
+                  const next = { ...current };
+                  if (value.trim()) next[key] = value;
+                  else delete next[key];
+                  return next;
+                });
+                setMessage(null);
+              }}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+              placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
+            />
+          </label>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className={cn("text-xs", message === "Saved" ? "text-green-600" : "text-zinc-500")}>{message || "Only add the links that matter for this project type."}</p>
+        <button onClick={handleSave} disabled={saving} className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50">
+          {saving ? "Saving..." : "Save project links"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function ProjectDetailPage() {
@@ -322,6 +427,7 @@ export default function ProjectDetailPage() {
   const intake = project.intake || null;
   const routing = intake ? getRoutingSummary(intake) : null;
   const projectLinks = getProjectLinkEntries(project.links);
+  const suggestedProjectLinks = getProjectLinkSuggestions(project.type, intake);
 
   return (
     <div className="space-y-6 overflow-x-hidden pb-10">
@@ -517,11 +623,17 @@ export default function ProjectDetailPage() {
         <div className="space-y-4">
           <Card className="border-zinc-200">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Project Links</CardTitle>
+              <CardTitle className="text-sm">Links & artifacts</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {suggestedProjectLinks.map((key) => (
+                  <span key={key} className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]}</span>
+                ))}
+              </div>
+
               {projectLinks.length === 0 ? (
-                <p className="text-sm text-zinc-500">No deployment or reference links added yet.</p>
+                <p className="text-sm text-zinc-500">{artifactEmptyState(project.type, intake)}</p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {projectLinks.map((link) => (
@@ -539,6 +651,14 @@ export default function ProjectDetailPage() {
                   ))}
                 </div>
               )}
+
+              <LinkEditor
+                projectId={projectId}
+                projectType={project.type}
+                intake={intake}
+                links={project.links}
+                onSaved={(links) => setData((prev) => (prev ? { ...prev, project: { ...prev.project, links } } : prev))}
+              />
             </CardContent>
           </Card>
 
@@ -573,11 +693,11 @@ export default function ProjectDetailPage() {
 
           <Card className="border-zinc-200">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Documents</CardTitle>
+              <CardTitle className="text-sm">Supporting docs & uploads</CardTitle>
             </CardHeader>
             <CardContent>
               {documents.length === 0 ? (
-                <p className="text-sm text-zinc-500">No project documents uploaded yet.</p>
+                <p className="text-sm text-zinc-500">No supporting docs or uploaded artifacts yet.</p>
               ) : (
                 <div className="space-y-3">
                   {documents.map((doc) => (

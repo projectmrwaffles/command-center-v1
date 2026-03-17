@@ -144,7 +144,7 @@ function TinyAnswer({ label, value }: { label: string; value?: string | null }) 
 function buildFlow(mode: IntakePath): FlowStep[] {
   const chooserStep: FlowStep = {
     id: "mode",
-    eyebrow: "Choose a starting point",
+    eyebrow: "Step 1 • Choose your path",
     title: "How would you like to start this project?",
     description: "Choose the path that feels easiest. Both options create the same project and follow the same submission flow. Quick brief is more open, and Guided setup adds a little structure first.",
     helper: "You can switch paths before submitting.",
@@ -159,14 +159,14 @@ function buildFlow(mode: IntakePath): FlowStep[] {
       chooserStep,
       {
         id: "brief",
-        eyebrow: "Quick brief",
+        eyebrow: "Step 2 • Quick brief",
         title: "What needs to happen?",
         description: "Give the project a name, describe the need in plain language, and add any helpful docs or screenshots. We’ll still route it safely even if the brief is rough.",
         helper: "A short, natural description is enough.",
       },
       {
         id: "review",
-        eyebrow: "Final review",
+        eyebrow: "Step 3 • Final review",
         title: "Review it before you create the project",
         description: "Check the summary, keep the lightweight defaults, or make small routing edits if needed.",
         helper: "Submission behavior stays the same.",
@@ -178,21 +178,21 @@ function buildFlow(mode: IntakePath): FlowStep[] {
     chooserStep,
     {
       id: "shape",
-      eyebrow: "Project type",
-      title: "What would you like to build or improve?",
+      eyebrow: "Step 2 • Project type",
+      title: "What kind of project is this?",
       description: "Pick the closest fit. It helps us suggest the right starting route without turning this into a long intake.",
-      helper: "Choose the closest fit — SaaS, websites, apps, and mixed projects all work here.",
+      helper: "Choose the closest fit — SaaS product, web app, website, or something else all work here.",
     },
     {
       id: "brief",
-      eyebrow: "Project brief",
+      eyebrow: "Step 3 • Project brief",
       title: "Add the key context",
       description: "Give it a working name, add the essentials, and attach any supporting files. Adjust routing only if the suggested default looks off.",
       helper: "Keep it light unless routing really matters.",
     },
     {
       id: "review",
-      eyebrow: "Final review",
+      eyebrow: "Step 4 • Final review",
       title: "Review it before you create the project",
       description: "This is the final check. Submission and routing behavior stay the same.",
       helper: "Go back if anything looks wrong.",
@@ -202,15 +202,20 @@ function buildFlow(mode: IntakePath): FlowStep[] {
 
 function getRecommendedSelections(shape: string) {
   switch (shape) {
-    case "new-product":
+    case "saas-product":
+      return {
+        context: ["customer-facing", "new-initiative"],
+        capabilities: ["ux-ui", "frontend", "backend-data"],
+      };
+    case "web-app":
       return {
         context: ["customer-facing", "new-initiative"],
         capabilities: ["ux-ui", "frontend"],
       };
-    case "improve-existing":
+    case "website":
       return {
-        context: ["existing-asset"],
-        capabilities: ["ux-ui", "qa-optimization"],
+        context: ["customer-facing"],
+        capabilities: ["ux-ui", "frontend", "content-copy"],
       };
     case "launch-campaign":
       return {
@@ -321,8 +326,7 @@ export function CreateProjectForm({
   const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
   const stateForValidity = { name, shape, context, capabilities, stage, confidence, goals };
   const currentStepValid = getStepValidity(activeStep.id, mode, stateForValidity);
-  const completedCount = flow.filter((step) => getStepValidity(step.id, mode, stateForValidity)).length;
-  const progress = Math.max(12, Math.round((completedCount / flow.length) * 100));
+  const stepProgress = Math.max(12, Math.round(((currentStep + 1) / flow.length) * 100));
   const furthestUnlockedIndex = Math.min(
     flow.findIndex((step) => !getStepValidity(step.id, mode, stateForValidity)) === -1
       ? flow.length - 1
@@ -430,12 +434,12 @@ export function CreateProjectForm({
               </div>
 
               <div className="hidden rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur sm:block">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Current step</p>
                 <div className="mt-2 flex items-end gap-2">
                   <span className="text-3xl font-semibold tracking-tight text-zinc-950">{stepCounter}</span>
                 </div>
                 <div className="mt-3 h-2.5 w-56 max-w-full overflow-hidden rounded-full bg-zinc-200">
-                  <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
                 </div>
               </div>
             </div>
@@ -448,7 +452,7 @@ export function CreateProjectForm({
                 </div>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
-                <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+                <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
               </div>
             </div>
 
@@ -596,7 +600,7 @@ export function CreateProjectForm({
                         </div>
                       ))}
                     </OptionBrowser>
-                    {showValidation && !shape ? <FieldHint tone="error">Choose the option that best matches the work to continue.</FieldHint> : <FieldHint>Pick the closest fit. SaaS, websites, apps, and mixed projects are all covered.</FieldHint>}
+                    {showValidation && !shape ? <FieldHint tone="error">Choose the option that best matches the work to continue.</FieldHint> : <FieldHint>Pick the closest fit. Common choices like SaaS product, web app, website, and something else are all covered.</FieldHint>}
                   </div>
                 ) : null}
 

@@ -27,16 +27,22 @@ export type ReadinessOption = IntakeOption & {
 
 export const PROJECT_SHAPES: IntakeOption[] = [
   {
-    value: "new-product",
-    label: "New website, SaaS product, app, or digital experience",
-    description: "You’re creating something new, or mostly new, for customers, users, or the public.",
-    examples: ["Design and build a new website", "Launch a SaaS MVP or client portal", "Create a first app or digital product"],
+    value: "saas-product",
+    label: "SaaS product",
+    description: "A customer-facing software product, portal, or recurring-use platform that people log into and use over time.",
+    examples: ["Launch a SaaS MVP", "Build a client portal", "Create a multi-user product dashboard"],
   },
   {
-    value: "improve-existing",
-    label: "Improve or expand an existing website, SaaS product, or workflow",
-    description: "You already have a site, app, SaaS product, funnel, or workflow and want to redesign, add to it, or improve it.",
-    examples: ["Refresh an existing website", "Add a new SaaS feature or dashboard", "Improve conversion, UX, or performance"],
+    value: "web-app",
+    label: "Web app",
+    description: "An interactive browser-based app or tool that is more functional than a marketing site, but not necessarily a SaaS product.",
+    examples: ["Internal or client-facing dashboard", "Booking or workflow tool", "Interactive web experience"],
+  },
+  {
+    value: "website",
+    label: "Website",
+    description: "A marketing site, brand site, content site, landing page system, or brochure-style experience for the web.",
+    examples: ["New company website", "Website redesign", "Launch page or content hub"],
   },
   {
     value: "launch-campaign",
@@ -58,9 +64,9 @@ export const PROJECT_SHAPES: IntakeOption[] = [
   },
   {
     value: "hybrid-not-sure",
-    label: "Mixed project or not sure yet",
+    label: "Something else or not sure yet",
     description: "It spans multiple types of work, or you can describe the outcome more easily than the category.",
-    examples: ["Website redesign plus launch support", "Need strategy first, then design/build", "Know the goal, not the exact shape"],
+    examples: ["Website plus launch support", "Need strategy first, then design/build", "Know the goal, not the exact shape"],
     hint: "Best safe option if more than one feels true.",
   },
 ];
@@ -287,7 +293,7 @@ export function getAutoRouteTeamIdsFromIntake(intake: ProjectIntake, teams: Reco
   const needsProductFirst = confidence !== "clear" || ["idea", "planning"].includes(stage) || shape === "research-strategy" || shape === "hybrid-not-sure";
   if (needsProductFirst) selected.add(teams.PRODUCT);
 
-  if (["new-product", "improve-existing", "ops-system"].includes(shape)) {
+  if (["saas-product", "web-app", "website", "ops-system"].includes(shape)) {
     selected.add(teams.ENGINEERING);
   }
 
@@ -295,7 +301,7 @@ export function getAutoRouteTeamIdsFromIntake(intake: ProjectIntake, teams: Reco
     selected.add(teams.MARKETING);
   }
 
-  if (["new-product", "improve-existing", "launch-campaign", "ops-system", "hybrid-not-sure"].includes(shape)) {
+  if (["saas-product", "web-app", "website", "launch-campaign", "ops-system", "hybrid-not-sure"].includes(shape)) {
     selected.add(teams.DESIGN);
   }
 
@@ -323,7 +329,7 @@ export function getRoutingSummary(intake: ProjectIntake) {
     ? "Product"
     : capabilities.includes("growth-marketing") || shape === "launch-campaign"
       ? "Marketing"
-      : capabilities.includes("frontend") || capabilities.includes("backend-data") || shape === "new-product"
+      : capabilities.includes("frontend") || capabilities.includes("backend-data") || ["saas-product", "web-app", "website"].includes(shape)
         ? "Engineering"
         : capabilities.includes("ux-ui")
           ? "Design"

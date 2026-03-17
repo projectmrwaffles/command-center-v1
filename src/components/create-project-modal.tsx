@@ -126,8 +126,8 @@ export function CreateProjectModal({
 
   const docsSection = (
     <div className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-[0_12px_30px_rgba(24,24,27,0.04)]">
-      <div className="mb-2 text-sm font-medium text-zinc-900">Upload docs (optional)</div>
-      <p className="mb-3 text-xs text-zinc-500">PRD PDFs or images. These upload after project creation and stay private in project_docs.</p>
+      <div className="mb-2 text-sm font-medium text-zinc-900">Supporting docs and images</div>
+      <p className="mb-3 text-xs text-zinc-500">Attach PRDs, screenshots, or reference images. They upload after project creation and stay private in project_docs.</p>
 
       {docsError && (
         <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -194,7 +194,7 @@ export function CreateProjectModal({
           <CreateProjectForm
             prefillName={prefillName}
             prefillType={prefillType}
-            reviewSupplement={docsSection}
+            docsSection={docsSection}
             onSubmit={async (data) => {
               const project = await createProject(data);
               const docsResult = await uploadProjectDocs(project.id);

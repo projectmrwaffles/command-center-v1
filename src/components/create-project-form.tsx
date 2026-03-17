@@ -27,10 +27,11 @@ interface CreateProjectFormProps {
   error?: string | null;
   prefillName?: string;
   prefillType?: string;
-  reviewSupplement?: ReactNode;
+  docsSection?: ReactNode;
 }
 
-type FlowStepId = "shape" | "scope" | "signals" | "brief" | "review";
+type IntakeMode = "quick" | "guided";
+type FlowStepId = "mode" | "shape" | "scope" | "signals" | "brief" | "review";
 
 type FlowStep = {
   id: FlowStepId;
@@ -139,41 +140,74 @@ function TinyAnswer({ label, value }: { label: string; value?: string | null }) 
   );
 }
 
-function buildFlow(): FlowStep[] {
+function buildFlow(mode: IntakeMode): FlowStep[] {
+  if (mode === "quick") {
+    return [
+      {
+        id: "mode",
+        eyebrow: "Choose your path",
+        title: "Start with the easiest version",
+        description: "Use Quick brief if you mostly want to describe the work in your own words and attach context. Switch to Guided setup anytime if you want finer control.",
+        helper: "Most people should start with Quick brief.",
+      },
+      {
+        id: "brief",
+        eyebrow: "Quick brief",
+        title: "What are you trying to make happen?",
+        description: "Name it, describe it naturally, and attach any supporting docs or screenshots. We’ll route it safely even if the details are still fuzzy.",
+        helper: "Plain language is enough.",
+      },
+      {
+        id: "review",
+        eyebrow: "Final review",
+        title: "Quick check before we create it",
+        description: "You can keep the lightweight defaults or refine routing if you want more control.",
+        helper: "Defaults bias toward safe triage.",
+      },
+    ];
+  }
+
   return [
     {
+      id: "mode",
+      eyebrow: "Choose your path",
+      title: "Start with the easiest version",
+      description: "Quick brief is faster and more forgiving. Guided setup adds a few structured signals for tighter routing.",
+      helper: "Switch paths anytime before submitting.",
+    },
+    {
       id: "shape",
-      eyebrow: "Start here",
+      eyebrow: "Project shape",
       title: "What kind of project is this?",
-      description: "Pick the closest shape. We’ll keep the rest short and adapt from there.",
+      description: "Pick the closest shape. We’ll recommend the likely team path from there.",
       helper: "One choice is enough to get started.",
     },
     {
       id: "scope",
       eyebrow: "Readiness",
       title: "How ready is this, and how clear is the path?",
-      description: "These two answers tell us whether to route toward discovery, design, or execution.",
+      description: "These answers help us tell discovery apart from design and execution.",
       helper: "Choose the closest fit for both.",
     },
     {
       id: "signals",
       eyebrow: "Team signals",
       title: "What kind of help does this need?",
-      description: "We’ve preselected the likely help based on your project shape. Adjust only what matters.",
+      description: "We preselect the most likely capabilities. Adjust only what materially changes the route.",
       helper: "Capabilities are required. Context is optional.",
     },
     {
       id: "brief",
-      eyebrow: "A few details",
-      title: "Name it and add anything useful",
-      description: "A working name is required. Notes and links are optional if they help the receiving team move faster.",
+      eyebrow: "Project brief",
+      title: "Name it and add supporting context",
+      description: "A working name is required. Notes, links, and uploads help the receiving team move faster.",
       helper: "Keep it light. You can refine later.",
     },
     {
       id: "review",
       eyebrow: "Final review",
       title: "Quick check before we create it",
-      description: "This is the only review step. Routing and submission behavior stay the same.",
+      description: "This is the only review step. Submission and routing behavior stay the same.",
       helper: "Go back if anything feels off.",
     },
   ];
@@ -219,24 +253,32 @@ function getRecommendedSelections(shape: string) {
   }
 }
 
-function getStepValidity(stepId: FlowStepId, state: {
-  name: string;
-  shape: string;
-  context: string[];
-  capabilities: string[];
-  stage: string;
-  confidence: string;
-}) {
+function getStepValidity(
+  stepId: FlowStepId,
+  mode: IntakeMode,
+  state: {
+    name: string;
+    shape: string;
+    context: string[];
+    capabilities: string[];
+    stage: string;
+    confidence: string;
+    goals: string;
+  }
+) {
   switch (stepId) {
+    case "mode":
+      return true;
     case "shape":
-      return Boolean(state.shape);
+      return mode === "quick" ? true : Boolean(state.shape);
     case "scope":
-      return Boolean(state.stage && state.confidence);
+      return mode === "quick" ? true : Boolean(state.stage && state.confidence);
     case "signals":
-      return state.capabilities.length > 0;
+      return mode === "quick" ? true : state.capabilities.length > 0;
     case "brief":
+      return Boolean(state.name.trim()) && (mode === "guided" || Boolean(state.goals.trim()));
     case "review":
-      return Boolean(state.name.trim());
+      return Boolean(state.name.trim()) && (mode === "guided" || Boolean(state.goals.trim()));
     default:
       return false;
   }
@@ -248,22 +290,30 @@ export function CreateProjectForm({
   isSubmitting,
   error,
   prefillName,
-  reviewSupplement,
+  docsSection,
 }: CreateProjectFormProps) {
+  const [mode, setMode] = useState<IntakeMode>("quick");
   const [name, setName] = useState(prefillName || "");
-  const [shape, setShape] = useState("");
+  const [shape, setShape] = useState("hybrid-not-sure");
   const [context, setContext] = useState<string[]>([]);
-  const [capabilities, setCapabilities] = useState<string[]>([]);
-  const [stage, setStage] = useState("");
-  const [confidence, setConfidence] = useState("");
+  const [capabilities, setCapabilities] = useState<string[]>(["strategy"]);
+  const [stage, setStage] = useState("idea");
+  const [confidence, setConfidence] = useState("not-sure");
   const [goals, setGoals] = useState("");
   const [links, setLinks] = useState<ProjectLinks>({});
+  const [showAdvancedQuickRouting, setShowAdvancedQuickRouting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
 
   useEffect(() => {
     if (prefillName) setName(prefillName);
   }, [prefillName]);
+
+  const flow = useMemo(() => buildFlow(mode), [mode]);
+
+  useEffect(() => {
+    setCurrentStep((step) => Math.min(step, flow.length - 1));
+  }, [flow.length]);
 
   const intake = useMemo<ProjectIntake>(
     () => ({
@@ -281,26 +331,19 @@ export function CreateProjectForm({
   );
 
   const routing = useMemo(() => getRoutingSummary(intake), [intake]);
-  const flow = useMemo(() => buildFlow(), []);
   const activeStep = flow[currentStep];
   const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
-
-  const stateForValidity = { name, shape, context, capabilities, stage, confidence };
-  const currentStepValid = getStepValidity(activeStep.id, stateForValidity);
-  const completedCount = flow.filter((step) => getStepValidity(step.id, stateForValidity)).length;
-  const progress = Math.max(10, Math.round((completedCount / flow.length) * 100));
+  const stateForValidity = { name, shape, context, capabilities, stage, confidence, goals };
+  const currentStepValid = getStepValidity(activeStep.id, mode, stateForValidity);
+  const completedCount = flow.filter((step) => getStepValidity(step.id, mode, stateForValidity)).length;
+  const progress = Math.max(12, Math.round((completedCount / flow.length) * 100));
   const furthestUnlockedIndex = Math.min(
-    flow.findIndex((step) => !getStepValidity(step.id, stateForValidity)) === -1
+    flow.findIndex((step) => !getStepValidity(step.id, mode, stateForValidity)) === -1
       ? flow.length - 1
-      : flow.findIndex((step) => !getStepValidity(step.id, stateForValidity)),
+      : flow.findIndex((step) => !getStepValidity(step.id, mode, stateForValidity)),
     flow.length - 1
   );
-
-  useEffect(() => {
-    if (currentStep > flow.length - 1) {
-      setCurrentStep(flow.length - 1);
-    }
-  }, [currentStep, flow.length]);
+  const recommended = getRecommendedSelections(shape);
 
   const toggleValue = (current: string[], value: string) =>
     current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -332,11 +375,24 @@ export function CreateProjectForm({
     advance();
   };
 
+  const switchMode = (nextMode: IntakeMode) => {
+    setMode(nextMode);
+    setShowValidation(false);
+    setCurrentStep(0);
+
+    if (nextMode === "quick") {
+      if (!shape) setShape("hybrid-not-sure");
+      if (!stage) setStage("idea");
+      if (!confidence) setConfidence("not-sure");
+      if (capabilities.length === 0) setCapabilities(["strategy"]);
+    }
+  };
+
   const handleShapeChoice = (value: string) => {
     setShape(value);
-    const recommended = getRecommendedSelections(value);
-    setContext((current) => (current.length === 0 ? recommended.context : current));
-    setCapabilities((current) => (current.length === 0 ? recommended.capabilities : current));
+    const nextRecommended = getRecommendedSelections(value);
+    setContext((current) => (current.length === 0 ? nextRecommended.context : current));
+    setCapabilities((current) => (current.length === 0 ? nextRecommended.capabilities : current));
     setShowValidation(false);
     window.setTimeout(() => {
       setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
@@ -346,8 +402,8 @@ export function CreateProjectForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const requiredSteps: FlowStepId[] = ["shape", "scope", "signals", "brief"];
-    const firstInvalidIndex = flow.findIndex((step) => requiredSteps.includes(step.id) && !getStepValidity(step.id, stateForValidity));
+    const requiredSteps: FlowStepId[] = mode === "quick" ? ["brief"] : ["shape", "scope", "signals", "brief"];
+    const firstInvalidIndex = flow.findIndex((step) => requiredSteps.includes(step.id) && !getStepValidity(step.id, mode, stateForValidity));
 
     if (firstInvalidIndex !== -1) {
       setCurrentStep(firstInvalidIndex);
@@ -365,7 +421,6 @@ export function CreateProjectForm({
   };
 
   const stepCounter = `${currentStep + 1} of ${flow.length}`;
-  const recommended = getRecommendedSelections(shape);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -376,12 +431,12 @@ export function CreateProjectForm({
           <div className="border-b border-zinc-100 pb-3 sm:pb-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="hidden max-w-2xl sm:block">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Guided intake</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">{mode === "quick" ? "Quick brief" : "Guided setup"}</p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  Fewer steps. Clearer choices.
+                  Easier intake, without losing the routing signal.
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Start with the project shape, confirm readiness, then adjust the recommended team signals before review.
+                  Start with a natural brief and supporting docs, or switch to the guided path if you want tighter control over how the work is framed.
                 </p>
               </div>
 
@@ -398,7 +453,7 @@ export function CreateProjectForm({
 
             <div className="space-y-2.5 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">Guided intake</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">{mode === "quick" ? "Quick brief" : "Guided setup"}</p>
                 <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                   {stepCounter}
                 </div>
@@ -406,16 +461,12 @@ export function CreateProjectForm({
               <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
                 <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
               </div>
-              <div className="flex items-start justify-between gap-3 text-xs">
-                <p className="min-w-0 truncate font-medium uppercase tracking-[0.2em] text-zinc-500">{activeStep.eyebrow}</p>
-                {flow[currentStep + 1] ? <p className="shrink-0 text-zinc-400">Up next: {flow[currentStep + 1]?.title}</p> : null}
-              </div>
             </div>
 
             <div className="mt-5 hidden -mx-1 snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
               {flow.map((step, index) => {
                 const isActive = index === currentStep;
-                const isCompleted = getStepValidity(step.id, stateForValidity);
+                const isCompleted = getStepValidity(step.id, mode, stateForValidity);
                 const isReachable = index <= furthestUnlockedIndex;
 
                 return isReachable ? (
@@ -481,6 +532,66 @@ export function CreateProjectForm({
               <div className="mt-3 text-sm leading-6 text-zinc-600 sm:hidden">{activeStep.description}</div>
 
               <div className="mt-6">
+                {activeStep.id === "mode" ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => switchMode("quick")}
+                        className={cn(
+                          "rounded-[28px] border p-5 text-left transition-all",
+                          mode === "quick"
+                            ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
+                            : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold text-zinc-950">Quick brief</p>
+                            <p className="mt-2 text-sm leading-6 text-zinc-600">Just name it, describe what you’re thinking, and attach supporting docs or screenshots.</p>
+                          </div>
+                          <div className={cn("h-6 w-6 rounded-full border", mode === "quick" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Fastest path</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Natural language</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Docs + images</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => switchMode("guided")}
+                        className={cn(
+                          "rounded-[28px] border p-5 text-left transition-all",
+                          mode === "guided"
+                            ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
+                            : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold text-zinc-950">Guided setup</p>
+                            <p className="mt-2 text-sm leading-6 text-zinc-600">Answer a few structured questions for more precise routing before the project is created.</p>
+                          </div>
+                          <div className={cn("h-6 w-6 rounded-full border", mode === "guided" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">More control</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Team signals</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Still lightweight</span>
+                        </div>
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+                      {mode === "quick"
+                        ? "Quick brief will safely default to Product-led triage unless you choose to refine routing later."
+                        : "Guided setup uses shape, readiness, and capabilities to tighten the initial route before submission."}
+                    </div>
+                  </div>
+                ) : null}
+
                 {activeStep.id === "shape" ? (
                   <div className="space-y-4">
                     <OptionBrowser columns={2}>
@@ -651,43 +762,122 @@ export function CreateProjectForm({
                       )}
                     </section>
 
-                    {name.trim() ? (
-                      <>
-                        <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
-                          <div>
-                            <h4 className="text-sm font-semibold text-zinc-900">Optional notes</h4>
-                            <p className="mt-1 text-sm text-zinc-500">Goals, constraints, urgency, or anything the team should know on day one.</p>
-                          </div>
-                          <textarea
-                            value={goals}
-                            onChange={(e) => setGoals(e.target.value)}
-                            rows={5}
-                            className="mt-4 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                            placeholder="Example: We need something client-ready in 2 weeks. It should feel premium, work beautifully on mobile, and eventually connect to HubSpot."
-                          />
-                        </section>
+                    <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold text-zinc-900">{mode === "quick" ? "What are you thinking?" : "Optional notes"}</h4>
+                          <p className="mt-1 text-sm text-zinc-500">
+                            {mode === "quick"
+                              ? "Describe the goal, problem, urgency, constraints, or desired outcome in plain language."
+                              : "Goals, constraints, urgency, or anything the team should know on day one."}
+                          </p>
+                        </div>
+                        {mode === "quick" ? <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">Required in Quick brief</div> : null}
+                      </div>
+                      <textarea
+                        value={goals}
+                        onChange={(e) => {
+                          setGoals(e.target.value);
+                          setShowValidation(false);
+                        }}
+                        rows={mode === "quick" ? 7 : 5}
+                        className="mt-4 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                        placeholder={mode === "quick" ? "Example: We need a cleaner new project intake that feels easier. The current flow has too many decisions up front. I want a simple way to describe the need, upload a PRD and screenshots, and still route it to the right teams." : "Example: We need something client-ready in 2 weeks. It should feel premium, work beautifully on mobile, and eventually connect to HubSpot."}
+                      />
+                      {mode === "quick" ? (
+                        showValidation && !goals.trim() ? <FieldHint tone="error">Add a short natural-language brief so the team has real context.</FieldHint> : <FieldHint>Two or three sentences is enough.</FieldHint>
+                      ) : null}
+                    </section>
 
-                        <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
+                    {docsSection ? <section>{docsSection}</section> : null}
+
+                    <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-zinc-900">Optional links</h4>
+                        <p className="mt-1 text-sm text-zinc-500">Add anything that gives the receiving team fast context.</p>
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        {PROJECT_LINK_FIELDS.map((key) => (
+                          <label key={key} className="block">
+                            <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+                            <input
+                              type="url"
+                              value={links[key] || ""}
+                              onChange={(e) => handleLinkChange(key, e.target.value)}
+                              className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                              placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </section>
+
+                    {mode === "quick" ? (
+                      <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <h4 className="text-sm font-semibold text-zinc-900">Optional links</h4>
-                            <p className="mt-1 text-sm text-zinc-500">Add anything that gives the receiving team fast context.</p>
+                            <h4 className="text-sm font-semibold text-zinc-900">Routing defaults</h4>
+                            <p className="mt-1 text-sm text-zinc-500">We’ll safely route this as discovery-first unless you want to refine it.</p>
                           </div>
-                          <div className="mt-4 grid gap-3 md:grid-cols-2">
-                            {PROJECT_LINK_FIELDS.map((key) => (
-                              <label key={key} className="block">
-                                <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-                                <input
-                                  type="url"
-                                  value={links[key] || ""}
-                                  onChange={(e) => handleLinkChange(key, e.target.value)}
-                                  className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                                  placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
-                                />
+                          <button
+                            type="button"
+                            onClick={() => setShowAdvancedQuickRouting((current) => !current)}
+                            className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400"
+                          >
+                            {showAdvancedQuickRouting ? "Hide routing controls" : "Refine routing"}
+                          </button>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Shape: {PROJECT_SHAPES.find((item) => item.value === shape)?.label}</span>
+                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Stage: {PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
+                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Clarity: {CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
+                        </div>
+
+                        {showAdvancedQuickRouting ? (
+                          <div className="mt-5 space-y-5">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block">
+                                <span className="mb-1 block text-sm font-medium text-zinc-700">Project shape</span>
+                                <select
+                                  value={shape}
+                                  onChange={(e) => setShape(e.target.value)}
+                                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                >
+                                  {PROJECT_SHAPES.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                  ))}
+                                </select>
                               </label>
-                            ))}
+                              <label className="block">
+                                <span className="mb-1 block text-sm font-medium text-zinc-700">Current stage</span>
+                                <select
+                                  value={stage}
+                                  onChange={(e) => setStage(e.target.value)}
+                                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                >
+                                  {PROJECT_STAGES.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+
+                            <label className="block">
+                              <span className="mb-1 block text-sm font-medium text-zinc-700">Path clarity</span>
+                              <select
+                                value={confidence}
+                                onChange={(e) => setConfidence(e.target.value)}
+                                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                              >
+                                {CONFIDENCE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                            </label>
                           </div>
-                        </section>
-                      </>
+                        ) : null}
+                      </section>
                     ) : null}
                   </div>
                 ) : null}
@@ -698,8 +888,8 @@ export function CreateProjectForm({
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Routing preview</p>
-                          <h4 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950">{name.trim()}</h4>
-                          <p className="mt-2 text-sm leading-6 text-zinc-600">{intake.summary}</p>
+                          <h4 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950">{name.trim() || "Untitled project"}</h4>
+                          <p className="mt-2 text-sm leading-6 text-zinc-600">{goals.trim() || intake.summary}</p>
                         </div>
                         <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-zinc-600 shadow-sm">
                           <div className="flex items-center justify-between gap-4">
@@ -718,8 +908,12 @@ export function CreateProjectForm({
 
                     <section className="grid gap-4 lg:grid-cols-2">
                       <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
-                        <p className="text-sm font-semibold text-zinc-900">Selections</p>
+                        <p className="text-sm font-semibold text-zinc-900">Intake summary</p>
                         <dl className="mt-4 space-y-4 text-sm text-zinc-600">
+                          <div>
+                            <dt className="font-medium text-zinc-900">Path</dt>
+                            <dd className="mt-1">{mode === "quick" ? "Quick brief" : "Guided setup"}</dd>
+                          </div>
                           <div>
                             <dt className="font-medium text-zinc-900">Project shape</dt>
                             <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
@@ -727,12 +921,8 @@ export function CreateProjectForm({
                           <div>
                             <dt className="font-medium text-zinc-900">Stage + clarity</dt>
                             <dd className="mt-2 flex flex-wrap gap-2">
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
-                                {PROJECT_STAGES.find((item) => item.value === stage)?.label}
-                              </span>
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
-                                {CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}
-                              </span>
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
                             </dd>
                           </div>
                           <div>
@@ -786,8 +976,6 @@ export function CreateProjectForm({
                         </div>
                       </div>
                     </section>
-
-                    {reviewSupplement ? <section>{reviewSupplement}</section> : null}
                   </div>
                 ) : null}
               </div>
@@ -797,12 +985,16 @@ export function CreateProjectForm({
                   {activeStep.id === "review"
                     ? "Final check. Creating the project keeps the same routing and submission behavior."
                     : activeStep.id === "brief"
-                      ? "Add a working name, then review everything at the end."
+                      ? mode === "quick"
+                        ? "Tell us what you want, attach context if you have it, and we’ll handle the rest."
+                        : "Add a working name and any supporting context, then review everything once at the end."
                       : activeStep.id === "signals"
                         ? "Use the recommended signals as a starting point, then keep moving."
                         : activeStep.id === "scope"
                           ? "Answer both readiness questions, then continue."
-                          : "Pick the closest shape and we’ll prefill the likely path."}
+                          : activeStep.id === "shape"
+                            ? "Pick the closest shape and we’ll prefill the likely path."
+                            : "Choose the intake path that feels easiest. You can switch anytime before submitting."}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
@@ -817,7 +1009,7 @@ export function CreateProjectForm({
                   {activeStep.id === "review" ? (
                     <button
                       type="submit"
-                      disabled={isSubmitting || !name.trim()}
+                      disabled={isSubmitting || !name.trim() || (mode === "quick" && !goals.trim())}
                       className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSubmitting ? "Creating..." : "Confirm and create project"}
@@ -826,13 +1018,21 @@ export function CreateProjectForm({
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
                       Choose the best-fit option below to continue
                     </div>
+                  ) : activeStep.id === "brief" && mode === "quick" ? (
+                    <button
+                      type="button"
+                      onClick={requireAndAdvance}
+                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+                    >
+                      Review project
+                    </button>
                   ) : (
                     <button
                       type="button"
                       onClick={requireAndAdvance}
                       className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
                     >
-                      {activeStep.id === "brief" ? "Review project" : "Continue"}
+                      Continue
                     </button>
                   )}
                 </div>
@@ -848,9 +1048,7 @@ export function CreateProjectForm({
             </p>
             <h4 className="mt-3 text-xl font-semibold tracking-tight">{name.trim() || "Untitled project"}</h4>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              {shape || stage || capabilities.length > 0
-                ? intake.summary
-                : "Choose the project shape first. The summary will build itself as you answer."}
+              {goals.trim() || (shape || stage || capabilities.length > 0 ? intake.summary : "Start with a quick brief or guided setup. The summary will build itself as you answer.")}
             </p>
             <div className="mt-5 space-y-3 text-sm text-zinc-300">
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
@@ -861,29 +1059,25 @@ export function CreateProjectForm({
                 <span className="text-zinc-400">QC</span>
                 <span className="font-medium text-white">{routing.qcTeam}</span>
               </div>
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "scope") ? (
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                  <span className="text-zinc-400">Stage</span>
-                  <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
-                </div>
-              ) : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "scope") ? (
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                  <span className="text-zinc-400">Confidence</span>
-                  <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
-                </div>
-              ) : null}
+              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
+                <span className="text-zinc-400">Stage</span>
+                <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
+                <span className="text-zinc-400">Confidence</span>
+                <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
+              </div>
             </div>
           </section>
 
           <section className="rounded-[28px] border border-zinc-200 bg-white p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Current path</p>
             <div className="mt-4 space-y-3">
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "shape") ? <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "scope") ? <TinyAnswer label="Scope" value={stage && confidence ? "Set" : undefined} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "signals") ? <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "signals") ? <TinyAnswer label="Context" value={context.length ? `${context.length} selected` : "Optional"} /> : null}
-              {furthestUnlockedIndex >= flow.findIndex((item) => item.id === "brief") ? <TinyAnswer label="Brief" value={name.trim() ? "Named and ready" : undefined} /> : null}
+              <TinyAnswer label="Mode" value={mode === "quick" ? "Quick brief" : "Guided setup"} />
+              <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
+              <TinyAnswer label="Scope" value={stage && confidence ? "Set" : undefined} />
+              <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />
+              <TinyAnswer label="Brief" value={name.trim() ? (goals.trim() ? "Named and described" : "Named") : undefined} />
             </div>
           </section>
         </aside>

@@ -31,7 +31,7 @@ interface CreateProjectFormProps {
 }
 
 type IntakeMode = "quick" | "guided";
-type FlowStepId = "mode" | "shape" | "scope" | "signals" | "brief" | "review";
+type FlowStepId = "mode" | "shape" | "brief" | "review";
 
 type FlowStep = {
   id: FlowStepId;
@@ -147,14 +147,14 @@ function buildFlow(mode: IntakeMode): FlowStep[] {
         id: "mode",
         eyebrow: "Choose your path",
         title: "Start with the easiest version",
-        description: "Use Quick brief if you mostly want to describe the work in your own words and attach context. Switch to Guided setup anytime if you want finer control.",
+        description: "Use Quick brief if you mostly want to describe the work in your own words and attach context. Switch to Guided setup anytime if you want a bit more structure.",
         helper: "Most people should start with Quick brief.",
       },
       {
         id: "brief",
         eyebrow: "Quick brief",
-        title: "What are you trying to make happen?",
-        description: "Name it, describe it naturally, and attach any supporting docs or screenshots. We’ll route it safely even if the details are still fuzzy.",
+        title: "What do you need help with?",
+        description: "Name it, explain it naturally, and attach any helpful docs or screenshots. We’ll route it safely even if the details are still fuzzy.",
         helper: "Plain language is enough.",
       },
       {
@@ -172,36 +172,22 @@ function buildFlow(mode: IntakeMode): FlowStep[] {
       id: "mode",
       eyebrow: "Choose your path",
       title: "Start with the easiest version",
-      description: "Quick brief is faster and more forgiving. Guided setup adds a few structured signals for tighter routing.",
+      description: "Quick brief is fastest. Guided setup keeps the same routing logic, but boils it down to one primary choice and one short brief.",
       helper: "Switch paths anytime before submitting.",
     },
     {
       id: "shape",
-      eyebrow: "Project shape",
-      title: "What kind of project is this?",
-      description: "Pick the closest shape. We’ll recommend the likely team path from there.",
-      helper: "One choice is enough to get started.",
-    },
-    {
-      id: "scope",
-      eyebrow: "Readiness",
-      title: "Where is this work right now?",
-      description: "Pick the closest starting point. We’ll translate it into the routing signal behind the scenes.",
-      helper: "One natural choice is enough.",
-    },
-    {
-      id: "signals",
-      eyebrow: "Team signals",
-      title: "What kind of help does this need?",
-      description: "We preselect the most likely capabilities. Adjust only what materially changes the route.",
-      helper: "Capabilities are required. Context is optional.",
+      eyebrow: "Project type",
+      title: "What best matches this work?",
+      description: "Pick the closest option. We’ll prefill the likely route and keep the rest lightweight.",
+      helper: "One choice is enough to keep moving.",
     },
     {
       id: "brief",
       eyebrow: "Project brief",
-      title: "Name it and add supporting context",
-      description: "A working name is required. Notes, links, and uploads help the receiving team move faster.",
-      helper: "Keep it light. You can refine later.",
+      title: "Name it and add the essentials",
+      description: "Add a working name, a short description, and any supporting files. Fine-tune routing only if it really matters.",
+      helper: "Most people can leave the routing defaults alone.",
     },
     {
       id: "review",
@@ -271,10 +257,6 @@ function getStepValidity(
       return true;
     case "shape":
       return mode === "quick" ? true : Boolean(state.shape);
-    case "scope":
-      return mode === "quick" ? true : Boolean(getReadinessOption(state.stage, state.confidence));
-    case "signals":
-      return mode === "quick" ? true : state.capabilities.length > 0;
     case "brief":
       return Boolean(state.name.trim()) && (mode === "guided" || Boolean(state.goals.trim()));
     case "review":
@@ -302,6 +284,7 @@ export function CreateProjectForm({
   const [goals, setGoals] = useState("");
   const [links, setLinks] = useState<ProjectLinks>({});
   const [showAdvancedQuickRouting, setShowAdvancedQuickRouting] = useState(false);
+  const [showAdvancedGuidedRouting, setShowAdvancedGuidedRouting] = useState(false);
   const [showOptionalLinks, setShowOptionalLinks] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
@@ -404,7 +387,7 @@ export function CreateProjectForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const requiredSteps: FlowStepId[] = mode === "quick" ? ["brief"] : ["shape", "scope", "signals", "brief"];
+    const requiredSteps: FlowStepId[] = mode === "quick" ? ["brief"] : ["shape", "brief"];
     const firstInvalidIndex = flow.findIndex((step) => requiredSteps.includes(step.id) && !getStepValidity(step.id, mode, stateForValidity));
 
     if (firstInvalidIndex !== -1) {
@@ -615,107 +598,6 @@ export function CreateProjectForm({
                   </div>
                 ) : null}
 
-                {activeStep.id === "scope" ? (
-                  <div className="space-y-6">
-                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-4">
-                      <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">Project readiness</h4>
-                        <p className="mt-1 text-sm text-zinc-500">Choose the closest fit. This replaces the old stage + clarity combo with one cleaner decision.</p>
-                      </div>
-                      <OptionBrowser columns={1}>
-                        {READINESS_OPTIONS.map((option) => (
-                          <div key={option.value} className="w-full max-w-full md:w-auto">
-                            <SelectionCard
-                              selected={readiness?.value === option.value}
-                              label={option.label}
-                              description={option.description}
-                              examples={option.examples}
-                              compact
-                              onClick={() => {
-                                setStage(option.stage);
-                                setConfidence(option.confidence);
-                                setShowValidation(false);
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </OptionBrowser>
-                      {showValidation && !readiness ? <FieldHint tone="error">Choose the project readiness.</FieldHint> : null}
-                    </section>
-                  </div>
-                ) : null}
-
-                {activeStep.id === "signals" ? (
-                  <div className="space-y-6">
-                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <h4 className="text-sm font-semibold text-zinc-900">Capabilities needed</h4>
-                          <p className="mt-1 text-sm text-zinc-500">Start with the preselected help, then add or remove only what materially changes the route.</p>
-                        </div>
-                        {shape ? (
-                          <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
-                            Recommended from {PROJECT_SHAPES.find((item) => item.value === shape)?.label}
-                          </div>
-                        ) : null}
-                      </div>
-                      <OptionBrowser columns={2}>
-                        {PROJECT_CAPABILITIES.map((option) => {
-                          const isRecommended = recommended.capabilities.includes(option.value);
-                          return (
-                            <div key={option.value} className="w-full max-w-full md:w-auto">
-                              <SelectionCard
-                                selected={capabilities.includes(option.value)}
-                                label={option.label}
-                                description={option.description}
-                                examples={option.examples}
-                                hint={isRecommended ? "Recommended starting point" : undefined}
-                                multi
-                                compact
-                                onClick={() => {
-                                  setCapabilities(toggleValue(capabilities, option.value));
-                                  setShowValidation(false);
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
-                      </OptionBrowser>
-                      {showValidation && capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability.</FieldHint> : null}
-                    </section>
-
-                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-white p-4">
-                      <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">Context</h4>
-                        <p className="mt-1 text-sm text-zinc-500">Optional. Add context only if it changes how the team should approach the work.</p>
-                      </div>
-                      <OptionBrowser columns={2}>
-                        {PROJECT_CONTEXTS.map((option) => {
-                          const isRecommended = recommended.context.includes(option.value);
-                          return (
-                            <div key={option.value} className="w-full max-w-full md:w-auto">
-                              <SelectionCard
-                                selected={context.includes(option.value)}
-                                label={option.label}
-                                description={option.description}
-                                examples={option.examples}
-                                hint={isRecommended ? "Common for this project shape" : undefined}
-                                multi
-                                compact
-                                onClick={() => {
-                                  setContext(toggleValue(context, option.value));
-                                  setShowValidation(false);
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
-                      </OptionBrowser>
-                      <FieldHint>Leaving context blank is okay. The route is driven mostly by shape, readiness, and capabilities.</FieldHint>
-                    </section>
-                  </div>
-                ) : null}
-
                 {activeStep.id === "brief" ? (
                   <div className="space-y-6">
                     <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
@@ -766,6 +648,126 @@ export function CreateProjectForm({
                         showValidation && !goals.trim() ? <FieldHint tone="error">Add a short natural-language brief so the team has real context.</FieldHint> : <FieldHint>Two or three sentences is enough.</FieldHint>
                       ) : null}
                     </section>
+
+                    {mode === "guided" ? (
+                      <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold text-zinc-900">Routing details</h4>
+                            <p className="mt-1 text-sm text-zinc-500">We already set a sensible starting route from your project type. Open this only if the default needs adjustment.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowAdvancedGuidedRouting((current) => !current)}
+                            className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400"
+                          >
+                            {showAdvancedGuidedRouting ? "Hide routing details" : "Fine-tune routing"}
+                          </button>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Readiness: {readiness?.label}</span>
+                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Capabilities: {capabilities.length}</span>
+                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Context: {context.length || 0}</span>
+                        </div>
+
+                        {showAdvancedGuidedRouting ? (
+                          <div className="mt-5 space-y-6">
+                            <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
+                              <div>
+                                <h5 className="text-sm font-semibold text-zinc-900">Readiness</h5>
+                                <p className="mt-1 text-sm text-zinc-500">Pick the closest fit.</p>
+                              </div>
+                              <OptionBrowser columns={1}>
+                                {READINESS_OPTIONS.map((option) => (
+                                  <div key={option.value} className="w-full max-w-full md:w-auto">
+                                    <SelectionCard
+                                      selected={readiness?.value === option.value}
+                                      label={option.label}
+                                      description={option.description}
+                                      examples={option.examples}
+                                      compact
+                                      onClick={() => {
+                                        setStage(option.stage);
+                                        setConfidence(option.confidence);
+                                        setShowValidation(false);
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </OptionBrowser>
+                            </section>
+
+                            <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                  <h5 className="text-sm font-semibold text-zinc-900">Capabilities needed</h5>
+                                  <p className="mt-1 text-sm text-zinc-500">Start with the preselected help, then change only what materially affects the route.</p>
+                                </div>
+                                {shape ? (
+                                  <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                                    Suggested from {PROJECT_SHAPES.find((item) => item.value === shape)?.label}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <OptionBrowser columns={2}>
+                                {PROJECT_CAPABILITIES.map((option) => {
+                                  const isRecommended = recommended.capabilities.includes(option.value);
+                                  return (
+                                    <div key={option.value} className="w-full max-w-full md:w-auto">
+                                      <SelectionCard
+                                        selected={capabilities.includes(option.value)}
+                                        label={option.label}
+                                        description={option.description}
+                                        examples={option.examples}
+                                        hint={isRecommended ? "Suggested starting point" : undefined}
+                                        multi
+                                        compact
+                                        onClick={() => {
+                                          setCapabilities(toggleValue(capabilities, option.value));
+                                          setShowValidation(false);
+                                        }}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </OptionBrowser>
+                              {capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability before submitting.</FieldHint> : null}
+                            </section>
+
+                            <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
+                              <div>
+                                <h5 className="text-sm font-semibold text-zinc-900">Context</h5>
+                                <p className="mt-1 text-sm text-zinc-500">Optional. Add context only if it changes how the team should approach the work.</p>
+                              </div>
+                              <OptionBrowser columns={2}>
+                                {PROJECT_CONTEXTS.map((option) => {
+                                  const isRecommended = recommended.context.includes(option.value);
+                                  return (
+                                    <div key={option.value} className="w-full max-w-full md:w-auto">
+                                      <SelectionCard
+                                        selected={context.includes(option.value)}
+                                        label={option.label}
+                                        description={option.description}
+                                        examples={option.examples}
+                                        hint={isRecommended ? "Common for this type" : undefined}
+                                        multi
+                                        compact
+                                        onClick={() => {
+                                          setContext(toggleValue(context, option.value));
+                                          setShowValidation(false);
+                                        }}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </OptionBrowser>
+                              <FieldHint>Leaving context blank is okay.</FieldHint>
+                            </section>
+                          </div>
+                        ) : null}
+                      </section>
+                    ) : null}
 
                     {docsSection ? <section>{docsSection}</section> : null}
 
@@ -970,14 +972,10 @@ export function CreateProjectForm({
                     : activeStep.id === "brief"
                       ? mode === "quick"
                         ? "Tell us what you want, attach context if you have it, and we’ll handle the rest."
-                        : "Add a working name and any supporting context, then review everything once at the end."
-                      : activeStep.id === "signals"
-                        ? "Use the recommended signals as a starting point, then keep moving."
-                        : activeStep.id === "scope"
-                          ? "Pick the closest readiness and continue."
-                          : activeStep.id === "shape"
-                            ? "Pick the closest shape and we’ll prefill the likely path."
-                            : "Choose the intake path that feels easiest. You can switch anytime before submitting."}
+                        : "Add a working name, a short brief, and only fine-tune routing if the default looks off."
+                      : activeStep.id === "shape"
+                        ? "Pick the closest shape and we’ll prefill the likely path."
+                        : "Choose the intake path that feels easiest. You can switch anytime before submitting."}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
@@ -992,7 +990,7 @@ export function CreateProjectForm({
                   {activeStep.id === "review" ? (
                     <button
                       type="submit"
-                      disabled={isSubmitting || !name.trim() || (mode === "quick" && !goals.trim())}
+                      disabled={isSubmitting || !name.trim() || (mode === "quick" && !goals.trim()) || (mode === "guided" && capabilities.length === 0)}
                       className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSubmitting ? "Creating..." : "Confirm and create project"}

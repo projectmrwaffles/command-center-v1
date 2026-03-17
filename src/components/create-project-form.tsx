@@ -179,9 +179,9 @@ function buildFlow(mode: IntakePath): FlowStep[] {
     {
       id: "shape",
       eyebrow: "Project type",
-      title: "What kind of work is this closest to?",
-      description: "Choose the closest match. We’ll use it to suggest a sensible route without making the rest of the form heavier.",
-      helper: "Pick the nearest fit and keep moving.",
+      title: "What are you asking us to make or improve?",
+      description: "Pick the option that sounds most like the job. It helps us suggest the right starting route without turning this into a long intake.",
+      helper: "Choose the closest fit — it doesn’t have to be exact.",
     },
     {
       id: "brief",
@@ -596,7 +596,7 @@ export function CreateProjectForm({
                         </div>
                       ))}
                     </OptionBrowser>
-                    {showValidation && !shape ? <FieldHint tone="error">Choose the closest project type to continue.</FieldHint> : <FieldHint>Pick the nearest fit. It does not need to be perfect.</FieldHint>}
+                    {showValidation && !shape ? <FieldHint tone="error">Choose the option that best matches the work to continue.</FieldHint> : <FieldHint>Pick the closest fit. We’ll handle nuance in the brief.</FieldHint>}
                   </div>
                 ) : null}
 

@@ -508,9 +508,12 @@ export default function ProjectDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {routing ? (
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
-                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
+                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
+                  </div>
+                  <p className="text-sm text-zinc-500">{routing.rationale}</p>
                 </div>
               ) : null}
 

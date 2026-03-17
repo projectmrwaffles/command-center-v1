@@ -268,11 +268,68 @@ export function legacyTypeToLabel(type?: string | null) {
   }
 }
 
+function inferReadinessLabel(stage?: string, confidence?: string) {
+  const exact = getReadinessOption(stage, confidence);
+  if (exact) return exact.label;
+  if (stage === "idea") return "Early discovery";
+  if (stage === "planning") return "Needs shaping";
+  if (stage === "ready-to-design") return "Ready for design";
+  if (stage === "ready-to-build") return confidence === "not-sure" ? "Build soon, needs alignment" : "Ready to start";
+  if (stage === "already-live") return "Already underway";
+  return stage ? formatIntakeValue(stage) : undefined;
+}
+
+function getRoutingSignals(intake: ProjectIntake) {
+  const capabilities = intake.capabilities ?? [];
+  const stage = intake.stage ?? "";
+  const shape = intake.shape ?? "";
+  const confidence = intake.confidence ?? "";
+
+  const isEarly = confidence === "not-sure" || ["idea", "planning"].includes(stage) || ["research-strategy", "hybrid-not-sure"].includes(shape);
+  const hasStrategy = capabilities.includes("strategy");
+  const hasDesign = capabilities.includes("ux-ui");
+  const hasFrontend = capabilities.includes("frontend");
+  const hasBackend = capabilities.includes("backend-data");
+  const hasContent = capabilities.includes("content-copy");
+  const hasGrowth = capabilities.includes("growth-marketing");
+  const hasQa = capabilities.includes("qa-optimization");
+  const buildHeavy = hasFrontend || hasBackend;
+  const marketingHeavy = shape === "launch-campaign" || hasGrowth || (hasContent && !buildHeavy);
+  const designHeavy = hasDesign && !buildHeavy;
+  const websiteLike = shape === "website";
+  const productLike = ["saas-product", "web-app", "ops-system"].includes(shape);
+  const liveOptimization = stage === "already-live" || hasQa;
+
+  return {
+    capabilities,
+    stage,
+    shape,
+    confidence,
+    isEarly,
+    hasStrategy,
+    hasDesign,
+    hasFrontend,
+    hasBackend,
+    hasContent,
+    hasGrowth,
+    hasQa,
+    buildHeavy,
+    marketingHeavy,
+    designHeavy,
+    websiteLike,
+    productLike,
+    liveOptimization,
+  };
+}
+
 export function summarizeIntake(intake: ProjectIntake) {
-  const shape = formatIntakeValue(intake.shape);
-  const readiness = getReadinessOption(intake.stage, intake.confidence)?.label ?? formatIntakeValue(intake.stage);
-  const capabilities = (intake.capabilities ?? []).map(formatIntakeValue).join(", ");
-  return [shape, readiness, capabilities].filter(Boolean).join(" • ");
+  const parts = [
+    intake.shape ? formatIntakeValue(intake.shape) : "",
+    inferReadinessLabel(intake.stage, intake.confidence),
+    (intake.capabilities ?? []).length > 0 ? (intake.capabilities ?? []).map(formatIntakeValue).join(", ") : "",
+  ].filter(Boolean);
+
+  return parts.join(" • ");
 }
 
 export function deriveLegacyProjectType(intake: ProjectIntake) {
@@ -285,31 +342,13 @@ export function deriveLegacyProjectType(intake: ProjectIntake) {
 
 export function getAutoRouteTeamIdsFromIntake(intake: ProjectIntake, teams: Record<string, string>) {
   const selected = new Set<string>();
-  const capabilities = intake.capabilities ?? [];
-  const stage = intake.stage ?? "";
-  const shape = intake.shape ?? "";
-  const confidence = intake.confidence ?? "";
+  const signals = getRoutingSignals(intake);
 
-  const needsProductFirst = confidence !== "clear" || ["idea", "planning"].includes(stage) || shape === "research-strategy" || shape === "hybrid-not-sure";
-  if (needsProductFirst) selected.add(teams.PRODUCT);
-
-  if (["saas-product", "web-app", "website", "ops-system"].includes(shape)) {
-    selected.add(teams.ENGINEERING);
-  }
-
-  if (["launch-campaign"].includes(shape)) {
-    selected.add(teams.MARKETING);
-  }
-
-  if (["saas-product", "web-app", "website", "launch-campaign", "ops-system", "hybrid-not-sure"].includes(shape)) {
-    selected.add(teams.DESIGN);
-  }
-
-  if (capabilities.includes("strategy")) selected.add(teams.PRODUCT);
-  if (capabilities.includes("ux-ui")) selected.add(teams.DESIGN);
-  if (capabilities.includes("frontend") || capabilities.includes("backend-data")) selected.add(teams.ENGINEERING);
-  if (capabilities.includes("content-copy") || capabilities.includes("growth-marketing")) selected.add(teams.MARKETING);
-  if (capabilities.includes("qa-optimization") || stage === "ready-to-build" || stage === "already-live") selected.add(teams.QA);
+  if (signals.isEarly || signals.hasStrategy) selected.add(teams.PRODUCT);
+  if (signals.productLike || signals.buildHeavy) selected.add(teams.ENGINEERING);
+  if (signals.marketingHeavy) selected.add(teams.MARKETING);
+  if (signals.hasDesign || ["website", "launch-campaign", "hybrid-not-sure"].includes(signals.shape)) selected.add(teams.DESIGN);
+  if (signals.liveOptimization) selected.add(teams.QA);
 
   if (selected.size === 0) {
     selected.add(teams.PRODUCT);
@@ -320,21 +359,33 @@ export function getAutoRouteTeamIdsFromIntake(intake: ProjectIntake, teams: Reco
 }
 
 export function getRoutingSummary(intake: ProjectIntake) {
-  const capabilities = intake.capabilities ?? [];
-  const stage = intake.stage ?? "";
-  const shape = intake.shape ?? "";
-  const confidence = intake.confidence ?? "";
+  const signals = getRoutingSignals(intake);
 
-  const ownerTeam = confidence === "not-sure" || ["idea", "planning"].includes(stage)
+  const ownerTeam = signals.isEarly
     ? "Product"
-    : capabilities.includes("growth-marketing") || shape === "launch-campaign"
+    : signals.marketingHeavy && !signals.buildHeavy && (signals.shape === "launch-campaign" || signals.hasGrowth)
       ? "Marketing"
-      : capabilities.includes("frontend") || capabilities.includes("backend-data") || ["saas-product", "web-app", "website"].includes(shape)
-        ? "Engineering"
-        : capabilities.includes("ux-ui")
+      : signals.websiteLike && !signals.buildHeavy && signals.designHeavy
+        ? "Design"
+        : signals.designHeavy && signals.stage === "ready-to-design"
           ? "Design"
-          : "Product";
+          : signals.productLike || signals.buildHeavy || (signals.websiteLike && signals.hasFrontend)
+            ? "Engineering"
+            : signals.marketingHeavy
+              ? "Marketing"
+              : signals.hasDesign
+                ? "Design"
+                : "Product";
 
   const qcTeam = ownerTeam === "Engineering" ? "QA" : ownerTeam === "Marketing" ? "Product" : ownerTeam === "Design" ? "Product" : "QA";
-  return { ownerTeam, qcTeam };
+
+  const rationale = ownerTeam === "Product"
+    ? "Discovery-first route based on early-stage or still-being-shaped intake."
+    : ownerTeam === "Marketing"
+      ? "Growth, campaign, or messaging needs are the strongest signal right now."
+      : ownerTeam === "Design"
+        ? "This looks design-led before deeper build work starts."
+        : "Build and implementation needs are strong enough to start with Engineering.";
+
+  return { ownerTeam, qcTeam, rationale };
 }

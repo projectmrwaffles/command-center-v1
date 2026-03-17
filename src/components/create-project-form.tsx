@@ -894,8 +894,9 @@ export function CreateProjectForm({
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Primary route: {routing.ownerTeam}</span>
                         <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">QC: {routing.qcTeam}</span>
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Readiness: {readiness?.label}</span>
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Readiness: {readiness?.label || "Pending"}</span>
                       </div>
+                      <p className="mt-3 text-sm text-zinc-600">{routing.rationale}</p>
                     </section>
 
                     <section className="grid gap-4 lg:grid-cols-2">
@@ -1050,6 +1051,7 @@ export function CreateProjectForm({
                 <span className="text-zinc-400">Readiness</span>
                 <span className="font-medium text-white">{readiness?.label || "Pending"}</span>
               </div>
+              <p className="rounded-2xl bg-white/5 px-3 py-2 text-xs leading-5 text-zinc-300">{routing.rationale}</p>
             </div>
           </section>
 

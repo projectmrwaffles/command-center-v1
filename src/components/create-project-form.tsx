@@ -373,9 +373,9 @@ export function CreateProjectForm({
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="min-w-0 p-0 sm:rounded-[30px] sm:border sm:border-zinc-200 sm:bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] sm:p-6 sm:shadow-[0_16px_48px_rgba(24,24,27,0.06)]">
-          <div className="border-b border-zinc-100 pb-4 sm:pb-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="max-w-2xl">
+          <div className="border-b border-zinc-100 pb-3 sm:pb-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="hidden max-w-2xl sm:block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Guided intake</p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
                   One clear question at a time.
@@ -396,20 +396,20 @@ export function CreateProjectForm({
               </div>
             </div>
 
-            <div className="mt-4 space-y-2 sm:hidden">
+            <div className="space-y-2.5 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Step {stepCounter}</p>
-                  <p className="mt-1 truncate text-sm font-medium text-zinc-700">{activeStep.eyebrow} · {activeStep.title}</p>
-                </div>
-                <div className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
-                  {progress}%
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">Guided intake</p>
+                <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+                  {stepCounter}
                 </div>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200">
+              <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
                 <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
               </div>
-              {flow[currentStep + 1] ? <p className="text-xs text-zinc-500">Up next: {flow[currentStep + 1]?.title}</p> : null}
+              <div className="flex items-start justify-between gap-3 text-xs">
+                <p className="min-w-0 truncate font-medium uppercase tracking-[0.2em] text-zinc-500">{activeStep.eyebrow}</p>
+                {flow[currentStep + 1] ? <p className="shrink-0 text-zinc-400">Up next: {flow[currentStep + 1]?.title}</p> : null}
+              </div>
             </div>
 
             <div className="mt-5 hidden -mx-1 snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
@@ -449,7 +449,7 @@ export function CreateProjectForm({
             </div>
           </div>
 
-          <div className="mt-5 min-h-[480px] sm:mt-6">
+          <div className="mt-3 min-h-0 sm:mt-6 sm:min-h-[480px]">
             <div className="mb-6 hidden flex-wrap gap-2 md:flex">
               {flow.slice(0, currentStep).map((step) => (
                 <button

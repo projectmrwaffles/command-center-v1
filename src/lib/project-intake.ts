@@ -20,6 +20,11 @@ export type ProjectIntake = {
   links?: ProjectLinks;
 };
 
+export type ReadinessOption = IntakeOption & {
+  stage: string;
+  confidence: string;
+};
+
 export const PROJECT_SHAPES: IntakeOption[] = [
   {
     value: "new-product",
@@ -192,9 +197,41 @@ export const CONFIDENCE_OPTIONS: IntakeOption[] = [
   },
 ];
 
+export const READINESS_OPTIONS: ReadinessOption[] = [
+  {
+    value: "needs-shaping",
+    label: "Needs shaping",
+    description: "The problem or goal is real, but the team should help define the plan before execution starts.",
+    examples: ["Need a brief", "Need scope or priorities", "Need help deciding the right approach"],
+    stage: "planning",
+    confidence: "not-sure",
+  },
+  {
+    value: "ready-to-start",
+    label: "Ready to start",
+    description: "There’s enough clarity to begin design or build work now without a separate discovery phase.",
+    examples: ["Clear requirements", "Known outcome", "Team can move into execution"],
+    stage: "ready-to-build",
+    confidence: "clear",
+  },
+  {
+    value: "already-underway",
+    label: "Already underway",
+    description: "Something already exists and this work is about improving, extending, or unblocking it.",
+    examples: ["Live product", "Existing campaign", "Current workflow needs refinement"],
+    stage: "already-live",
+    confidence: "clear",
+  },
+];
+
+export function getReadinessOption(stage?: string, confidence?: string) {
+  if (!stage && !confidence) return undefined;
+  return READINESS_OPTIONS.find((item) => item.stage === stage && item.confidence === confidence);
+}
+
 export function formatIntakeValue(value?: string) {
   if (!value) return "—";
-  const all = [...PROJECT_SHAPES, ...PROJECT_CONTEXTS, ...PROJECT_CAPABILITIES, ...PROJECT_STAGES, ...CONFIDENCE_OPTIONS];
+  const all = [...PROJECT_SHAPES, ...PROJECT_CONTEXTS, ...PROJECT_CAPABILITIES, ...PROJECT_STAGES, ...CONFIDENCE_OPTIONS, ...READINESS_OPTIONS];
   return all.find((item) => item.value === value)?.label || value.replace(/-/g, " ");
 }
 
@@ -227,9 +264,9 @@ export function legacyTypeToLabel(type?: string | null) {
 
 export function summarizeIntake(intake: ProjectIntake) {
   const shape = formatIntakeValue(intake.shape);
-  const stage = formatIntakeValue(intake.stage);
+  const readiness = getReadinessOption(intake.stage, intake.confidence)?.label ?? formatIntakeValue(intake.stage);
   const capabilities = (intake.capabilities ?? []).map(formatIntakeValue).join(", ");
-  return [shape, stage, capabilities].filter(Boolean).join(" • ");
+  return [shape, readiness, capabilities].filter(Boolean).join(" • ");
 }
 
 export function deriveLegacyProjectType(intake: ProjectIntake) {

@@ -2,13 +2,13 @@
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
-  CONFIDENCE_OPTIONS,
   PROJECT_CAPABILITIES,
   PROJECT_CONTEXTS,
   PROJECT_SHAPES,
-  PROJECT_STAGES,
   ProjectIntake,
+  READINESS_OPTIONS,
   deriveLegacyProjectType,
+  getReadinessOption,
   getRoutingSummary,
   summarizeIntake,
 } from "@/lib/project-intake";
@@ -185,9 +185,9 @@ function buildFlow(mode: IntakeMode): FlowStep[] {
     {
       id: "scope",
       eyebrow: "Readiness",
-      title: "How ready is this, and how clear is the path?",
-      description: "These answers help us tell discovery apart from design and execution.",
-      helper: "Choose the closest fit for both.",
+      title: "Where is this work right now?",
+      description: "Pick the closest starting point. We’ll translate it into the routing signal behind the scenes.",
+      helper: "One natural choice is enough.",
     },
     {
       id: "signals",
@@ -272,7 +272,7 @@ function getStepValidity(
     case "shape":
       return mode === "quick" ? true : Boolean(state.shape);
     case "scope":
-      return mode === "quick" ? true : Boolean(state.stage && state.confidence);
+      return mode === "quick" ? true : Boolean(getReadinessOption(state.stage, state.confidence));
     case "signals":
       return mode === "quick" ? true : state.capabilities.length > 0;
     case "brief":
@@ -305,6 +305,7 @@ export function CreateProjectForm({
   const [showOptionalLinks, setShowOptionalLinks] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
+  const readiness = useMemo(() => getReadinessOption(stage, confidence), [stage, confidence]);
 
   useEffect(() => {
     if (prefillName) setName(prefillName);
@@ -618,52 +619,28 @@ export function CreateProjectForm({
                   <div className="space-y-6">
                     <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-4">
                       <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">Current stage</h4>
-                        <p className="mt-1 text-sm text-zinc-500">Where is this project right now?</p>
+                        <h4 className="text-sm font-semibold text-zinc-900">Project readiness</h4>
+                        <p className="mt-1 text-sm text-zinc-500">Choose the closest fit. This replaces the old stage + clarity combo with one cleaner decision.</p>
                       </div>
                       <OptionBrowser columns={1}>
-                        {PROJECT_STAGES.map((option) => (
+                        {READINESS_OPTIONS.map((option) => (
                           <div key={option.value} className="w-full max-w-full md:w-auto">
                             <SelectionCard
-                              selected={stage === option.value}
+                              selected={readiness?.value === option.value}
                               label={option.label}
                               description={option.description}
                               examples={option.examples}
                               compact
                               onClick={() => {
-                                setStage(option.value);
+                                setStage(option.stage);
+                                setConfidence(option.confidence);
                                 setShowValidation(false);
                               }}
                             />
                           </div>
                         ))}
                       </OptionBrowser>
-                      {showValidation && !stage ? <FieldHint tone="error">Choose the current stage.</FieldHint> : null}
-                    </section>
-
-                    <section className="space-y-4 rounded-[24px] border border-zinc-200 bg-white p-4">
-                      <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">Path clarity</h4>
-                        <p className="mt-1 text-sm text-zinc-500">How much direction do you already have?</p>
-                      </div>
-                      <OptionBrowser columns={1}>
-                        {CONFIDENCE_OPTIONS.map((option) => (
-                          <div key={option.value} className="w-full max-w-full md:w-auto">
-                            <SelectionCard
-                              selected={confidence === option.value}
-                              label={option.label}
-                              description={option.description}
-                              examples={option.examples}
-                              compact
-                              onClick={() => {
-                                setConfidence(option.value);
-                                setShowValidation(false);
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </OptionBrowser>
-                      {showValidation && !confidence ? <FieldHint tone="error">Choose how clear the path feels right now.</FieldHint> : null}
+                      {showValidation && !readiness ? <FieldHint tone="error">Choose the project readiness.</FieldHint> : null}
                     </section>
                   </div>
                 ) : null}
@@ -847,8 +824,7 @@ export function CreateProjectForm({
 
                         <div className="mt-4 flex flex-wrap gap-2 text-xs">
                           <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Shape: {PROJECT_SHAPES.find((item) => item.value === shape)?.label}</span>
-                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Stage: {PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
-                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Clarity: {CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
+                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Readiness: {readiness?.label}</span>
                         </div>
 
                         {showAdvancedQuickRouting ? (
@@ -867,31 +843,23 @@ export function CreateProjectForm({
                                 </select>
                               </label>
                               <label className="block">
-                                <span className="mb-1 block text-sm font-medium text-zinc-700">Current stage</span>
+                                <span className="mb-1 block text-sm font-medium text-zinc-700">Readiness</span>
                                 <select
-                                  value={stage}
-                                  onChange={(e) => setStage(e.target.value)}
+                                  value={readiness?.value || "needs-shaping"}
+                                  onChange={(e) => {
+                                    const option = READINESS_OPTIONS.find((item) => item.value === e.target.value);
+                                    if (!option) return;
+                                    setStage(option.stage);
+                                    setConfidence(option.confidence);
+                                  }}
                                   className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
                                 >
-                                  {PROJECT_STAGES.map((option) => (
+                                  {READINESS_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                   ))}
                                 </select>
                               </label>
                             </div>
-
-                            <label className="block">
-                              <span className="mb-1 block text-sm font-medium text-zinc-700">Path clarity</span>
-                              <select
-                                value={confidence}
-                                onChange={(e) => setConfidence(e.target.value)}
-                                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                              >
-                                {CONFIDENCE_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                              </select>
-                            </label>
                           </div>
                         ) : null}
                       </section>
@@ -918,8 +886,7 @@ export function CreateProjectForm({
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Primary route: {routing.ownerTeam}</span>
                         <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">QC: {routing.qcTeam}</span>
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Stage: {PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Confidence: {CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Readiness: {readiness?.label}</span>
                       </div>
                     </section>
 
@@ -936,10 +903,9 @@ export function CreateProjectForm({
                             <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
                           </div>
                           <div>
-                            <dt className="font-medium text-zinc-900">Stage + clarity</dt>
+                            <dt className="font-medium text-zinc-900">Readiness</dt>
                             <dd className="mt-2 flex flex-wrap gap-2">
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{PROJECT_STAGES.find((item) => item.value === stage)?.label}</span>
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label}</span>
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{readiness?.label || "Pending"}</span>
                             </dd>
                           </div>
                           <div>
@@ -1008,7 +974,7 @@ export function CreateProjectForm({
                       : activeStep.id === "signals"
                         ? "Use the recommended signals as a starting point, then keep moving."
                         : activeStep.id === "scope"
-                          ? "Answer both readiness questions, then continue."
+                          ? "Pick the closest readiness and continue."
                           : activeStep.id === "shape"
                             ? "Pick the closest shape and we’ll prefill the likely path."
                             : "Choose the intake path that feels easiest. You can switch anytime before submitting."}
@@ -1077,12 +1043,8 @@ export function CreateProjectForm({
                 <span className="font-medium text-white">{routing.qcTeam}</span>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                <span className="text-zinc-400">Stage</span>
-                <span className="font-medium text-white">{PROJECT_STAGES.find((item) => item.value === stage)?.label || "Pending"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                <span className="text-zinc-400">Confidence</span>
-                <span className="font-medium text-white">{CONFIDENCE_OPTIONS.find((item) => item.value === confidence)?.label || "Pending"}</span>
+                <span className="text-zinc-400">Readiness</span>
+                <span className="font-medium text-white">{readiness?.label || "Pending"}</span>
               </div>
             </div>
           </section>
@@ -1092,7 +1054,7 @@ export function CreateProjectForm({
             <div className="mt-4 space-y-3">
               <TinyAnswer label="Mode" value={mode === "quick" ? "Quick brief" : "Guided setup"} />
               <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
-              <TinyAnswer label="Scope" value={stage && confidence ? "Set" : undefined} />
+              <TinyAnswer label="Readiness" value={readiness?.label} />
               <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />
               <TinyAnswer label="Brief" value={name.trim() ? (goals.trim() ? "Named and described" : "Named") : undefined} />
             </div>

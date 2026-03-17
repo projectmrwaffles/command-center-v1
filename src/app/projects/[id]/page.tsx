@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   formatIntakeValue,
+  getReadinessOption,
   getRoutingSummary,
   legacyTypeToLabel,
 } from "@/lib/project-intake";
@@ -520,8 +521,8 @@ export default function ProjectDetailPage() {
                     <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.shape)}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Stage</div>
-                    <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.stage)}</div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Readiness</div>
+                    <div className="mt-1 text-sm text-zinc-900">{getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage)}</div>
                   </div>
                   <div>
                     <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Context</div>

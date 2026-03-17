@@ -31,6 +31,7 @@ interface CreateProjectFormProps {
 }
 
 type IntakeMode = "quick" | "guided";
+type IntakePath = IntakeMode | null;
 type FlowStepId = "mode" | "shape" | "brief" | "review";
 
 type FlowStep = {
@@ -140,29 +141,41 @@ function TinyAnswer({ label, value }: { label: string; value?: string | null }) 
   );
 }
 
-function buildFlow(mode: IntakeMode): FlowStep[] {
+function buildFlow(mode: IntakePath): FlowStep[] {
+  if (!mode) {
+    return [
+      {
+        id: "mode",
+        eyebrow: "Choose a starting point",
+        title: "How would you like to start this project?",
+        description: "Pick the intake path that feels most natural. Both paths create the same kind of project and use the same submission flow—one is freer-form, the other adds a little structure up front.",
+        helper: "You can switch paths before submitting.",
+      },
+    ];
+  }
+
   if (mode === "quick") {
     return [
       {
         id: "mode",
-        eyebrow: "Choose your path",
-        title: "Start with the easiest version",
-        description: "Use Quick brief if you mostly want to describe the work in your own words and attach context. Switch to Guided setup anytime if you want a bit more structure.",
-        helper: "Most people should start with Quick brief.",
+        eyebrow: "Choose a starting point",
+        title: "Pick the path that fits how you want to explain it",
+        description: "Quick brief lets you describe the work in your own words and add context fast. Guided setup asks for one extra project-type choice before you continue.",
+        helper: "Choose whichever feels easier.",
       },
       {
         id: "brief",
         eyebrow: "Quick brief",
-        title: "What do you need help with?",
-        description: "Name it, explain it naturally, and attach any helpful docs or screenshots. We’ll route it safely even if the details are still fuzzy.",
-        helper: "Plain language is enough.",
+        title: "What needs to happen?",
+        description: "Give the project a name, describe the need in plain language, and add any helpful docs or screenshots. We’ll still route it safely even if the brief is rough.",
+        helper: "A short, natural description is enough.",
       },
       {
         id: "review",
         eyebrow: "Final review",
-        title: "Quick check before we create it",
-        description: "You can keep the lightweight defaults or refine routing if you want more control.",
-        helper: "Defaults bias toward safe triage.",
+        title: "Review it before you create the project",
+        description: "Check the summary, keep the lightweight defaults, or make small routing edits if needed.",
+        helper: "Submission behavior stays the same.",
       },
     ];
   }
@@ -170,31 +183,31 @@ function buildFlow(mode: IntakeMode): FlowStep[] {
   return [
     {
       id: "mode",
-      eyebrow: "Choose your path",
-      title: "Start with the easiest version",
-      description: "Quick brief is fastest. Guided setup keeps the same routing logic, but boils it down to one primary choice and one short brief.",
-      helper: "Switch paths anytime before submitting.",
+      eyebrow: "Choose a starting point",
+      title: "Pick the path that fits how you want to explain it",
+      description: "Quick brief is freer-form. Guided setup adds one structured choice before you write the brief. Both paths keep the same routing and submission flow.",
+      helper: "You can switch before submitting.",
     },
     {
       id: "shape",
       eyebrow: "Project type",
-      title: "What best matches this work?",
-      description: "Pick the closest option. We’ll prefill the likely route and keep the rest lightweight.",
-      helper: "One choice is enough to keep moving.",
+      title: "What kind of work is this closest to?",
+      description: "Choose the closest match. We’ll use it to suggest a sensible route without making the rest of the form heavier.",
+      helper: "Pick the nearest fit and keep moving.",
     },
     {
       id: "brief",
       eyebrow: "Project brief",
-      title: "Name it and add the essentials",
-      description: "Add a working name, a short description, and any supporting files. Fine-tune routing only if it really matters.",
-      helper: "Most people can leave the routing defaults alone.",
+      title: "Add the key context",
+      description: "Give it a working name, add the essentials, and attach any supporting files. Adjust routing only if the suggested default looks off.",
+      helper: "Keep it light unless routing really matters.",
     },
     {
       id: "review",
       eyebrow: "Final review",
-      title: "Quick check before we create it",
-      description: "This is the only review step. Submission and routing behavior stay the same.",
-      helper: "Go back if anything feels off.",
+      title: "Review it before you create the project",
+      description: "This is the final check. Submission and routing behavior stay the same.",
+      helper: "Go back if anything looks wrong.",
     },
   ];
 }
@@ -241,7 +254,7 @@ function getRecommendedSelections(shape: string) {
 
 function getStepValidity(
   stepId: FlowStepId,
-  mode: IntakeMode,
+  mode: IntakePath,
   state: {
     name: string;
     shape: string;
@@ -254,7 +267,7 @@ function getStepValidity(
 ) {
   switch (stepId) {
     case "mode":
-      return true;
+      return Boolean(mode);
     case "shape":
       return mode === "quick" ? true : Boolean(state.shape);
     case "brief":
@@ -274,11 +287,11 @@ export function CreateProjectForm({
   prefillName,
   docsSection,
 }: CreateProjectFormProps) {
-  const [mode, setMode] = useState<IntakeMode>("quick");
+  const [mode, setMode] = useState<IntakePath>(null);
   const [name, setName] = useState(prefillName || "");
-  const [shape, setShape] = useState("hybrid-not-sure");
+  const [shape, setShape] = useState("");
   const [context, setContext] = useState<string[]>([]);
-  const [capabilities, setCapabilities] = useState<string[]>(["strategy"]);
+  const [capabilities, setCapabilities] = useState<string[]>([]);
   const [stage, setStage] = useState("idea");
   const [confidence, setConfidence] = useState("not-sure");
   const [goals, setGoals] = useState("");
@@ -370,6 +383,9 @@ export function CreateProjectForm({
       if (!stage) setStage("idea");
       if (!confidence) setConfidence("not-sure");
       if (capabilities.length === 0) setCapabilities(["strategy"]);
+    } else {
+      if (shape === "hybrid-not-sure") setShape("");
+      if (capabilities.length === 1 && capabilities[0] === "strategy") setCapabilities([]);
     }
   };
 
@@ -416,12 +432,12 @@ export function CreateProjectForm({
           <div className="border-b border-zinc-100 pb-3 sm:pb-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="hidden max-w-2xl sm:block">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">{mode === "quick" ? "Quick brief" : "Guided setup"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">{mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : "Choose your path"}</p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  Easier intake, without losing the routing signal.
+                  Start a new project without overthinking the intake.
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Start with a natural brief and supporting docs, or switch to the guided path if you want tighter control over how the work is framed.
+                  Choose the path that fits how you want to explain the work. You can stay lightweight, or add a little more structure before the project is created.
                 </p>
               </div>
 
@@ -438,7 +454,7 @@ export function CreateProjectForm({
 
             <div className="space-y-2.5 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">{mode === "quick" ? "Quick brief" : "Guided setup"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">{mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : "Choose your path"}</p>
                 <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                   {stepCounter}
                 </div>
@@ -533,13 +549,13 @@ export function CreateProjectForm({
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="text-base font-semibold text-zinc-950">Quick brief</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-600">Just name it, describe what you’re thinking, and attach supporting docs or screenshots.</p>
+                            <p className="mt-2 text-sm leading-6 text-zinc-600">Write the project in your own words, add any context you already have, and keep moving.</p>
                           </div>
                           <div className={cn("h-6 w-6 rounded-full border", mode === "quick" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Fastest path</span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Natural language</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Free-form</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Plain language</span>
                           <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Docs + images</span>
                         </div>
                       </button>
@@ -557,12 +573,12 @@ export function CreateProjectForm({
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="text-base font-semibold text-zinc-950">Guided setup</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-600">Answer a few structured questions for more precise routing before the project is created.</p>
+                            <p className="mt-2 text-sm leading-6 text-zinc-600">Choose the closest project type first, then add a short brief with a little more structure.</p>
                           </div>
                           <div className={cn("h-6 w-6 rounded-full border", mode === "guided" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">More control</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Structured</span>
                           <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Team signals</span>
                           <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Still lightweight</span>
                         </div>
@@ -571,8 +587,10 @@ export function CreateProjectForm({
 
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
                       {mode === "quick"
-                        ? "Quick brief will safely default to Product-led triage unless you choose to refine routing later."
-                        : "Guided setup uses shape, readiness, and capabilities to tighten the initial route before submission."}
+                        ? "Quick brief starts with safe routing defaults and lets you refine them only if you want to."
+                        : mode === "guided"
+                          ? "Guided setup uses project type, readiness, and capabilities to suggest a tighter starting route."
+                          : "Choose either path to continue. Both lead to the same project creation flow."}
                     </div>
                   </div>
                 ) : null}
@@ -594,7 +612,7 @@ export function CreateProjectForm({
                         </div>
                       ))}
                     </OptionBrowser>
-                    {showValidation && !shape ? <FieldHint tone="error">Pick the closest project shape to continue.</FieldHint> : null}
+                    {showValidation && !shape ? <FieldHint tone="error">Choose the closest project type to continue.</FieldHint> : <FieldHint>Pick the nearest fit. It does not need to be perfect.</FieldHint>}
                   </div>
                 ) : null}
 
@@ -625,11 +643,11 @@ export function CreateProjectForm({
                     <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <h4 className="text-sm font-semibold text-zinc-900">{mode === "quick" ? "What are you thinking?" : "Optional notes"}</h4>
+                          <h4 className="text-sm font-semibold text-zinc-900">{mode === "quick" ? "What do you need?" : "Optional notes"}</h4>
                           <p className="mt-1 text-sm text-zinc-500">
                             {mode === "quick"
                               ? "Describe the goal, problem, urgency, constraints, or desired outcome in plain language."
-                              : "Goals, constraints, urgency, or anything the team should know on day one."}
+                              : "Add goals, constraints, urgency, or anything the team should know right away."}
                           </p>
                         </div>
                         {mode === "quick" ? <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">Required in Quick brief</div> : null}
@@ -645,7 +663,7 @@ export function CreateProjectForm({
                         placeholder={mode === "quick" ? "Example: We need a cleaner new project intake that feels easier. The current flow has too many decisions up front. I want a simple way to describe the need, upload a PRD and screenshots, and still route it to the right teams." : "Example: We need something client-ready in 2 weeks. It should feel premium, work beautifully on mobile, and eventually connect to HubSpot."}
                       />
                       {mode === "quick" ? (
-                        showValidation && !goals.trim() ? <FieldHint tone="error">Add a short natural-language brief so the team has real context.</FieldHint> : <FieldHint>Two or three sentences is enough.</FieldHint>
+                        showValidation && !goals.trim() ? <FieldHint tone="error">Add a short natural-language brief so the team has real context.</FieldHint> : <FieldHint>A few clear sentences is enough.</FieldHint>
                       ) : null}
                     </section>
 
@@ -654,7 +672,7 @@ export function CreateProjectForm({
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <h4 className="text-sm font-semibold text-zinc-900">Routing details</h4>
-                            <p className="mt-1 text-sm text-zinc-500">We already set a sensible starting route from your project type. Open this only if the default needs adjustment.</p>
+                            <p className="mt-1 text-sm text-zinc-500">We already suggested a sensible starting route from the project type you chose. Open this only if something looks off.</p>
                           </div>
                           <button
                             type="button"
@@ -702,11 +720,11 @@ export function CreateProjectForm({
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
                                   <h5 className="text-sm font-semibold text-zinc-900">Capabilities needed</h5>
-                                  <p className="mt-1 text-sm text-zinc-500">Start with the preselected help, then change only what materially affects the route.</p>
+                                  <p className="mt-1 text-sm text-zinc-500">We suggest a starting set based on project type. Change it only if it will materially affect routing.</p>
                                 </div>
                                 {shape ? (
                                   <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
-                                    Suggested from {PROJECT_SHAPES.find((item) => item.value === shape)?.label}
+                                    Suggested for {PROJECT_SHAPES.find((item) => item.value === shape)?.label}
                                   </div>
                                 ) : null}
                               </div>
@@ -738,7 +756,7 @@ export function CreateProjectForm({
                             <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
                               <div>
                                 <h5 className="text-sm font-semibold text-zinc-900">Context</h5>
-                                <p className="mt-1 text-sm text-zinc-500">Optional. Add context only if it changes how the team should approach the work.</p>
+                                <p className="mt-1 text-sm text-zinc-500">Optional. Add context only if it meaningfully changes how the team should approach the work.</p>
                               </div>
                               <OptionBrowser columns={2}>
                                 {PROJECT_CONTEXTS.map((option) => {
@@ -775,7 +793,7 @@ export function CreateProjectForm({
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <h4 className="text-sm font-semibold text-zinc-900">Optional links</h4>
-                          <p className="mt-1 text-sm text-zinc-500">Skip this during intake unless a link is critical for day-one context. The project page is the canonical place to add and manage links later.</p>
+                          <p className="mt-1 text-sm text-zinc-500">Skip this during intake unless a link is important for day-one context. You can always add and manage links later from the project page.</p>
                         </div>
                         <button
                           type="button"
@@ -788,7 +806,7 @@ export function CreateProjectForm({
 
                       {!showOptionalLinks ? (
                         <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-                          Better default: create the project first, then add the right links and artifacts from the project page once the work type is clearer.
+                          Usually it is simpler to create the project first, then add links and artifacts from the project page once the work is underway.
                         </div>
                       ) : (
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -813,7 +831,7 @@ export function CreateProjectForm({
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <h4 className="text-sm font-semibold text-zinc-900">Routing defaults</h4>
-                            <p className="mt-1 text-sm text-zinc-500">We’ll safely route this as discovery-first unless you want to refine it.</p>
+                            <p className="mt-1 text-sm text-zinc-500">We’ll start with safe discovery-first routing unless you want to adjust it.</p>
                           </div>
                           <button
                             type="button"
@@ -971,11 +989,11 @@ export function CreateProjectForm({
                     ? "Final check. Creating the project keeps the same routing and submission behavior."
                     : activeStep.id === "brief"
                       ? mode === "quick"
-                        ? "Tell us what you want, attach context if you have it, and we’ll handle the rest."
-                        : "Add a working name, a short brief, and only fine-tune routing if the default looks off."
+                        ? "Share the need, add context if you have it, and we’ll take it from there."
+                        : "Add a working name, a short brief, and only adjust routing if the default looks off."
                       : activeStep.id === "shape"
-                        ? "Pick the closest shape and we’ll prefill the likely path."
-                        : "Choose the intake path that feels easiest. You can switch anytime before submitting."}
+                        ? "Choose the closest type and we’ll suggest the likely path."
+                        : "Choose the starting path that feels most natural. You can switch before submitting."}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
@@ -1029,7 +1047,7 @@ export function CreateProjectForm({
             </p>
             <h4 className="mt-3 text-xl font-semibold tracking-tight">{name.trim() || "Untitled project"}</h4>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              {goals.trim() || (shape || stage || capabilities.length > 0 ? intake.summary : "Start with a quick brief or guided setup. The summary will build itself as you answer.")}
+              {goals.trim() || (shape || stage || capabilities.length > 0 ? intake.summary : "Choose a path to start. Your summary will build itself as you answer.")}
             </p>
             <div className="mt-5 space-y-3 text-sm text-zinc-300">
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
@@ -1050,7 +1068,7 @@ export function CreateProjectForm({
           <section className="rounded-[28px] border border-zinc-200 bg-white p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Current path</p>
             <div className="mt-4 space-y-3">
-              <TinyAnswer label="Mode" value={mode === "quick" ? "Quick brief" : "Guided setup"} />
+              <TinyAnswer label="Mode" value={mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : undefined} />
               <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
               <TinyAnswer label="Readiness" value={readiness?.label} />
               <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />

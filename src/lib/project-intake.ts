@@ -28,15 +28,15 @@ export type ReadinessOption = IntakeOption & {
 export const PROJECT_SHAPES: IntakeOption[] = [
   {
     value: "new-product",
-    label: "New website, app, or digital product",
-    description: "You’re creating something net-new, or mostly new, for people to use or see.",
-    examples: ["Design and build a new website", "Launch a blog-enabled marketing site", "Create a first app or client portal"],
+    label: "New website, SaaS product, app, or digital experience",
+    description: "You’re creating something new, or mostly new, for customers, users, or the public.",
+    examples: ["Design and build a new website", "Launch a SaaS MVP or client portal", "Create a first app or digital product"],
   },
   {
     value: "improve-existing",
-    label: "Update or expand something that already exists",
-    description: "You already have a site, app, funnel, or workflow and want to redesign, add to it, or improve it.",
-    examples: ["Refresh an existing website", "Add a blog or new feature", "Improve conversion, UX, or performance"],
+    label: "Improve or expand an existing website, SaaS product, or workflow",
+    description: "You already have a site, app, SaaS product, funnel, or workflow and want to redesign, add to it, or improve it.",
+    examples: ["Refresh an existing website", "Add a new SaaS feature or dashboard", "Improve conversion, UX, or performance"],
   },
   {
     value: "launch-campaign",

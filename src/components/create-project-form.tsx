@@ -179,9 +179,9 @@ function buildFlow(mode: IntakePath): FlowStep[] {
     {
       id: "shape",
       eyebrow: "Project type",
-      title: "What are you asking us to make or improve?",
-      description: "Pick the option that sounds most like the job. It helps us suggest the right starting route without turning this into a long intake.",
-      helper: "Choose the closest fit — it doesn’t have to be exact.",
+      title: "What would you like to build or improve?",
+      description: "Pick the closest fit. It helps us suggest the right starting route without turning this into a long intake.",
+      helper: "Choose the closest fit — SaaS, websites, apps, and mixed projects all work here.",
     },
     {
       id: "brief",
@@ -596,7 +596,7 @@ export function CreateProjectForm({
                         </div>
                       ))}
                     </OptionBrowser>
-                    {showValidation && !shape ? <FieldHint tone="error">Choose the option that best matches the work to continue.</FieldHint> : <FieldHint>Pick the closest fit. We’ll handle nuance in the brief.</FieldHint>}
+                    {showValidation && !shape ? <FieldHint tone="error">Choose the option that best matches the work to continue.</FieldHint> : <FieldHint>Pick the closest fit. SaaS, websites, apps, and mixed projects are all covered.</FieldHint>}
                   </div>
                 ) : null}
 
@@ -976,7 +976,7 @@ export function CreateProjectForm({
                         ? "Share the need, add context if you have it, and we’ll take it from there."
                         : "Add a working name, a short brief, and only adjust routing if the default looks off."
                       : activeStep.id === "shape"
-                        ? "Choose the closest type and we’ll suggest the likely path."
+                        ? "Choose the closest fit and we’ll suggest the likely path."
                         : "Choose the starting path that feels most natural. You can switch before submitting."}
                 </div>
 
@@ -999,7 +999,7 @@ export function CreateProjectForm({
                     </button>
                   ) : activeStep.id === "shape" ? (
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
-                      Choose the best-fit option below to continue
+                      Choose the closest fit below to continue
                     </div>
                   ) : activeStep.id === "brief" && mode === "quick" ? (
                     <button

@@ -235,6 +235,48 @@ export function getReadinessOption(stage?: string, confidence?: string) {
   return READINESS_OPTIONS.find((item) => item.stage === stage && item.confidence === confidence);
 }
 
+export function inferIntakeReadiness(intake: Pick<ProjectIntake, "shape" | "context" | "capabilities" | "goals">) {
+  const shape = intake.shape ?? "";
+  const context = intake.context ?? [];
+  const capabilities = intake.capabilities ?? [];
+  const goals = (intake.goals ?? "").toLowerCase();
+
+  const hasAnyGoalText = goals.trim().length > 0;
+  const hasBuild = capabilities.includes("frontend") || capabilities.includes("backend-data");
+  const hasDesign = capabilities.includes("ux-ui");
+  const hasStrategy = capabilities.includes("strategy");
+  const hasGrowth = capabilities.includes("growth-marketing") || capabilities.includes("content-copy");
+  const referencesExistingAsset =
+    context.includes("existing-asset") ||
+    /\b(existing|already live|live site|current site|current app|redesign|improve|optimization|optimize|cleanup|refactor|migrate|migration|refresh|audit|fix|bug|bugs)\b/.test(goals);
+  const discoverySignals = /\b(not sure|unsure|figure out|help define|help decide|scope|scoping|strategy|discovery|explore|investigate|audit|recommend|planning|plan|roadmap|brief)\b/.test(goals);
+  const executionSignals = /\b(build|ship|implement|implementation|develop|launch|execute|execution|wireframe|wireframes|design|designs|prototype|prototypes|spec|requirements|handoff)\b/.test(goals);
+  const strategyShapes = ["research-strategy", "hybrid-not-sure"];
+  const executionShapes = ["saas-product", "web-app", "ops-system", "website"];
+
+  if (referencesExistingAsset) {
+    return { stage: "already-live", confidence: executionSignals || hasBuild || hasGrowth ? "clear" : "somewhat-clear" };
+  }
+
+  if (strategyShapes.includes(shape) || discoverySignals || (hasStrategy && !hasBuild && !hasDesign && !hasGrowth)) {
+    return { stage: "planning", confidence: hasAnyGoalText && !discoverySignals ? "somewhat-clear" : "not-sure" };
+  }
+
+  if (hasBuild || (executionSignals && executionShapes.includes(shape))) {
+    return { stage: "ready-to-build", confidence: executionSignals || hasAnyGoalText ? "clear" : "somewhat-clear" };
+  }
+
+  if (hasDesign) {
+    return { stage: "ready-to-design", confidence: hasAnyGoalText ? "somewhat-clear" : "not-sure" };
+  }
+
+  if (shape === "launch-campaign" || hasGrowth) {
+    return { stage: "ready-to-build", confidence: hasAnyGoalText ? "somewhat-clear" : "not-sure" };
+  }
+
+  return { stage: "planning", confidence: hasAnyGoalText ? "somewhat-clear" : "not-sure" };
+}
+
 export function formatIntakeValue(value?: string) {
   if (!value) return "Not set";
   const all = [...PROJECT_SHAPES, ...PROJECT_CONTEXTS, ...PROJECT_CAPABILITIES, ...PROJECT_STAGES, ...CONFIDENCE_OPTIONS, ...READINESS_OPTIONS];
@@ -323,9 +365,10 @@ function getRoutingSignals(intake: ProjectIntake) {
 }
 
 export function summarizeIntake(intake: ProjectIntake) {
+  const resolvedReadiness = intake.stage && intake.confidence ? { stage: intake.stage, confidence: intake.confidence } : inferIntakeReadiness(intake);
   const parts = [
     intake.shape ? formatIntakeValue(intake.shape) : "",
-    inferReadinessLabel(intake.stage, intake.confidence),
+    inferReadinessLabel(resolvedReadiness.stage, resolvedReadiness.confidence),
     (intake.capabilities ?? []).length > 0 ? (intake.capabilities ?? []).map(formatIntakeValue).join(", ") : "",
   ].filter(Boolean);
 

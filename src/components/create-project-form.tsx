@@ -6,9 +6,8 @@ import {
   PROJECT_CONTEXTS,
   PROJECT_SHAPES,
   ProjectIntake,
-  READINESS_OPTIONS,
   deriveLegacyProjectType,
-  getReadinessOption,
+  inferIntakeReadiness,
   getRoutingSummary,
   summarizeIntake,
 } from "@/lib/project-intake";
@@ -285,8 +284,6 @@ export function CreateProjectForm({
   const [shape, setShape] = useState("");
   const [context, setContext] = useState<string[]>([]);
   const [capabilities, setCapabilities] = useState<string[]>([]);
-  const [stage, setStage] = useState("idea");
-  const [confidence, setConfidence] = useState("not-sure");
   const [goals, setGoals] = useState("");
   const [links, setLinks] = useState<ProjectLinks>({});
   const [showAdvancedQuickRouting, setShowAdvancedQuickRouting] = useState(false);
@@ -294,7 +291,6 @@ export function CreateProjectForm({
   const [showOptionalLinks, setShowOptionalLinks] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
-  const readiness = useMemo(() => getReadinessOption(stage, confidence), [stage, confidence]);
 
   useEffect(() => {
     if (prefillName) setName(prefillName);
@@ -306,25 +302,36 @@ export function CreateProjectForm({
     setCurrentStep((step) => Math.min(step, flow.length - 1));
   }, [flow.length]);
 
+  const inferredReadiness = useMemo(() => inferIntakeReadiness({ shape, context, capabilities, goals }), [shape, context, capabilities, goals]);
+
   const intake = useMemo<ProjectIntake>(
     () => ({
       projectName: name,
       shape,
       context,
       capabilities,
-      stage,
-      confidence,
+      stage: inferredReadiness.stage,
+      confidence: inferredReadiness.confidence,
       goals: goals || undefined,
       links,
-      summary: summarizeIntake({ shape, context, capabilities, stage, confidence, projectName: name, goals, links }),
+      summary: summarizeIntake({
+        shape,
+        context,
+        capabilities,
+        stage: inferredReadiness.stage,
+        confidence: inferredReadiness.confidence,
+        projectName: name,
+        goals,
+        links,
+      }),
     }),
-    [name, shape, context, capabilities, stage, confidence, goals, links]
+    [name, shape, context, capabilities, inferredReadiness, goals, links]
   );
 
   const routing = useMemo(() => getRoutingSummary(intake), [intake]);
   const activeStep = flow[currentStep];
   const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
-  const stateForValidity = { name, shape, context, capabilities, stage, confidence, goals };
+  const stateForValidity = { name, shape, context, capabilities, stage: inferredReadiness.stage, confidence: inferredReadiness.confidence, goals };
   const currentStepValid = getStepValidity(activeStep.id, mode, stateForValidity);
   const stepProgress = Math.max(12, Math.round(((currentStep + 1) / flow.length) * 100));
   const furthestUnlockedIndex = Math.min(
@@ -372,8 +379,6 @@ export function CreateProjectForm({
 
     if (nextMode === "quick") {
       if (!shape) setShape("hybrid-not-sure");
-      if (!stage) setStage("idea");
-      if (!confidence) setConfidence("not-sure");
       if (capabilities.length === 0) setCapabilities(["strategy"]);
     } else {
       if (shape === "hybrid-not-sure") setShape("");
@@ -660,7 +665,7 @@ export function CreateProjectForm({
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <h4 className="text-sm font-semibold text-zinc-900">Routing details</h4>
-                            <p className="mt-1 text-sm text-zinc-500">We already suggested a sensible starting route from the project type you chose. Open this only if something looks off.</p>
+                            <p className="mt-1 text-sm text-zinc-500">We already suggested a sensible starting route from the project type you chose. We also infer how ready it is from your brief, so open this only if the routing looks off.</p>
                           </div>
                           <button
                             type="button"
@@ -672,38 +677,12 @@ export function CreateProjectForm({
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Readiness: {readiness?.label}</span>
                           <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Capabilities: {capabilities.length}</span>
                           <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Context: {context.length || 0}</span>
                         </div>
 
                         {showAdvancedGuidedRouting ? (
                           <div className="mt-5 space-y-6">
-                            <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
-                              <div>
-                                <h5 className="text-sm font-semibold text-zinc-900">Readiness</h5>
-                                <p className="mt-1 text-sm text-zinc-500">Pick the closest fit.</p>
-                              </div>
-                              <OptionBrowser columns={1}>
-                                {READINESS_OPTIONS.map((option) => (
-                                  <div key={option.value} className="w-full max-w-full md:w-auto">
-                                    <SelectionCard
-                                      selected={readiness?.value === option.value}
-                                      label={option.label}
-                                      description={option.description}
-                                      examples={option.examples}
-                                      compact
-                                      onClick={() => {
-                                        setStage(option.stage);
-                                        setConfidence(option.confidence);
-                                        setShowValidation(false);
-                                      }}
-                                    />
-                                  </div>
-                                ))}
-                              </OptionBrowser>
-                            </section>
-
                             <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
@@ -819,7 +798,7 @@ export function CreateProjectForm({
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <h4 className="text-sm font-semibold text-zinc-900">Routing defaults</h4>
-                            <p className="mt-1 text-sm text-zinc-500">We’ll start with safe discovery-first routing unless you want to adjust it.</p>
+                            <p className="mt-1 text-sm text-zinc-500">We’ll infer routing from your brief and start safe unless you want to adjust the project shape.</p>
                           </div>
                           <button
                             type="button"
@@ -832,12 +811,11 @@ export function CreateProjectForm({
 
                         <div className="mt-4 flex flex-wrap gap-2 text-xs">
                           <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Shape: {PROJECT_SHAPES.find((item) => item.value === shape)?.label}</span>
-                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Readiness: {readiness?.label}</span>
                         </div>
 
                         {showAdvancedQuickRouting ? (
                           <div className="mt-5 space-y-5">
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-4 md:grid-cols-1">
                               <label className="block">
                                 <span className="mb-1 block text-sm font-medium text-zinc-700">Project shape</span>
                                 <select
@@ -846,23 +824,6 @@ export function CreateProjectForm({
                                   className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
                                 >
                                   {PROJECT_SHAPES.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="block">
-                                <span className="mb-1 block text-sm font-medium text-zinc-700">Readiness</span>
-                                <select
-                                  value={readiness?.value || "needs-shaping"}
-                                  onChange={(e) => {
-                                    const option = READINESS_OPTIONS.find((item) => item.value === e.target.value);
-                                    if (!option) return;
-                                    setStage(option.stage);
-                                    setConfidence(option.confidence);
-                                  }}
-                                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                                >
-                                  {READINESS_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                   ))}
                                 </select>
@@ -894,7 +855,6 @@ export function CreateProjectForm({
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Primary route: {routing.ownerTeam}</span>
                         <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">QC: {routing.qcTeam}</span>
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Readiness: {readiness?.label || "Pending"}</span>
                       </div>
                       <p className="mt-3 text-sm text-zinc-600">{routing.rationale}</p>
                     </section>
@@ -910,12 +870,6 @@ export function CreateProjectForm({
                           <div>
                             <dt className="font-medium text-zinc-900">Project shape</dt>
                             <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
-                          </div>
-                          <div>
-                            <dt className="font-medium text-zinc-900">Readiness</dt>
-                            <dd className="mt-2 flex flex-wrap gap-2">
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{readiness?.label || "Pending"}</span>
-                            </dd>
                           </div>
                           <div>
                             <dt className="font-medium text-zinc-900">Capabilities</dt>
@@ -979,7 +933,7 @@ export function CreateProjectForm({
                     : activeStep.id === "brief"
                       ? mode === "quick"
                         ? "Share the need, add context if you have it, and we’ll take it from there."
-                        : "Add a working name, a short brief, and only adjust routing if the default looks off."
+                        : "Add a working name, a short brief, and only adjust routing details if the default looks off."
                       : activeStep.id === "shape"
                         ? "Choose the closest fit and we’ll suggest the likely path."
                         : "Choose the starting path that feels most natural. You can switch before submitting."}
@@ -1036,7 +990,7 @@ export function CreateProjectForm({
             </p>
             <h4 className="mt-3 text-xl font-semibold tracking-tight">{name.trim() || "Untitled project"}</h4>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              {goals.trim() || (shape || stage || capabilities.length > 0 ? intake.summary : "Choose a path to start. Your summary will build itself as you answer.")}
+              {goals.trim() || (shape || capabilities.length > 0 ? intake.summary : "Choose a path to start. Your summary will build itself as you answer.")}
             </p>
             <div className="mt-5 space-y-3 text-sm text-zinc-300">
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
@@ -1047,10 +1001,6 @@ export function CreateProjectForm({
                 <span className="text-zinc-400">QC</span>
                 <span className="font-medium text-white">{routing.qcTeam}</span>
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                <span className="text-zinc-400">Readiness</span>
-                <span className="font-medium text-white">{readiness?.label || "Pending"}</span>
-              </div>
               <p className="rounded-2xl bg-white/5 px-3 py-2 text-xs leading-5 text-zinc-300">{routing.rationale}</p>
             </div>
           </section>
@@ -1060,7 +1010,6 @@ export function CreateProjectForm({
             <div className="mt-4 space-y-3">
               <TinyAnswer label="Mode" value={mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : undefined} />
               <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
-              <TinyAnswer label="Readiness" value={readiness?.label} />
               <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />
               <TinyAnswer label="Brief" value={name.trim() ? (goals.trim() ? "Named and described" : "Named") : undefined} />
             </div>

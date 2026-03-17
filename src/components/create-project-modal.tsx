@@ -179,18 +179,18 @@ export function CreateProjectModal({
         }
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-200/80 px-4 py-4 sm:px-6">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">Command Center V1</p>
-            <h2 className="mt-1 text-lg font-semibold tracking-tight text-zinc-950 sm:text-xl">Create a new project</h2>
-            <p className="mt-1 text-sm text-zinc-500">Progressive intake that adapts as you answer. Same routing logic, less form fatigue.</p>
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-200/80 px-4 py-3 sm:items-start sm:px-6 sm:py-4">
+          <div className="min-w-0">
+            <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500 sm:block">Command Center V1</p>
+            <h2 className="text-base font-semibold tracking-tight text-zinc-950 sm:mt-1 sm:text-xl">Create a new project</h2>
+            <p className="mt-1 hidden text-sm text-zinc-500 sm:block">Progressive intake that adapts as you answer. Same routing logic, less form fatigue.</p>
           </div>
           <button onClick={() => onOpenChange(false)} className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100" aria-label="Close">
             ✕
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-20 sm:px-6">
+        <div className="flex-1 overflow-y-auto px-4 py-3 pb-20 sm:px-6 sm:py-4">
           <CreateProjectForm
             prefillName={prefillName}
             prefillType={prefillType}

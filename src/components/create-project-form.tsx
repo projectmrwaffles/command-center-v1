@@ -69,7 +69,7 @@ function SelectionCard({
       onClick={onClick}
       className={cn(
         "group relative w-full overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
-        compact ? "min-h-[220px] snap-center" : "",
+        compact ? "min-h-[180px] snap-center sm:min-h-[220px]" : "",
         "focus:outline-none focus:ring-2 focus:ring-red-300",
         selected
           ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
@@ -372,8 +372,8 @@ export function CreateProjectForm({
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="rounded-[30px] border border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] p-4 shadow-[0_16px_48px_rgba(24,24,27,0.06)] sm:p-6">
-          <div className="border-b border-zinc-100 pb-5">
+        <section className="p-0 sm:rounded-[30px] sm:border sm:border-zinc-200 sm:bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] sm:p-6 sm:shadow-[0_16px_48px_rgba(24,24,27,0.06)]">
+          <div className="border-b border-zinc-100 pb-4 sm:pb-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div className="max-w-2xl">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Guided intake</p>
@@ -396,25 +396,20 @@ export function CreateProjectForm({
               </div>
             </div>
 
-            <div className="mt-5 rounded-[24px] border border-white/80 bg-white/90 p-4 shadow-sm backdrop-blur sm:hidden">
+            <div className="mt-4 space-y-2 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Step {stepCounter}</p>
-                  <h4 className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">{activeStep.title}</h4>
+                  <p className="mt-1 truncate text-sm font-medium text-zinc-700">{activeStep.eyebrow} · {activeStep.title}</p>
                 </div>
-                <div className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
+                <div className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                   {progress}%
                 </div>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-200">
+              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200">
                 <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }} />
               </div>
-              <p className="mt-3 text-sm leading-6 text-zinc-600">{activeStep.description}</p>
-              {flow[currentStep + 1] ? (
-                <p className="mt-2 text-xs text-zinc-500">
-                  <span className="font-medium text-zinc-700">Up next:</span> {flow[currentStep + 1]?.title}
-                </p>
-              ) : null}
+              {flow[currentStep + 1] ? <p className="text-xs text-zinc-500">Up next: {flow[currentStep + 1]?.title}</p> : null}
             </div>
 
             <div className="mt-5 hidden -mx-1 snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
@@ -454,7 +449,7 @@ export function CreateProjectForm({
             </div>
           </div>
 
-          <div className="mt-6 min-h-[480px]">
+          <div className="mt-5 min-h-[480px] sm:mt-6">
             <div className="mb-6 hidden flex-wrap gap-2 md:flex">
               {flow.slice(0, currentStep).map((step) => (
                 <button
@@ -471,21 +466,19 @@ export function CreateProjectForm({
               ))}
             </div>
 
-            <div className="max-w-4xl rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-sm backdrop-blur sm:p-6">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-4xl p-0 sm:rounded-[28px] sm:border sm:border-white/80 sm:bg-white/85 sm:p-6 sm:shadow-sm sm:backdrop-blur">
+              <div className="flex flex-col gap-2 sm:gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
-                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{activeStep.title}</h3>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">{activeStep.description}</p>
+                  <h3 className="mt-2 text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-2xl">{activeStep.title}</h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 hidden sm:block">{activeStep.description}</p>
                 </div>
-                <div className="inline-flex w-fit rounded-full border border-dashed border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
+                <div className="hidden w-fit rounded-full border border-dashed border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500 sm:inline-flex">
                   {activeStep.helper}
                 </div>
               </div>
 
-              <div className="mt-4 rounded-[22px] border border-zinc-200 bg-zinc-50/80 px-4 py-3 text-sm text-zinc-600 md:hidden">
-                Swipe through options horizontally if that feels easier.
-              </div>
+              <div className="mt-3 text-sm leading-6 text-zinc-600 sm:hidden">{activeStep.description}</div>
 
               <div className="mt-6">
                 {activeStep.id === "shape" ? (
@@ -511,7 +504,7 @@ export function CreateProjectForm({
 
                 {activeStep.id === "context" ? (
                   <div className="space-y-4">
-                    <div className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
+                    <div className="hidden rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600 sm:block">
                       Choose every context that changes the work. This can be more than one.
                     </div>
                     <OptionBrowser columns={2}>
@@ -538,7 +531,7 @@ export function CreateProjectForm({
 
                 {activeStep.id === "capabilities" ? (
                   <div className="space-y-4">
-                    <div className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600">
+                    <div className="hidden rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-600 sm:block">
                       Pick the help you expect to need. If you only know the outcome, choose the obvious ones.
                     </div>
                     <OptionBrowser columns={2}>

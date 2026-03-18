@@ -37,12 +37,14 @@ function SuccessState({
   project,
   docsCount,
   redirecting,
+  docsWarning,
   onOpenProject,
   onCreateAnother,
 }: {
   project: CreatedProject;
   docsCount: number;
   redirecting: boolean;
+  docsWarning?: string | null;
   onOpenProject: () => void;
   onCreateAnother: () => void;
 }) {
@@ -204,6 +206,11 @@ function SuccessState({
         </div>
 
         <div className="celebration-card mt-6 w-full max-w-2xl rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
+          {docsWarning ? (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
+              {docsWarning}
+            </div>
+          ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-left">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Handoff</p>
@@ -275,13 +282,14 @@ export function CreateProjectModal({
   prefillType?: string;
 }) {
   const router = useRouter();
-  const { isSubmitting, error, createProject } = useCreateProject();
+  const { isSubmitting, error, createProject, resetCreateProjectState } = useCreateProject();
   const mobile = useIsMobile();
 
   const [docs, setDocs] = useState<File[]>([]);
   const [docsError, setDocsError] = useState<string | null>(null);
   const [docsBusy, setDocsBusy] = useState(false);
   const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
+  const [docsWarning, setDocsWarning] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const redirectTimeoutRef = useRef<number | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -305,10 +313,12 @@ export function CreateProjectModal({
 
   useLayoutEffect(() => {
     if (open) {
+      resetCreateProjectState();
       setDocs([]);
       setDocsError(null);
       setDocsBusy(false);
       setCreatedProject(null);
+      setDocsWarning(null);
       setRedirecting(false);
       if (redirectTimeoutRef.current) {
         window.clearTimeout(redirectTimeoutRef.current);
@@ -316,7 +326,7 @@ export function CreateProjectModal({
       }
       contentRef.current?.scrollTo({ top: 0, behavior: "auto" });
     }
-  }, [open]);
+  }, [open, resetCreateProjectState]);
 
   useLayoutEffect(() => {
     if (!createdProject) return;
@@ -492,6 +502,7 @@ export function CreateProjectModal({
               project={createdProject}
               docsCount={docs.length}
               redirecting={redirecting}
+              docsWarning={docsWarning}
               onOpenProject={() => navigateToProject(createdProject.id)}
               onCreateAnother={() => {
                 if (redirectTimeoutRef.current) {
@@ -502,6 +513,7 @@ export function CreateProjectModal({
                 setCreatedProject(null);
                 setDocs([]);
                 setDocsError(null);
+                setDocsWarning(null);
               }}
             />
           ) : (
@@ -514,11 +526,7 @@ export function CreateProjectModal({
                 const project = await createProject(data);
                 const docsResult = await uploadProjectDocs(project.id);
 
-                if (!docsResult.ok) {
-                  setDocsError(docsResult.message);
-                  return;
-                }
-
+                setDocsWarning(docsResult.ok ? null : docsResult.message);
                 setCreatedProject(project);
                 scheduleRedirect(project.id);
               }}

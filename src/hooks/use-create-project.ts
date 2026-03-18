@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 export function useCreateProject() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const resetCreateProjectState = useCallback(() => {
+    setIsSubmitting(false);
+    setError(null);
+  }, []);
 
   const createProject = async (data: {
     name: string;
@@ -46,5 +51,6 @@ export function useCreateProject() {
     isSubmitting,
     error,
     createProject,
+    resetCreateProjectState,
   };
 }

@@ -327,6 +327,7 @@ export function CreateProjectForm({
   const stateForValidity = { name, shape, context, capabilities, stage: inferredReadiness.stage, confidence: inferredReadiness.confidence, goals };
   const currentStepValid = getStepValidity(activeStep.id, mode, stateForValidity);
   const isChoosingPath = !mode && activeStep.id === "mode";
+  const isDesktopModeStep = activeStep.id === "mode";
   const stepProgress = isChoosingPath ? 0 : Math.max(12, Math.round(((currentStep + 1) / flow.length) * 100));
   const furthestUnlockedIndex = Math.min(
     flow.findIndex((step) => !getStepValidity(step.id, mode, stateForValidity)) === -1
@@ -422,17 +423,17 @@ export function CreateProjectForm({
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <div className="min-w-0">
-        <section className="min-w-0 p-0 sm:rounded-[28px] sm:border sm:border-zinc-200 sm:bg-white sm:p-6 sm:shadow-[0_18px_48px_rgba(24,24,27,0.05)]">
-          <div className="border-b border-zinc-100 pb-3 sm:pb-5">
-            <div className="hidden justify-end sm:flex">
-              <div className="min-w-[220px] rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+        <section className="min-w-0 p-0 sm:rounded-[28px] sm:border sm:border-zinc-200 sm:bg-white sm:px-6 sm:pt-4 sm:pb-5 sm:shadow-[0_18px_48px_rgba(24,24,27,0.05)]">
+          <div className="border-b border-zinc-100 pb-3 sm:pb-4">
+            <div className="hidden sm:block">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
-                  <div className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
+                  <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
                     {stepCounter}
                   </div>
                 </div>
-                <div className="mt-3 h-2 w-48 max-w-full overflow-hidden rounded-full bg-zinc-200">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200">
                   <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
                 </div>
               </div>
@@ -450,7 +451,7 @@ export function CreateProjectForm({
               </div>
             </div>
 
-            <div className="mt-5 hidden -mx-1 snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div className={cn("mt-4 hidden -mx-1 snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex [&::-webkit-scrollbar]:hidden [scrollbar-width:none]", isDesktopModeStep && "md:hidden")}>
               {flow.map((step, index) => {
                 const isActive = index === currentStep;
                 const isCompleted = getStepValidity(step.id, mode, stateForValidity);
@@ -487,8 +488,8 @@ export function CreateProjectForm({
             </div>
           </div>
 
-          <div className="mt-3 min-h-0 sm:mt-6">
-            <div className="mb-6 hidden flex-wrap gap-2 md:flex">
+          <div className="mt-3 min-h-0 sm:mt-4">
+            <div className={cn("mb-4 hidden flex-wrap gap-2 md:flex", isDesktopModeStep && "md:hidden")}>
               {flow.slice(0, currentStep).map((step) => (
                 <button
                   key={step.id}
@@ -504,8 +505,8 @@ export function CreateProjectForm({
               ))}
             </div>
 
-            <div className="min-w-0 max-w-4xl p-0 sm:rounded-[24px] sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-6">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0 max-w-4xl p-0 sm:rounded-[24px] sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-5">
+              <div className={cn("flex flex-col gap-3 md:flex-row md:items-start md:justify-between", isDesktopModeStep && "md:hidden")}>
                 <div className="max-w-2xl">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
                   <h3 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-zinc-950 sm:text-[1.95rem]">{activeStep.title}</h3>
@@ -516,9 +517,9 @@ export function CreateProjectForm({
                 </div>
               </div>
 
-              <div className="mt-3 text-sm leading-6 text-zinc-600 sm:hidden">{activeStep.description}</div>
+              <div className={cn("mt-3 text-sm leading-6 text-zinc-600 sm:hidden", isDesktopModeStep && "hidden")}>{activeStep.description}</div>
 
-              <div className="mt-6">
+              <div className={cn("mt-5", isDesktopModeStep && "md:mt-0")}>
                 {activeStep.id === "mode" ? (
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">

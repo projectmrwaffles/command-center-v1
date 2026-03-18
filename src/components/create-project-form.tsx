@@ -739,10 +739,6 @@ export function CreateProjectForm({
 
                     {docsSection ? <section>{docsSection}</section> : null}
 
-                    <section className="rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-600">
-                      Create the project first, then add repo, design, preview, docs, or campaign links from the project page once the work is underway.
-                    </section>
-
                     {mode === "quick" ? (
                       <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

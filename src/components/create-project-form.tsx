@@ -153,7 +153,7 @@ function buildFlow(mode: IntakePath): FlowStep[] {
         eyebrow: "Step 2 • Quick brief",
         title: "What needs to happen?",
         description: "Give the project a name, describe the need in plain language, and add any helpful docs or screenshots. We’ll still route it safely even if the brief is rough.",
-        helper: "A short, natural description is enough.",
+        helper: "Keep it light and you can refine it later.",
       },
       {
         id: "review",
@@ -293,6 +293,10 @@ export function CreateProjectForm({
   const flow = useMemo(() => buildFlow(mode), [mode]);
 
   useEffect(() => {
+    onStepChange?.();
+  }, [currentStep, onStepChange]);
+
+  useEffect(() => {
     setCurrentStep((step) => Math.min(step, flow.length - 1));
   }, [flow.length]);
 
@@ -353,7 +357,6 @@ export function CreateProjectForm({
   const advance = () => {
     submitIntentRef.current = false;
     setShowValidation(false);
-    onStepChange?.();
     setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
   };
 
@@ -373,7 +376,6 @@ export function CreateProjectForm({
 
   const switchMode = (nextMode: IntakeMode) => {
     submitIntentRef.current = false;
-    onStepChange?.();
     setMode(nextMode);
     setShowValidation(false);
     setCurrentStep(1);
@@ -395,7 +397,6 @@ export function CreateProjectForm({
     setCapabilities((current) => (current.length === 0 ? nextRecommended.capabilities : current));
     setShowValidation(false);
     window.setTimeout(() => {
-      onStepChange?.();
       setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
     }, 120);
   };
@@ -501,7 +502,7 @@ export function CreateProjectForm({
                     key={step.id}
                     className="shrink-0 rounded-full border border-dashed border-zinc-200 bg-transparent px-3 py-1.5 text-xs font-medium text-zinc-400"
                   >
-                    {index + 1}. Up next: {getDesktopStepNavLabel(step)}
+                    {index + 1}. {getDesktopStepNavLabel(step)}
                   </div>
                 );
               })}

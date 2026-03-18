@@ -336,7 +336,7 @@ export function CreateProjectModal({
   const scrollContentToTop = () => {
     const container = contentRef.current;
     if (!container) return;
-    container.scrollTo({ top: 0, behavior: "smooth" });
+    container.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const navigateToProject = (projectId: string) => {

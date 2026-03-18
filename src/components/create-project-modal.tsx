@@ -48,45 +48,53 @@ function SuccessState({
 }) {
   const confettiPieces = useMemo(
     () =>
-      Array.from({ length: 116 }, (_, index) => ({
-        id: index,
-        left: `${2 + ((index * 7) % 96)}%`,
-        top: `${18 + (index % 7) * 12}px`,
-        delay: `${(index % 16) * 14}ms`,
-        duration: `${1720 + (index % 10) * 110}ms`,
-        drift: `${-220 + (index % 24) * 18}px`,
-        rotate: `${-260 + (index % 20) * 28}deg`,
-        burst: `${index % 2 === 0 ? -1 : 1}`,
-        sway: `${index % 2 === 0 ? -1 : 1}`,
-        shape: index % 4 === 0 ? "rounded-sm" : index % 4 === 1 ? "rounded-full" : index % 4 === 2 ? "rounded-[999px]" : "rounded-[6px]",
-        size:
-          index % 8 === 0
-            ? "h-7 w-3.5"
-            : index % 8 === 1
-              ? "h-6 w-6"
-              : index % 8 === 2
-                ? "h-6 w-2.5"
-                : index % 8 === 3
-                  ? "h-5 w-5"
-                  : index % 8 === 4
-                    ? "h-6 w-2.5"
-                    : index % 8 === 5
-                      ? "h-5 w-3"
-                      : index % 8 === 6
-                        ? "h-4.5 w-4.5"
-                        : "h-5 w-2.5",
-        color:
-          [
-            "bg-rose-400",
-            "bg-amber-300",
-            "bg-orange-300",
-            "bg-fuchsia-300",
-            "bg-zinc-900",
-            "bg-emerald-300",
-            "bg-sky-300",
-            "bg-violet-400",
-          ][index % 8],
-      })),
+      Array.from({ length: 72 }, (_, index) => {
+        const lane = index % 3;
+        const laneBase = lane === 0 ? 18 : lane === 1 ? 50 : 82;
+        const laneSpread = ((index * 11) % 18) - 9;
+        const direction = lane === 1 ? (index % 2 === 0 ? -1 : 1) : lane === 0 ? -1 : 1;
+
+        return {
+          id: index,
+          left: `${laneBase + laneSpread}%`,
+          bottom: `${10 + (index % 4) * 4}px`,
+          delay: `${(index % 12) * 22}ms`,
+          duration: `${1320 + (index % 6) * 90}ms`,
+          lift: `${188 + ((index * 17) % 92)}px`,
+          drift: `${direction * (24 + ((index * 13) % 92))}px`,
+          settle: `${direction * (10 + ((index * 7) % 26))}px`,
+          rotate: `${direction * (120 + ((index * 19) % 180))}deg`,
+          scale: `${0.88 + (index % 5) * 0.08}`,
+          shape: index % 4 === 0 ? "rounded-sm" : index % 4 === 1 ? "rounded-full" : index % 4 === 2 ? "rounded-[999px]" : "rounded-[6px]",
+          size:
+            index % 8 === 0
+              ? "h-6 w-3"
+              : index % 8 === 1
+                ? "h-5 w-5"
+                : index % 8 === 2
+                  ? "h-6 w-2.5"
+                  : index % 8 === 3
+                    ? "h-4.5 w-4.5"
+                    : index % 8 === 4
+                      ? "h-5 w-2.5"
+                      : index % 8 === 5
+                        ? "h-4.5 w-3"
+                        : index % 8 === 6
+                          ? "h-4 w-4"
+                          : "h-5 w-2",
+          color:
+            [
+              "bg-rose-400",
+              "bg-amber-300",
+              "bg-orange-300",
+              "bg-fuchsia-300",
+              "bg-zinc-900",
+              "bg-emerald-300",
+              "bg-sky-300",
+              "bg-violet-400",
+            ][index % 8],
+        };
+      }),
     []
   );
 
@@ -109,22 +117,24 @@ function SuccessState({
     <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(254,215,170,0.92),rgba(255,255,255,0)_26%),radial-gradient(circle_at_20%_16%,rgba(251,207,232,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_80%_18%,rgba(253,230,138,0.28),rgba(255,255,255,0)_30%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.95))]" />
       <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-40 h-[400px] overflow-hidden sm:h-[490px]">
-        <div className="absolute inset-x-[-6%] top-0 h-full bg-[radial-gradient(circle_at_50%_16%,rgba(255,255,255,0.99),rgba(255,244,244,0.74)_18%,rgba(255,255,255,0)_56%),radial-gradient(circle_at_16%_14%,rgba(251,191,36,0.42),rgba(255,255,255,0)_28%),radial-gradient(circle_at_84%_14%,rgba(244,63,94,0.3),rgba(255,255,255,0)_26%),radial-gradient(circle_at_50%_8%,rgba(217,70,239,0.22),rgba(255,255,255,0)_22%)]" />
-        <span className="celebration-cannon celebration-cannon-left absolute left-[-2%] top-20 h-28 w-28 rounded-full sm:left-[2%] sm:top-24 sm:h-32 sm:w-32" />
-        <span className="celebration-cannon celebration-cannon-right absolute right-[-2%] top-20 h-28 w-28 rounded-full sm:right-[2%] sm:top-24 sm:h-32 sm:w-32" />
+        <div className="absolute inset-x-[-6%] top-0 h-full bg-[radial-gradient(circle_at_50%_14%,rgba(255,255,255,0.99),rgba(255,244,244,0.72)_18%,rgba(255,255,255,0)_50%),radial-gradient(circle_at_18%_80%,rgba(251,191,36,0.18),rgba(255,255,255,0)_22%),radial-gradient(circle_at_82%_82%,rgba(244,63,94,0.18),rgba(255,255,255,0)_24%),radial-gradient(circle_at_50%_92%,rgba(217,70,239,0.14),rgba(255,255,255,0)_20%)]" />
+        <span className="celebration-cannon celebration-cannon-left absolute bottom-8 left-[6%] h-24 w-24 rounded-full sm:bottom-10 sm:left-[12%] sm:h-28 sm:w-28" />
+        <span className="celebration-cannon celebration-cannon-center absolute bottom-6 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full sm:bottom-8 sm:h-28 sm:w-28" />
+        <span className="celebration-cannon celebration-cannon-right absolute bottom-8 right-[6%] h-24 w-24 rounded-full sm:bottom-10 sm:right-[12%] sm:h-28 sm:w-28" />
         {confettiPieces.map((piece) => (
           <span
             key={piece.id}
             className={`celebration-confetti ${piece.color} ${piece.shape} ${piece.size}`}
             style={{
               left: piece.left,
-              top: piece.top,
+              bottom: piece.bottom,
               animationDelay: piece.delay,
               animationDuration: piece.duration,
+              ["--confetti-lift" as string]: piece.lift,
               ["--confetti-drift" as string]: piece.drift,
+              ["--confetti-settle" as string]: piece.settle,
               ["--confetti-rotate" as string]: piece.rotate,
-              ["--confetti-burst" as string]: piece.burst,
-              ["--confetti-sway" as string]: piece.sway,
+              ["--confetti-scale" as string]: piece.scale,
             }}
           />
         ))}

@@ -284,6 +284,11 @@ export function CreateProjectModal({
     }
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!createdProject) return;
+    contentRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [createdProject]);
+
   const scrollContentToTop = () => {
     const container = contentRef.current;
     if (!container) return;

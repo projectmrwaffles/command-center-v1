@@ -424,17 +424,7 @@ export function CreateProjectForm({
       <div className="min-w-0">
         <section className="min-w-0 p-0 sm:rounded-[28px] sm:border sm:border-zinc-200 sm:bg-white sm:p-6 sm:shadow-[0_18px_48px_rgba(24,24,27,0.05)]">
           <div className="border-b border-zinc-100 pb-3 sm:pb-5">
-            <div className="hidden items-start justify-between gap-6 sm:flex">
-              <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-600">
-                  New project
-                </div>
-                <h3 className="mt-4 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-[2rem]">Create a project without the extra ceremony</h3>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-600">
-                  Choose a path, add the essentials, then review once before creating the project.
-                </p>
-              </div>
-
+            <div className="hidden justify-end sm:flex">
               <div className="min-w-[220px] rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>

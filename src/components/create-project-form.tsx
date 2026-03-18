@@ -565,9 +565,6 @@ export function CreateProjectForm({
                       </button>
                     </div>
 
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                      Choose either path to continue. Both lead to the same project creation flow.
-                    </div>
                   </div>
                 ) : null}
 

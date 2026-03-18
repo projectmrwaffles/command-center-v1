@@ -39,7 +39,7 @@ type FlowStep = {
   eyebrow: string;
   title: string;
   description: string;
-  helper: string;
+  helper?: string;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -153,7 +153,7 @@ function buildFlow(mode: IntakePath): FlowStep[] {
         eyebrow: "Step 2 • Quick brief",
         title: "What needs to happen?",
         description: "Give the project a name, describe the need in plain language, and add any helpful docs or screenshots. We’ll still route it safely even if the brief is rough.",
-        helper: "Keep it light and you can refine it later.",
+        helper: undefined,
       },
       {
         id: "review",
@@ -179,7 +179,7 @@ function buildFlow(mode: IntakePath): FlowStep[] {
       eyebrow: "Step 3 • Project brief",
       title: "Add the key context",
       description: "Give it a working name, add the essentials, and attach any supporting files. Adjust routing only if the suggested default looks off.",
-      helper: "Keep it light unless routing really matters.",
+      helper: undefined,
     },
     {
       id: "review",
@@ -533,9 +533,11 @@ export function CreateProjectForm({
                   <h3 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-zinc-950 sm:text-[1.95rem]">{activeStep.title}</h3>
                   <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block">{activeStep.description}</p>
                 </div>
-                <div className="hidden max-w-[220px] rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-5 text-zinc-500 sm:block">
-                  {activeStep.helper}
-                </div>
+                {activeStep.helper ? (
+                  <div className="hidden max-w-[220px] rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-5 text-zinc-500 sm:block">
+                    {activeStep.helper}
+                  </div>
+                ) : null}
               </div>
 
               <div className={cn("mt-3 text-sm leading-6 text-zinc-600 sm:hidden", isDesktopModeStep && "hidden")}>{activeStep.description}</div>

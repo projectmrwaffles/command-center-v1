@@ -341,6 +341,9 @@ export function CreateProjectForm({
     flow.length - 1
   );
   const recommended = getRecommendedSelections(shape);
+  const desktopStepItems = flow
+    .map((step, index) => ({ step, index }))
+    .filter(({ step }) => step.id !== "mode");
 
   const toggleValue = (current: string[], value: string) =>
     current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -436,8 +439,7 @@ export function CreateProjectForm({
   };
 
   const stepCounter = isChoosingPath ? "Not started" : `${currentStep + 1} of ${flow.length}`;
-  const getDesktopStepNavLabel = (step: FlowStep) =>
-    step.id === "mode" ? "Start" : step.title;
+  const getDesktopStepNavLabel = (step: FlowStep) => step.title;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -473,10 +475,11 @@ export function CreateProjectForm({
             </div>
 
             <div className={cn("mt-4 hidden -mx-1 snap-x gap-2 overflow-x-auto px-1 pb-1 md:flex [&::-webkit-scrollbar]:hidden [scrollbar-width:none]", isDesktopModeStep && "md:hidden")}>
-              {flow.map((step, index) => {
+              {desktopStepItems.map(({ step, index }) => {
                 const isActive = index === currentStep;
                 const isCompleted = getStepValidity(step.id, mode, stateForValidity);
                 const isReachable = index <= furthestUnlockedIndex;
+                const desktopStepNumber = index;
 
                 return isReachable ? (
                   <button
@@ -495,14 +498,14 @@ export function CreateProjectForm({
                           : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                     )}
                   >
-                    {index + 1}. {getDesktopStepNavLabel(step)}
+                    {desktopStepNumber}. {getDesktopStepNavLabel(step)}
                   </button>
                 ) : (
                   <div
                     key={step.id}
                     className="shrink-0 rounded-full border border-dashed border-zinc-200 bg-transparent px-3 py-1.5 text-xs font-medium text-zinc-400"
                   >
-                    {index + 1}. {getDesktopStepNavLabel(step)}
+                    {desktopStepNumber}. {getDesktopStepNavLabel(step)}
                   </div>
                 );
               })}
@@ -517,11 +520,7 @@ export function CreateProjectForm({
                   <h3 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-zinc-950 sm:text-[1.95rem]">{activeStep.title}</h3>
                   <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block">{activeStep.description}</p>
                 </div>
-                {activeStep.helper ? (
-                  <div className="hidden max-w-[220px] rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-5 text-zinc-500 sm:block">
-                    {activeStep.helper}
-                  </div>
-                ) : null}
+                {null}
               </div>
 
               <div className={cn("mt-3 text-sm leading-6 text-zinc-600 sm:hidden", isDesktopModeStep && "hidden")}>{activeStep.description}</div>

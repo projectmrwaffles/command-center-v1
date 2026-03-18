@@ -132,15 +132,6 @@ function FieldHint({ children, tone = "muted" }: { children: string; tone?: "mut
   return <p className={cn("mt-2 text-xs", tone === "error" ? "text-red-600" : "text-zinc-500")}>{children}</p>;
 }
 
-function TinyAnswer({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">{label}</p>
-      <p className="mt-1 text-sm font-medium text-zinc-900">{value || "Pending"}</p>
-    </div>
-  );
-}
-
 function buildFlow(mode: IntakePath): FlowStep[] {
   const chooserStep: FlowStep = {
     id: "mode",
@@ -430,7 +421,7 @@ export function CreateProjectForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0">
         <section className="min-w-0 p-0 sm:rounded-[28px] sm:border sm:border-zinc-200 sm:bg-white sm:p-6 sm:shadow-[0_18px_48px_rgba(24,24,27,0.05)]">
           <div className="border-b border-zinc-100 pb-3 sm:pb-5">
             <div className="hidden items-start justify-between gap-6 sm:flex">
@@ -506,7 +497,7 @@ export function CreateProjectForm({
             </div>
           </div>
 
-          <div className="mt-3 min-h-0 sm:mt-6 sm:min-h-[480px]">
+          <div className="mt-3 min-h-0 sm:mt-6">
             <div className="mb-6 hidden flex-wrap gap-2 md:flex">
               {flow.slice(0, currentStep).map((step) => (
                 <button
@@ -991,45 +982,6 @@ export function CreateProjectForm({
           </div>
         </section>
 
-        <aside className="hidden space-y-3 xl:sticky xl:top-4 xl:block xl:self-start">
-          <section className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-[0_12px_32px_rgba(24,24,27,0.05)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
-                  {activeStep.id === "review" ? "Ready to submit" : "Project snapshot"}
-                </p>
-                <h4 className="mt-2 text-lg font-semibold tracking-tight text-zinc-950">{name.trim() || "Untitled project"}</h4>
-              </div>
-              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600">{mode === "quick" ? "Quick" : mode === "guided" ? "Guided" : "Start"}</span>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <div className="rounded-2xl bg-zinc-50 px-3 py-2.5 text-sm text-zinc-600">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Owner</span>
-                <span className="mt-1 block font-medium text-zinc-950">{routing.ownerTeam}</span>
-              </div>
-              <div className="rounded-2xl bg-zinc-50 px-3 py-2.5 text-sm text-zinc-600">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">QC</span>
-                <span className="mt-1 block font-medium text-zinc-950">{routing.qcTeam}</span>
-              </div>
-            </div>
-
-            <p className="mt-4 text-sm leading-6 text-zinc-600">
-              {goals.trim() || (shape || capabilities.length > 0 ? intake.summary : "Choose a path to start. The project summary will tighten up as you fill in the basics.")}
-            </p>
-            <p className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-5 text-zinc-500">{routing.rationale}</p>
-          </section>
-
-          <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Current path</p>
-            <div className="mt-4 space-y-2.5">
-              <TinyAnswer label="Mode" value={mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : undefined} />
-              <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
-              <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />
-              <TinyAnswer label="Brief" value={name.trim() ? (goals.trim() ? "Named and described" : "Named") : undefined} />
-            </div>
-          </section>
-        </aside>
       </div>
     </form>
   );

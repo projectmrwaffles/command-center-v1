@@ -473,7 +473,7 @@ export function CreateProjectModal({
         className={
           mobile
             ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[28px] bg-[#fcfcfd] shadow-2xl"
-            : "absolute left-1/2 top-1/2 w-[min(1080px,calc(100vw-48px))] min-w-0 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[28px] bg-[#fcfcfd] shadow-[0_28px_96px_rgba(15,23,42,0.22)]"
+            : "absolute inset-x-6 top-1/2 flex max-h-[calc(100dvh-48px)] w-auto max-w-[960px] min-w-0 -translate-y-1/2 flex-col overflow-hidden rounded-[28px] bg-[#fcfcfd] shadow-[0_28px_96px_rgba(15,23,42,0.22)] xl:inset-x-8 xl:max-w-[980px]"
         }
         onClick={(e) => e.stopPropagation()}
       >

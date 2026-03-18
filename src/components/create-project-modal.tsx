@@ -48,16 +48,33 @@ function SuccessState({
 }) {
   const confettiPieces = useMemo(
     () =>
-      Array.from({ length: 72 }, (_, index) => ({
+      Array.from({ length: 116 }, (_, index) => ({
         id: index,
-        left: `${6 + ((index * 11) % 88)}%`,
-        top: `${44 + (index % 6) * 14}px`,
-        delay: `${(index % 12) * 18}ms`,
-        duration: `${1480 + (index % 8) * 95}ms`,
-        drift: `${-132 + (index % 18) * 15}px`,
-        rotate: `${-190 + (index % 18) * 22}deg`,
-        shape: index % 3 === 0 ? "rounded-sm" : index % 3 === 1 ? "rounded-full" : "rounded-[999px]",
-        size: index % 7 === 0 ? "h-6 w-3" : index % 7 === 1 ? "h-5 w-5" : index % 7 === 2 ? "h-5.5 w-2.5" : index % 7 === 3 ? "h-4 w-4" : index % 7 === 4 ? "h-5 w-2" : index % 7 === 5 ? "h-4.5 w-2.5" : "h-4 w-2",
+        left: `${2 + ((index * 7) % 96)}%`,
+        top: `${18 + (index % 7) * 12}px`,
+        delay: `${(index % 16) * 14}ms`,
+        duration: `${1720 + (index % 10) * 110}ms`,
+        drift: `${-220 + (index % 24) * 18}px`,
+        rotate: `${-260 + (index % 20) * 28}deg`,
+        burst: `${index % 2 === 0 ? -1 : 1}`,
+        sway: `${index % 2 === 0 ? -1 : 1}`,
+        shape: index % 4 === 0 ? "rounded-sm" : index % 4 === 1 ? "rounded-full" : index % 4 === 2 ? "rounded-[999px]" : "rounded-[6px]",
+        size:
+          index % 8 === 0
+            ? "h-7 w-3.5"
+            : index % 8 === 1
+              ? "h-6 w-6"
+              : index % 8 === 2
+                ? "h-6 w-2.5"
+                : index % 8 === 3
+                  ? "h-5 w-5"
+                  : index % 8 === 4
+                    ? "h-6 w-2.5"
+                    : index % 8 === 5
+                      ? "h-5 w-3"
+                      : index % 8 === 6
+                        ? "h-4.5 w-4.5"
+                        : "h-5 w-2.5",
         color:
           [
             "bg-rose-400",
@@ -67,7 +84,8 @@ function SuccessState({
             "bg-zinc-900",
             "bg-emerald-300",
             "bg-sky-300",
-          ][index % 7],
+            "bg-violet-400",
+          ][index % 8],
       })),
     []
   );
@@ -90,8 +108,10 @@ function SuccessState({
   return (
     <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(254,215,170,0.92),rgba(255,255,255,0)_26%),radial-gradient(circle_at_20%_16%,rgba(251,207,232,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_80%_18%,rgba(253,230,138,0.28),rgba(255,255,255,0)_30%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.95))]" />
-      <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-40 h-[360px] overflow-hidden sm:h-[430px]">
-        <div className="absolute inset-x-[-4%] top-0 h-full bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.98),rgba(255,244,244,0.72)_18%,rgba(255,255,255,0)_56%),radial-gradient(circle_at_50%_12%,rgba(251,191,36,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_34%_18%,rgba(244,63,94,0.24),rgba(255,255,255,0)_28%),radial-gradient(circle_at_66%_18%,rgba(217,70,239,0.2),rgba(255,255,255,0)_30%)]" />
+      <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-40 h-[400px] overflow-hidden sm:h-[490px]">
+        <div className="absolute inset-x-[-6%] top-0 h-full bg-[radial-gradient(circle_at_50%_16%,rgba(255,255,255,0.99),rgba(255,244,244,0.74)_18%,rgba(255,255,255,0)_56%),radial-gradient(circle_at_16%_14%,rgba(251,191,36,0.42),rgba(255,255,255,0)_28%),radial-gradient(circle_at_84%_14%,rgba(244,63,94,0.3),rgba(255,255,255,0)_26%),radial-gradient(circle_at_50%_8%,rgba(217,70,239,0.22),rgba(255,255,255,0)_22%)]" />
+        <span className="celebration-cannon celebration-cannon-left absolute left-[-2%] top-20 h-28 w-28 rounded-full sm:left-[2%] sm:top-24 sm:h-32 sm:w-32" />
+        <span className="celebration-cannon celebration-cannon-right absolute right-[-2%] top-20 h-28 w-28 rounded-full sm:right-[2%] sm:top-24 sm:h-32 sm:w-32" />
         {confettiPieces.map((piece) => (
           <span
             key={piece.id}
@@ -103,19 +123,21 @@ function SuccessState({
               animationDuration: piece.duration,
               ["--confetti-drift" as string]: piece.drift,
               ["--confetti-rotate" as string]: piece.rotate,
+              ["--confetti-burst" as string]: piece.burst,
+              ["--confetti-sway" as string]: piece.sway,
             }}
           />
         ))}
       </div>
 
       <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-        <div className="celebration-stage relative z-30 mt-0 flex h-[220px] w-full items-start justify-center sm:h-[260px]">
-          <span className="celebration-burst-ring absolute top-8 h-36 w-36 rounded-full border border-white/80 sm:top-9 sm:h-44 sm:w-44" />
-          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-3 h-48 w-48 rounded-full border border-rose-200/80 sm:top-4 sm:h-60 sm:w-60" />
-          <span className="celebration-flash absolute top-10 h-28 w-28 rounded-full sm:top-12 sm:h-36 sm:w-36" />
-          <span className="celebration-flash celebration-flash-delay absolute top-6 h-44 w-44 rounded-full opacity-70 sm:h-56 sm:w-56" />
+        <div className="celebration-stage relative z-30 mt-0 flex h-[250px] w-full items-start justify-center sm:h-[300px]">
+          <span className="celebration-burst-ring absolute top-10 h-40 w-40 rounded-full border border-white/80 sm:top-11 sm:h-48 sm:w-48" />
+          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-4 h-56 w-56 rounded-full border border-rose-200/80 sm:top-5 sm:h-[17rem] sm:w-[17rem]" />
+          <span className="celebration-flash absolute top-11 h-32 w-32 rounded-full sm:top-14 sm:h-40 sm:w-40" />
+          <span className="celebration-flash celebration-flash-delay absolute top-5 h-52 w-52 rounded-full opacity-80 sm:h-64 sm:w-64" />
 
-          <div className="relative mt-10 sm:mt-12">
+          <div className="relative mt-12 sm:mt-14">
             {burstPieces.map((piece) => (
               <span
                 key={piece.id}
@@ -313,7 +335,7 @@ export function CreateProjectModal({
     setRedirecting(true);
     redirectTimeoutRef.current = window.setTimeout(() => {
       navigateToProject(projectId);
-    }, 1800);
+    }, 2200);
   };
 
   async function uploadProjectDocs(projectId: string) {

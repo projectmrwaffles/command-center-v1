@@ -27,21 +27,22 @@ body {
 
 @keyframes celebration-confetti-fall {
   0% {
-    transform: translate3d(calc(var(--confetti-drift, 0px) * -0.16), -34px, 0) rotate(calc(var(--confetti-rotate, 260deg) * -0.08)) scale(0.2);
+    transform: translate3d(calc(var(--confetti-burst, 1) * -44px), -56px, 0) rotate(calc(var(--confetti-rotate, 260deg) * -0.1)) scale(0.22);
     opacity: 0;
   }
-  10% {
+  8% {
     opacity: 1;
   }
-  22% {
-    transform: translate3d(calc(var(--confetti-drift, 0px) * 0.16), 2px, 0) rotate(calc(var(--confetti-rotate, 260deg) * 0.14)) scale(1.28);
+  18% {
+    transform: translate3d(calc(var(--confetti-burst, 1) * 34px), -4px, 0) rotate(calc(var(--confetti-rotate, 260deg) * 0.16)) scale(1.36);
     opacity: 1;
   }
-  68% {
-    opacity: 0.94;
+  48% {
+    transform: translate3d(calc(var(--confetti-drift, 0px) * 0.72), 168px, 0) rotate(calc(var(--confetti-rotate, 260deg) * 0.78)) scale(1.02);
+    opacity: 0.96;
   }
   100% {
-    transform: translate3d(var(--confetti-drift, 0px), 340px, 0) rotate(var(--confetti-rotate, 260deg)) scale(0.98);
+    transform: translate3d(calc(var(--confetti-drift, 0px) + (var(--confetti-sway, 1) * 28px)), 420px, 0) rotate(var(--confetti-rotate, 260deg)) scale(0.94);
     opacity: 0;
   }
 }
@@ -147,6 +148,20 @@ body {
   }
 }
 
+@keyframes celebration-cannon-pop {
+  0% {
+    transform: scale(0.35);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
 @keyframes redirect-progress-fill {
   from {
     transform: scaleX(0);
@@ -158,15 +173,29 @@ body {
 
 .celebration-confetti {
   position: absolute;
-  top: 3rem;
+  top: 1.25rem;
   opacity: 0;
-  z-index: 2;
+  z-index: 3;
   animation-name: celebration-confetti-fall;
-  animation-timing-function: cubic-bezier(0.16, 0.95, 0.3, 1);
+  animation-timing-function: cubic-bezier(0.14, 0.92, 0.28, 1);
   animation-fill-mode: forwards;
   will-change: transform, opacity;
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
-  filter: saturate(1.08) contrast(1.04);
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.34);
+  filter: saturate(1.12) contrast(1.04);
+}
+
+.celebration-cannon {
+  opacity: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.95), rgba(255,255,255,0.5) 22%, rgba(251,113,133,0.18) 48%, rgba(255,255,255,0) 72%);
+  animation: celebration-cannon-pop 640ms ease-out forwards;
+}
+
+.celebration-cannon-left {
+  animation-delay: 40ms;
+}
+
+.celebration-cannon-right {
+  animation-delay: 100ms;
 }
 
 .celebration-pulse {
@@ -241,7 +270,7 @@ body {
 }
 
 .redirect-progress.is-active {
-  animation: redirect-progress-fill 1.8s linear forwards;
+  animation: redirect-progress-fill 2.2s linear forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -253,6 +282,7 @@ body {
   .celebration-flash,
   .celebration-burst-piece,
   .celebration-stage,
+  .celebration-cannon,
   .redirect-progress.is-active {
     animation: none !important;
   }

@@ -27,6 +27,7 @@ interface CreateProjectFormProps {
   prefillName?: string;
   prefillType?: string;
   docsSection?: ReactNode;
+  onStepChange?: () => void;
 }
 
 type IntakeMode = "quick" | "guided";
@@ -143,7 +144,7 @@ function TinyAnswer({ label, value }: { label: string; value?: string | null }) 
 function buildFlow(mode: IntakePath): FlowStep[] {
   const chooserStep: FlowStep = {
     id: "mode",
-    eyebrow: "Step 1 • Choose your path",
+    eyebrow: "Step 1 • Start",
     title: "How would you like to start this project?",
     description: "Choose the path that feels easiest. Both options create the same project and follow the same submission flow. Quick brief is more open, and Guided setup adds a little structure first.",
     helper: "You can switch paths before submitting.",
@@ -278,6 +279,7 @@ export function CreateProjectForm({
   error,
   prefillName,
   docsSection,
+  onStepChange,
 }: CreateProjectFormProps) {
   const [mode, setMode] = useState<IntakePath>(null);
   const [name, setName] = useState(prefillName || "");
@@ -357,6 +359,7 @@ export function CreateProjectForm({
 
   const advance = () => {
     setShowValidation(false);
+    onStepChange?.();
     setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
   };
 
@@ -374,6 +377,7 @@ export function CreateProjectForm({
   };
 
   const switchMode = (nextMode: IntakeMode) => {
+    onStepChange?.();
     setMode(nextMode);
     setShowValidation(false);
     setCurrentStep(1);
@@ -394,6 +398,7 @@ export function CreateProjectForm({
     setCapabilities((current) => (current.length === 0 ? nextRecommended.capabilities : current));
     setShowValidation(false);
     window.setTimeout(() => {
+      onStepChange?.();
       setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
     }, 120);
   };
@@ -420,7 +425,6 @@ export function CreateProjectForm({
   };
 
   const stepCounter = isChoosingPath ? "Not started" : `${currentStep + 1} of ${flow.length}`;
-  const stepStatusLabel = isChoosingPath ? "Choosing path" : "Current step";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -429,21 +433,20 @@ export function CreateProjectForm({
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="min-w-0 p-0 sm:rounded-[30px] sm:border sm:border-zinc-200 sm:bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] sm:p-6 sm:shadow-[0_16px_48px_rgba(24,24,27,0.06)]">
           <div className="border-b border-zinc-100 pb-3 sm:pb-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="hidden max-w-2xl sm:block">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-red-500">Choose your path</p>
-                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  Start a new project with a simple intake.
-                </h3>
+            <div className="hidden items-center justify-between gap-4 sm:flex">
+              <div className="max-w-2xl">
+                <h3 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">Start a new project</h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Choose the path that feels easiest. You can keep it light, or add a little structure before you create the project.
+                  Keep it quick, or add a little structure before you create the project.
                 </p>
               </div>
 
-              <div className="hidden rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur sm:block">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">{stepStatusLabel}</p>
-                <div className="mt-2 flex items-end gap-2">
-                  <span className="text-3xl font-semibold tracking-tight text-zinc-950">{stepCounter}</span>
+              <div className="min-w-[240px] rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
+                  <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+                    {stepCounter}
+                  </div>
                 </div>
                 <div className="mt-3 h-2.5 w-56 max-w-full overflow-hidden rounded-full bg-zinc-200">
                   <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
@@ -451,12 +454,12 @@ export function CreateProjectForm({
               </div>
             </div>
 
-            <div className="space-y-2.5 sm:hidden">
+            <div className="space-y-2 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500">{isChoosingPath ? "Choosing path" : "Choose your path"}</p>
                 <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
                   {stepCounter}
                 </div>
+                <p className="text-[11px] font-medium text-zinc-500">Progress</p>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
                 <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />

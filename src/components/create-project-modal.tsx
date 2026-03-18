@@ -151,6 +151,7 @@ export function CreateProjectModal({
   const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const redirectTimeoutRef = useRef<number | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open || createdProject) return;
@@ -180,8 +181,15 @@ export function CreateProjectModal({
         window.clearTimeout(redirectTimeoutRef.current);
         redirectTimeoutRef.current = null;
       }
+      contentRef.current?.scrollTo({ top: 0, behavior: "auto" });
     }
   }, [open]);
+
+  const scrollContentToTop = () => {
+    const container = contentRef.current;
+    if (!container) return;
+    container.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const navigateToProject = (projectId: string) => {
     if (redirectTimeoutRef.current) {
@@ -340,7 +348,7 @@ export function CreateProjectModal({
           ) : null}
         </div>
 
-        <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-4 py-3 pb-20 sm:px-6 sm:py-4">
+        <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-4 py-3 pb-20 sm:px-6 sm:py-4">
           {createdProject ? (
             <SuccessState
               project={createdProject}
@@ -363,6 +371,7 @@ export function CreateProjectModal({
               prefillName={prefillName}
               prefillType={prefillType}
               docsSection={docsSection}
+              onStepChange={scrollContentToTop}
               onSubmit={async (data) => {
                 const project = await createProject(data);
                 const docsResult = await uploadProjectDocs(project.id);

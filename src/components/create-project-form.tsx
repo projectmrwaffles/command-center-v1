@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   PROJECT_CAPABILITIES,
   PROJECT_CONTEXTS,
@@ -284,6 +284,7 @@ export function CreateProjectForm({
   const [showOptionalLinks, setShowOptionalLinks] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
+  const submitIntentRef = useRef(false);
 
   useEffect(() => {
     if (prefillName) setName(prefillName);
@@ -350,12 +351,14 @@ export function CreateProjectForm({
   };
 
   const advance = () => {
+    submitIntentRef.current = false;
     setShowValidation(false);
     onStepChange?.();
     setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
   };
 
   const goBack = () => {
+    submitIntentRef.current = false;
     setShowValidation(false);
     setCurrentStep((step) => Math.max(step - 1, 0));
   };
@@ -369,6 +372,7 @@ export function CreateProjectForm({
   };
 
   const switchMode = (nextMode: IntakeMode) => {
+    submitIntentRef.current = false;
     onStepChange?.();
     setMode(nextMode);
     setShowValidation(false);
@@ -384,6 +388,7 @@ export function CreateProjectForm({
   };
 
   const handleShapeChoice = (value: string) => {
+    submitIntentRef.current = false;
     setShape(value);
     const nextRecommended = getRecommendedSelections(value);
     setContext((current) => (current.length === 0 ? nextRecommended.context : current));
@@ -397,6 +402,19 @@ export function CreateProjectForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (activeStep.id !== "review") {
+      submitIntentRef.current = false;
+      requireAndAdvance();
+      return;
+    }
+
+    if (!submitIntentRef.current) {
+      submitIntentRef.current = false;
+      return;
+    }
+
+    submitIntentRef.current = false;
 
     const requiredSteps: FlowStepId[] = mode === "quick" ? ["brief"] : ["shape", "brief"];
     const firstInvalidIndex = flow.findIndex((step) => requiredSteps.includes(step.id) && !getStepValidity(step.id, mode, stateForValidity));
@@ -947,6 +965,9 @@ export function CreateProjectForm({
                   {activeStep.id === "review" ? (
                     <button
                       type="submit"
+                      onClick={() => {
+                        submitIntentRef.current = true;
+                      }}
                       disabled={isSubmitting || !name.trim() || (mode === "quick" && !goals.trim()) || (mode === "guided" && capabilities.length === 0)}
                       className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >

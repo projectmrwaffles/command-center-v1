@@ -524,6 +524,10 @@ export function CreateProjectForm({
               <div className={cn("mt-5", isDesktopModeStep && "md:mt-0")}>
                 {activeStep.id === "mode" ? (
                   <div className="space-y-4">
+                    <div className="hidden md:block">
+                      <h3 className="text-lg font-semibold tracking-tight text-zinc-950">Choose how to start</h3>
+                    </div>
+
                     <div className="grid gap-4 md:grid-cols-2">
                       <button
                         type="button"

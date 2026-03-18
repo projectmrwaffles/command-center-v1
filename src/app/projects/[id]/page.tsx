@@ -427,7 +427,7 @@ export default function ProjectDetailPage() {
   const suggestedProjectLinks = getProjectLinkSuggestions(project.type, intake);
 
   return (
-    <div className="space-y-6 overflow-x-hidden pb-10">
+    <div className="min-w-0 space-y-6 overflow-x-hidden pb-10">
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
@@ -445,31 +445,37 @@ export default function ProjectDetailPage() {
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href="/projects" className="text-zinc-400 hover:text-zinc-600">←</Link>
-            <h1 className="truncate text-2xl font-semibold text-zinc-900">{project.name}</h1>
-            <StatusBadge status={project.status} />
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Link href="/projects" className="shrink-0 text-zinc-400 hover:text-zinc-600">←</Link>
+                <h1 className="min-w-0 break-words text-2xl font-semibold text-zinc-900 sm:truncate">{project.name}</h1>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 sm:text-sm">
+                {project.type && <span className="break-words">{legacyTypeToLabel(project.type)}</span>}
+                <span>{project.progress_pct}% complete</span>
+                {project.intake_summary ? <span className="max-w-full break-words sm:truncate">{project.intake_summary}</span> : null}
+                <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div className="sm:pt-0.5">
+              <StatusBadge status={project.status} />
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 sm:text-sm">
-            {project.type && <span>{legacyTypeToLabel(project.type)}</span>}
-            <span>{project.progress_pct}% complete</span>
-            {project.intake_summary ? <span className="max-w-full truncate">{project.intake_summary}</span> : null}
-            <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
-          </div>
-          {project.description && <p className="mt-3 max-w-3xl text-sm text-zinc-600">{project.description}</p>}
+          {project.description && <p className="mt-3 max-w-3xl break-words text-sm text-zinc-600">{project.description}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
           {project.status === "active" ? (
-            <button onClick={() => handleStatusChange("paused")} disabled={actionLoading === "paused"} className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 sm:text-sm disabled:opacity-50">{actionLoading === "paused" ? "..." : "Pause"}</button>
+            <button onClick={() => handleStatusChange("paused")} disabled={actionLoading === "paused"} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 sm:w-auto sm:py-1.5 sm:text-sm disabled:opacity-50">{actionLoading === "paused" ? "..." : "Pause"}</button>
           ) : project.status === "paused" ? (
-            <button onClick={() => handleStatusChange("active")} disabled={actionLoading === "active"} className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 sm:text-sm disabled:opacity-50">{actionLoading === "active" ? "..." : "Resume"}</button>
+            <button onClick={() => handleStatusChange("active")} disabled={actionLoading === "active"} className="w-full rounded-md bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 sm:w-auto sm:py-1.5 sm:text-sm disabled:opacity-50">{actionLoading === "active" ? "..." : "Resume"}</button>
           ) : null}
-          <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 sm:text-sm">New Task</button>
-          <button onClick={() => setShowDeleteConfirm(true)} className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 sm:text-sm">Delete</button>
+          <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="w-full rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 sm:w-auto sm:py-1.5 sm:text-sm">New Task</button>
+          <button onClick={() => setShowDeleteConfirm(true)} className="w-full rounded-md border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 sm:w-auto sm:py-1.5 sm:text-sm">Delete</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-5">
         {[
           ["Delivery tasks", stats.totalTasks, "text-zinc-900"],
           ["In Progress", stats.inProgressTasks, "text-blue-600"],
@@ -642,10 +648,10 @@ export default function ProjectDetailPage() {
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-xl border border-zinc-100 p-3 transition hover:border-zinc-300 hover:shadow-sm"
+                      className="min-w-0 rounded-xl border border-zinc-100 p-3 transition hover:border-zinc-300 hover:shadow-sm"
                     >
                       <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
-                      <div className="mt-1 line-clamp-2 text-sm font-medium text-zinc-900">{link.url}</div>
+                      <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
                       <div className="mt-2 text-xs font-medium text-red-600">Open ↗</div>
                     </a>
                   ))}

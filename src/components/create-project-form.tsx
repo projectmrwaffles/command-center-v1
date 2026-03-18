@@ -417,6 +417,8 @@ export function CreateProjectForm({
   };
 
   const stepCounter = isChoosingPath ? "Not started" : `${currentStep + 1} of ${flow.length}`;
+  const getDesktopStepNavLabel = (step: FlowStep) =>
+    step.id === "mode" ? "Start" : step.title;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -474,14 +476,14 @@ export function CreateProjectForm({
                           : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                     )}
                   >
-                    {index + 1}. {step.title}
+                    {index + 1}. {getDesktopStepNavLabel(step)}
                   </button>
                 ) : (
                   <div
                     key={step.id}
                     className="shrink-0 rounded-full border border-dashed border-zinc-200 bg-transparent px-3 py-1.5 text-xs font-medium text-zinc-400"
                   >
-                    {index + 1}. Up next: {step.title}
+                    {index + 1}. Up next: {getDesktopStepNavLabel(step)}
                   </div>
                 );
               })}
@@ -500,7 +502,7 @@ export function CreateProjectForm({
                   }}
                   className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
                 >
-                  {step.title}
+                  {getDesktopStepNavLabel(step)}
                 </button>
               ))}
             </div>

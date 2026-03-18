@@ -169,10 +169,6 @@ function LinkEditor({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-600">
-        Add links here after intake. This page is the canonical home for the repo, designs, previews, docs, campaign assets, and other working artifacts.
-      </div>
-
       <div className="flex flex-wrap gap-2">
         {suggestedFields.map((key) => (
           <span key={key} className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Suggested: {PROJECT_LINK_LABELS[key]}</span>
@@ -204,7 +200,7 @@ function LinkEditor({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className={cn("text-xs", message === "Saved" ? "text-green-600" : "text-zinc-500")}>{message || "Only add the links that matter for this project type."}</p>
+        {message ? <p className={cn("text-xs", message === "Saved" ? "text-green-600" : "text-zinc-500")}>{message}</p> : <span />}
         <button onClick={handleSave} disabled={saving} className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50">
           {saving ? "Saving..." : "Save project links"}
         </button>

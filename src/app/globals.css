@@ -27,30 +27,34 @@ body {
 
 @keyframes celebration-confetti-fall {
   0% {
-    transform: translate3d(0, -28px, 0) rotate(0deg) scale(0.7);
+    transform: translate3d(0, -54px, 0) rotate(0deg) scale(0.4);
     opacity: 0;
   }
-  10% {
+  8% {
+    opacity: 1;
+  }
+  18% {
+    transform: translate3d(calc(var(--confetti-drift, 0px) * 0.22), 6px, 0) rotate(calc(var(--confetti-rotate, 260deg) * 0.12)) scale(1.18);
     opacity: 1;
   }
   100% {
-    transform: translate3d(var(--confetti-drift, 0px), 260px, 0) rotate(var(--confetti-rotate, 260deg)) scale(1.02);
+    transform: translate3d(var(--confetti-drift, 0px), 300px, 0) rotate(var(--confetti-rotate, 260deg)) scale(0.96);
     opacity: 0;
   }
 }
 
 @keyframes celebration-pulse-ring {
   0% {
-    transform: scale(0.88);
-    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.22);
+    transform: scale(0.72);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.34);
   }
-  72% {
-    transform: scale(1);
-    box-shadow: 0 0 0 26px rgba(244, 63, 94, 0);
+  45% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 32px rgba(244, 63, 94, 0.12);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+    box-shadow: 0 0 0 56px rgba(244, 63, 94, 0);
   }
 }
 
@@ -78,42 +82,53 @@ body {
 
 @keyframes celebration-burst-ring {
   0% {
-    transform: scale(0.4);
+    transform: scale(0.22);
     opacity: 0;
   }
-  16% {
-    opacity: 0.95;
+  12% {
+    opacity: 1;
   }
   100% {
-    transform: scale(1.45);
+    transform: scale(1.72);
     opacity: 0;
   }
 }
 
 @keyframes celebration-center-flash {
   0% {
-    transform: scale(0.45);
+    transform: scale(0.3);
     opacity: 0;
   }
-  24% {
-    opacity: 0.8;
+  18% {
+    opacity: 0.98;
   }
   100% {
-    transform: scale(1.6);
+    transform: scale(2.05);
     opacity: 0;
+  }
+}
+
+@keyframes celebration-card-rise {
+  0% {
+    transform: translateY(22px) scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
   }
 }
 
 @keyframes celebration-burst-piece {
   0% {
-    transform: rotate(var(--burst-angle, 0deg)) translateY(0) scaleY(0.35);
+    transform: rotate(var(--burst-angle, 0deg)) translateY(0) scaleY(0.24) scaleX(0.85);
     opacity: 0;
   }
-  16% {
+  14% {
     opacity: 1;
   }
   100% {
-    transform: rotate(var(--burst-angle, 0deg)) translateY(calc(var(--burst-distance, 72px) * -1)) scaleY(1);
+    transform: rotate(var(--burst-angle, 0deg)) translateY(calc(var(--burst-distance, 92px) * -1)) scaleY(1.2) scaleX(1);
     opacity: 0;
   }
 }
@@ -140,20 +155,21 @@ body {
 
 .celebration-confetti {
   position: absolute;
-  top: -0.5rem;
+  top: -1.25rem;
   opacity: 0;
   animation-name: celebration-confetti-fall;
-  animation-timing-function: cubic-bezier(0.18, 0.88, 0.32, 1);
+  animation-timing-function: cubic-bezier(0.16, 0.95, 0.3, 1);
   animation-fill-mode: forwards;
   will-change: transform, opacity;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.26);
 }
 
 .celebration-pulse {
-  animation: celebration-pulse-ring 1.2s ease-out 1;
+  animation: celebration-pulse-ring 1s cubic-bezier(0.18, 1, 0.36, 1) 1;
 }
 
 .celebration-pulse-glow {
-  box-shadow: 0 24px 60px rgba(24, 24, 27, 0.22), 0 0 0 10px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 30px 90px rgba(24, 24, 27, 0.28), 0 0 0 16px rgba(255, 255, 255, 0.62);
 }
 
 .celebration-orb {
@@ -169,30 +185,34 @@ body {
 }
 
 .celebration-burst-ring {
-  animation: celebration-burst-ring 980ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: celebration-burst-ring 920ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .celebration-burst-ring-delay {
-  animation-delay: 120ms;
+  animation-delay: 90ms;
 }
 
 .celebration-flash {
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.2) 55%, rgba(255, 255, 255, 0) 72%);
-  animation: celebration-center-flash 620ms ease-out forwards;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.98), rgba(255, 244, 214, 0.7) 24%, rgba(251, 113, 133, 0.22) 50%, rgba(255, 255, 255, 0) 74%);
+  animation: celebration-center-flash 560ms ease-out forwards;
+}
+
+.celebration-flash-delay {
+  animation-delay: 70ms;
 }
 
 .celebration-burst-piece {
   position: absolute;
   left: 50%;
   top: 50%;
-  height: 2.75rem;
-  width: 0.38rem;
-  margin-left: -0.19rem;
-  margin-top: -2.75rem;
+  height: 4.5rem;
+  width: 0.52rem;
+  margin-left: -0.26rem;
+  margin-top: -4.5rem;
   border-radius: 999px;
   transform-origin: center bottom;
   opacity: 0;
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 22px rgba(255, 255, 255, 0.34);
   animation-name: celebration-burst-piece;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   animation-fill-mode: forwards;
@@ -200,6 +220,14 @@ body {
 
 .celebration-stage {
   animation: celebration-stage-settle 320ms ease-out both;
+}
+
+.celebration-overlay {
+  transform-origin: center top;
+}
+
+.celebration-card {
+  animation: celebration-card-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) 520ms both;
 }
 
 .redirect-progress {

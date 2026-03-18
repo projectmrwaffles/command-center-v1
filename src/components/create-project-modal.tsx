@@ -48,15 +48,15 @@ function SuccessState({
 }) {
   const confettiPieces = useMemo(
     () =>
-      Array.from({ length: 42 }, (_, index) => ({
+      Array.from({ length: 64 }, (_, index) => ({
         id: index,
-        left: `${2 + ((index * 5) % 96)}%`,
-        delay: `${(index % 14) * 42}ms`,
-        duration: `${1550 + (index % 8) * 120}ms`,
-        drift: `${-48 + (index % 12) * 9}px`,
-        rotate: `${-90 + (index % 13) * 15}deg`,
+        left: `${1 + ((index * 7) % 98)}%`,
+        delay: `${(index % 16) * 28}ms`,
+        duration: `${1350 + (index % 9) * 110}ms`,
+        drift: `${-92 + (index % 15) * 13}px`,
+        rotate: `${-140 + (index % 16) * 18}deg`,
         shape: index % 3 === 0 ? "rounded-sm" : index % 3 === 1 ? "rounded-full" : "rounded-[999px]",
-        size: index % 5 === 0 ? "h-3.5 w-2" : index % 5 === 1 ? "h-2.5 w-2.5" : index % 5 === 2 ? "h-4 w-1.5" : index % 5 === 3 ? "h-3 w-3" : "h-4 w-2.5",
+        size: index % 6 === 0 ? "h-5 w-2.5" : index % 6 === 1 ? "h-4 w-4" : index % 6 === 2 ? "h-5 w-2" : index % 6 === 3 ? "h-3.5 w-3.5" : index % 6 === 4 ? "h-4.5 w-2.5" : "h-4 w-2",
         color:
           [
             "bg-rose-400",
@@ -73,12 +73,12 @@ function SuccessState({
 
   const burstPieces = useMemo(
     () =>
-      Array.from({ length: 18 }, (_, index) => ({
+      Array.from({ length: 26 }, (_, index) => ({
         id: index,
-        angle: `${index * 20}deg`,
-        distance: `${58 + (index % 4) * 12}px`,
-        delay: `${index * 18}ms`,
-        duration: `${640 + (index % 3) * 60}ms`,
+        angle: `${index * (360 / 26)}deg`,
+        distance: `${78 + (index % 5) * 14}px`,
+        delay: `${index * 12}ms`,
+        duration: `${560 + (index % 4) * 55}ms`,
         color: ["bg-rose-400", "bg-amber-300", "bg-fuchsia-300", "bg-emerald-300", "bg-sky-300", "bg-zinc-900"][index % 6],
       })),
     []
@@ -89,7 +89,8 @@ function SuccessState({
   return (
     <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(254,215,170,0.92),rgba(255,255,255,0)_26%),radial-gradient(circle_at_20%_16%,rgba(251,207,232,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_80%_18%,rgba(253,230,138,0.28),rgba(255,255,255,0)_30%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.95))]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[280px] overflow-hidden sm:h-[320px]">
+      <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-20 h-[320px] overflow-hidden sm:h-[380px]">
+        <div className="absolute inset-x-[-4%] top-0 h-full bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.98),rgba(255,244,244,0.72)_18%,rgba(255,255,255,0)_56%),radial-gradient(circle_at_50%_12%,rgba(251,191,36,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_34%_18%,rgba(244,63,94,0.24),rgba(255,255,255,0)_28%),radial-gradient(circle_at_66%_18%,rgba(217,70,239,0.2),rgba(255,255,255,0)_30%)]" />
         {confettiPieces.map((piece) => (
           <span
             key={piece.id}
@@ -105,15 +106,14 @@ function SuccessState({
         ))}
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-20 h-40 w-40 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.95),rgba(255,255,255,0.2)_58%,rgba(255,255,255,0)_74%)] blur-md sm:top-24 sm:h-52 sm:w-52" />
-
       <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-        <div className="celebration-stage relative mt-1 flex h-36 w-full items-start justify-center sm:h-44">
-          <span className="celebration-burst-ring absolute top-5 h-28 w-28 rounded-full border border-white/70 sm:top-7 sm:h-32 sm:w-32" />
-          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-3 h-36 w-36 rounded-full border border-rose-200/70 sm:top-5 sm:h-44 sm:w-44" />
-          <span className="celebration-flash absolute top-11 h-24 w-24 rounded-full sm:top-14 sm:h-28 sm:w-28" />
+        <div className="celebration-stage relative z-30 mt-0 flex h-[220px] w-full items-start justify-center sm:h-[260px]">
+          <span className="celebration-burst-ring absolute top-8 h-36 w-36 rounded-full border border-white/80 sm:top-9 sm:h-44 sm:w-44" />
+          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-3 h-48 w-48 rounded-full border border-rose-200/80 sm:top-4 sm:h-60 sm:w-60" />
+          <span className="celebration-flash absolute top-10 h-28 w-28 rounded-full sm:top-12 sm:h-36 sm:w-36" />
+          <span className="celebration-flash celebration-flash-delay absolute top-6 h-44 w-44 rounded-full opacity-70 sm:h-56 sm:w-56" />
 
-          <div className="relative mt-9 sm:mt-11">
+          <div className="relative mt-10 sm:mt-12">
             {burstPieces.map((piece) => (
               <span
                 key={piece.id}
@@ -127,37 +127,37 @@ function SuccessState({
               />
             ))}
 
-            <div className="celebration-orb relative flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28">
+            <div className="celebration-orb relative flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
               <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.98),rgba(255,255,255,0.24)_58%,rgba(255,255,255,0)_70%)]" />
-              <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_24px_60px_rgba(24,24,27,0.22)] sm:h-24 sm:w-24">
-                <Check className="h-10 w-10 sm:h-11 sm:w-11" strokeWidth={2.4} />
+              <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_28px_80px_rgba(24,24,27,0.26)] sm:h-24 sm:w-24">
+                <Check className="h-11 w-11 sm:h-12 sm:w-12" strokeWidth={2.6} />
               </div>
-              <div className="celebration-star celebration-star-delay absolute left-1 top-2 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
+              <div className="celebration-star celebration-star-delay absolute left-0 top-2 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
                 <Sparkles className="h-3.5 w-3.5" />
               </div>
-              <div className="celebration-star absolute right-1 top-5 rounded-full bg-white/90 p-1 text-amber-500 shadow-sm">
+              <div className="celebration-star absolute right-0 top-4 rounded-full bg-white/90 p-1 text-amber-500 shadow-sm">
                 <Sparkles className="h-3.5 w-3.5" />
               </div>
-              <div className="celebration-star celebration-star-delay absolute bottom-4 left-2 rounded-full bg-white/90 p-1 text-fuchsia-500 shadow-sm">
+              <div className="celebration-star celebration-star-delay absolute bottom-5 left-1 rounded-full bg-white/90 p-1 text-fuchsia-500 shadow-sm">
                 <Sparkles className="h-3.5 w-3.5" />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="-mt-1 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur">
+        <div className="celebration-card relative z-10 -mt-10 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur sm:-mt-12">
           <Sparkles className="h-3.5 w-3.5" />
           Project created
         </div>
 
-        <h3 className="mt-4 max-w-2xl text-[1.9rem] font-semibold tracking-tight text-zinc-950 sm:text-5xl">
+        <h3 className="celebration-card mt-4 max-w-2xl text-[1.9rem] font-semibold tracking-tight text-zinc-950 sm:text-5xl">
           {project.name || "Your project"} is ready.
         </h3>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
+        <p className="celebration-card mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
           The intake is saved{docsCount > 0 ? ` with ${docsCount} attached file${docsCount === 1 ? "" : "s"}` : ""}, the workspace is set up, and handoff starts automatically in a moment.
         </p>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+        <div className="celebration-card mt-6 flex flex-wrap items-center justify-center gap-2.5">
           <span className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm">
             Intake saved
           </span>
@@ -169,7 +169,7 @@ function SuccessState({
           </span>
         </div>
 
-        <div className="mt-6 w-full max-w-2xl rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
+        <div className="celebration-card mt-6 w-full max-w-2xl rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-left">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Handoff</p>

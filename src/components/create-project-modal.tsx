@@ -480,15 +480,19 @@ export function CreateProjectModal({
         >
           <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-200/80 px-4 py-3 sm:items-start sm:px-6 sm:py-4">
           <div className="min-w-0">
-            <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400 sm:block">New project</p>
-            <h2 className="text-base font-semibold tracking-tight text-zinc-950 sm:mt-1 sm:text-xl">
-              {createdProject ? "Project ready" : "Create a new project"}
-            </h2>
-            <p className="mt-1 hidden text-sm text-zinc-500 sm:block">
-              {createdProject
-                ? "Project created. Review the handoff card or jump straight into the workspace."
-                : "Add the essentials, review once, and keep the same submission flow."}
-            </p>
+            {createdProject || mobile ? (
+              <>
+                {createdProject ? null : <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400 sm:hidden">New project</p>}
+                <h2 className="text-base font-semibold tracking-tight text-zinc-950 sm:mt-1 sm:text-xl">
+                  {createdProject ? "Project ready" : "Create a new project"}
+                </h2>
+                <p className="mt-1 text-sm text-zinc-500 sm:hidden">
+                  {createdProject
+                    ? "Project created. Review the handoff card or jump straight into the workspace."
+                    : "Add the essentials, review once, and keep the same submission flow."}
+                </p>
+              </>
+            ) : null}
           </div>
           {!createdProject ? (
             <button onClick={() => onOpenChange(false)} className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100" aria-label="Close">

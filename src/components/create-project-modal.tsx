@@ -48,14 +48,15 @@ function SuccessState({
 }) {
   const confettiPieces = useMemo(
     () =>
-      Array.from({ length: 22 }, (_, index) => ({
+      Array.from({ length: 34 }, (_, index) => ({
         id: index,
-        left: `${4 + ((index * 11) % 92)}%`,
-        delay: `${(index % 11) * 95}ms`,
-        duration: `${1900 + (index % 6) * 180}ms`,
-        rotate: `${-18 + (index % 7) * 10}deg`,
+        left: `${2 + ((index * 7) % 96)}%`,
+        delay: `${(index % 12) * 55}ms`,
+        duration: `${1450 + (index % 7) * 120}ms`,
+        drift: `${-34 + (index % 9) * 8}px`,
+        rotate: `${-42 + (index % 11) * 9}deg`,
         shape: index % 3 === 0 ? "rounded-sm" : index % 3 === 1 ? "rounded-full" : "rounded-[999px]",
-        size: index % 4 === 0 ? "h-2.5 w-2.5" : index % 4 === 1 ? "h-3.5 w-2" : "h-3 w-1.5",
+        size: index % 5 === 0 ? "h-3.5 w-2" : index % 5 === 1 ? "h-2.5 w-2.5" : index % 5 === 2 ? "h-4 w-1.5" : index % 5 === 3 ? "h-3 w-3" : "h-4 w-2.5",
         color:
           [
             "bg-rose-400",
@@ -64,15 +65,18 @@ function SuccessState({
             "bg-fuchsia-300",
             "bg-zinc-900",
             "bg-emerald-300",
-          ][index % 6],
+            "bg-sky-300",
+          ][index % 7],
       })),
     []
   );
 
+  const redirectStateLabel = redirecting ? "Opening project workspace" : "Automatic redirect paused";
+
   return (
-    <div className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,237,213,0.95),rgba(255,255,255,0)_34%),radial-gradient(circle_at_20%_20%,rgba(251,207,232,0.28),rgba(255,255,255,0)_36%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.92))]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 overflow-hidden">
+    <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(254,215,170,0.92),rgba(255,255,255,0)_26%),radial-gradient(circle_at_20%_16%,rgba(251,207,232,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_80%_18%,rgba(253,230,138,0.28),rgba(255,255,255,0)_30%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.95))]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[280px] overflow-hidden sm:h-[320px]">
         {confettiPieces.map((piece) => (
           <span
             key={piece.id}
@@ -81,102 +85,101 @@ function SuccessState({
               left: piece.left,
               animationDelay: piece.delay,
               animationDuration: piece.duration,
-              transform: `rotate(${piece.rotate})`,
+              ["--confetti-drift" as string]: piece.drift,
+              ["--confetti-rotate" as string]: piece.rotate,
             }}
           />
         ))}
       </div>
 
+      <div className="pointer-events-none absolute left-1/2 top-24 h-40 w-40 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.95),rgba(255,255,255,0.2)_58%,rgba(255,255,255,0)_74%)] blur-md sm:top-28 sm:h-52 sm:w-52" />
+
       <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-        <div className="celebration-orb relative flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28">
-          <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.98),rgba(255,255,255,0.28)_58%,rgba(255,255,255,0)_70%)]" />
-          <div className="celebration-pulse relative z-10 flex h-18 w-18 items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_24px_60px_rgba(24,24,27,0.22)] sm:h-20 sm:w-20">
-            <Check className="h-9 w-9 sm:h-10 sm:w-10" strokeWidth={2.2} />
-          </div>
-          <div className="celebration-star celebration-star-delay absolute left-2 top-3 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
-            <Sparkles className="h-3.5 w-3.5" />
-          </div>
-          <div className="celebration-star absolute bottom-4 right-2 rounded-full bg-white/90 p-1 text-amber-500 shadow-sm">
-            <Sparkles className="h-3.5 w-3.5" />
+        <div className="celebration-stage relative mt-2 flex h-44 w-full items-start justify-center sm:h-52">
+          <span className="celebration-burst-ring absolute top-7 h-28 w-28 rounded-full border border-white/70 sm:top-9 sm:h-32 sm:w-32" />
+          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-5 h-36 w-36 rounded-full border border-rose-200/70 sm:top-7 sm:h-44 sm:w-44" />
+
+          <div className="celebration-orb relative mt-10 flex h-24 w-24 items-center justify-center sm:mt-12 sm:h-28 sm:w-28">
+            <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.98),rgba(255,255,255,0.24)_58%,rgba(255,255,255,0)_70%)]" />
+            <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_24px_60px_rgba(24,24,27,0.22)] sm:h-24 sm:w-24">
+              <Check className="h-10 w-10 sm:h-11 sm:w-11" strokeWidth={2.4} />
+            </div>
+            <div className="celebration-star celebration-star-delay absolute left-1 top-2 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
+            <div className="celebration-star absolute right-1 top-5 rounded-full bg-white/90 p-1 text-amber-500 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
+            <div className="celebration-star celebration-star-delay absolute bottom-4 left-2 rounded-full bg-white/90 p-1 text-fuchsia-500 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur">
+        <div className="-mt-1 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur">
           <Sparkles className="h-3.5 w-3.5" />
           Project created
         </div>
 
-        <h3 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
-          {project.name || "Your project"} is live and ready for the next move.
+        <h3 className="mt-4 max-w-2xl text-[2rem] font-semibold tracking-tight text-zinc-950 sm:text-5xl">
+          {project.name || "Your project"} is officially in motion.
         </h3>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-          Everything landed cleanly{docsCount > 0 ? `, including ${docsCount} attached file${docsCount === 1 ? "" : "s"}` : ""}. We’ll take you to the project workspace in a moment so momentum stays intact.
+          Nice. The project is live{docsCount > 0 ? ` with ${docsCount} attached file${docsCount === 1 ? "" : "s"}` : ""}, and the workspace is ready. We’ll drop you straight into it so you can keep moving.
         </p>
 
-        <div className="mt-7 grid w-full gap-3 sm:grid-cols-[1.4fr_0.9fr]">
-          <div className="rounded-[28px] border border-white/80 bg-white/90 p-5 text-left shadow-[0_18px_45px_rgba(24,24,27,0.08)] backdrop-blur">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Launch sequence</p>
-                <p className="mt-2 text-lg font-semibold text-zinc-950">Workspace handoff queued</p>
-              </div>
-              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                Ready
-              </div>
-            </div>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+          <span className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm">
+            Intake saved
+          </span>
+          <span className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm">
+            {docsCount > 0 ? `${docsCount} upload${docsCount === 1 ? "" : "s"} attached` : "No uploads attached"}
+          </span>
+          <span className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm">
+            {project.type || "General project"}
+          </span>
+        </div>
 
-            <div className="mt-5 overflow-hidden rounded-full bg-zinc-100">
-              <div className={`redirect-progress h-2 rounded-full bg-[linear-gradient(90deg,#fb7185,#f59e0b,#18181b)] ${redirecting ? "is-active" : ""}`} />
+        <div className="mt-8 w-full max-w-2xl rounded-[30px] border border-white/80 bg-white/88 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-left">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Next</p>
+              <p className="mt-1 text-base font-semibold text-zinc-950 sm:text-lg">{redirectStateLabel}</p>
             </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700">
-                Intake saved
-              </div>
-              <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700">
-                {docsCount > 0 ? `${docsCount} upload${docsCount === 1 ? "" : "s"} attached` : "No uploads attached"}
-              </div>
-              <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700">
-                Next: project workspace
-              </div>
+            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+              Workspace ready
             </div>
           </div>
 
-          <div className="grid gap-3 text-left">
-            <div className="rounded-[24px] border border-zinc-200/80 bg-white/80 px-4 py-4 shadow-sm backdrop-blur">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Redirect</p>
-              <p className="mt-2 text-sm font-medium text-zinc-900">
-                {redirecting ? "Opening automatically now" : "Automatic redirect paused"}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-zinc-200/80 bg-white/80 px-4 py-4 shadow-sm backdrop-blur">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Project type</p>
-              <p className="mt-2 text-sm font-medium text-zinc-900">{project.type || "General project"}</p>
+          <div className="mt-4 overflow-hidden rounded-full bg-zinc-100">
+            <div className={`redirect-progress h-2 rounded-full bg-[linear-gradient(90deg,#fb7185,#f59e0b,#18181b)] ${redirecting ? "is-active" : ""}`} />
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-left text-sm text-zinc-500">
+              {redirecting
+                ? "Short celebration, then automatic handoff."
+                : "Automatic handoff is paused, but the project is ready whenever you are."}
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={onOpenProject}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(24,24,27,0.18)] transition hover:bg-zinc-800"
+              >
+                Open project now
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onCreateAnother}
+                className="rounded-2xl border border-zinc-300 bg-white/92 px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+              >
+                Create another
+              </button>
             </div>
           </div>
         </div>
-
-        <div className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={onOpenProject}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(24,24,27,0.18)] transition hover:bg-zinc-800"
-          >
-            Open project now
-            <ArrowUpRight className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onCreateAnother}
-            className="rounded-2xl border border-zinc-300 bg-white/90 px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
-          >
-            Create another
-          </button>
-        </div>
-
-        <p className="mt-4 text-xs text-zinc-500">
-          {redirecting ? "Redirecting automatically…" : "Redirect paused. You can open the project manually or start another."}
-        </p>
       </div>
     </div>
   );

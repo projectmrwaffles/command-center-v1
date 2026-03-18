@@ -27,26 +27,26 @@ body {
 
 @keyframes celebration-confetti-fall {
   0% {
-    transform: translate3d(0, -18px, 0) rotate(0deg) scale(0.9);
+    transform: translate3d(0, -28px, 0) rotate(0deg) scale(0.7);
     opacity: 0;
   }
-  12% {
+  10% {
     opacity: 1;
   }
   100% {
-    transform: translate3d(0, 220px, 0) rotate(260deg) scale(1.05);
+    transform: translate3d(var(--confetti-drift, 0px), 260px, 0) rotate(var(--confetti-rotate, 260deg)) scale(1.02);
     opacity: 0;
   }
 }
 
 @keyframes celebration-pulse-ring {
   0% {
-    transform: scale(0.9);
-    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.18);
+    transform: scale(0.88);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.22);
   }
-  70% {
+  72% {
     transform: scale(1);
-    box-shadow: 0 0 0 22px rgba(244, 63, 94, 0);
+    box-shadow: 0 0 0 26px rgba(244, 63, 94, 0);
   }
   100% {
     transform: scale(1);
@@ -60,7 +60,7 @@ body {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-4px);
+    transform: translateY(-5px);
   }
 }
 
@@ -68,10 +68,35 @@ body {
   0%,
   100% {
     transform: scale(0.96) rotate(0deg);
-    opacity: 0.8;
+    opacity: 0.82;
   }
   50% {
-    transform: scale(1.08) rotate(8deg);
+    transform: scale(1.1) rotate(8deg);
+    opacity: 1;
+  }
+}
+
+@keyframes celebration-burst-ring {
+  0% {
+    transform: scale(0.45);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+@keyframes celebration-stage-settle {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
     opacity: 1;
   }
 }
@@ -87,16 +112,20 @@ body {
 
 .celebration-confetti {
   position: absolute;
-  top: -0.25rem;
+  top: -0.5rem;
   opacity: 0;
   animation-name: celebration-confetti-fall;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-timing-function: cubic-bezier(0.18, 0.88, 0.32, 1);
   animation-fill-mode: forwards;
   will-change: transform, opacity;
 }
 
 .celebration-pulse {
-  animation: celebration-pulse-ring 1.4s ease-out 1;
+  animation: celebration-pulse-ring 1.2s ease-out 1;
+}
+
+.celebration-pulse-glow {
+  box-shadow: 0 24px 60px rgba(24, 24, 27, 0.22), 0 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 .celebration-orb {
@@ -109,6 +138,18 @@ body {
 
 .celebration-star-delay {
   animation-delay: 240ms;
+}
+
+.celebration-burst-ring {
+  animation: celebration-burst-ring 920ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.celebration-burst-ring-delay {
+  animation-delay: 120ms;
+}
+
+.celebration-stage {
+  animation: celebration-stage-settle 320ms ease-out both;
 }
 
 .redirect-progress {
@@ -125,6 +166,8 @@ body {
   .celebration-pulse,
   .celebration-orb,
   .celebration-star,
+  .celebration-burst-ring,
+  .celebration-stage,
   .redirect-progress.is-active {
     animation: none !important;
   }

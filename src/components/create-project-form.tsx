@@ -510,22 +510,6 @@ export function CreateProjectForm({
           </div>
 
           <div className="mt-3 min-h-0 sm:mt-4">
-            <div className={cn("mb-4 hidden flex-wrap gap-2 md:flex", isDesktopModeStep && "md:hidden")}>
-              {flow.slice(0, currentStep).map((step) => (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(flow.findIndex((item) => item.id === step.id));
-                    setShowValidation(false);
-                  }}
-                  className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
-                >
-                  {getDesktopStepNavLabel(step)}
-                </button>
-              ))}
-            </div>
-
             <div className="min-w-0 max-w-4xl p-0 sm:rounded-[24px] sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-5">
               <div className={cn("flex flex-col gap-3 md:flex-row md:items-start md:justify-between", isDesktopModeStep && "md:hidden")}>
                 <div className="max-w-2xl">

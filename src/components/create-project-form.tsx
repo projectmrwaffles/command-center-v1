@@ -11,7 +11,6 @@ import {
   getRoutingSummary,
   summarizeIntake,
 } from "@/lib/project-intake";
-import { PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 
 interface CreateProjectFormProps {
   onSubmit: (data: {
@@ -19,7 +18,6 @@ interface CreateProjectFormProps {
     type: string;
     description?: string;
     intake?: ProjectIntake;
-    links?: ProjectLinks;
   }) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
@@ -278,10 +276,8 @@ export function CreateProjectForm({
   const [context, setContext] = useState<string[]>([]);
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [goals, setGoals] = useState("");
-  const [links, setLinks] = useState<ProjectLinks>({});
   const [showAdvancedQuickRouting, setShowAdvancedQuickRouting] = useState(false);
   const [showAdvancedGuidedRouting, setShowAdvancedGuidedRouting] = useState(false);
-  const [showOptionalLinks, setShowOptionalLinks] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
   const submitIntentRef = useRef(false);
@@ -311,7 +307,6 @@ export function CreateProjectForm({
       stage: inferredReadiness.stage,
       confidence: inferredReadiness.confidence,
       goals: goals || undefined,
-      links,
       summary: summarizeIntake({
         shape,
         context,
@@ -320,15 +315,13 @@ export function CreateProjectForm({
         confidence: inferredReadiness.confidence,
         projectName: name,
         goals,
-        links,
       }),
     }),
-    [name, shape, context, capabilities, inferredReadiness, goals, links]
+    [name, shape, context, capabilities, inferredReadiness, goals]
   );
 
   const routing = useMemo(() => getRoutingSummary(intake), [intake]);
   const activeStep = flow[currentStep];
-  const linkedSurfaces = PROJECT_LINK_FIELDS.filter((key) => Boolean(links[key]));
   const stateForValidity = { name, shape, context, capabilities, stage: inferredReadiness.stage, confidence: inferredReadiness.confidence, goals };
   const currentStepValid = getStepValidity(activeStep.id, mode, stateForValidity);
   const isChoosingPath = !mode && activeStep.id === "mode";
@@ -347,15 +340,6 @@ export function CreateProjectForm({
 
   const toggleValue = (current: string[], value: string) =>
     current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
-
-  const handleLinkChange = (key: keyof ProjectLinks, value: string) => {
-    setLinks((current) => {
-      const next = { ...current };
-      if (value.trim()) next[key] = value;
-      else delete next[key];
-      return next;
-    });
-  };
 
   const advance = () => {
     submitIntentRef.current = false;
@@ -434,7 +418,6 @@ export function CreateProjectForm({
       type: deriveLegacyProjectType(intake),
       description: goals || intake.summary,
       intake,
-      links,
     });
   };
 
@@ -756,41 +739,8 @@ export function CreateProjectForm({
 
                     {docsSection ? <section>{docsSection}</section> : null}
 
-                    <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <h4 className="text-sm font-semibold text-zinc-900">Optional links</h4>
-                          <p className="mt-1 text-sm text-zinc-500">Skip this during intake unless a link is important for day-one context. You can always add and manage links later from the project page.</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowOptionalLinks((current) => !current)}
-                          className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400"
-                        >
-                          {showOptionalLinks ? "Hide link fields" : linkedSurfaces.length > 0 ? `Edit ${linkedSurfaces.length} added link${linkedSurfaces.length === 1 ? "" : "s"}` : "Add links now"}
-                        </button>
-                      </div>
-
-                      {!showOptionalLinks ? (
-                        <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-                          Usually it is simpler to create the project first, then add links and artifacts from the project page once the work is underway.
-                        </div>
-                      ) : (
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          {PROJECT_LINK_FIELDS.map((key) => (
-                            <label key={key} className="block">
-                              <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-                              <input
-                                type="url"
-                                value={links[key] || ""}
-                                onChange={(e) => handleLinkChange(key, e.target.value)}
-                                className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-base focus:border-red-500 focus:outline-none"
-                                placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      )}
+                    <section className="rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-600">
+                      Create the project first, then add repo, design, preview, docs, or campaign links from the project page once the work is underway.
                     </section>
 
                     {mode === "quick" ? (
@@ -899,25 +849,14 @@ export function CreateProjectForm({
                       </div>
 
                       <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
-                        <p className="text-sm font-semibold text-zinc-900">Brief + links</p>
+                        <p className="text-sm font-semibold text-zinc-900">Brief</p>
                         <div className="mt-4 space-y-4 text-sm text-zinc-600">
                           <div>
                             <p className="font-medium text-zinc-900">Notes</p>
                             <p className="mt-1 whitespace-pre-wrap leading-6 text-zinc-600">{goals.trim() || "No additional notes added."}</p>
                           </div>
-                          <div>
-                            <p className="font-medium text-zinc-900">Linked surfaces</p>
-                            {linkedSurfaces.length > 0 ? (
-                              <ul className="mt-2 space-y-2">
-                                {linkedSurfaces.map((key) => (
-                                  <li key={key} className="break-all rounded-2xl bg-zinc-50 px-3 py-2">
-                                    <span className="font-medium text-zinc-900">{PROJECT_LINK_LABELS[key]}:</span> {links[key]}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="mt-1 text-zinc-500">No links added.</p>
-                            )}
+                          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-500">
+                            Project links live on the project page after creation, so this review stays focused on the intake itself.
                           </div>
                         </div>
                       </div>

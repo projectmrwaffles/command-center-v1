@@ -48,13 +48,13 @@ function SuccessState({
 }) {
   const confettiPieces = useMemo(
     () =>
-      Array.from({ length: 34 }, (_, index) => ({
+      Array.from({ length: 42 }, (_, index) => ({
         id: index,
-        left: `${2 + ((index * 7) % 96)}%`,
-        delay: `${(index % 12) * 55}ms`,
-        duration: `${1450 + (index % 7) * 120}ms`,
-        drift: `${-34 + (index % 9) * 8}px`,
-        rotate: `${-42 + (index % 11) * 9}deg`,
+        left: `${2 + ((index * 5) % 96)}%`,
+        delay: `${(index % 14) * 42}ms`,
+        duration: `${1550 + (index % 8) * 120}ms`,
+        drift: `${-48 + (index % 12) * 9}px`,
+        rotate: `${-90 + (index % 13) * 15}deg`,
         shape: index % 3 === 0 ? "rounded-sm" : index % 3 === 1 ? "rounded-full" : "rounded-[999px]",
         size: index % 5 === 0 ? "h-3.5 w-2" : index % 5 === 1 ? "h-2.5 w-2.5" : index % 5 === 2 ? "h-4 w-1.5" : index % 5 === 3 ? "h-3 w-3" : "h-4 w-2.5",
         color:
@@ -67,6 +67,19 @@ function SuccessState({
             "bg-emerald-300",
             "bg-sky-300",
           ][index % 7],
+      })),
+    []
+  );
+
+  const burstPieces = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, index) => ({
+        id: index,
+        angle: `${index * 20}deg`,
+        distance: `${58 + (index % 4) * 12}px`,
+        delay: `${index * 18}ms`,
+        duration: `${640 + (index % 3) * 60}ms`,
+        color: ["bg-rose-400", "bg-amber-300", "bg-fuchsia-300", "bg-emerald-300", "bg-sky-300", "bg-zinc-900"][index % 6],
       })),
     []
   );
@@ -92,40 +105,56 @@ function SuccessState({
         ))}
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-24 h-40 w-40 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.95),rgba(255,255,255,0.2)_58%,rgba(255,255,255,0)_74%)] blur-md sm:top-28 sm:h-52 sm:w-52" />
+      <div className="pointer-events-none absolute left-1/2 top-20 h-40 w-40 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.95),rgba(255,255,255,0.2)_58%,rgba(255,255,255,0)_74%)] blur-md sm:top-24 sm:h-52 sm:w-52" />
 
       <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-        <div className="celebration-stage relative mt-2 flex h-44 w-full items-start justify-center sm:h-52">
-          <span className="celebration-burst-ring absolute top-7 h-28 w-28 rounded-full border border-white/70 sm:top-9 sm:h-32 sm:w-32" />
-          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-5 h-36 w-36 rounded-full border border-rose-200/70 sm:top-7 sm:h-44 sm:w-44" />
+        <div className="celebration-stage relative mt-1 flex h-36 w-full items-start justify-center sm:h-44">
+          <span className="celebration-burst-ring absolute top-5 h-28 w-28 rounded-full border border-white/70 sm:top-7 sm:h-32 sm:w-32" />
+          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-3 h-36 w-36 rounded-full border border-rose-200/70 sm:top-5 sm:h-44 sm:w-44" />
+          <span className="celebration-flash absolute top-11 h-24 w-24 rounded-full sm:top-14 sm:h-28 sm:w-28" />
 
-          <div className="celebration-orb relative mt-10 flex h-24 w-24 items-center justify-center sm:mt-12 sm:h-28 sm:w-28">
-            <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.98),rgba(255,255,255,0.24)_58%,rgba(255,255,255,0)_70%)]" />
-            <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_24px_60px_rgba(24,24,27,0.22)] sm:h-24 sm:w-24">
-              <Check className="h-10 w-10 sm:h-11 sm:w-11" strokeWidth={2.4} />
-            </div>
-            <div className="celebration-star celebration-star-delay absolute left-1 top-2 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5" />
-            </div>
-            <div className="celebration-star absolute right-1 top-5 rounded-full bg-white/90 p-1 text-amber-500 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5" />
-            </div>
-            <div className="celebration-star celebration-star-delay absolute bottom-4 left-2 rounded-full bg-white/90 p-1 text-fuchsia-500 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5" />
+          <div className="relative mt-9 sm:mt-11">
+            {burstPieces.map((piece) => (
+              <span
+                key={piece.id}
+                className={`celebration-burst-piece ${piece.color}`}
+                style={{
+                  ["--burst-angle" as string]: piece.angle,
+                  ["--burst-distance" as string]: piece.distance,
+                  animationDelay: piece.delay,
+                  animationDuration: piece.duration,
+                }}
+              />
+            ))}
+
+            <div className="celebration-orb relative flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28">
+              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.98),rgba(255,255,255,0.24)_58%,rgba(255,255,255,0)_70%)]" />
+              <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_24px_60px_rgba(24,24,27,0.22)] sm:h-24 sm:w-24">
+                <Check className="h-10 w-10 sm:h-11 sm:w-11" strokeWidth={2.4} />
+              </div>
+              <div className="celebration-star celebration-star-delay absolute left-1 top-2 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <div className="celebration-star absolute right-1 top-5 rounded-full bg-white/90 p-1 text-amber-500 shadow-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <div className="celebration-star celebration-star-delay absolute bottom-4 left-2 rounded-full bg-white/90 p-1 text-fuchsia-500 shadow-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="-mt-1 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur">
+        <div className="-mt-1 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur">
           <Sparkles className="h-3.5 w-3.5" />
           Project created
         </div>
 
-        <h3 className="mt-4 max-w-2xl text-[2rem] font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-          {project.name || "Your project"} is officially in motion.
+        <h3 className="mt-4 max-w-2xl text-[1.9rem] font-semibold tracking-tight text-zinc-950 sm:text-5xl">
+          {project.name || "Your project"} is ready.
         </h3>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-          Nice. The project is live{docsCount > 0 ? ` with ${docsCount} attached file${docsCount === 1 ? "" : "s"}` : ""}, and the workspace is ready. We’ll drop you straight into it so you can keep moving.
+          The intake is saved{docsCount > 0 ? ` with ${docsCount} attached file${docsCount === 1 ? "" : "s"}` : ""}, the workspace is set up, and handoff starts automatically in a moment.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
@@ -140,14 +169,29 @@ function SuccessState({
           </span>
         </div>
 
-        <div className="mt-8 w-full max-w-2xl rounded-[30px] border border-white/80 bg-white/88 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
+        <div className="mt-6 w-full max-w-2xl rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-left">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Next</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Handoff</p>
               <p className="mt-1 text-base font-semibold text-zinc-950 sm:text-lg">{redirectStateLabel}</p>
             </div>
             <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
               Workspace ready
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-3 text-left text-sm text-zinc-600 sm:grid-cols-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Project</p>
+              <p className="mt-1 font-medium text-zinc-900">{project.name || "Untitled project"}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Uploads</p>
+              <p className="mt-1 font-medium text-zinc-900">{docsCount > 0 ? `${docsCount} attached` : "None attached"}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Type</p>
+              <p className="mt-1 font-medium text-zinc-900">{project.type || "General project"}</p>
             </div>
           </div>
 
@@ -158,7 +202,7 @@ function SuccessState({
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-left text-sm text-zinc-500">
               {redirecting
-                ? "Short celebration, then automatic handoff."
+                ? "Quick celebration, then we hand you straight to the workspace."
                 : "Automatic handoff is paused, but the project is ready whenever you are."}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -392,7 +436,7 @@ export function CreateProjectModal({
             </h2>
             <p className="mt-1 hidden text-sm text-zinc-500 sm:block">
               {createdProject
-                ? "A quick success moment before we drop you into the workspace."
+                ? "Project created. Review the handoff card or jump straight into the workspace."
                 : "A simple intake that stays clear as you go. Routing and submission stay the same."}
             </p>
           </div>

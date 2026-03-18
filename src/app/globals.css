@@ -27,14 +27,14 @@ body {
 
 @keyframes celebration-confetti-fall {
   0% {
-    transform: translate3d(0, -12px, 0) rotate(0deg);
+    transform: translate3d(0, -18px, 0) rotate(0deg) scale(0.9);
     opacity: 0;
   }
-  10% {
+  12% {
     opacity: 1;
   }
   100% {
-    transform: translate3d(0, 180px, 0) rotate(220deg);
+    transform: translate3d(0, 220px, 0) rotate(260deg) scale(1.05);
     opacity: 0;
   }
 }
@@ -46,7 +46,7 @@ body {
   }
   70% {
     transform: scale(1);
-    box-shadow: 0 0 0 18px rgba(244, 63, 94, 0);
+    box-shadow: 0 0 0 22px rgba(244, 63, 94, 0);
   }
   100% {
     transform: scale(1);
@@ -54,26 +54,83 @@ body {
   }
 }
 
+@keyframes celebration-orb-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes celebration-star-drift {
+  0%,
+  100% {
+    transform: scale(0.96) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08) rotate(8deg);
+    opacity: 1;
+  }
+}
+
+@keyframes redirect-progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .celebration-confetti {
   position: absolute;
   top: -0.25rem;
-  width: 0.5rem;
-  height: 0.9rem;
-  border-radius: 999px;
   opacity: 0;
   animation-name: celebration-confetti-fall;
-  animation-timing-function: ease-out;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: forwards;
+  will-change: transform, opacity;
 }
 
 .celebration-pulse {
   animation: celebration-pulse-ring 1.4s ease-out 1;
 }
 
+.celebration-orb {
+  animation: celebration-orb-float 3.2s ease-in-out infinite;
+}
+
+.celebration-star {
+  animation: celebration-star-drift 2.1s ease-in-out infinite;
+}
+
+.celebration-star-delay {
+  animation-delay: 240ms;
+}
+
+.redirect-progress {
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.redirect-progress.is-active {
+  animation: redirect-progress-fill 1.8s linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .celebration-confetti,
-  .celebration-pulse {
+  .celebration-pulse,
+  .celebration-orb,
+  .celebration-star,
+  .redirect-progress.is-active {
     animation: none !important;
+  }
+
+  .redirect-progress {
+    transform: scaleX(1);
   }
 }
 

@@ -473,20 +473,20 @@ export function CreateProjectModal({
         className={
           mobile
             ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[28px] bg-[#fcfcfd] shadow-2xl"
-            : "absolute left-1/2 top-1/2 w-[min(1180px,calc(100vw-32px))] min-w-0 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[32px] bg-[#fcfcfd] shadow-[0_32px_120px_rgba(15,23,42,0.24)]"
+            : "absolute left-1/2 top-1/2 w-[min(1080px,calc(100vw-48px))] min-w-0 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[28px] bg-[#fcfcfd] shadow-[0_28px_96px_rgba(15,23,42,0.22)]"
         }
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-200/80 px-4 py-3 sm:items-start sm:px-6 sm:py-4">
           <div className="min-w-0">
-            <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-red-500 sm:block">Command Center V1</p>
+            <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400 sm:block">New project</p>
             <h2 className="text-base font-semibold tracking-tight text-zinc-950 sm:mt-1 sm:text-xl">
               {createdProject ? "Project ready" : "Create a new project"}
             </h2>
             <p className="mt-1 hidden text-sm text-zinc-500 sm:block">
               {createdProject
                 ? "Project created. Review the handoff card or jump straight into the workspace."
-                : "A simple intake that stays clear as you go. Routing and submission stay the same."}
+                : "Add the essentials, review once, and keep the same submission flow."}
             </p>
           </div>
           {!createdProject ? (

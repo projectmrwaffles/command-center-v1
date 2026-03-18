@@ -430,25 +430,28 @@ export function CreateProjectForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="min-w-0 p-0 sm:rounded-[30px] sm:border sm:border-zinc-200 sm:bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.95),rgba(255,255,255,1)_42%,rgba(250,250,250,1)_100%)] sm:p-6 sm:shadow-[0_16px_48px_rgba(24,24,27,0.06)]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <section className="min-w-0 p-0 sm:rounded-[28px] sm:border sm:border-zinc-200 sm:bg-white sm:p-6 sm:shadow-[0_18px_48px_rgba(24,24,27,0.05)]">
           <div className="border-b border-zinc-100 pb-3 sm:pb-5">
-            <div className="hidden items-center justify-between gap-4 sm:flex">
+            <div className="hidden items-start justify-between gap-6 sm:flex">
               <div className="max-w-2xl">
-                <h3 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">Start a new project</h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Keep it quick, or add a little structure before you create the project.
+                <div className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-600">
+                  New project
+                </div>
+                <h3 className="mt-4 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-[2rem]">Create a project without the extra ceremony</h3>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-600">
+                  Choose a path, add the essentials, then review once before creating the project.
                 </p>
               </div>
 
-              <div className="min-w-[240px] rounded-3xl border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur">
+              <div className="min-w-[220px] rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
-                  <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+                  <div className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
                     {stepCounter}
                   </div>
                 </div>
-                <div className="mt-3 h-2.5 w-56 max-w-full overflow-hidden rounded-full bg-zinc-200">
+                <div className="mt-3 h-2 w-48 max-w-full overflow-hidden rounded-full bg-zinc-200">
                   <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
                 </div>
               </div>
@@ -520,14 +523,14 @@ export function CreateProjectForm({
               ))}
             </div>
 
-            <div className="min-w-0 max-w-4xl p-0 sm:rounded-[28px] sm:border sm:border-white/80 sm:bg-white/85 sm:p-6 sm:shadow-sm sm:backdrop-blur">
-              <div className="flex flex-col gap-2 sm:gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
+            <div className="min-w-0 max-w-4xl p-0 sm:rounded-[24px] sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-2xl">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
-                  <h3 className="mt-2 text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-2xl">{activeStep.title}</h3>
+                  <h3 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-zinc-950 sm:text-[1.95rem]">{activeStep.title}</h3>
                   <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block">{activeStep.description}</p>
                 </div>
-                <div className="hidden w-fit rounded-full border border-dashed border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500 sm:inline-flex">
+                <div className="hidden max-w-[220px] rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-5 text-zinc-500 sm:block">
                   {activeStep.helper}
                 </div>
               </div>
@@ -988,31 +991,38 @@ export function CreateProjectForm({
           </div>
         </section>
 
-        <aside className="hidden space-y-4 xl:sticky xl:top-4 xl:block xl:self-start">
-          <section className="rounded-[28px] border border-zinc-200 bg-zinc-950 p-5 text-white shadow-[0_20px_60px_rgba(24,24,27,0.18)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-300">
-              {activeStep.id === "review" ? "Ready to submit" : "Current snapshot"}
-            </p>
-            <h4 className="mt-3 text-xl font-semibold tracking-tight">{name.trim() || "Untitled project"}</h4>
-            <p className="mt-3 text-sm leading-6 text-zinc-300">
-              {goals.trim() || (shape || capabilities.length > 0 ? intake.summary : "Choose a path to start. Your summary will build itself as you answer.")}
-            </p>
-            <div className="mt-5 space-y-3 text-sm text-zinc-300">
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                <span className="text-zinc-400">Owner</span>
-                <span className="font-medium text-white">{routing.ownerTeam}</span>
+        <aside className="hidden space-y-3 xl:sticky xl:top-4 xl:block xl:self-start">
+          <section className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-[0_12px_32px_rgba(24,24,27,0.05)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+                  {activeStep.id === "review" ? "Ready to submit" : "Project snapshot"}
+                </p>
+                <h4 className="mt-2 text-lg font-semibold tracking-tight text-zinc-950">{name.trim() || "Untitled project"}</h4>
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2">
-                <span className="text-zinc-400">QC</span>
-                <span className="font-medium text-white">{routing.qcTeam}</span>
-              </div>
-              <p className="rounded-2xl bg-white/5 px-3 py-2 text-xs leading-5 text-zinc-300">{routing.rationale}</p>
+              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600">{mode === "quick" ? "Quick" : mode === "guided" ? "Guided" : "Start"}</span>
             </div>
+
+            <div className="mt-4 space-y-2">
+              <div className="rounded-2xl bg-zinc-50 px-3 py-2.5 text-sm text-zinc-600">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Owner</span>
+                <span className="mt-1 block font-medium text-zinc-950">{routing.ownerTeam}</span>
+              </div>
+              <div className="rounded-2xl bg-zinc-50 px-3 py-2.5 text-sm text-zinc-600">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">QC</span>
+                <span className="mt-1 block font-medium text-zinc-950">{routing.qcTeam}</span>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-zinc-600">
+              {goals.trim() || (shape || capabilities.length > 0 ? intake.summary : "Choose a path to start. The project summary will tighten up as you fill in the basics.")}
+            </p>
+            <p className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-5 text-zinc-500">{routing.rationale}</p>
           </section>
 
-          <section className="rounded-[28px] border border-zinc-200 bg-white p-5">
+          <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Current path</p>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-2.5">
               <TinyAnswer label="Mode" value={mode === "quick" ? "Quick brief" : mode === "guided" ? "Guided setup" : undefined} />
               <TinyAnswer label="Shape" value={PROJECT_SHAPES.find((item) => item.value === shape)?.label} />
               <TinyAnswer label="Capabilities" value={capabilities.length ? `${capabilities.length} selected` : undefined} />

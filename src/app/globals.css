@@ -27,18 +27,21 @@ body {
 
 @keyframes celebration-confetti-fall {
   0% {
-    transform: translate3d(0, -54px, 0) rotate(0deg) scale(0.4);
+    transform: translate3d(calc(var(--confetti-drift, 0px) * -0.16), -34px, 0) rotate(calc(var(--confetti-rotate, 260deg) * -0.08)) scale(0.2);
     opacity: 0;
   }
-  8% {
+  10% {
     opacity: 1;
   }
-  18% {
-    transform: translate3d(calc(var(--confetti-drift, 0px) * 0.22), 6px, 0) rotate(calc(var(--confetti-rotate, 260deg) * 0.12)) scale(1.18);
+  22% {
+    transform: translate3d(calc(var(--confetti-drift, 0px) * 0.16), 2px, 0) rotate(calc(var(--confetti-rotate, 260deg) * 0.14)) scale(1.28);
     opacity: 1;
+  }
+  68% {
+    opacity: 0.94;
   }
   100% {
-    transform: translate3d(var(--confetti-drift, 0px), 300px, 0) rotate(var(--confetti-rotate, 260deg)) scale(0.96);
+    transform: translate3d(var(--confetti-drift, 0px), 340px, 0) rotate(var(--confetti-rotate, 260deg)) scale(0.98);
     opacity: 0;
   }
 }
@@ -155,13 +158,15 @@ body {
 
 .celebration-confetti {
   position: absolute;
-  top: -1.25rem;
+  top: 3rem;
   opacity: 0;
+  z-index: 2;
   animation-name: celebration-confetti-fall;
   animation-timing-function: cubic-bezier(0.16, 0.95, 0.3, 1);
   animation-fill-mode: forwards;
   will-change: transform, opacity;
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.26);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
+  filter: saturate(1.08) contrast(1.04);
 }
 
 .celebration-pulse {

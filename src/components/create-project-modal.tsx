@@ -48,15 +48,16 @@ function SuccessState({
 }) {
   const confettiPieces = useMemo(
     () =>
-      Array.from({ length: 64 }, (_, index) => ({
+      Array.from({ length: 72 }, (_, index) => ({
         id: index,
-        left: `${1 + ((index * 7) % 98)}%`,
-        delay: `${(index % 16) * 28}ms`,
-        duration: `${1350 + (index % 9) * 110}ms`,
-        drift: `${-92 + (index % 15) * 13}px`,
-        rotate: `${-140 + (index % 16) * 18}deg`,
+        left: `${6 + ((index * 11) % 88)}%`,
+        top: `${44 + (index % 6) * 14}px`,
+        delay: `${(index % 12) * 18}ms`,
+        duration: `${1480 + (index % 8) * 95}ms`,
+        drift: `${-132 + (index % 18) * 15}px`,
+        rotate: `${-190 + (index % 18) * 22}deg`,
         shape: index % 3 === 0 ? "rounded-sm" : index % 3 === 1 ? "rounded-full" : "rounded-[999px]",
-        size: index % 6 === 0 ? "h-5 w-2.5" : index % 6 === 1 ? "h-4 w-4" : index % 6 === 2 ? "h-5 w-2" : index % 6 === 3 ? "h-3.5 w-3.5" : index % 6 === 4 ? "h-4.5 w-2.5" : "h-4 w-2",
+        size: index % 7 === 0 ? "h-6 w-3" : index % 7 === 1 ? "h-5 w-5" : index % 7 === 2 ? "h-5.5 w-2.5" : index % 7 === 3 ? "h-4 w-4" : index % 7 === 4 ? "h-5 w-2" : index % 7 === 5 ? "h-4.5 w-2.5" : "h-4 w-2",
         color:
           [
             "bg-rose-400",
@@ -89,7 +90,7 @@ function SuccessState({
   return (
     <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(254,215,170,0.92),rgba(255,255,255,0)_26%),radial-gradient(circle_at_20%_16%,rgba(251,207,232,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_80%_18%,rgba(253,230,138,0.28),rgba(255,255,255,0)_30%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.95))]" />
-      <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-20 h-[320px] overflow-hidden sm:h-[380px]">
+      <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-40 h-[360px] overflow-hidden sm:h-[430px]">
         <div className="absolute inset-x-[-4%] top-0 h-full bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.98),rgba(255,244,244,0.72)_18%,rgba(255,255,255,0)_56%),radial-gradient(circle_at_50%_12%,rgba(251,191,36,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_34%_18%,rgba(244,63,94,0.24),rgba(255,255,255,0)_28%),radial-gradient(circle_at_66%_18%,rgba(217,70,239,0.2),rgba(255,255,255,0)_30%)]" />
         {confettiPieces.map((piece) => (
           <span
@@ -97,6 +98,7 @@ function SuccessState({
             className={`celebration-confetti ${piece.color} ${piece.shape} ${piece.size}`}
             style={{
               left: piece.left,
+              top: piece.top,
               animationDelay: piece.delay,
               animationDuration: piece.duration,
               ["--confetti-drift" as string]: piece.drift,

@@ -11,6 +11,8 @@ import {
   legacyTypeToLabel,
 } from "@/lib/project-intake";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
+import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
+import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { useRealtimeStore } from "@/lib/realtime-store";
 
 function cn(...classes: Array<string | undefined | false | null>) {
@@ -242,8 +244,7 @@ export default function ProjectDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
   const [taskDesc, setTaskDesc] = useState("");
 
   const fetchProject = useCallback(async (showSpinner = false) => {
@@ -343,21 +344,22 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleCreateTask = async () => {
-    if (!newTaskTitle.trim()) return;
+  const handleCreateTask = async (payload: StructuredTaskPayload) => {
+    setCreatingTask(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTaskTitle, description: newTaskDesc }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Failed to create task");
-      setNewTaskTitle("");
-      setNewTaskDesc("");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to create task");
       setShowTaskModal(false);
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setCreatingTask(false);
     }
   };
 
@@ -633,12 +635,14 @@ export default function ProjectDetailPage() {
                       ) : (
                         (bucket as any[]).map((task: any) => {
                           const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
+                          const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
                           return (
                             <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-lg border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-300 hover:bg-zinc-50">
                               <div className="flex items-start justify-between gap-2">
                                 <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
                                 <TaskStatusBadge status={task.status} />
                               </div>
+                              {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
                               {(task.description || assignee) && (
                                 <div className="mt-2 space-y-1">
                                   {task.description && <p className="line-clamp-2 text-xs text-zinc-500">{task.description}</p>}
@@ -772,58 +776,48 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {showTaskModal && (
+      {showTaskModal && selectedTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTaskModal(false)}>
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-zinc-900">{selectedTask ? "Task Details" : "New delivery task"}</h3>
-            {selectedTask ? (
-              <div className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700">Task</label>
-                  <p className="text-sm font-medium text-zinc-900">{selectedTask.title}</p>
-                  <p className="mt-1 text-xs text-zinc-500">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "Unassigned"}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700">Status</label>
-                  <select
-                    value={selectedTask.status}
-                    onChange={(e) => setSelectedTask((prev: any) => (prev ? { ...prev, status: e.target.value } : prev))}
-                    className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  >
-                    <option value="todo">To do</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="done">Done</option>
-                    <option value="blocked">Blocked</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700">Description / directions</label>
-                  <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={5} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-                </div>
+            <h3 className="text-lg font-semibold text-zinc-900">Task Details</h3>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700">Task</label>
+                <p className="text-sm font-medium text-zinc-900">{selectedTask.title}</p>
+                <p className="mt-1 text-xs text-zinc-500">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "Unassigned"}</p>
+                {selectedTask.task_type && TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] ? (
+                  <p className="mt-2 text-xs text-red-600">Structured type: {TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG].label}</p>
+                ) : null}
               </div>
-            ) : (
-              <div className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700">Task name</label>
-                  <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="What outcome should be delivered..." className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700">Description</label>
-                  <textarea value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Execution notes, acceptance criteria, or handoff details..." rows={4} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700">Status</label>
+                <select
+                  value={selectedTask.status}
+                  onChange={(e) => setSelectedTask((prev: any) => (prev ? { ...prev, status: e.target.value } : prev))}
+                  className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                >
+                  <option value="todo">To do</option>
+                  <option value="in_progress">In progress</option>
+                  <option value="done">Done</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700">Description / directions</label>
+                <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={5} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+              </div>
+            </div>
             <div className="mt-4 flex gap-2">
               <button onClick={() => setShowTaskModal(false)} className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancel</button>
-              {selectedTask ? (
-                <button onClick={handleDeleteTask} className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
-              ) : null}
-              <button onClick={selectedTask ? handleUpdateTask : handleCreateTask} disabled={selectedTask ? false : !newTaskTitle.trim()} className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">{selectedTask ? "Save" : "Create"}</button>
+              <button onClick={handleDeleteTask} className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
+              <button onClick={handleUpdateTask} className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">Save</button>
             </div>
           </div>
         </div>
       )}
+
+      <StructuredTaskModal open={showTaskModal && !selectedTask} onClose={() => setShowTaskModal(false)} onCreate={handleCreateTask} creating={creatingTask} />
     </div>
   );
 }

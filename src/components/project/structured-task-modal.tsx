@@ -77,8 +77,14 @@ export function StructuredTaskModal({
   const canSubmit = Boolean(taskType && config && taskGoal.trim().length > 0 && config.metadataFields.every((field) => Boolean(metadata[field.key])));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center sm:p-4" onClick={onClose}>
-      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 shadow-xl sm:max-h-[90vh] sm:p-6" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[calc(100dvh-env(safe-area-inset-bottom)-6rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-xl sm:max-h-[90vh] sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Create task</h3>

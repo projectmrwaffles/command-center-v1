@@ -23,6 +23,9 @@ export type TaskTypeConfig = {
   qcTeam: TeamLane;
   reviewRequired: boolean;
   goalVerb: string;
+  createEnabled?: boolean;
+  goalLabel?: string;
+  goalPlaceholder?: string;
   metadataFields: Array<{
     key: string;
     label: string;
@@ -66,6 +69,9 @@ export const TASK_TYPE_CONFIG: Record<TaskType, TaskTypeConfig> = {
   design: {
     label: "Design",
     description: "Shape flows, screens, or visual direction.",
+    createEnabled: true,
+    goalLabel: "What needs to be designed?",
+    goalPlaceholder: "e.g. mobile dashboard onboarding flow",
     ownerTeam: "design",
     qcTeam: "product",
     reviewRequired: true,
@@ -91,6 +97,9 @@ export const TASK_TYPE_CONFIG: Record<TaskType, TaskTypeConfig> = {
   build_implementation: {
     label: "Build / implementation",
     description: "Implement a concrete product, site, integration, or fix.",
+    createEnabled: true,
+    goalLabel: "What should be implemented?",
+    goalPlaceholder: "e.g. structured task creation modal for project page",
     ownerTeam: "engineering",
     qcTeam: "qa",
     reviewRequired: true,
@@ -117,6 +126,9 @@ export const TASK_TYPE_CONFIG: Record<TaskType, TaskTypeConfig> = {
   content_messaging: {
     label: "Content / messaging",
     description: "Create or revise copy, messaging, or campaign assets.",
+    createEnabled: true,
+    goalLabel: "What message or asset should be created?",
+    goalPlaceholder: "e.g. homepage hero copy for Command Center launch",
     ownerTeam: "marketing",
     qcTeam: "product",
     reviewRequired: true,
@@ -183,6 +195,8 @@ export const TASK_TYPE_CONFIG: Record<TaskType, TaskTypeConfig> = {
     ],
   },
 };
+
+export const CREATE_ENABLED_TASK_TYPES = TASK_TYPES.filter((taskType) => TASK_TYPE_CONFIG[taskType].createEnabled);
 
 export function isTaskType(value: unknown): value is TaskType {
   return typeof value === "string" && TASK_TYPES.includes(value as TaskType);

@@ -35,18 +35,14 @@ function storageNotConfiguredMessage() {
 
 function SuccessState({
   project,
-  docsCount,
   redirecting,
   docsWarning,
   onOpenProject,
-  onCreateAnother,
 }: {
   project: CreatedProject;
-  docsCount: number;
   redirecting: boolean;
   docsWarning?: string | null;
   onOpenProject: () => void;
-  onCreateAnother: () => void;
 }) {
   const confettiPieces = useMemo(
     () =>
@@ -113,17 +109,17 @@ function SuccessState({
     []
   );
 
-  const redirectStateLabel = redirecting ? "Opening project workspace" : "Automatic redirect paused";
+  const redirectStateLabel = redirecting ? "Opening workspace…" : "Redirect paused";
   const statusTone = redirecting
     ? {
         badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
         dot: "bg-emerald-500",
-        summary: "Quick celebration, then we’ll take you straight into the workspace.",
+        summary: "Taking you there in a moment.",
       }
     : {
         badge: "border-amber-200 bg-amber-50 text-amber-700",
         dot: "bg-amber-500",
-        summary: "Automatic handoff is paused, but the project is ready whenever you are.",
+        summary: "Your project is ready to open.",
       };
 
   return (
@@ -197,58 +193,35 @@ function SuccessState({
           Project created
         </div>
 
-        <h3 className="celebration-card mt-4 max-w-2xl text-[1.9rem] font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-          {project.name || "Your project"} is ready.
-        </h3>
-        <p className="celebration-card mt-3 max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
-          Everything is set. We’ll hand you into the workspace automatically, or you can open it now.
-        </p>
-
-        <div className="celebration-card mt-6 w-full max-w-xl rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
-          {docsWarning ? (
-            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
-              {docsWarning}
-            </div>
-          ) : null}
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 text-left">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Handoff</p>
-              <p className="mt-1 text-lg font-semibold text-zinc-950">{redirectStateLabel}</p>
-              <p className="mt-2 text-sm text-zinc-500">{statusTone.summary}</p>
-            </div>
-            <div className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${statusTone.badge}`}>
-              <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
-              Ready
-            </div>
+        <div className="celebration-card mt-4 w-full max-w-md rounded-[28px] border border-white/80 bg-white/92 px-5 py-5 text-center shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:px-6">
+          <h3 className="text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-[2.5rem]">
+            {project.name || "Your project"} is ready.
+          </h3>
+          <div className="mt-3 flex items-center justify-center gap-2 text-sm text-zinc-600">
+            <span className={`inline-flex h-2.5 w-2.5 rounded-full ${statusTone.dot}`} />
+            <span>{redirectStateLabel}</span>
           </div>
+          <p className="mt-2 text-sm text-zinc-500 sm:text-base">{statusTone.summary}</p>
 
           <div className="mt-4 overflow-hidden rounded-full bg-zinc-100/90">
             <div className={`redirect-progress h-1.5 rounded-full bg-[linear-gradient(90deg,#fb7185,#f59e0b,#18181b)] ${redirecting ? "is-active" : ""}`} />
           </div>
 
-          <div className="mt-4 flex flex-col gap-2 border-t border-zinc-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-left text-sm text-zinc-500">
-              <span className="font-medium text-zinc-700">{project.name || "Untitled project"}</span>
-              {docsCount > 0 ? ` · ${docsCount} file${docsCount === 1 ? "" : "s"}` : ""}
-              {project.type ? ` · ${project.type}` : ""}
+          {docsWarning ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
+              {docsWarning}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={onOpenProject}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(24,24,27,0.16)] transition hover:bg-zinc-800"
-              >
-                Open workspace
-                <ArrowUpRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={onCreateAnother}
-                className="rounded-2xl px-4 py-3 text-sm font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
-              >
-                Create another
-              </button>
-            </div>
+          ) : null}
+
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={onOpenProject}
+              className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${statusTone.badge}`}
+            >
+              Open workspace
+              <ArrowUpRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -489,21 +462,9 @@ export function CreateProjectModal({
           {createdProject ? (
             <SuccessState
               project={createdProject}
-              docsCount={docs.length}
               redirecting={redirecting}
               docsWarning={docsWarning}
               onOpenProject={() => navigateToProject(createdProject.id)}
-              onCreateAnother={() => {
-                if (redirectTimeoutRef.current) {
-                  window.clearTimeout(redirectTimeoutRef.current);
-                  redirectTimeoutRef.current = null;
-                }
-                setRedirecting(false);
-                setCreatedProject(null);
-                setDocs([]);
-                setDocsError(null);
-                setDocsWarning(null);
-              }}
             />
           ) : (
             <CreateProjectForm

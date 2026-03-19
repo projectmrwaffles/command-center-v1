@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   formatIntakeValue,
   getReadinessOption,
@@ -118,6 +118,20 @@ function artifactEmptyState(projectType?: string | null, intake?: any) {
   return "No project links or artifacts added yet.";
 }
 
+function Section({ title, description, children, className }: { title: string; description?: string; children: ReactNode; className?: string }) {
+  return (
+    <section className={cn("rounded-2xl border border-zinc-200 bg-white/90 p-4 sm:p-5", className)}>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+          {description ? <p className="mt-1 text-sm text-zinc-500">{description}</p> : null}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function LinkEditor({
   projectId,
   projectType,
@@ -168,44 +182,50 @@ function LinkEditor({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {suggestedFields.map((key) => (
-          <span key={key} className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Suggested: {PROJECT_LINK_LABELS[key]}</span>
-        ))}
-      </div>
+    <details className="group rounded-xl border border-zinc-200 bg-zinc-50/70" open={Boolean(Object.keys(draft || {}).length === 0)}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-900">
+        <span>Edit project links</span>
+        <span className="text-xs text-zinc-400 transition group-open:rotate-180">⌄</span>
+      </summary>
+      <div className="space-y-4 border-t border-zinc-200 px-4 py-4">
+        <div className="flex flex-wrap gap-2">
+          {suggestedFields.map((key) => (
+            <span key={key} className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Suggested: {PROJECT_LINK_LABELS[key]}</span>
+          ))}
+        </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {orderedFields.map((key) => (
-          <label key={key} className="block">
-            <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-            <input
-              type="url"
-              value={draft[key] || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-                setDraft((current) => {
-                  const next = { ...current };
-                  if (value.trim()) next[key] = value;
-                  else delete next[key];
-                  return next;
-                });
-                setMessage(null);
-              }}
-              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
-              placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
-            />
-          </label>
-        ))}
-      </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {orderedFields.map((key) => (
+            <label key={key} className="block">
+              <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+              <input
+                type="url"
+                value={draft[key] || ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDraft((current) => {
+                    const next = { ...current };
+                    if (value.trim()) next[key] = value;
+                    else delete next[key];
+                    return next;
+                  });
+                  setMessage(null);
+                }}
+                className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+                placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
+              />
+            </label>
+          ))}
+        </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {message ? <p className={cn("text-xs", message === "Saved" ? "text-green-600" : "text-zinc-500")}>{message}</p> : <span />}
-        <button onClick={handleSave} disabled={saving} className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50">
-          {saving ? "Saving..." : "Save project links"}
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {message ? <p className={cn("text-xs", message === "Saved" ? "text-green-600" : "text-zinc-500")}>{message}</p> : <span />}
+          <button onClick={handleSave} disabled={saving} className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50">
+            {saving ? "Saving..." : "Save project links"}
+          </button>
+        </div>
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -289,17 +309,21 @@ export default function ProjectDetailPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(newStatus);
+    setError(null);
+    setData((prev) => (prev ? { ...prev, project: { ...prev.project, status: newStatus, updated_at: new Date().toISOString() } } : prev));
+
     try {
       const res = await fetch(`/api/projects/${projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Failed to update");
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to update");
       setData((prev) => (prev ? { ...prev, project: { ...prev.project, ...json.project } } : prev));
     } catch (e: any) {
-      setError(e.message);
+      setError(e.message || "Failed to update");
+      await fetchProject(false);
     } finally {
       setActionLoading(null);
     }
@@ -425,9 +449,13 @@ export default function ProjectDetailPage() {
   const routing = intake ? getRoutingSummary(intake) : null;
   const projectLinks = getProjectLinkEntries(project.links);
   const suggestedProjectLinks = getProjectLinkSuggestions(project.type, intake);
+  const hasBrief = Boolean(routing || intake || project.intake_summary || project.description);
+  const actionTargetStatus = project.status === "active" ? "paused" : project.status === "paused" ? "active" : null;
+  const actionLabel = actionTargetStatus === "paused" ? "Pause" : actionTargetStatus === "active" ? "Resume" : null;
+  const isStatusActionLoading = actionTargetStatus ? actionLoading === actionTargetStatus : false;
 
   return (
-    <div className="min-w-0 space-y-6 overflow-x-hidden pb-10">
+    <div className="min-w-0 space-y-5 overflow-x-hidden pb-10">
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
@@ -443,216 +471,220 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Link href="/projects" className="shrink-0 text-zinc-400 hover:text-zinc-600">←</Link>
-                <h1 className="min-w-0 break-words text-2xl font-semibold text-zinc-900 sm:truncate">{project.name}</h1>
+      <section className="rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Link href="/projects" className="shrink-0 text-zinc-400 hover:text-zinc-600">←</Link>
+                  <h1 className="min-w-0 break-words text-2xl font-semibold text-zinc-900 sm:truncate">{project.name}</h1>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 sm:text-sm">
+                  {project.type && <span className="break-words">{legacyTypeToLabel(project.type)}</span>}
+                  <span>{project.progress_pct}% complete</span>
+                  {project.intake_summary ? <span className="max-w-full break-words sm:truncate">{project.intake_summary}</span> : null}
+                  <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
+                </div>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 sm:text-sm">
-                {project.type && <span className="break-words">{legacyTypeToLabel(project.type)}</span>}
-                <span>{project.progress_pct}% complete</span>
-                {project.intake_summary ? <span className="max-w-full break-words sm:truncate">{project.intake_summary}</span> : null}
-                <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
+              <div className="sm:pt-0.5">
+                <StatusBadge status={project.status} />
               </div>
             </div>
-            <div className="sm:pt-0.5">
-              <StatusBadge status={project.status} />
-            </div>
+            {project.description && <p className="mt-3 max-w-3xl break-words text-sm text-zinc-600">{project.description}</p>}
           </div>
-          {project.description && <p className="mt-3 max-w-3xl break-words text-sm text-zinc-600">{project.description}</p>}
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            {actionTargetStatus && actionLabel ? (
+              <button
+                onClick={() => handleStatusChange(actionTargetStatus)}
+                disabled={isStatusActionLoading}
+                className={cn(
+                  "w-full rounded-md px-3 py-2 text-xs font-medium sm:w-auto sm:py-1.5 sm:text-sm disabled:opacity-50",
+                  actionTargetStatus === "paused"
+                    ? "border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                    : "bg-green-600 text-white hover:bg-green-700",
+                )}
+              >
+                {isStatusActionLoading ? "..." : actionLabel}
+              </button>
+            ) : null}
+            <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="w-full rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 sm:w-auto sm:py-1.5 sm:text-sm">New Task</button>
+            <button onClick={() => setShowDeleteConfirm(true)} className="w-full rounded-md border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 sm:w-auto sm:py-1.5 sm:text-sm">Delete</button>
+          </div>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-          {project.status === "active" ? (
-            <button onClick={() => handleStatusChange("paused")} disabled={actionLoading === "paused"} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 sm:w-auto sm:py-1.5 sm:text-sm disabled:opacity-50">{actionLoading === "paused" ? "..." : "Pause"}</button>
-          ) : project.status === "paused" ? (
-            <button onClick={() => handleStatusChange("active")} disabled={actionLoading === "active"} className="w-full rounded-md bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 sm:w-auto sm:py-1.5 sm:text-sm disabled:opacity-50">{actionLoading === "active" ? "..." : "Resume"}</button>
-          ) : null}
-          <button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="w-full rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 sm:w-auto sm:py-1.5 sm:text-sm">New Task</button>
-          <button onClick={() => setShowDeleteConfirm(true)} className="w-full rounded-md border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 sm:w-auto sm:py-1.5 sm:text-sm">Delete</button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-5">
-        {[
-          ["Delivery tasks", stats.totalTasks, "text-zinc-900"],
-          ["In Progress", stats.inProgressTasks, "text-blue-600"],
-          ["Done", stats.doneTasks, "text-green-600"],
-          ["Blocked", stats.blockedTasks, "text-red-600"],
-          ["Approvals", stats.pendingApprovals || 0, "text-amber-600"],
-        ].map(([label, value, valueClass]) => (
-          <Card key={String(label)} className="border-zinc-200">
-            <CardContent className="py-3">
-              <div className="text-[10px] text-zinc-500 sm:text-xs">{label}</div>
-              <div className={cn("text-xl font-semibold", String(valueClass))}>{value}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs text-zinc-500">
-          <span>Completion</span>
-          <span>{project.progress_pct}%</span>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            ["Tasks", stats.totalTasks, "text-zinc-900"],
+            ["In progress", stats.inProgressTasks, "text-blue-600"],
+            ["Done", stats.doneTasks, "text-green-600"],
+            ["Blocked", stats.blockedTasks, "text-red-600"],
+            ["Approvals", stats.pendingApprovals || 0, "text-amber-600"],
+          ].map(([label, value, valueClass]) => (
+            <div key={String(label)} className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-sm">
+              <span className="text-zinc-500">{label}</span>
+              <span className={cn("ml-2 font-semibold", String(valueClass))}>{value}</span>
+            </div>
+          ))}
         </div>
-        <div className="h-3 w-full overflow-hidden rounded-full bg-zinc-100">
-          <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500" style={{ width: `${project.progress_pct}%` }} />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="mt-4 space-y-1">
+          <div className="flex justify-between text-xs text-zinc-500">
+            <span>Completion</span>
+            <span>{project.progress_pct}%</span>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
+            <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500" style={{ width: `${project.progress_pct}%` }} />
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <div className="space-y-4">
-          <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Project Brief</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {routing ? (
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
-                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
-                  </div>
-                  <p className="text-sm text-zinc-500">{routing.rationale}</p>
-                </div>
-              ) : null}
-
-              {intake ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Shape</div>
-                    <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.shape)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Readiness</div>
-                    <div className="mt-1 text-sm text-zinc-900">{getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Context</div>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {(intake.context || []).length > 0 ? (
-                        intake.context.map((value: string) => (
-                          <span key={value} className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-zinc-500">None selected</span>
-                      )}
+          {hasBrief ? (
+            <Section title="Project brief">
+              <div className="space-y-4">
+                {routing ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
                     </div>
+                    <p className="text-sm text-zinc-500">{routing.rationale}</p>
                   </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Capabilities</div>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {(intake.capabilities || []).length > 0 ? (
-                        intake.capabilities.map((value: string) => (
-                          <span key={value} className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-zinc-500">None selected</span>
-                      )}
+                ) : null}
+
+                {intake ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Shape</div>
+                      <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.shape)}</div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Confidence</div>
-                    <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.confidence)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
-                    <div className="mt-1 text-sm text-zinc-900">{project.intake_summary || intake.summary || "Not set"}</div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-500">No structured intake captured for this project.</p>
-              )}
-
-              {intake?.goals ? (
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Goals / notes</div>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{intake.goals}</p>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Task Board</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {tasks.length === 0 ? (
-                <p className="text-sm text-zinc-500">No delivery tasks yet. Add the first task to kick off execution.</p>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {[
-                    ["Backlog", taskGroups.todo],
-                    ["In Flight", taskGroups.inProgress],
-                    ["Blocked", taskGroups.blocked],
-                    ["Done", taskGroups.done],
-                  ].map(([label, bucket]) => (
-                    <div key={String(label)} className="rounded-xl border border-zinc-100 bg-zinc-50/70 p-3">
-                      <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-zinc-900">{label}</h3>
-                        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-zinc-500">{(bucket as any[]).length}</span>
-                      </div>
-                      <div className="space-y-2">
-                        {(bucket as any[]).length === 0 ? (
-                          <div className="rounded-lg border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No items</div>
+                    <div>
+                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Readiness</div>
+                      <div className="mt-1 text-sm text-zinc-900">{getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Context</div>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {(intake.context || []).length > 0 ? (
+                          intake.context.map((value: string) => (
+                            <span key={value} className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
+                          ))
                         ) : (
-                          (bucket as any[]).map((task: any) => {
-                            const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
-                            return (
-                              <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm transition hover:border-zinc-300 hover:shadow">
-                                <div className="flex items-start justify-between gap-2">
-                                  <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
-                                  <TaskStatusBadge status={task.status} />
-                                </div>
-                                {(task.description || assignee) && (
-                                  <div className="mt-2 space-y-1">
-                                    {task.description && <p className="line-clamp-2 text-xs text-zinc-500">{task.description}</p>}
-                                    {assignee && <p className="text-[11px] text-zinc-400">Owner: {assignee.name}</p>}
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })
+                          <span className="text-sm text-zinc-500">None selected</span>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <div>
+                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Capabilities</div>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {(intake.capabilities || []).length > 0 ? (
+                          intake.capabilities.map((value: string) => (
+                            <span key={value} className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-zinc-500">None selected</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Confidence</div>
+                      <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.confidence)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
+                      <div className="mt-1 text-sm text-zinc-900">{project.intake_summary || intake.summary || "Not set"}</div>
+                    </div>
+                  </div>
+                ) : project.intake_summary ? (
+                  <p className="text-sm text-zinc-600">{project.intake_summary}</p>
+                ) : null}
+
+                {intake?.goals ? (
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Goals / notes</div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{intake.goals}</p>
+                  </div>
+                ) : null}
+              </div>
+            </Section>
+          ) : null}
+
+          <Section title="Task board" description="Keep work moving without opening every task.">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-zinc-500">No delivery tasks yet. Add the first task to kick off execution.</p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                  ["Backlog", taskGroups.todo],
+                  ["In flight", taskGroups.inProgress],
+                  ["Blocked", taskGroups.blocked],
+                  ["Done", taskGroups.done],
+                ].map(([label, bucket]) => (
+                  <div key={String(label)} className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-zinc-900">{label}</h3>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-zinc-500">{(bucket as any[]).length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {(bucket as any[]).length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No items</div>
+                      ) : (
+                        (bucket as any[]).map((task: any) => {
+                          const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
+                          return (
+                            <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-lg border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-300 hover:bg-zinc-50">
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
+                                <TaskStatusBadge status={task.status} />
+                              </div>
+                              {(task.description || assignee) && (
+                                <div className="mt-2 space-y-1">
+                                  {task.description && <p className="line-clamp-2 text-xs text-zinc-500">{task.description}</p>}
+                                  {assignee && <p className="text-[11px] text-zinc-400">Owner: {assignee.name}</p>}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
         </div>
 
         <div className="space-y-4">
-          <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Links & artifacts</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {suggestedProjectLinks.map((key) => (
-                  <span key={key} className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]}</span>
-                ))}
-              </div>
+          <Section title="Links & artifacts" description="Keep the useful project links close by.">
+            <div className="space-y-4">
+              {suggestedProjectLinks.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {suggestedProjectLinks.map((key) => (
+                    <span key={key} className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]}</span>
+                  ))}
+                </div>
+              ) : null}
 
               {projectLinks.length === 0 ? (
                 <p className="text-sm text-zinc-500">{artifactEmptyState(project.type, intake)}</p>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
                   {projectLinks.map((link) => (
                     <a
                       key={link.key}
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="min-w-0 rounded-xl border border-zinc-100 p-3 transition hover:border-zinc-300 hover:shadow-sm"
+                      className="flex min-w-0 items-start justify-between gap-3 rounded-xl border border-zinc-200 px-3 py-3 transition hover:border-zinc-300 hover:bg-zinc-50"
                     >
-                      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
-                      <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
-                      <div className="mt-2 text-xs font-medium text-red-600">Open ↗</div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
+                        <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
+                      </div>
+                      <div className="shrink-0 text-xs font-medium text-red-600">Open ↗</div>
                     </a>
                   ))}
                 </div>
@@ -665,99 +697,78 @@ export default function ProjectDetailPage() {
                 links={project.links}
                 onSaved={(links) => setData((prev) => (prev ? { ...prev, project: { ...prev.project, links } } : prev))}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </Section>
 
-          <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Recent Signals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentSignals.length === 0 ? (
-                <p className="text-sm text-zinc-500">No meaningful signals yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {recentSignals.map((signal) => (
-                    <div key={signal.id} className="rounded-xl border border-zinc-100 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <SignalBadge kind={signal.kind} />
-                            <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
-                          </div>
-                          <p className="mt-1 text-xs text-zinc-500">{signal.detail}</p>
-                          {signal.actorName && <p className="mt-1 text-[11px] text-zinc-400">By {signal.actorName}</p>}
+          {recentSignals.length > 0 ? (
+            <Section title="Recent signals">
+              <div className="space-y-2">
+                {recentSignals.map((signal) => (
+                  <div key={signal.id} className="rounded-xl border border-zinc-200 px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <SignalBadge kind={signal.kind} />
+                          <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
                         </div>
-                        <span className="whitespace-nowrap text-[11px] text-zinc-400">{new Date(signal.timestamp).toLocaleString()}</span>
+                        <p className="mt-1 text-xs text-zinc-500">{signal.detail}</p>
+                        {signal.actorName && <p className="mt-1 text-[11px] text-zinc-400">By {signal.actorName}</p>}
                       </div>
+                      <span className="whitespace-nowrap text-[11px] text-zinc-400">{new Date(signal.timestamp).toLocaleString()}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          ) : null}
 
-          <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Supporting docs & uploads</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {documents.length === 0 ? (
-                <p className="text-sm text-zinc-500">No supporting docs or uploaded artifacts yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {documents.map((doc) => (
-                    <div key={doc.id} className="rounded-xl border border-zinc-100 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
-                            <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
-                          </div>
-                          <p className="mt-1 text-xs text-zinc-500">
-                            {formatBytes(doc.size_bytes)}
-                            {doc.mime_type ? ` • ${doc.mime_type}` : ""}
-                            {` • Added ${new Date(doc.created_at).toLocaleDateString()}`}
-                          </p>
-                          {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
-                          {doc.url ? <a href={doc.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-red-600 hover:underline">Open link</a> : null}
+          {documents.length > 0 ? (
+            <Section title="Supporting docs & uploads">
+              <div className="space-y-2">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="rounded-xl border border-zinc-200 px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
+                          <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
                         </div>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {formatBytes(doc.size_bytes)}
+                          {doc.mime_type ? ` • ${doc.mime_type}` : ""}
+                          {` • Added ${new Date(doc.created_at).toLocaleDateString()}`}
+                        </p>
+                        {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
+                        {doc.url ? <a href={doc.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-medium text-red-600 hover:underline">Open link</a> : null}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          ) : null}
 
-          <Card className="border-zinc-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Teams</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {teams.length === 0 ? (
-                <p className="text-sm text-zinc-500">No teams assigned.</p>
-              ) : (
-                <div className="space-y-3">
-                  {teams.map((team: any) => (
-                    <div key={team.id} className="rounded-xl border border-zinc-100 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-zinc-900">{team.name}</p>
-                        <StatusBadge status={team.status === "on_track" ? "active" : team.status === "waiting" ? "archived" : team.status} />
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-500">
-                        <span>{team.memberCount} members</span>
-                        <span>{team.activeAgents} active now</span>
-                        <span>{team.taskCount} owned tasks</span>
-                        <span>{team.completedTasks || 0} completed</span>
-                      </div>
-                      {team.blockedTasks > 0 && <p className="mt-2 text-xs text-red-600">{team.blockedTasks} blocked task{team.blockedTasks === 1 ? "" : "s"}</p>}
+          {teams.length > 0 ? (
+            <Section title="Teams">
+              <div className="space-y-2">
+                {teams.map((team: any) => (
+                  <div key={team.id} className="rounded-xl border border-zinc-200 px-3 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-zinc-900">{team.name}</p>
+                      <StatusBadge status={team.status === "on_track" ? "active" : team.status === "waiting" ? "archived" : team.status} />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-500">
+                      <span>{team.memberCount} members</span>
+                      <span>{team.activeAgents} active now</span>
+                      <span>{team.taskCount} owned tasks</span>
+                      <span>{team.completedTasks || 0} completed</span>
+                    </div>
+                    {team.blockedTasks > 0 && <p className="mt-2 text-xs text-red-600">{team.blockedTasks} blocked task{team.blockedTasks === 1 ? "" : "s"}</p>}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          ) : null}
         </div>
       </div>
 

@@ -450,7 +450,6 @@ export default function ProjectDetailPage() {
   const intake = project.intake || null;
   const routing = intake ? getRoutingSummary(intake) : null;
   const projectLinks = getProjectLinkEntries(project.links);
-  const suggestedProjectLinks = getProjectLinkSuggestions(project.type, intake);
   const hasBrief = Boolean(routing || intake || project.intake_summary || project.description);
   const actionTargetStatus = project.status === "active" ? "paused" : project.status === "paused" ? "active" : null;
   const actionLabel = actionTargetStatus === "paused" ? "Pause" : actionTargetStatus === "active" ? "Resume" : null;
@@ -662,16 +661,8 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <Section title="Links & artifacts" description="Keep the useful project links close by.">
+          <Section title="Links & artifacts">
             <div className="space-y-4">
-              {suggestedProjectLinks.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {suggestedProjectLinks.map((key) => (
-                    <span key={key} className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]}</span>
-                  ))}
-                </div>
-              ) : null}
-
               {projectLinks.length === 0 ? (
                 <p className="text-sm text-zinc-500">{artifactEmptyState(project.type, intake)}</p>
               ) : (

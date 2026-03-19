@@ -121,7 +121,7 @@ Rule of thumb:
 
 ## Object model
 ### 1) `feedback_requests`
-Recommended canonical fields:
+Required canonical fields for V1:
 - `id`
 - `project_id`
 - `task_id` required
@@ -145,6 +145,9 @@ Recommended canonical fields:
 Constraints:
 - unique active request per `task_id` where `status` not in (`approved`, `canceled`)
 - `task_id` is the canonical foreign key; `job_id` is contextual only
+- `active_round_number` starts at `1` on first request creation and never resets for that request
+- `reopened_count` increments only on operator reopen actions from a previously `approved` request
+- `resolved_at` is set only when request status becomes `approved` or `canceled`
 
 ### 2) `feedback_entries`
 Append-only audit entries for the review loop.
@@ -177,7 +180,7 @@ Note: `reopened` is treated as an event and transient condition, not a long-live
 
 ## Status model
 ### Feedback request statuses
-Recommended V1 statuses:
+Required V1 statuses:
 - `awaiting_review` — first delivery submitted; waiting for operator decision
 - `revision_requested` — operator requested changes; owner has not yet acknowledged / resumed work
 - `in_revision` — task is back in active work and changes are underway
@@ -239,13 +242,22 @@ Why `todo` for `revision_requested`:
 Feedback requests should **not** be auto-created for every task universally.
 
 ### Auto-create eligibility for V1
-Auto-create a feedback request only when all are true:
-1. task transitions to `done`
-2. task is marked `review_required = true` or belongs to a task type configured as reviewable
-3. there is no active feedback request already attached to the task
-4. task is not `cancelled`
+A feedback request is created automatically only when all of the following are true at the moment a task transitions into `done`:
 
-### Default recommendation for V1
+| Rule | Condition | V1 behavior if false |
+| --- | --- | --- |
+| 1 | task status changed from a non-`done` status to `done` in the current transition | do not create |
+| 2 | `review_required = true` on the task | do not create |
+| 3 | task is not `cancelled` | do not create |
+| 4 | no active feedback request exists for the task (`status` not in `approved`, `canceled`) | do not create |
+| 5 | task belongs to a real operator-reviewable deliverable, not an internal-only chore | enforced via `review_required`; do not infer from freeform text |
+
+Deterministic V1 rule:
+- `review_required` is the single source of truth for automatic creation.
+- “task type configured as reviewable” is only valid if it deterministically writes `review_required = true` before completion.
+- V1 must not infer review eligibility from task title, agent, artifact presence, or natural-language summaries.
+
+### Default V1 policy
 - Default `review_required = true` for operator-facing delivery tasks.
 - Default `review_required = false` for pure internal/admin chores unless explicitly flagged.
 
@@ -261,10 +273,17 @@ Examples that should not auto-create:
 - tasks already superseded or canceled
 
 ### Manual creation / surfacing rules
-If a task is already `done` and reviewable but has no active feedback request, the operator may manually open review from task detail.
+If a task is already `done` and `review_required = true` but has no active feedback request, the operator may manually open review from task detail.
+
+Manual creation is allowed only when all are true:
+1. task status is `done`
+2. `review_required = true`
+3. no active feedback request exists for the task
+4. task is not `cancelled`
 
 V1 invariant:
 - automatic creation and manual creation must produce the same object type and same lifecycle.
+- manual creation is a recovery path for missed creation, not a second parallel review lane.
 
 ---
 
@@ -305,26 +324,52 @@ V1 invariant:
 
 ### Repeated revision rounds
 - Repeated revision rounds stay on the same feedback request.
-- Increment `active_round_number` only when the operator requests a new revision round after a submission.
-- Each round must have at most one operator decision outcome in force at a time.
-- V1 does not impose a hard cap on rounds, but UI should surface round count once `active_round_number >= 2`.
+- Increment `active_round_number` only when the operator requests a new revision round after either `awaiting_review` or `ready_for_rereview`.
+- Do **not** increment `active_round_number` when:
+  - owner marks `in_revision`,
+  - owner resubmits,
+  - operator adds a note without changing decision,
+  - operator reopens an already approved request.
+- Each round has exactly one active operator decision state at a time: pending review, changes requested, or approved.
+- V1 does not impose a hard cap on rounds, but UI must surface round count once `active_round_number >= 2`.
 
 ---
 
 ## Ownership, permissions, and state transitions after revision request
-### Who can act in V1
-- **Operator** can approve, request revisions, reopen, and add operator notes.
-- **Owner/agent** can mark revision work started, add constrained status notes, and resubmit for re-review.
-- Non-operator internal viewers can read but cannot decide review outcomes unless they already hold operator-equivalent permissions in the current model.
+### Actor-action permissions matrix
+
+| Action | Operator | Task owner | Assigned agent / executor | Internal viewer without operator rights |
+| --- | --- | --- | --- | --- |
+| View feedback request and entries | yes | yes | yes | yes |
+| Manually create feedback request on eligible done task | yes | no | no | no |
+| Approve delivery | yes | no | no | no |
+| Request revisions | yes | no | no | no |
+| Reopen approved work | yes | no | no | no |
+| Add operator decision note tied to approve / revision / reopen | yes | no | no | no |
+| Mark revision work started (`revision_requested` -> `in_revision`) | no | yes | yes | no |
+| Add constrained resubmission note | no | yes | yes | no |
+| Resubmit for re-review (`in_revision` -> `ready_for_rereview`) | no | yes | yes | no |
+| Cancel feedback request because task is canceled / abandoned | yes | yes, only if task is canceled through normal task controls | no direct action | no |
+| Edit or delete prior feedback history entries | no | no | no | no |
+
+Strict V1 permission rules:
+- Only operators can create or change review decisions.
+- Only the task owner or assigned execution agent can move work back toward re-review.
+- View access does not imply decision rights.
+- V1 has no delegated reviewer, proxy approver, or multi-step review chain.
 
 ### Required transition ownership
-- `awaiting_review` -> `approved` only operator
-- `awaiting_review` -> `revision_requested` only operator
-- `approved` -> reopen flow only operator
-- `revision_requested` -> `in_revision` owner/agent action or automatic when task status first changes to `in_progress`
-- `in_revision` -> `ready_for_rereview` owner/agent resubmission
-- `ready_for_rereview` -> `approved` only operator
-- `ready_for_rereview` -> `revision_requested` only operator
+| From | To | Allowed actor | Trigger rule |
+| --- | --- | --- | --- |
+| none | `awaiting_review` | system or operator | auto-create on eligible `done` transition, or operator manual create on eligible done task |
+| `awaiting_review` | `approved` | operator | approve delivery |
+| `awaiting_review` | `revision_requested` | operator | request revisions with required note |
+| `revision_requested` | `in_revision` | owner or assigned agent | explicit start action, or first task move to `in_progress` |
+| `in_revision` | `ready_for_rereview` | owner or assigned agent | resubmit with delivery summary |
+| `ready_for_rereview` | `approved` | operator | approve delivery |
+| `ready_for_rereview` | `revision_requested` | operator | request another revision round |
+| `approved` | `revision_requested` | operator | reopen with required reason |
+| any active status | `canceled` | system or operator/owner via task cancellation | task becomes `cancelled` or review path intentionally abandoned |
 
 ### After revision request
 Immediately after operator requests revisions:
@@ -349,12 +394,21 @@ Only these note types are allowed in V1:
 3. owner/agent resubmission note
 4. short contextual note attached to a review transition
 
+### Exact note constraints
+| Note type | Allowed author | Required? | Max purpose in V1 | Creates state change? |
+| --- | --- | --- | --- | --- |
+| revision request note | operator | yes | explain what must change | yes |
+| reopen reason | operator | yes | explain why prior approval is no longer current | yes |
+| resubmission note | owner or assigned agent | no | summarize what changed | no by itself; paired with resubmission action |
+| transition note | actor performing the transition | no | short context for an explicit review transition | only if attached to that transition |
+
 ### Disallowed in V1
 - freeform back-and-forth discussion thread
 - emoji/reactive chatter
 - nested replies
 - @mentions/chat-room behavior
 - long-running conversation detached from a review transition
+- stand-alone note posting when no review transition or resubmission is occurring
 
 ### UX rule
 A note should exist to explain a review decision or a resubmission, not to create an ongoing conversation lane.
@@ -389,8 +443,17 @@ For V1, reopen means:
 - prior approval still exists as historical fact.
 
 ### Same-request vs new-request rule
-- Reopen the **latest feedback request** if the operator is still reviewing the same canonical task.
-- Create a **new feedback request** only if a future version of the product introduces a different review unit; not needed in V1.
+| Situation | V1 action |
+| --- | --- |
+| task was approved and operator later wants more changes on the same task | reuse latest approved feedback request and append `delivery_reopened` |
+| task is in `revision_requested`, `in_revision`, or `ready_for_rereview` and operator adds more revision direction | reuse the same active feedback request |
+| task is `done`, `review_required = true`, and has no active feedback request because the last one was approved long ago | create a new feedback request only if the prior request is fully resolved and the task has produced a genuinely new delivery cycle after that approval |
+| task was canceled and later re-created as a new task/work item | new task, new feedback request |
+
+Deterministic V1 rule:
+- Reuse the same feedback request for all review, reopen, and revision rounds that belong to the same continuous delivery cycle of the same task.
+- Create a new feedback request only when there is no active request and the task has entered a new `done` delivery cycle after a previously resolved request.
+- Reopen from `approved` always reuses the latest approved request; it never creates a second concurrent request.
 
 ### Audit reconstruction requirement
 A reviewer must be able to reconstruct, from entries alone:
@@ -406,12 +469,23 @@ A reviewer must be able to reconstruct, from entries alone:
 Approvals and feedback requests must coexist without ambiguity.
 
 ### Approval vs feedback precedence rules
+| Situation | Approval state effect | Feedback state effect | Task / UX rule |
+| --- | --- | --- | --- |
+| approval pending, no feedback request yet, task not delivered | approval governs execution | no feedback loop yet | show approval only |
+| task delivered and feedback awaiting review, no blocking approval | no change | feedback governs acceptance | task may remain `done` while awaiting review |
+| task delivered and a blocking approval is still pending | approval blocks execution of more work | feedback still records delivery state | task may be `blocked`; feedback status stays as-is |
+| feedback approved while separate approval remains pending elsewhere | approval remains pending | feedback becomes `approved` | do not auto-resolve approval |
+| approval approved, then operator requests revisions | prior approval history stays approved | feedback becomes `revision_requested` | task returns to `todo`; prior approval is not erased |
+| approval rejected / changes requested during revision work | approval blocks further execution if that approval is required | feedback remains on its current request state | task may become `blocked`; do not mutate feedback decision automatically |
+
+Policy-level V1 rules:
 1. **Approvals do not satisfy feedback review.** An approval can exist while the task still needs delivery review.
 2. **Feedback approval does not resolve pending approvals.** A delivered output can be accepted while a separate trust/risk gate still exists elsewhere.
 3. If both exist, UI must show them as separate objects with separate queues and labels.
 4. A task cannot be considered fully clear of human decisions until both are resolved when both are applicable.
 5. If an approval blocks execution, the task may remain `blocked`; feedback status should remain what it was, not silently advance.
 6. If the operator requests revisions after a prior approval gate was approved, the task returns to active work regardless of that prior approval history.
+7. Feedback actions must never write to approval status fields, and approval actions must never write to feedback status fields.
 
 ### Practical precedence for operators
 - **Execution precedence:** blocking approvals govern whether work can proceed.
@@ -440,16 +514,16 @@ Feedback review must map into that existing taxonomy rather than invent a new si
 6. `delivery_reopened`
 7. `feedback_request_canceled`
 
-### Event -> signal kind mapping
-| Event | Signal kind | Why |
-| --- | --- | --- |
-| `delivery_submitted` | `completed` | a delivery was completed and now needs review |
-| `revision_requested` | `blocked` | operator action is needed before the task can be considered accepted |
-| `revision_started` | `progress` | work resumed on requested changes |
-| `delivery_resubmitted` | `completed` | a new delivery is ready for review |
-| `delivery_approved` | `completed` | acceptance completed |
-| `delivery_reopened` | `blocked` | previously accepted work is no longer accepted and needs attention |
-| `feedback_request_canceled` | `activity` | administrative closure, usually not a primary completion signal |
+### Exact event + trigger + surface mapping
+| Event | Trigger rule | Feedback status after trigger | Task status after trigger | Signal kind | Required surfaces |
+| --- | --- | --- | --- | --- | --- |
+| `delivery_submitted` | eligible feedback request is created on first `done` delivery | `awaiting_review` | `done` | `completed` | task review card, project timeline, dashboard “Needs review”, project counts |
+| `revision_requested` | operator submits revision request with required note from `awaiting_review` or `ready_for_rereview` | `revision_requested` | `todo` | `blocked` | task review card, project timeline, dashboard “In revision”, project counts |
+| `revision_started` | owner/agent explicitly starts revision work or first task move to `in_progress` after `revision_requested` | `in_revision` | `in_progress` | `progress` | task review card, project timeline, project counts |
+| `delivery_resubmitted` | owner/agent resubmits revised delivery with required delivery summary | `ready_for_rereview` | `done` | `completed` | task review card, project timeline, dashboard “Needs review”, project counts |
+| `delivery_approved` | operator approves from `awaiting_review` or `ready_for_rereview` | `approved` | `done` | `completed` | task review card, project timeline, project counts |
+| `delivery_reopened` | operator reopens from `approved` with required reason | `revision_requested` | `todo` | `blocked` | task review card, project timeline, dashboard “In revision”, project counts |
+| `feedback_request_canceled` | task canceled or operator/system intentionally abandons review path | `canceled` | `cancelled` if task canceled, otherwise unchanged | `activity` | task history, project timeline |
 
 ### Signal priority recommendation
 - `blocked` > `approval` > `completed` > `progress` > `activity`
@@ -545,15 +619,21 @@ Recommended locations:
 ---
 
 ## Edge-case policy decisions
-1. **Repeated revision rounds**: allowed on the same feedback request; increment round number each time the operator requests another revision after a submission.
-2. **Operator requests revisions twice in a row without owner action**: update the latest `revision_requested` entry set and keep task at `todo`; do not create a second active request.
-3. **Owner resubmits with no note**: allowed, but delivery summary is still required.
-4. **Task is canceled mid-review**: task -> `cancelled`, feedback request -> `canceled`, history preserved.
-5. **Task becomes blocked mid-revision**: task -> `blocked`; feedback request remains `revision_requested` or `in_revision` depending on whether work had started.
-6. **Operator approves after several rounds**: same request resolves to `approved`; prior rounds remain visible.
-7. **Operator reopens long after approval**: same latest feedback request is reopened as long as the canonical task remains the same.
-8. **Approval and feedback both pending**: show both; do not collapse one into the other.
-9. **Non-reviewable done tasks**: no feedback request is auto-created and task can remain simply `done`.
+| Edge case | V1 decision |
+| --- | --- |
+| repeated revision rounds | allowed on the same feedback request; increment round only when operator requests a fresh round after a submission |
+| operator requests revisions twice in a row without owner action | keep same request in `revision_requested`, keep task at `todo`, append a new `revision_requested` entry, do not increment round |
+| owner resubmits with no note | allowed, but delivery summary is still required |
+| task is canceled mid-review | task -> `cancelled`, feedback request -> `canceled`, history preserved |
+| task becomes blocked mid-revision | task -> `blocked`; feedback request remains `revision_requested` or `in_revision` depending on whether work had started |
+| operator approves after several rounds | same request resolves to `approved`; prior rounds remain visible |
+| operator reopens long after approval | reuse latest approved request if same task and same delivery lineage; preserve history |
+| approval and feedback both pending | show both; do not collapse one into the other |
+| non-reviewable done tasks | no feedback request is auto-created and task can remain simply `done` |
+| task marked `done` again while an active feedback request already exists | do not create a new request; treat as resubmission only if actor explicitly resubmits into the active request |
+| operator reopens before any new work starts | request stays `revision_requested`; task stays `todo` |
+| owner starts work after reopen | request -> `in_revision`; task -> `in_progress` |
+| task returns to `done` without explicit resubmission action during active revision | system should not auto-approve; convert to `ready_for_rereview` only if delivery summary is supplied, otherwise treat as invalid/incomplete delivery transition for V1 |
 
 ---
 

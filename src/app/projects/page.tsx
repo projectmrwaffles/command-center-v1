@@ -48,12 +48,15 @@ function ProjectsContent() {
         }}
       />
 
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
           <h1 className="text-2xl font-semibold text-zinc-900">Projects</h1>
           <p className="text-sm text-zinc-500">Active projects, progress, and delivery health</p>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex w-full items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 sm:w-auto"
+        >
           New Project
         </button>
       </div>
@@ -89,18 +92,20 @@ function ProjectsContent() {
       ) : (
         <div className="grid gap-4">
           {projects.map((p) => (
-            <Link key={p.id} href={`/projects/${p.id}`} className="block">
-              <Card className="border-zinc-200 transition-all hover:border-zinc-300 hover:shadow-md">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{p.name}</CardTitle>
+            <Link key={p.id} href={`/projects/${p.id}`} className="block min-w-0">
+              <Card className="min-w-0 border-zinc-200 transition-all hover:border-zinc-300 hover:shadow-md">
+                <CardHeader className="space-y-2 pb-2">
+                  <CardTitle className="break-words text-base leading-snug">{p.name}</CardTitle>
                 </CardHeader>
-                <CardContent className="py-2">
-                  <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
-                    <span>{legacyTypeToLabel(p.type || "other")}</span>
-                    <span className="capitalize">{p.status || "active"}</span>
-                    <span>{p.progress_pct || 0}% complete</span>
-                    {p.intake_summary ? <span className="max-w-full truncate">{p.intake_summary}</span> : null}
+                <CardContent className="space-y-3 py-2">
+                  <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
+                    <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-700">{legacyTypeToLabel(p.type || "other")}</span>
+                    <span className="rounded-full bg-zinc-100 px-2 py-1 capitalize text-zinc-700">{p.status || "active"}</span>
+                    <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-700">{p.progress_pct || 0}% complete</span>
                   </div>
+                  {p.intake_summary ? (
+                    <p className="mobile-summary-clamp text-sm leading-6 text-zinc-600">{p.intake_summary}</p>
+                  ) : null}
                 </CardContent>
               </Card>
             </Link>

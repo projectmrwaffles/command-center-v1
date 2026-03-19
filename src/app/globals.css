@@ -312,3 +312,16 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.mobile-summary-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .mobile-summary-clamp {
+    -webkit-line-clamp: 3;
+  }
+}

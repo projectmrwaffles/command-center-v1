@@ -484,7 +484,6 @@ export default function ProjectDetailPage() {
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 sm:text-sm">
                   {project.type && <span className="break-words">{legacyTypeToLabel(project.type)}</span>}
                   <span>{project.progress_pct}% complete</span>
-                  {project.intake_summary ? <span className="max-w-full break-words sm:truncate">{project.intake_summary}</span> : null}
                   <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
                 </div>
               </div>
@@ -492,7 +491,6 @@ export default function ProjectDetailPage() {
                 <StatusBadge status={project.status} />
               </div>
             </div>
-            {project.description && <p className="mt-3 max-w-3xl break-words text-sm text-zinc-600">{project.description}</p>}
           </div>
           <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
             {actionTargetStatus && actionLabel ? (

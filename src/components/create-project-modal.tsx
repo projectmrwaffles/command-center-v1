@@ -114,6 +114,17 @@ function SuccessState({
   );
 
   const redirectStateLabel = redirecting ? "Opening project workspace" : "Automatic redirect paused";
+  const statusTone = redirecting
+    ? {
+        badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        dot: "bg-emerald-500",
+        summary: "Quick celebration, then we’ll take you straight into the workspace.",
+      }
+    : {
+        badge: "border-amber-200 bg-amber-50 text-amber-700",
+        dot: "bg-amber-500",
+        summary: "Automatic handoff is paused, but the project is ready whenever you are.",
+      };
 
   return (
     <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
@@ -189,76 +200,51 @@ function SuccessState({
         <h3 className="celebration-card mt-4 max-w-2xl text-[1.9rem] font-semibold tracking-tight text-zinc-950 sm:text-5xl">
           {project.name || "Your project"} is ready.
         </h3>
-        <p className="celebration-card mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-          The intake is saved{docsCount > 0 ? ` with ${docsCount} attached file${docsCount === 1 ? "" : "s"}` : ""}, the workspace is set up, and handoff starts automatically in a moment.
+        <p className="celebration-card mt-3 max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
+          Everything is set. We’ll hand you into the workspace automatically, or you can open it now.
         </p>
 
-        <div className="celebration-card mt-6 flex flex-wrap items-center justify-center gap-2.5">
-          <span className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm">
-            Intake saved
-          </span>
-          <span className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm">
-            {docsCount > 0 ? `${docsCount} upload${docsCount === 1 ? "" : "s"} attached` : "No uploads attached"}
-          </span>
-          <span className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm">
-            {project.type || "General project"}
-          </span>
-        </div>
-
-        <div className="celebration-card mt-6 w-full max-w-2xl rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
+        <div className="celebration-card mt-6 w-full max-w-xl rounded-[30px] border border-white/80 bg-white/92 p-4 shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:p-5">
           {docsWarning ? (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
               {docsWarning}
             </div>
           ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-left">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 text-left">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Handoff</p>
-              <p className="mt-1 text-base font-semibold text-zinc-950 sm:text-lg">{redirectStateLabel}</p>
+              <p className="mt-1 text-lg font-semibold text-zinc-950">{redirectStateLabel}</p>
+              <p className="mt-2 text-sm text-zinc-500">{statusTone.summary}</p>
             </div>
-            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-              Workspace ready
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-2 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-3 text-left text-sm text-zinc-600 sm:grid-cols-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Project</p>
-              <p className="mt-1 font-medium text-zinc-900">{project.name || "Untitled project"}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Uploads</p>
-              <p className="mt-1 font-medium text-zinc-900">{docsCount > 0 ? `${docsCount} attached` : "None attached"}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Type</p>
-              <p className="mt-1 font-medium text-zinc-900">{project.type || "General project"}</p>
+            <div className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${statusTone.badge}`}>
+              <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
+              Ready
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-full bg-zinc-100">
-            <div className={`redirect-progress h-2 rounded-full bg-[linear-gradient(90deg,#fb7185,#f59e0b,#18181b)] ${redirecting ? "is-active" : ""}`} />
+          <div className="mt-4 overflow-hidden rounded-full bg-zinc-100/90">
+            <div className={`redirect-progress h-1.5 rounded-full bg-[linear-gradient(90deg,#fb7185,#f59e0b,#18181b)] ${redirecting ? "is-active" : ""}`} />
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-left text-sm text-zinc-500">
-              {redirecting
-                ? "Quick celebration, then we hand you straight to the workspace."
-                : "Automatic handoff is paused, but the project is ready whenever you are."}
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-4 flex flex-col gap-2 border-t border-zinc-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-left text-sm text-zinc-500">
+              <span className="font-medium text-zinc-700">{project.name || "Untitled project"}</span>
+              {docsCount > 0 ? ` · ${docsCount} file${docsCount === 1 ? "" : "s"}` : ""}
+              {project.type ? ` · ${project.type}` : ""}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <button
                 type="button"
                 onClick={onOpenProject}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(24,24,27,0.18)] transition hover:bg-zinc-800"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(24,24,27,0.16)] transition hover:bg-zinc-800"
               >
-                Open project now
+                Open workspace
                 <ArrowUpRight className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={onCreateAnother}
-                className="rounded-2xl border border-zinc-300 bg-white/92 px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+                className="rounded-2xl px-4 py-3 text-sm font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
               >
                 Create another
               </button>
@@ -355,7 +341,7 @@ export function CreateProjectModal({
     setRedirecting(true);
     redirectTimeoutRef.current = window.setTimeout(() => {
       navigateToProject(projectId);
-    }, 2200);
+    }, 2800);
   };
 
   async function uploadProjectDocs(projectId: string) {

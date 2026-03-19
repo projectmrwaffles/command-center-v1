@@ -11,6 +11,7 @@ import {
   getRoutingSummary,
   summarizeIntake,
 } from "@/lib/project-intake";
+import { PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 
 interface CreateProjectFormProps {
   onSubmit: (data: {
@@ -30,6 +31,7 @@ interface CreateProjectFormProps {
 
 type IntakeMode = "quick" | "guided";
 type IntakePath = IntakeMode | null;
+type ProjectOrigin = "new" | "existing";
 type FlowStepId = "mode" | "shape" | "brief" | "review";
 
 type FlowStep = {
@@ -128,6 +130,25 @@ function OptionBrowser({
 
 function FieldHint({ children, tone = "muted" }: { children: string; tone?: "muted" | "error" }) {
   return <p className={cn("mt-2 text-xs", tone === "error" ? "text-red-600" : "text-zinc-500")}>{children}</p>;
+}
+
+function getProjectLinkPlaceholder(key: (typeof PROJECT_LINK_FIELDS)[number]) {
+  switch (key) {
+    case "github":
+      return "https://github.com/org/repo";
+    case "preview":
+      return "https://preview.example.com";
+    case "production":
+      return "https://app.example.com";
+    case "docs":
+      return "https://docs.example.com";
+    case "figma":
+      return "https://figma.com/file/...";
+    case "admin":
+      return "https://admin.example.com";
+    default:
+      return "https://example.com";
+  }
 }
 
 function buildFlow(mode: IntakePath): FlowStep[] {
@@ -276,6 +297,8 @@ export function CreateProjectForm({
   const [context, setContext] = useState<string[]>([]);
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [goals, setGoals] = useState("");
+  const [projectOrigin, setProjectOrigin] = useState<ProjectOrigin>("new");
+  const [projectLinks, setProjectLinks] = useState<ProjectLinks>({});
   const [showAdvancedQuickRouting, setShowAdvancedQuickRouting] = useState(false);
   const [showAdvancedGuidedRouting, setShowAdvancedGuidedRouting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -307,6 +330,8 @@ export function CreateProjectForm({
       stage: inferredReadiness.stage,
       confidence: inferredReadiness.confidence,
       goals: goals || undefined,
+      projectOrigin,
+      links: projectOrigin === "existing" ? projectLinks : undefined,
       summary: summarizeIntake({
         shape,
         context,
@@ -317,7 +342,7 @@ export function CreateProjectForm({
         goals,
       }),
     }),
-    [name, shape, context, capabilities, inferredReadiness, goals]
+    [name, shape, context, capabilities, inferredReadiness, goals, projectOrigin, projectLinks]
   );
 
   const routing = useMemo(() => getRoutingSummary(intake), [intake]);
@@ -334,6 +359,7 @@ export function CreateProjectForm({
     flow.length - 1
   );
   const recommended = getRecommendedSelections(shape);
+  const showExistingProjectLinks = projectOrigin === "existing";
   const desktopStepItems = flow
     .map((step, index) => ({ step, index }))
     .filter(({ step }) => step.id !== "mode");
@@ -386,6 +412,19 @@ export function CreateProjectForm({
     window.setTimeout(() => {
       setCurrentStep((step) => Math.min(step + 1, flow.length - 1));
     }, 120);
+  };
+
+  const handleProjectOriginChange = (nextOrigin: ProjectOrigin) => {
+    submitIntentRef.current = false;
+    setProjectOrigin(nextOrigin);
+    setShowValidation(false);
+
+    if (nextOrigin === "new") {
+      setProjectLinks({});
+      setContext((current) => current.filter((item) => item !== "existing-asset"));
+    } else {
+      setContext((current) => (current.includes("existing-asset") ? current : [...current, "existing-asset"]));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -613,6 +652,95 @@ export function CreateProjectForm({
                       )}
                     </section>
 
+                    <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold text-zinc-900">What are we starting from?</h4>
+                          <p className="mt-1 text-sm text-zinc-500">Tell us whether this is brand new work or an improvement to something that already exists.</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => handleProjectOriginChange("new")}
+                          className={cn(
+                            "rounded-[24px] border p-4 text-left transition-all",
+                            projectOrigin === "new"
+                              ? "border-red-500 bg-white shadow-[0_10px_28px_rgba(239,68,68,0.12)]"
+                              : "border-zinc-200 bg-white hover:border-zinc-300"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-zinc-950">Net-new project</p>
+                              <p className="mt-2 text-sm leading-6 text-zinc-600">This is a fresh initiative, new build, or first version. No existing repo or live product needs to be referenced right now.</p>
+                            </div>
+                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "new" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleProjectOriginChange("existing")}
+                          className={cn(
+                            "rounded-[24px] border p-4 text-left transition-all",
+                            projectOrigin === "existing"
+                              ? "border-red-500 bg-white shadow-[0_10px_28px_rgba(239,68,68,0.12)]"
+                              : "border-zinc-200 bg-white hover:border-zinc-300"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-zinc-950">Improve an existing project</p>
+                              <p className="mt-2 text-sm leading-6 text-zinc-600">There’s already a site, app, workflow, or repo in place and this work will improve, extend, or branch from it.</p>
+                            </div>
+                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "existing" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                          </div>
+                        </button>
+                      </div>
+
+                      <FieldHint>
+                        {showExistingProjectLinks
+                          ? "Optional links are available below so the team can review the current project and branch from the right source."
+                          : "Links stay hidden for brand-new projects to keep intake focused."}
+                      </FieldHint>
+                    </section>
+
+                    {showExistingProjectLinks ? (
+                      <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
+                        <div>
+                          <h4 className="text-sm font-semibold text-zinc-900">Existing project links</h4>
+                          <p className="mt-1 text-sm text-zinc-500">Optional, but especially helpful when there’s an original repo, live environment, docs, or designs the team should branch from.</p>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {PROJECT_LINK_FIELDS.map((key) => (
+                            <label key={key} className="block">
+                              <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+                              <input
+                                type="url"
+                                value={projectLinks[key] || ""}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setProjectLinks((current) => {
+                                    const next = { ...current };
+                                    if (value.trim()) next[key] = value;
+                                    else delete next[key];
+                                    return next;
+                                  });
+                                }}
+                                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                placeholder={getProjectLinkPlaceholder(key)}
+                              />
+                            </label>
+                          ))}
+                        </div>
+
+                        <FieldHint>GitHub or repo links are the most useful when engineering will branch from an existing codebase.</FieldHint>
+                      </section>
+                    ) : null}
+
                     <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
@@ -815,6 +943,10 @@ export function CreateProjectForm({
                             <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
                           </div>
                           <div>
+                            <dt className="font-medium text-zinc-900">Starting point</dt>
+                            <dd className="mt-1">{projectOrigin === "existing" ? "Improving an existing project" : "Net-new project"}</dd>
+                          </div>
+                          <div>
                             <dt className="font-medium text-zinc-900">Capabilities</dt>
                             <dd className="mt-2 flex flex-wrap gap-2">
                               {capabilities.map((value) => (
@@ -848,9 +980,18 @@ export function CreateProjectForm({
                             <p className="font-medium text-zinc-900">Notes</p>
                             <p className="mt-1 whitespace-pre-wrap leading-6 text-zinc-600">{goals.trim() || "No additional notes added."}</p>
                           </div>
-                          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-500">
-                            Project links live on the project page after creation, so this review stays focused on the intake itself.
-                          </div>
+                          {showExistingProjectLinks && Object.keys(projectLinks).length > 0 ? (
+                            <div>
+                              <p className="font-medium text-zinc-900">Existing project links</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {PROJECT_LINK_FIELDS.filter((key) => Boolean(projectLinks[key])).map((key) => (
+                                  <span key={key} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                    {PROJECT_LINK_LABELS[key]}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </section>

@@ -17,6 +17,7 @@ export type ProjectIntake = {
   projectName?: string;
   summary?: string;
   goals?: string;
+  projectOrigin?: "new" | "existing";
   links?: ProjectLinks;
 };
 

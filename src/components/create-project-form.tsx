@@ -135,7 +135,7 @@ function buildFlow(mode: IntakePath): FlowStep[] {
     id: "mode",
     eyebrow: "Step 1 • Start",
     title: "How would you like to start this project?",
-    description: "Choose the path that feels easiest. Both options create the same project and follow the same submission flow. Quick brief is more open, and Guided setup adds a little structure first.",
+    description: "Choose the path that feels easiest. Quick brief is more open, and Guided setup adds a little structure first.",
     helper: "You can switch paths before submitting.",
   };
 
@@ -156,8 +156,8 @@ function buildFlow(mode: IntakePath): FlowStep[] {
       {
         id: "review",
         eyebrow: "Step 3 • Final review",
-        title: "Review it before you create the project",
-        description: "Check the summary, keep the lightweight defaults, or make small routing edits if needed.",
+        title: "Review before creating the project",
+        description: "Check the summary and make any final routing tweaks if needed.",
         helper: "Submission behavior stays the same.",
       },
     ];
@@ -182,8 +182,8 @@ function buildFlow(mode: IntakePath): FlowStep[] {
     {
       id: "review",
       eyebrow: "Step 4 • Final review",
-      title: "Review it before you create the project",
-      description: "This is the final check. Submission and routing behavior stay the same.",
+      title: "Review before creating the project",
+      description: "Check the summary and make any final routing tweaks if needed.",
       helper: "Go back if anything looks wrong.",
     },
   ];
@@ -861,14 +861,14 @@ export function CreateProjectForm({
               <div className="mt-8 flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className={cn("text-sm", showValidation && !currentStepValid ? "text-red-600" : "text-zinc-500")}>
                   {activeStep.id === "review"
-                    ? "Final check. Creating the project keeps the same routing and submission behavior."
+                    ? "Looks good? Create the project."
                     : activeStep.id === "brief"
                       ? mode === "quick"
                         ? "Share the need, add context if you have it, and we’ll take it from there."
                         : "Add a working name, a short brief, and only adjust routing details if the default looks off."
                       : activeStep.id === "shape"
                         ? "Choose the closest fit and we’ll suggest the likely path."
-                        : "Choose the starting path that feels most natural. You can switch before submitting."}
+                        : "Choose the starting path that feels most natural."}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">

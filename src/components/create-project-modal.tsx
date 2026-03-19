@@ -445,9 +445,7 @@ export function CreateProjectModal({
                 {createdProject ? "Project ready" : "Create a new project"}
               </h2>
               <p className="mt-1 text-sm text-zinc-500 sm:hidden">
-                {createdProject
-                  ? "Project created. Review the handoff card or jump straight into the workspace."
-                  : "Add the essentials, review once, and keep the same submission flow."}
+                {createdProject ? "Project created. Review the handoff card or jump straight into the workspace." : "Add the essentials and review before creating."}
               </p>
             </>
           </div>

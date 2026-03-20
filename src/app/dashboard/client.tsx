@@ -329,7 +329,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 Open a new project from the dashboard while the overview stays focused on approvals, projects, teams, and usage.
               </p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <Button onClick={() => setShowCreateProject(true)} size="lg" variant="warm" className="flex-1 rounded-xl">
+                <Button onClick={() => setShowCreateProject(true)} size="lg" variant="warm" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm">
                   <Plus className="h-4 w-4" />
                   New project
                 </Button>

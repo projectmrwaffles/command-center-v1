@@ -71,14 +71,13 @@ function SelectionCard({
       onClick={onClick}
       className={cn(
         "group relative block w-full min-w-0 overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
-        compact ? "min-h-[180px] snap-center sm:min-h-[220px]" : "",
+        compact ? "min-h-[180px] md:min-h-[220px]" : "",
         "focus:outline-none focus:ring-2 focus:ring-red-300",
         selected
-          ? "border-red-400 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(255,248,248,0.96),rgba(255,250,244,0.92))] shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
+          ? "border-red-400 bg-white shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
           : "border-zinc-200 bg-white hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_12px_30px_rgba(24,24,27,0.08)]"
       )}
     >
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-70" />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="text-sm font-semibold text-zinc-950">{label}</div>
@@ -468,7 +467,7 @@ export function CreateProjectForm({
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <div className="min-w-0">
-        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,252,250,0.98))] p-0 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
+        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 bg-white p-0 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
           <div className="border-b border-red-100/80 pb-3 sm:pb-4">
             <div className="hidden sm:block">
               <div className="space-y-2.5">
@@ -535,7 +534,7 @@ export function CreateProjectForm({
           </div>
 
           <div className="mt-3 min-h-0 sm:mt-4">
-            <div className="min-w-0 max-w-4xl p-0 sm:rounded-[24px] sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-5">
+            <div className="min-w-0 max-w-full p-0 sm:max-w-4xl sm:rounded-[24px] sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-5">
               <div className={cn("flex flex-col gap-3 md:flex-row md:items-start md:justify-between", isDesktopModeStep && "md:hidden")}>
                 <div className="max-w-2xl">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
@@ -561,7 +560,7 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "quick"
-                            ? "border-red-400 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(255,248,248,0.96),rgba(255,250,244,0.92))] shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
+                            ? "border-red-400 bg-white shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
                             : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
                         )}
                       >
@@ -585,7 +584,7 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "guided"
-                            ? "border-red-400 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(255,248,248,0.96),rgba(255,250,244,0.92))] shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
+                            ? "border-red-400 bg-white shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
                             : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
                         )}
                       >
@@ -909,7 +908,7 @@ export function CreateProjectForm({
 
                 {activeStep.id === "review" ? (
                   <div className="space-y-6">
-                    <section className="rounded-[28px] border border-red-100/70 bg-[linear-gradient(135deg,rgba(255,248,248,0.82),rgba(255,255,255,1),rgba(255,250,244,0.84))] p-5">
+                    <section className="rounded-[28px] border border-red-100/70 bg-white p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Routing preview</p>

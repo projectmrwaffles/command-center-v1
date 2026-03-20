@@ -383,7 +383,7 @@ export function CreateProjectModal({
   }
 
   const docsSection = (
-    <div className="overflow-hidden rounded-[28px] border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,252,250,0.97))] p-4 shadow-[0_12px_30px_rgba(24,24,27,0.05)] sm:p-5">
+    <div className="overflow-hidden rounded-[28px] border border-red-100/70 bg-white p-4 shadow-[0_12px_30px_rgba(24,24,27,0.05)] sm:p-5">
       <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
         <Sparkles className="h-3.5 w-3.5 text-red-500" />
         Supporting materials
@@ -437,12 +437,12 @@ export function CreateProjectModal({
         <div
           className={
             mobile
-              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[32px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,252,250,0.98))] shadow-[0_-14px_40px_rgba(24,24,27,0.16)]"
-              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,252,250,0.98))] shadow-[0_24px_72px_rgba(15,23,42,0.16)] xl:max-w-[1020px]"
+              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[32px] border border-white/70 bg-white shadow-[0_-14px_40px_rgba(24,24,27,0.16)]"
+              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/70 bg-white shadow-[0_24px_72px_rgba(15,23,42,0.16)] xl:max-w-[1020px]"
           }
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.58),rgba(255,255,255,0.98)_40%,rgba(255,241,230,0.52)_80%,rgba(255,250,245,0.95)_100%)] px-4 py-4 sm:px-6 sm:py-5">
+          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-white px-4 py-4 sm:px-6 sm:py-5">
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-red-200 to-transparent" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -467,7 +467,7 @@ export function CreateProjectModal({
             </div>
           </div>
 
-          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.24),rgba(255,255,255,0))] px-4 py-4 pb-20 sm:px-6 sm:py-5">
+          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-white px-4 py-4 pb-20 sm:px-6 sm:py-5">
           {createdProject ? (
             <SuccessState
               project={createdProject}

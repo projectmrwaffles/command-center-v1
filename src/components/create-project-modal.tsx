@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, Check, Sparkles, X } from "lucide-react";
 import { CreateProjectForm } from "@/components/create-project-form";
@@ -45,71 +45,6 @@ function SuccessState({
   docsWarning?: string | null;
   onOpenProject: () => void;
 }) {
-  const confettiPieces = useMemo(
-    () =>
-      Array.from({ length: 72 }, (_, index) => {
-        const lane = index % 3;
-        const laneBase = lane === 0 ? 18 : lane === 1 ? 50 : 82;
-        const laneSpread = ((index * 11) % 18) - 9;
-        const direction = lane === 1 ? (index % 2 === 0 ? -1 : 1) : lane === 0 ? -1 : 1;
-
-        return {
-          id: index,
-          left: `${laneBase + laneSpread}%`,
-          bottom: `${10 + (index % 4) * 4}px`,
-          delay: `${(index % 12) * 22}ms`,
-          duration: `${1320 + (index % 6) * 90}ms`,
-          lift: `${188 + ((index * 17) % 92)}px`,
-          drift: `${direction * (24 + ((index * 13) % 92))}px`,
-          settle: `${direction * (10 + ((index * 7) % 26))}px`,
-          rotate: `${direction * (120 + ((index * 19) % 180))}deg`,
-          scale: `${0.88 + (index % 5) * 0.08}`,
-          shape: index % 4 === 0 ? "rounded-sm" : index % 4 === 1 ? "rounded-full" : index % 4 === 2 ? "rounded-[999px]" : "rounded-[6px]",
-          size:
-            index % 8 === 0
-              ? "h-6 w-3"
-              : index % 8 === 1
-                ? "h-5 w-5"
-                : index % 8 === 2
-                  ? "h-6 w-2.5"
-                  : index % 8 === 3
-                    ? "h-4.5 w-4.5"
-                    : index % 8 === 4
-                      ? "h-5 w-2.5"
-                      : index % 8 === 5
-                        ? "h-4.5 w-3"
-                        : index % 8 === 6
-                          ? "h-4 w-4"
-                          : "h-5 w-2",
-          color:
-            [
-              "bg-rose-400",
-              "bg-amber-300",
-              "bg-orange-300",
-              "bg-fuchsia-300",
-              "bg-zinc-900",
-              "bg-emerald-300",
-              "bg-sky-300",
-              "bg-violet-400",
-            ][index % 8],
-        };
-      }),
-    []
-  );
-
-  const burstPieces = useMemo(
-    () =>
-      Array.from({ length: 26 }, (_, index) => ({
-        id: index,
-        angle: `${index * (360 / 26)}deg`,
-        distance: `${78 + (index % 5) * 14}px`,
-        delay: `${index * 12}ms`,
-        duration: `${560 + (index % 4) * 55}ms`,
-        color: ["bg-rose-400", "bg-amber-300", "bg-fuchsia-300", "bg-emerald-300", "bg-sky-300", "bg-zinc-900"][index % 6],
-      })),
-    []
-  );
-
   const redirectStateLabel = redirecting ? "Opening workspace…" : "Redirect paused";
   const statusTone = redirecting
     ? {
@@ -124,78 +59,19 @@ function SuccessState({
       };
 
   return (
-    <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(254,215,170,0.52),rgba(255,255,255,0)_24%),radial-gradient(circle_at_18%_14%,rgba(251,207,232,0.18),rgba(255,255,255,0)_28%),radial-gradient(circle_at_82%_18%,rgba(253,230,138,0.16),rgba(255,255,255,0)_28%),linear-gradient(180deg,rgba(255,255,255,0.985),rgba(255,252,250,0.97))]" />
-      <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-40 h-[400px] overflow-hidden sm:h-[490px]">
-        <div className="absolute inset-x-[-6%] top-0 h-full bg-[radial-gradient(circle_at_50%_14%,rgba(255,255,255,0.985),rgba(255,247,247,0.46)_18%,rgba(255,255,255,0)_46%),radial-gradient(circle_at_18%_80%,rgba(251,191,36,0.10),rgba(255,255,255,0)_20%),radial-gradient(circle_at_82%_82%,rgba(244,63,94,0.10),rgba(255,255,255,0)_22%),radial-gradient(circle_at_50%_92%,rgba(217,70,239,0.08),rgba(255,255,255,0)_18%)]" />
-        <span className="celebration-cannon celebration-cannon-left absolute bottom-8 left-[6%] h-24 w-24 rounded-full sm:bottom-10 sm:left-[12%] sm:h-28 sm:w-28" />
-        <span className="celebration-cannon celebration-cannon-center absolute bottom-6 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full sm:bottom-8 sm:h-28 sm:w-28" />
-        <span className="celebration-cannon celebration-cannon-right absolute bottom-8 right-[6%] h-24 w-24 rounded-full sm:bottom-10 sm:right-[12%] sm:h-28 sm:w-28" />
-        {confettiPieces.map((piece) => (
-          <span
-            key={piece.id}
-            className={`celebration-confetti ${piece.color} ${piece.shape} ${piece.size}`}
-            style={{
-              left: piece.left,
-              bottom: piece.bottom,
-              animationDelay: piece.delay,
-              animationDuration: piece.duration,
-              ["--confetti-lift" as string]: piece.lift,
-              ["--confetti-drift" as string]: piece.drift,
-              ["--confetti-settle" as string]: piece.settle,
-              ["--confetti-rotate" as string]: piece.rotate,
-              ["--confetti-scale" as string]: piece.scale,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-        <div className="celebration-stage relative z-30 mt-0 flex h-[250px] w-full items-start justify-center sm:h-[300px]">
-          <span className="celebration-burst-ring absolute top-10 h-40 w-40 rounded-full border border-white/80 sm:top-11 sm:h-48 sm:w-48" />
-          <span className="celebration-burst-ring celebration-burst-ring-delay absolute top-4 h-56 w-56 rounded-full border border-rose-200/80 sm:top-5 sm:h-[17rem] sm:w-[17rem]" />
-          <span className="celebration-flash absolute top-11 h-32 w-32 rounded-full sm:top-14 sm:h-40 sm:w-40" />
-          <span className="celebration-flash celebration-flash-delay absolute top-5 h-52 w-52 rounded-full opacity-80 sm:h-64 sm:w-64" />
-
-          <div className="relative mt-12 sm:mt-14">
-            {burstPieces.map((piece) => (
-              <span
-                key={piece.id}
-                className={`celebration-burst-piece ${piece.color}`}
-                style={{
-                  ["--burst-angle" as string]: piece.angle,
-                  ["--burst-distance" as string]: piece.distance,
-                  animationDelay: piece.delay,
-                  animationDuration: piece.duration,
-                }}
-              />
-            ))}
-
-            <div className="celebration-orb relative flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
-              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.98),rgba(255,255,255,0.24)_58%,rgba(255,255,255,0)_70%)]" />
-              <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_20px_54px_rgba(24,24,27,0.18)] sm:h-24 sm:w-24">
-                <Check className="h-11 w-11 sm:h-12 sm:w-12" strokeWidth={2.6} />
-              </div>
-              <div className="celebration-star celebration-star-delay absolute left-0 top-2 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
-                <Sparkles className="h-3.5 w-3.5" />
-              </div>
-              <div className="celebration-star absolute right-0 top-4 rounded-full bg-white/90 p-1 text-amber-500 shadow-sm">
-                <Sparkles className="h-3.5 w-3.5" />
-              </div>
-              <div className="celebration-star celebration-star-delay absolute bottom-5 left-1 rounded-full bg-white/90 p-1 text-fuchsia-500 shadow-sm">
-                <Sparkles className="h-3.5 w-3.5" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="celebration-card relative z-10 -mt-10 inline-flex items-center gap-2 rounded-full border border-rose-100/80 bg-white/94 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur sm:-mt-12">
-          <Sparkles className="h-3.5 w-3.5" />
+    <div className="px-3 py-4 sm:px-6 sm:py-6">
+      <div className="mx-auto flex max-w-md flex-col items-center text-center">
+        <div className="celebration-card inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-600 shadow-sm">
+          <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
           Project created
         </div>
 
-        <div className="celebration-card mt-4 w-full max-w-md rounded-[28px] border border-white/85 bg-white/95 px-5 py-5 text-center shadow-[0_16px_42px_rgba(24,24,27,0.06)] backdrop-blur sm:px-6">
-          <h3 className="text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-[2.5rem]">
+        <div className="celebration-card mt-5 w-full rounded-[28px] border border-zinc-200 bg-white px-5 py-6 text-center shadow-[0_12px_30px_rgba(24,24,27,0.06)] sm:px-6">
+          <div className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full border border-zinc-200 bg-zinc-950 text-white shadow-[0_10px_24px_rgba(24,24,27,0.12)] sm:h-20 sm:w-20">
+            <Check className="h-9 w-9 sm:h-10 sm:w-10" strokeWidth={2.4} />
+          </div>
+
+          <h3 className="mt-5 text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-[2.25rem]">
             {project.name || "Your project"} is ready.
           </h3>
           <div className="mt-3 flex items-center justify-center gap-2 text-sm text-zinc-600">
@@ -204,8 +80,8 @@ function SuccessState({
           </div>
           <p className="mt-2 text-sm text-zinc-500 sm:text-base">{statusTone.summary}</p>
 
-          <div className="mt-4 overflow-hidden rounded-full bg-zinc-100/90">
-            <div className={`redirect-progress h-1.5 rounded-full bg-[linear-gradient(90deg,#fb7185,#f59e0b,#18181b)] ${redirecting ? "is-active" : ""}`} />
+          <div className="mt-5 overflow-hidden rounded-full bg-zinc-100">
+            <div className={`redirect-progress h-1.5 rounded-full bg-zinc-950 ${redirecting ? "is-active" : ""}`} />
           </div>
 
           {docsWarning ? (
@@ -214,7 +90,7 @@ function SuccessState({
             </div>
           ) : null}
 
-          <div className="mt-4 flex justify-center">
+          <div className="mt-5 flex justify-center">
             <button
               type="button"
               onClick={onOpenProject}

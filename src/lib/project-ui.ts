@@ -11,12 +11,12 @@ export type ProjectStatusTone = {
 };
 
 const DEFAULT_STATUS_TONE: ProjectStatusTone = {
-  badge: "border-orange-200 bg-orange-50 text-orange-700",
-  dot: "bg-orange-500",
-  progress: "bg-orange-500",
-  progressTrack: "bg-orange-100",
-  surface: "border-orange-200/70 bg-white",
-  pill: "bg-orange-50 text-orange-700",
+  badge: "border-red-200 bg-red-50 text-red-700",
+  dot: "bg-red-500",
+  progress: "bg-red-500",
+  progressTrack: "bg-red-100",
+  surface: "border-red-200/70 bg-white",
+  pill: "bg-red-50 text-red-700",
   label: "Active",
 };
 
@@ -61,7 +61,7 @@ export function getProjectStatusTone(status?: string | null): ProjectStatusTone 
 export function getProjectTypeTone(type?: string | null) {
   switch ((type || "other").toLowerCase()) {
     case "marketing":
-      return "border-orange-200 bg-orange-50 text-orange-700";
+      return "border-rose-200 bg-rose-50 text-rose-700";
     case "product":
       return "border-rose-200 bg-rose-50 text-rose-700";
     case "engineering":

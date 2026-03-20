@@ -9,7 +9,7 @@ export function BrandedEmptyState({ icon, title, description, action, className 
         className,
       )}
     >
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-orange-700 shadow-[0_4px_12px_rgba(24,24,27,0.04)]">{icon}</div>
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 shadow-[0_4px_12px_rgba(24,24,27,0.04)]">{icon}</div>
       <p className="text-xl font-semibold tracking-tight text-zinc-900">{title}</p>
       <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">{description}</p>
       {action ? <div className="mt-6">{action}</div> : null}

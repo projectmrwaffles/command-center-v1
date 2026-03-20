@@ -151,7 +151,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
           </PageHero>
 
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.72),rgba(255,255,255,0.98)_52%,rgba(255,247,237,0.88)_100%)]">
+            <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.72),rgba(255,255,255,0.98)_52%,rgba(255,241,242,0.88)_100%)]">
               <CardContent className="space-y-5 p-5 sm:p-6">
                 <div className="space-y-2">
                   <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-white/85 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-700">
@@ -187,7 +187,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                             </div>
                             <div className="space-y-2">
                               <div className="h-2 overflow-hidden rounded-full bg-red-100/70">
-                                <div className="h-full rounded-full bg-gradient-to-r from-red-500 to-amber-500 transition-all" style={{ width: `${project.progress_pct || 0}%` }} />
+                                <div className="h-full rounded-full bg-gradient-to-r from-red-500 to-rose-500 transition-all" style={{ width: `${project.progress_pct || 0}%` }} />
                               </div>
                               <div className="flex items-center justify-between text-xs text-zinc-500">
                                 <span>Progress</span>

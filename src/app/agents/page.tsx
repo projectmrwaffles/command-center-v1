@@ -131,7 +131,7 @@ export default async function AgentsPage() {
           {agents.map((agent) => (
             <Link key={agent.id} href={`/agents/${agent.id}`} className="group block h-full">
               <Card variant="featured" className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px]">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-500 to-amber-400 opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-500 to-rose-400 opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
                 <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 space-y-3">

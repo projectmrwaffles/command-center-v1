@@ -6,7 +6,7 @@ export type CardVariant = "default" | "featured" | "soft";
 const cardVariants: Record<CardVariant, string> = {
   default: "border-zinc-200 bg-white text-zinc-950 shadow-[0_6px_18px_rgba(24,24,27,0.04)]",
   featured:
-    "border-zinc-200 bg-white text-zinc-950 shadow-[0_10px_24px_rgba(24,24,27,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_28px_rgba(24,24,27,0.07)]",
+    "border-zinc-200 bg-white text-zinc-950 shadow-[0_10px_24px_rgba(24,24,27,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-[0_12px_28px_rgba(24,24,27,0.07)]", 
   soft: "border-zinc-200 bg-zinc-50/80 text-zinc-950 shadow-[0_6px_18px_rgba(24,24,27,0.04)]",
 };
 

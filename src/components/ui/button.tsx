@@ -38,7 +38,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
       destructive: "bg-red-600 text-white hover:bg-red-700",
       ghost: "text-zinc-900 hover:bg-zinc-100",
-      warm: "border border-orange-200/70 bg-[linear-gradient(135deg,rgba(234,88,12,0.96)_0%,rgba(249,115,22,0.94)_55%,rgba(251,191,36,0.88)_100%)] text-white shadow-[0_10px_24px_rgba(234,88,12,0.16)] hover:shadow-[0_14px_28px_rgba(234,88,12,0.18)] hover:brightness-[1.03]",
+      warm: "border border-orange-600 bg-orange-600 text-white shadow-[0_8px_20px_rgba(234,88,12,0.18)] hover:bg-orange-700 hover:border-orange-700 hover:shadow-[0_10px_24px_rgba(234,88,12,0.2)]",
     };
 
     const sizes: Record<ButtonSize, string> = {

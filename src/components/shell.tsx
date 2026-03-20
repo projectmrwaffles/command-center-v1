@@ -131,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile bottom tabs - horizontal scroll */}
       <nav
         data-testid="mobile-tabs"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-100 bg-white/98 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white md:hidden"
       >
         <div className="flex overflow-x-auto scrollbar-hide justify-around py-1">
           {NAV.map((item) => {

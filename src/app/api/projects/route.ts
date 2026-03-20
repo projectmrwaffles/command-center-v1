@@ -1,6 +1,7 @@
-import { ensureDefaultSprint, getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
+import { getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
+import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -278,52 +279,89 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error?.message || "Failed to create project", code: error?.code }, { status: 500 });
     }
 
-    // Add team-specific tasks for each team. Some deployed DBs still require sprint_id,
-    // so we provision a fallback kickoff sprint when needed.
-    const teamTaskTemplates: Record<string, string> = {
-      [TEAMS.ENGINEERING]: "Set up development environment and architecture",
-      [TEAMS.DESIGN]: "Create initial wireframes and design system",
-      [TEAMS.PRODUCT]: "Define product requirements and user stories",
-      [TEAMS.MARKETING]: "Plan marketing strategy and messaging",
-      [TEAMS.QA]: "Create test plan and quality criteria",
-    };
-    const kickoffSprintId = await ensureDefaultSprint(db, project.id);
-    let nextTaskPosition = await getProjectTaskPosition(db, project.id);
+    let kickoffSeeded = false;
+    const nextTaskPosition = await getProjectTaskPosition(db, project.id);
 
-    for (const teamId of autoTeamIds) {
-      const { data: teamMembers } = await db
-        .from("team_members")
-        .select("agent_id, role")
-        .eq("team_id", teamId)
-        .order("role", { ascending: true });
+    try {
+      const kickoff = await seedProjectKickoffPlan(db, {
+        projectId: project.id,
+        projectName: name,
+        type,
+        intake,
+        startPosition: nextTaskPosition,
+      });
 
-      if (teamMembers?.length) {
-        const teamTask = teamTaskTemplates[teamId] || `Work on ${name}`;
-        const leadMember = teamMembers.find((member: { role?: string }) => member.role === "lead") || teamMembers[0];
+      kickoff.tasks
+        .filter((task) => task.phaseStatus === "active" && task.assigneeAgentId)
+        .forEach((task) => {
+          triggerAgentWork(task.assigneeAgentId as string, name, task.title, task.id);
+        });
 
-        // Insert task and capture the returned ID
-        const { data: createdTask, error: taskError } = await db
-          .from("sprint_items")
-          .insert({
-            sprint_id: kickoffSprintId,
-            project_id: project.id,
-            title: teamTask,
-            status: "todo",
-            assignee_agent_id: leadMember.agent_id,
-            position: nextTaskPosition,
-          })
-          .select("id")
-          .single();
+      kickoffSeeded = kickoff.tasks.length > 0;
+    } catch (kickoffError) {
+      console.error("[API /projects] kickoff seeding failed, falling back to legacy team tasks:", kickoffError);
+    }
 
-        if (taskError) {
-          console.error("[API /projects] task insert error:", taskError);
-        } else {
-          nextTaskPosition += 1;
-        }
+    if (!kickoffSeeded) {
+      // Legacy fallback so project creation still succeeds on partially migrated databases.
+      const { data: kickoffSprint, error: sprintError } = await db
+        .from("sprints")
+        .insert({
+          project_id: project.id,
+          name: "Kickoff",
+          goal: "Initial delivery setup and routing",
+          status: "active",
+        })
+        .select("id")
+        .single();
 
-        if (createdTask?.id) {
-          // Trigger the assigned agent to start working (now async with taskId)
-          triggerAgentWork(leadMember.agent_id, name, teamTask, createdTask.id);
+      if (sprintError || !kickoffSprint?.id) {
+        console.error("[API /projects] legacy kickoff sprint insert error:", sprintError);
+      } else {
+        const teamTaskTemplates: Record<string, string> = {
+          [TEAMS.ENGINEERING]: "Set up development environment and architecture",
+          [TEAMS.DESIGN]: "Create initial wireframes and design system",
+          [TEAMS.PRODUCT]: "Define product requirements and user stories",
+          [TEAMS.MARKETING]: "Plan marketing strategy and messaging",
+          [TEAMS.QA]: "Create test plan and quality criteria",
+        };
+
+        let fallbackTaskPosition = nextTaskPosition;
+
+        for (const teamId of autoTeamIds) {
+          const { data: teamMembers } = await db
+            .from("team_members")
+            .select("agent_id, role")
+            .eq("team_id", teamId)
+            .order("role", { ascending: true });
+
+          if (!teamMembers?.length) continue;
+
+          const teamTask = teamTaskTemplates[teamId] || `Work on ${name}`;
+          const leadMember = teamMembers.find((member: { role?: string }) => member.role === "lead") || teamMembers[0];
+
+          const { data: createdTask, error: taskError } = await db
+            .from("sprint_items")
+            .insert({
+              sprint_id: kickoffSprint.id,
+              project_id: project.id,
+              title: teamTask,
+              status: "todo",
+              assignee_agent_id: leadMember.agent_id,
+              position: fallbackTaskPosition,
+            })
+            .select("id")
+            .single();
+
+          if (taskError) {
+            console.error("[API /projects] legacy task insert error:", taskError);
+          } else {
+            fallbackTaskPosition += 1;
+          }
+
+          if (createdTask?.id) {
+            triggerAgentWork(leadMember.agent_id, name, teamTask, createdTask.id);
+          }
         }
       }
     }

@@ -1,6 +1,19 @@
+import Link from "next/link";
+import { Activity, ArrowLeft, Bot, Clock3, Sparkles } from "lucide-react";
 import { createServerClient, isMockMode } from "@/lib/supabase-server";
 import { ErrorState } from "@/components/error-state";
 import { DbBanner } from "@/components/db-banner";
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
+import {
+  formatAgentType,
+  formatEventType,
+  formatLastSeen,
+  getAgentDisplayName,
+  getAgentEmoji,
+  statusClasses,
+} from "../agent-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +46,6 @@ export default async function AgentDetailPage({
   }
 
   try {
-
     const agentRes = await db
       .from("agents")
       .select("id, name, type, status, last_seen")
@@ -74,49 +86,130 @@ export default async function AgentDetailPage({
   }
 
   const mockBanner = isMockMode() ? (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
       <span className="font-medium">Demo mode</span> – backend not connected.
     </div>
   ) : null;
 
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-6">
+    <div className="space-y-6">
       <DbBanner />
       {mockBanner}
 
-      <div>
-        <h1 className="text-2xl font-bold">{agent.name}</h1>
-        <div className="flex gap-2 mt-1 items-center">
-          <span
-            className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-              agent.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-            }`}
-          >
-            {agent.status}
-          </span>
-          <span className="text-xs text-gray-400">
-            Last seen: {agent.last_seen ? new Date(agent.last_seen).toLocaleString() : "Never"}
-          </span>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Events Timeline</h2>
-        <div className="space-y-2">
-          {events.map((e) => (
-            <div key={e.id} className="border rounded-lg p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="font-medium">{e.event_type}</span>
-                <span className="text-xs text-gray-400">{new Date(e.timestamp).toLocaleString()}</span>
-              </div>
-              {e.payload && Object.keys(e.payload).length > 0 && (
-                <pre className="text-xs text-gray-500 mt-1 overflow-x-auto">{JSON.stringify(e.payload, null, 2)}</pre>
-              )}
+      <PageHero>
+        <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl space-y-4">
+            <Link
+              href="/agents"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white/85 px-3 py-1.5 text-sm text-zinc-600 shadow-sm transition hover:border-red-200 hover:text-red-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to agents
+            </Link>
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" />
+              Agent detail
             </div>
-          ))}
-          {events.length === 0 && <p className="text-gray-400 text-sm">No events.</p>}
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.95),rgba(255,255,255,1))] text-3xl shadow-sm">
+                <span aria-hidden="true">{getAgentEmoji(agent.name)}</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
+                    {getAgentDisplayName(agent.name)}
+                  </h1>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
+                    {formatAgentType(agent.type)} agent surface with recent execution events and presence metadata.
+                  </p>
+                </div>
+                <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status)}`}>
+                  {agent.status}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[460px]">
+            <PageHeroStat className="border-red-100">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                <Bot className="h-4 w-4 text-red-500" />
+                Identity
+              </div>
+              <div className="mt-3 text-lg font-semibold tracking-tight text-zinc-950">{formatAgentType(agent.type)}</div>
+              <p className="mt-1 text-xs text-zinc-500">Stored agent classification.</p>
+            </PageHeroStat>
+            <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                <Clock3 className="h-4 w-4 text-emerald-500" />
+                Last seen
+              </div>
+              <div className="mt-3 text-lg font-semibold tracking-tight text-zinc-950">{formatLastSeen(agent.last_seen)}</div>
+              <p className="mt-1 text-xs text-zinc-500">Latest heartbeat or reported presence.</p>
+            </PageHeroStat>
+            <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                <Activity className="h-4 w-4 text-amber-500" />
+                Events
+              </div>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{events.length}</div>
+              <p className="mt-1 text-xs text-zinc-500">Most recent timeline entries shown below.</p>
+            </PageHeroStat>
+          </div>
         </div>
-      </div>
+      </PageHero>
+
+      <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.72),rgba(255,255,255,0.98)_52%,rgba(255,247,237,0.88)_100%)]">
+        <CardContent className="space-y-5 p-5 sm:p-6">
+          <div className="space-y-2">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-white/85 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-700">
+              Recent activity
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Events timeline</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Latest execution and reporting events for this agent, preserving the same timeline data as before.
+              </p>
+            </div>
+          </div>
+
+          {events.length === 0 ? (
+            <BrandedEmptyState
+              icon={<Activity className="h-8 w-8 text-red-600" />}
+              title="No events yet"
+              description="This agent has not reported any timeline events yet. When it does, the latest entries will appear here."
+              className="px-5 py-12"
+            />
+          ) : (
+            <div className="space-y-3">
+              {events.map((event) => (
+                <div
+                  key={event.id}
+                  className="rounded-[22px] border border-zinc-200 bg-white/90 p-4 shadow-sm"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="inline-flex w-fit items-center rounded-full border border-red-100 bg-red-50/80 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">
+                        {formatEventType(event.event_type)}
+                      </div>
+                      {event.payload && Object.keys(event.payload).length > 0 ? (
+                        <pre className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200 bg-zinc-50/90 p-3 text-xs leading-5 text-zinc-600">
+                          {JSON.stringify(event.payload, null, 2)}
+                        </pre>
+                      ) : (
+                        <p className="mt-3 text-sm text-zinc-500">No payload captured for this event.</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-500 shadow-sm">
+                      {new Date(event.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

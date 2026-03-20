@@ -1,42 +1,26 @@
+import Link from "next/link";
+import { ArrowRight, Bot, Radar, Sparkles, Workflow } from "lucide-react";
 import { createServerClient, isMockMode } from "@/lib/supabase-server";
 import { ErrorState } from "@/components/error-state";
 import { DbBanner } from "@/components/db-banner";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
+import {
+  formatAgentType,
+  formatLastSeen,
+  getAgentDisplayName,
+  getAgentEmoji,
+  statusClasses,
+} from "./agent-utils";
 
 export const dynamic = "force-dynamic";
 
-function getAgentDisplayName(name: string) {
-  if (name === "main") return "Mr. Waffles";
-  return name;
-}
-
-// Map of agent name to emoji from their IDENTITY.md
-const AGENT_EMOJIS: Record<string, string> = {
-  "tech-lead-architect": "🔮",
-  "frontend-engineer": "🎨",
-  "backend-engineer": "⚡",
-  "mobile-engineer": "📱",
-  "qa-auditor": "🛡️",
-  "seo-web-developer": "🔍",
-  "head-of-design": "✨",
-  "product-designer-app": "📐",
-  "web-designer-marketing": "💡",
-  "product-lead": "🧭",
-  "growth-lead": "🚀",
-  "marketing-producer": "📣",
-  "marketing-ops-analytics": "📊",
-};
-
-function getAgentEmoji(name: string): string {
-  return AGENT_EMOJIS[name] || "🤖";
-}
+type AgentRow = { id: string; name: string; type: string; status: string; last_seen: string | null };
 
 export default async function AgentsPage() {
   const db = createServerClient();
-  let agents:
-    | { id: string; name: string; type: string; status: string; last_seen: string | null }[]
-    | null = null;
+  let agents: AgentRow[] = [];
   let error: { message: string; details?: string } | null = null;
 
   if (!db) {
@@ -58,7 +42,7 @@ export default async function AgentsPage() {
       .select("id, name, type, status, last_seen")
       .not("name", "like", "_archived_%")
       .order("name");
-    agents = res.data;
+    agents = (res.data ?? []) as AgentRow[];
   } catch (err) {
     error = {
       message: "Failed to load agents",
@@ -77,111 +61,114 @@ export default async function AgentsPage() {
   }
 
   const mockBanner = isMockMode() ? (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
       <span className="font-medium">Demo mode</span> – backend not connected.
     </div>
   ) : null;
+
+  const activeAgents = agents.filter((agent) => agent.status === "active").length;
+  const idleAgents = agents.filter((agent) => agent.status === "idle").length;
 
   return (
     <div className="space-y-6">
       <DbBanner />
       {mockBanner}
-      <h1 className="text-2xl font-semibold text-red-600">Agents</h1>
 
-      {/* Mobile cards */}
-      <div className="grid gap-4 md:hidden">
-        {(agents || []).map((a) => (
-          <Link key={a.id} href={`/agents/${a.id}`} className="block">
-            <Card className="border-zinc-200 transition-all hover:shadow-md hover:border-zinc-300">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{getAgentEmoji(a.name)}</span>
-                    <CardTitle className="text-base">{getAgentDisplayName(a.name)}</CardTitle>
-                  </div>
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      a.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {a.status}
-                  </span>
-                </div>
-                <CardDescription>{a.type}</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-xs text-gray-400">
-                  {a.last_seen ? new Date(a.last_seen).toLocaleString() : "Never"}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-        {(!agents || agents.length === 0) && (
-          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 py-16">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
-              <svg className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
+      <PageHero>
+        <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" />
+              Agent workspace
             </div>
-            <p className="text-lg font-medium text-zinc-700">No agents registered</p>
-            <p className="text-sm text-zinc-500">Agents will appear here once they connect</p>
+            <div className="space-y-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
+                Agents, presence, and execution context in one warm surface.
+              </h1>
+              <p className="max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
+                Review every registered agent, scan live presence, and open a detail route for recent activity without changing how the workspace behaves.
+              </p>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Desktop list/table */}
-      <div className="hidden md:block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-50 text-zinc-600">
-            <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Last Seen</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
-            {(agents || []).map((a) => (
-              <tr key={a.id} className="hover:bg-zinc-50">
-                <td className="px-4 py-3">
-                  <Link href={`/agents/${a.id}`} className="flex items-center gap-2 font-medium text-zinc-900 hover:underline">
-                    <span className="text-lg">{getAgentEmoji(a.name)}</span>
-                    {getAgentDisplayName(a.name)}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-zinc-500">{a.type}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      a.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {a.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-zinc-500">
-                  {a.last_seen ? new Date(a.last_seen).toLocaleString() : "Never"}
-                </td>
-              </tr>
-            ))}
-            {(!agents || agents.length === 0) && (
-              <tr>
-                <td className="px-4 py-8 text-center text-zinc-400" colSpan={4}>
-                  <div className="flex flex-col items-center">
-                    <p>No agents registered</p>
-                    <p className="text-xs">Agents will appear here once they connect</p>
+          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
+            <PageHeroStat className="border-red-100">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                <Bot className="h-4 w-4 text-red-500" />
+                Agents
+              </div>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{agents.length}</div>
+              <p className="mt-1 text-xs text-zinc-500">Registered in the workspace.</p>
+            </PageHeroStat>
+            <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                <Radar className="h-4 w-4 text-emerald-500" />
+                Active now
+              </div>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
+              <p className="mt-1 text-xs text-zinc-500">Currently marked active.</p>
+            </PageHeroStat>
+            <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                <Workflow className="h-4 w-4 text-amber-500" />
+                Idle / standby
+              </div>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{idleAgents}</div>
+              <p className="mt-1 text-xs text-zinc-500">Available but not actively running.</p>
+            </PageHeroStat>
+          </div>
+        </div>
+      </PageHero>
+
+      {agents.length === 0 ? (
+        <BrandedEmptyState
+          icon={<Bot className="h-8 w-8 text-red-600" />}
+          title="No agents registered"
+          description="Agents will appear here once they connect and begin reporting presence to the workspace."
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {agents.map((agent) => (
+            <Link key={agent.id} href={`/agents/${agent.id}`} className="group block h-full">
+              <Card variant="featured" className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px]">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-500 to-amber-400 opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
+                <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.95),rgba(255,255,255,1))] text-2xl shadow-sm">
+                          <span aria-hidden="true">{getAgentEmoji(agent.name)}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <h2 className="truncate text-lg font-semibold tracking-tight text-zinc-950">
+                            {getAgentDisplayName(agent.name)}
+                          </h2>
+                          <p className="mt-1 text-sm text-zinc-500">{formatAgentType(agent.type)}</p>
+                        </div>
+                      </div>
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status)}`}>
+                        {agent.status}
+                      </span>
+                    </div>
+                    <div className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-500 shadow-sm transition-colors group-hover:border-red-200 group-hover:text-red-600">
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </div>
                   </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+
+                  <div className="mt-auto rounded-2xl border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.9),rgba(255,255,255,0.98))] px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Last seen</p>
+                    <p className="mt-1 text-sm text-zinc-700">{formatLastSeen(agent.last_seen)}</p>
+                    <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-red-700">
+                      Open agent detail
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

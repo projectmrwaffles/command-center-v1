@@ -93,7 +93,10 @@ async function loadDashboardData(): Promise<DashboardData> {
     const teamsRes = await db.from("teams").select("id, name");
     const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status").eq("status", "active");
     const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status");
-    const agentsRes = await db.from("agents").select("id, name, status, last_seen, current_job_id");
+    const agentsRes = await db
+      .from("agents")
+      .select("id, name, status, last_seen, current_job_id")
+      .not("name", "like", "_archived_%");
     const eventsRes = await db.from("agent_events").select("id, event_type, payload, agent_id, project_id, job_id, timestamp").order("timestamp", { ascending: false }).limit(10);
 
     // Usage last 24h

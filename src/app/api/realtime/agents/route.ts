@@ -11,7 +11,11 @@ export async function GET(req: NextRequest) {
   const db = createServerClient();
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
-  const { data, error } = await db.from("agents").select("id, name, type, status, last_seen").order("name");
+  const { data, error } = await db
+    .from("agents")
+    .select("id, name, type, status, last_seen")
+    .not("name", "like", "_archived_%")
+    .order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ agents: data ?? [] });
 }

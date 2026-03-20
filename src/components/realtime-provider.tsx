@@ -16,6 +16,8 @@ async function fetchJson(url: string) {
  */
 export function RealtimeProvider() {
   const upsertAgent = useRealtimeStore((s) => s.upsertAgent);
+  const replaceAgents = useRealtimeStore((s) => s.replaceAgents);
+  const removeAgent = useRealtimeStore((s) => s.removeAgent);
   const upsertProject = useRealtimeStore((s) => s.upsertProject);
   const upsertSprint = useRealtimeStore((s) => s.upsertSprint);
   const upsertJob = useRealtimeStore((s) => s.upsertJob);
@@ -45,7 +47,7 @@ export function RealtimeProvider() {
           fetchJson("/api/realtime/usage-rollup"),
         ]);
 
-        (agents?.agents ?? []).forEach((a: any) => upsertAgent(a));
+        replaceAgents(agents?.agents ?? []);
         (projects?.projects ?? []).forEach((p: any) => upsertProject(p));
         (sprints?.sprints ?? []).forEach((s: any) => upsertSprint(s));
         (jobs?.jobs ?? []).forEach((j: any) => upsertJob(j));
@@ -59,7 +61,8 @@ export function RealtimeProvider() {
 
       unsub = subscribeToAllTables({
         onAgent: (p) => {
-          if (p.eventType !== "DELETE") upsertAgent(p.new);
+          if (p.eventType === "DELETE") removeAgent(p.old.id);
+          else upsertAgent(p.new);
         },
         onProject: (p) => {
           if (p.eventType !== "DELETE") upsertProject(p.new);
@@ -93,7 +96,7 @@ export function RealtimeProvider() {
     return () => {
       unsub?.unsubscribeAll();
     };
-  }, [prependEvent, removeApproval, upsertAgent, upsertApproval, upsertJob, upsertProject, upsertSprint, upsertTeam, upsertUsageRollup]);
+  }, [prependEvent, removeAgent, removeApproval, replaceAgents, upsertAgent, upsertApproval, upsertJob, upsertProject, upsertSprint, upsertTeam, upsertUsageRollup]);
 
   return null;
 }

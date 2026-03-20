@@ -83,6 +83,8 @@ interface RealtimeState {
 
   // Actions
   upsertAgent: (a: Agent) => void;
+  replaceAgents: (agents: Agent[]) => void;
+  removeAgent: (id: string) => void;
   upsertProject: (p: Project) => void;
   upsertSprint: (s: Sprint) => void;
   upsertJob: (j: Job) => void;
@@ -112,6 +114,18 @@ export const useRealtimeStore = create<RealtimeState>((set) => ({
     set((state) => {
       const next = new Map(state.agentsById);
       next.set(a.id, a);
+      return { agentsById: next };
+    }),
+
+  replaceAgents: (agents) =>
+    set(() => ({
+      agentsById: new Map(agents.map((agent) => [agent.id, agent])),
+    })),
+
+  removeAgent: (id) =>
+    set((state) => {
+      const next = new Map(state.agentsById);
+      next.delete(id);
       return { agentsById: next };
     }),
 

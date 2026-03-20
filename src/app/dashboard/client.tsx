@@ -107,14 +107,14 @@ function eventTitle(eventType: string) {
 }
 
 export function OverviewClient({ initialData }: { initialData: DashboardData }) {
-  const upsertAgent = useRealtimeStore((s) => s.upsertAgent);
+  const replaceAgents = useRealtimeStore((s) => s.replaceAgents);
   const upsertProject = useRealtimeStore((s) => s.upsertProject);
   const upsertApproval = useRealtimeStore((s) => s.upsertApproval);
   const prependEvent = useRealtimeStore((s) => s.prependEvent);
   const upsertTeam = useRealtimeStore((s) => s.upsertTeam);
 
   useEffect(() => {
-    initialData.agents.forEach((a: any) => upsertAgent(a));
+    replaceAgents(initialData.agents as any);
     initialData.projects.forEach((p: any) => upsertProject({ ...p, progress_pct: p.activeSprint?.progress ?? p.progress_pct ?? 0 }));
     initialData.needsYou.forEach((n: any) => {
       if (n.type === "approval") {
@@ -132,7 +132,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     });
     initialData.events?.forEach((e: any) => prependEvent(e));
     initialData.teams?.forEach((t: any) => upsertTeam(t));
-  }, [initialData, prependEvent, upsertAgent, upsertApproval, upsertProject, upsertTeam]);
+  }, [initialData, prependEvent, replaceAgents, upsertApproval, upsertProject, upsertTeam]);
 
   const agentsById = useRealtimeStore((s) => s.agentsById);
   const projectsById = useRealtimeStore((s) => s.projectsById);

@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await db
       .from("agents")
       .select("id, name, type, status, last_seen")
+      .not("name", "like", "_archived_%")
       .order("name");
 
     if (error) {

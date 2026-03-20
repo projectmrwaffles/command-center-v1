@@ -92,8 +92,9 @@ Replace the current type-dropdown intake with a selection-first flow that is eas
 5. **Stage** — tells us discovery vs execution.
 6. **How sure are you?** — safe path for unfamiliar users.
 7. **Optional details** — free text only after selections.
-8. **Optional docs upload** — PRDs, screenshots, PDFs.
-9. **Live routing preview** — show likely owner + QC team and a short summary before submit.
+8. **Optional existing project links** — GitHub/repo, live site, preview, docs, Figma, or admin links when something already exists.
+9. **Optional docs upload** — PRDs, screenshots, PDFs.
+10. **Live routing preview** — show likely owner + QC team and a short summary before submit.
 
 ## 3) Data model fields
 
@@ -114,8 +115,18 @@ Recommended canonical fields:
   - `projectName?: string`
   - `summary?: string`
   - `goals?: string`
+  - `links?: { github?: string; preview?: string; production?: string; docs?: string; figma?: string; admin?: string }
 - `projects.intake_summary text` — compact readable summary for cards/lists
 - `projects.description text` — optional long-form human notes
+
+### Existing-project link guidance
+When a project builds on something that already exists, intake should frame links as reference points for the team, not as a promise that work starts directly inside that linked repo.
+
+User-facing guidance:
+- a GitHub/repo link gives the team the current source of truth
+- preview/production/admin/docs/Figma links help the team understand the current state faster
+- during execution, the team can create the working branch or copy they need from that source
+- avoid wording like “the team will branch from this repo” in intake copy because it assumes an execution choice too early
 
 ## 4) Routing implications for Vertillo team assignment
 

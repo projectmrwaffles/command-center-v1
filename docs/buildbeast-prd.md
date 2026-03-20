@@ -325,6 +325,7 @@ Using the current repo taxonomy in `src/lib/project-intake.ts`:
 - context[]
 - capabilities[]
 - goals/notes
+- existing project links (GitHub/repo, preview, production, docs, Figma, admin)
 - uploaded docs
 
 ### Stored outputs
@@ -333,6 +334,9 @@ Using the current repo taxonomy in `src/lib/project-intake.ts`:
 - `projects.intake_summary`
 - `projects.description`
 - initial project documents if uploaded
+
+### Existing-project link guidance
+For existing-project intake, product copy should describe a repo/GitHub link as the team’s source of truth for understanding the current codebase. It should not imply that intake alone means the team is already working directly in a branch of that repo. The execution team can create the appropriate working branch or copy later as part of delivery.
 
 ### Derived legacy type mapping
 Per current implementation:

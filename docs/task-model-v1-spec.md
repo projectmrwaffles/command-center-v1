@@ -140,7 +140,7 @@ All V1 tasks share a compact common schema, then add type-specific structured fi
 - `assignee_agent_id`
 - `assignee_user_id`
 - `context_note` — short supporting note, not the main source of meaning
-- `linked_artifact_refs` — docs, screens, PRDs, URLs, attachments already in project context
+- `linked_artifact_refs` — docs, screens, PRDs, URLs, attachments, or existing project links already in project context; these act as references/source-of-truth inputs for the task, not as a promise about the exact working branch or copy that will be used during execution
 - `priority` — optional V1.5 candidate; do not make primary in V1 if it complicates the UI
 
 ### Existing fields retained for implementation compatibility

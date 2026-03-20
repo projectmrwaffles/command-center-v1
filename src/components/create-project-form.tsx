@@ -478,7 +478,7 @@ export function CreateProjectForm({
                   </div>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-red-100/55">
-                  <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-orange-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
+                  <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
                 </div>
               </div>
             </div>
@@ -491,7 +491,7 @@ export function CreateProjectForm({
                 <p className="text-[11px] font-medium text-zinc-500">Progress</p>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
-                <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-orange-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
+                <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
               </div>
             </div>
 

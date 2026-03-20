@@ -431,7 +431,7 @@ export function CreateProjectModal({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(24,24,27,0.44),rgba(24,24,27,0.32))] backdrop-blur-[2px]" onClick={() => !createdProject && onOpenChange(false)} />
+      <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-[2px]" onClick={() => !createdProject && onOpenChange(false)} />
 
       <div className={mobile ? undefined : "fixed inset-0 flex items-center justify-center px-6 py-6 xl:px-8"}>
         <div
@@ -443,7 +443,7 @@ export function CreateProjectModal({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-white px-4 py-4 sm:px-6 sm:py-5">
-            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-red-200 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-px bg-red-100/80" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">

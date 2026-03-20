@@ -70,6 +70,10 @@ export interface UsageRollup {
   calls: number;
 }
 
+export function isArchivedAgent(agent: Pick<Agent, "name"> | null | undefined) {
+  return Boolean(agent?.name?.includes("archived_"));
+}
+
 // State
 interface RealtimeState {
   agentsById: Map<string, Agent>;
@@ -113,13 +117,21 @@ export const useRealtimeStore = create<RealtimeState>((set) => ({
   upsertAgent: (a) =>
     set((state) => {
       const next = new Map(state.agentsById);
-      next.set(a.id, a);
+      if (isArchivedAgent(a)) {
+        next.delete(a.id);
+      } else {
+        next.set(a.id, a);
+      }
       return { agentsById: next };
     }),
 
   replaceAgents: (agents) =>
     set(() => ({
-      agentsById: new Map(agents.map((agent) => [agent.id, agent])),
+      agentsById: new Map(
+        agents
+          .filter((agent) => !isArchivedAgent(agent))
+          .map((agent) => [agent.id, agent]),
+      ),
     })),
 
   removeAgent: (id) =>
@@ -194,7 +206,7 @@ export const useRealtimeStore = create<RealtimeState>((set) => ({
 
 // Selectors (derived, no heavy compute)
 export function selectAgentsList(state: RealtimeState) {
-  return Array.from(state.agentsById.values());
+  return Array.from(state.agentsById.values()).filter((agent) => !isArchivedAgent(agent));
 }
 
 export function selectProjectsList(state: RealtimeState) {

@@ -468,17 +468,17 @@ export function CreateProjectForm({
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <div className="min-w-0">
-        <section className="min-w-0 p-0 sm:rounded-[28px] sm:border sm:border-zinc-200 sm:bg-white sm:px-6 sm:pt-4 sm:pb-5 sm:shadow-[0_18px_48px_rgba(24,24,27,0.05)]">
-          <div className="border-b border-zinc-100 pb-3 sm:pb-4">
+        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,250,250,0.98))] p-0 shadow-[0_18px_48px_rgba(239,68,68,0.08)] sm:px-6 sm:pt-4 sm:pb-5">
+          <div className="border-b border-red-100/80 pb-3 sm:pb-4">
             <div className="hidden sm:block">
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Progress</p>
-                  <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-red-500">Progress</p>
+                  <div className="shrink-0 rounded-full border border-red-100 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
                     {stepCounter}
                   </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-red-100/70">
                   <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
                 </div>
               </div>
@@ -486,7 +486,7 @@ export function CreateProjectForm({
 
             <div className="space-y-2 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+                <div className="shrink-0 rounded-full border border-red-100 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
                   {stepCounter}
                 </div>
                 <p className="text-[11px] font-medium text-zinc-500">Progress</p>
@@ -1016,7 +1016,7 @@ export function CreateProjectForm({
                   <button
                     type="button"
                     onClick={currentStep === 0 ? onCancel : goBack}
-                    className="rounded-2xl px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
+                    className="rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-red-200 hover:bg-red-50"
                   >
                     {currentStep === 0 ? "Cancel" : "Back"}
                   </button>

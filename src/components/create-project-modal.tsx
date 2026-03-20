@@ -2,8 +2,9 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Check, Sparkles } from "lucide-react";
+import { ArrowUpRight, Check, Sparkles, X } from "lucide-react";
 import { CreateProjectForm } from "@/components/create-project-form";
+import { Button } from "@/components/ui/button";
 import { useCreateProject } from "@/hooks/use-create-project";
 import { supabaseRealtime } from "@/lib/supabase-realtime";
 
@@ -382,9 +383,13 @@ export function CreateProjectModal({
   }
 
   const docsSection = (
-    <div className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-[0_12px_30px_rgba(24,24,27,0.04)]">
-      <div className="mb-2 text-sm font-medium text-zinc-900">Supporting docs and images</div>
-      <p className="mb-3 text-xs text-zinc-500">Attach PRDs, screenshots, or reference images. They upload after project creation and stay private in project_docs.</p>
+    <div className="overflow-hidden rounded-[28px] border border-red-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.98))] p-4 shadow-[0_16px_40px_rgba(239,68,68,0.08)] sm:p-5">
+      <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
+        <Sparkles className="h-3.5 w-3.5 text-red-500" />
+        Supporting materials
+      </div>
+      <div className="mb-2 mt-4 text-sm font-semibold text-zinc-900">Supporting docs and images</div>
+      <p className="mb-3 text-xs leading-5 text-zinc-500">Attach PRDs, screenshots, or reference images. They upload after project creation and stay private in project_docs.</p>
 
       {docsError && (
         <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -397,7 +402,7 @@ export function CreateProjectModal({
         multiple
         accept="application/pdf,image/*"
         onChange={(e) => setDocs(Array.from(e.target.files ?? []))}
-        className="block w-full text-sm"
+        className="block w-full rounded-2xl border border-dashed border-red-200 bg-white px-4 py-3 text-sm shadow-sm file:mr-3 file:rounded-full file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-red-700 hover:border-red-300"
       />
 
       {docs.length > 0 && (
@@ -426,36 +431,43 @@ export function CreateProjectModal({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={() => !createdProject && onOpenChange(false)} />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(24,24,27,0.52),rgba(24,24,27,0.38))] backdrop-blur-[2px]" onClick={() => !createdProject && onOpenChange(false)} />
 
       <div className={mobile ? undefined : "fixed inset-0 flex items-center justify-center px-6 py-6 xl:px-8"}>
         <div
           className={
             mobile
-              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[28px] bg-[#fcfcfd] shadow-2xl"
-              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[960px] min-w-0 flex-col overflow-hidden rounded-[28px] bg-[#fcfcfd] shadow-[0_28px_96px_rgba(15,23,42,0.22)] xl:max-w-[980px]"
+              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[32px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.98))] shadow-[0_-16px_56px_rgba(24,24,27,0.20)]"
+              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.98))] shadow-[0_28px_96px_rgba(15,23,42,0.22)] xl:max-w-[1020px]"
           }
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-200/80 px-4 py-3 sm:items-start sm:px-6 sm:py-4">
-          <div className="min-w-0">
-            <>
-              <h2 className="text-base font-semibold tracking-tight text-zinc-950 sm:text-xl">
-                {createdProject ? "Project ready" : "Start a project"}
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                {createdProject ? "Review the handoff card or jump straight into the workspace." : "Add the essentials, then review everything before you create it."}
-              </p>
-            </>
+          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.92),rgba(255,255,255,0.96)_38%,rgba(255,237,213,0.86)_78%,rgba(255,247,237,0.92)_100%)] px-4 py-4 sm:px-6 sm:py-5">
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-red-200 to-transparent" />
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+                  <Sparkles className="h-3.5 w-3.5 text-red-500" />
+                  {createdProject ? "Project handoff" : "New project intake"}
+                </div>
+                <h2 className="mt-3 text-xl font-semibold tracking-tight text-zinc-950 sm:text-[1.75rem]">
+                  {createdProject ? "Project ready" : "Start a project"}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
+                  {createdProject
+                    ? "Review the handoff card or jump straight into the workspace."
+                    : "Add the essentials, attach supporting materials, and review the routing before you create it."}
+                </p>
+              </div>
+              {!createdProject ? (
+                <Button onClick={() => onOpenChange(false)} variant="outline" size="icon" className="rounded-2xl border-red-200 bg-white/90 text-zinc-600 shadow-sm hover:bg-red-50" aria-label="Close">
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
           </div>
-          {!createdProject ? (
-            <button onClick={() => onOpenChange(false)} className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100" aria-label="Close">
-              ✕
-            </button>
-          ) : null}
-        </div>
 
-        <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-4 py-3 pb-20 sm:px-6 sm:py-4">
+          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.4),rgba(255,255,255,0))] px-4 py-4 pb-20 sm:px-6 sm:py-5">
           {createdProject ? (
             <SuccessState
               project={createdProject}

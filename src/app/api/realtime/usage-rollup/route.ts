@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const db = createServerClient();
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
-  const { data, error } = await db.from("usage_rollup_minute").select("*").order("bucket_start", { ascending: false }).limit(500);
+  const { data, error } = await db.from("usage_rollup_minute").select("*").order("bucket_minute", { ascending: false }).limit(500);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ usageRollup: data ?? [] });
 }

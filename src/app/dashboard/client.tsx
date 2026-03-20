@@ -275,7 +275,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       <PageHero>
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
               <Sparkles className="h-3.5 w-3.5 text-red-500" />
               Ops command center
             </div>
@@ -295,21 +295,21 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{needsYou.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-rose-100 shadow-[0_8px_24px_rgba(244,63,94,0.08)]">
+              <PageHeroStat className="border-rose-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-rose-700">
                   <Layers3 className="h-4 w-4 text-rose-500" />
                   Active projects
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{projectCards.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+              <PageHeroStat className="border-emerald-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
                   <Bot className="h-4 w-4 text-emerald-500" />
                   Agents active
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+              <PageHeroStat className="border-amber-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
                   <Workflow className="h-4 w-4 text-amber-500" />
                   Signals
@@ -320,7 +320,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[290px] lg:items-end">
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-3 shadow-[0_12px_32px_rgba(239,68,68,0.12)] backdrop-blur sm:p-4 lg:max-w-sm">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4 lg:max-w-sm">
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
                 <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-emerald-500" : connectionStatus === "connecting" ? "text-amber-500" : "text-red-500")} />
                 {connectionStatus === "connected" ? "Live updates on" : connectionStatus === "connecting" ? "Connecting live feed..." : "Live feed offline"}
@@ -403,7 +403,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             ) : (
               <div className="grid gap-3 lg:grid-cols-2">
                 {recentSignals.map((signal) => (
-                  <div key={signal.id} className="rounded-[24px] border border-zinc-200/90 bg-white/95 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-red-200 hover:shadow-[0_16px_36px_rgba(239,68,68,0.10)]">
+                  <div key={signal.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-red-200">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -486,8 +486,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                   return (
                     <Link key={team.id} href={`/teams/${team.id}`} className="block">
                       <Card variant={isFeatured ? "featured" : "soft"} className={cn("rounded-[24px]", isFeatured && "overflow-hidden")}>
-                        {isFeatured ? <div className="h-1 w-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400" /> : null}
-                        <CardContent className={cn("flex flex-col justify-between", isFeatured ? "gap-4 p-5" : "gap-3 p-4")}>
+                                                <CardContent className={cn("flex flex-col justify-between", isFeatured ? "gap-4 p-5" : "gap-3 p-4")}>
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                               <StatusDot status={teamStatus} />
@@ -536,7 +535,6 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
   return (
     <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-red-200">
       <Card variant="featured" className="relative h-full rounded-[24px] overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-500 to-amber-400 opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -550,7 +548,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">{progress}%</span>
           </div>
 
-          <div className="rounded-2xl border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,249,248,0.82),rgba(255,255,255,0.98))] p-4">
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Progress</p>
@@ -561,7 +559,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
               </span>
             </div>
             <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-red-100">
-              <div className="h-2 rounded-full bg-gradient-to-r from-red-500 to-amber-500 transition-all" style={{ width: `${progress}%` }} />
+              <div className="h-2 rounded-full bg-red-500 transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
@@ -586,22 +584,22 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
 function UsageCard({ usage }: { usage: UsageModel }) {
   return (
-    <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.5),rgba(255,255,255,0.985)_52%,rgba(255,248,240,0.72)_100%)]">
+    <Card variant="soft" className="rounded-[24px] border-zinc-200 bg-white">
       <CardContent className="space-y-5 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-red-700">24h summary</p>
             <p className="mt-2 text-sm text-zinc-500">Usage totals and the models carrying most of the load.</p>
           </div>
-          <span className="rounded-full border border-red-100 bg-white/80 px-3 py-1 text-xs font-medium text-red-700 shadow-sm">Live rollup</span>
+          <span className="rounded-full border border-red-100 bg-white px-3 py-1 text-xs font-medium text-red-700">Live rollup</span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-red-100 bg-white/85 p-4 shadow-sm">
+          <div className="rounded-2xl border border-red-100 bg-white p-4">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Tokens</div>
             <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{usage.totalTokens.toLocaleString()}</div>
           </div>
-          <div className="rounded-2xl border border-amber-100 bg-white/85 p-4 shadow-sm">
+          <div className="rounded-2xl border border-amber-100 bg-white p-4">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Cost</div>
             <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">${usage.totalCost.toFixed(4)}</div>
           </div>
@@ -612,7 +610,7 @@ function UsageCard({ usage }: { usage: UsageModel }) {
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Top models</p>
             <div className="space-y-2">
               {usage.topModels.map((model) => (
-                <div key={`${model.provider}:${model.model}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/85 px-4 py-3 text-sm shadow-sm">
+                <div key={`${model.provider}:${model.model}`} className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-zinc-900">{model.model}</p>
                     <p className="text-xs text-zinc-500">{model.provider}</p>

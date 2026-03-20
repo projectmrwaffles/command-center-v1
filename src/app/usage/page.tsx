@@ -54,21 +54,21 @@ function SummaryCard({
 }) {
   const tones = {
     red: {
-      wrap: "border-red-100 bg-white/88",
+      wrap: "border-red-100 bg-white",
       badge: "border-red-100 bg-red-50 text-red-700",
     },
     amber: {
-      wrap: "border-amber-100 bg-white/88",
+      wrap: "border-amber-100 bg-white",
       badge: "border-amber-100 bg-amber-50 text-amber-700",
     },
     emerald: {
-      wrap: "border-emerald-100 bg-white/88",
+      wrap: "border-emerald-100 bg-white",
       badge: "border-emerald-100 bg-emerald-50 text-emerald-700",
     },
   } satisfies Record<string, { wrap: string; badge: string }>;
 
   return (
-    <Card variant="soft" className={cn("rounded-[24px] shadow-[0_12px_32px_rgba(24,24,27,0.05)]", tones[tone].wrap)}>
+    <Card variant="soft" className={cn("rounded-[24px]", tones[tone].wrap)}>
       <CardContent className="p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -132,7 +132,7 @@ export default async function UsagePage() {
       <PageHero>
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
               <Sparkles className="h-3.5 w-3.5 text-red-500" />
               Usage intelligence
             </div>
@@ -152,14 +152,14 @@ export default async function UsagePage() {
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{rows.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+              <PageHeroStat className="border-amber-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
                   <BadgeDollarSign className="h-4 w-4 text-amber-500" />
                   Spend window
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">24h</div>
               </PageHeroStat>
-              <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+              <PageHeroStat className="border-emerald-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
                   <BrainCircuit className="h-4 w-4 text-emerald-500" />
                   Distinct models
@@ -170,7 +170,7 @@ export default async function UsagePage() {
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[290px] lg:items-end">
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-[0_12px_32px_rgba(239,68,68,0.12)] backdrop-blur lg:max-w-sm">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4 lg:max-w-sm">
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
                 <BarChart3 className="h-4 w-4 text-red-500" />
                 Last 24 hours
@@ -223,8 +223,7 @@ export default async function UsagePage() {
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {top.map((m, index) => (
               <Card key={`${m.provider}:${m.model}`} variant="featured" className="overflow-hidden rounded-[24px]">
-                <div className="h-1 w-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 opacity-70" />
-                <CardContent className="flex items-center justify-between gap-4 p-5">
+                                <CardContent className="flex items-center justify-between gap-4 p-5">
                   <div className="min-w-0 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700">
@@ -240,7 +239,7 @@ export default async function UsagePage() {
                     </div>
                   </div>
 
-                  <div className="min-w-[120px] rounded-2xl border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.92),rgba(255,255,255,0.98))] p-4 text-right">
+                  <div className="min-w-[120px] rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-right">
                     <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Tokens</p>
                     <p className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">{m.tokens.toLocaleString()}</p>
                     <p className="mt-2 text-xs text-zinc-500">${m.cost.toFixed(4)}</p>

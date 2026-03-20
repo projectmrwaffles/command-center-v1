@@ -97,7 +97,7 @@ function ProjectsContent() {
         <div className="pointer-events-none absolute" />
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
               <Sparkles className="h-3.5 w-3.5 text-red-500" />
               Project workspace
             </div>
@@ -116,14 +116,14 @@ function ProjectsContent() {
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{stats.total}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-rose-100 shadow-[0_8px_24px_rgba(244,63,94,0.08)]">
+              <PageHeroStat className="border-rose-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-rose-700">
                   <FolderKanban className="h-4 w-4 text-rose-500" />
                   Active now
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{stats.active}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+              <PageHeroStat className="border-emerald-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
                   <Target className="h-4 w-4 text-emerald-500" />
                   Avg. progress
@@ -134,7 +134,7 @@ function ProjectsContent() {
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[260px] lg:items-end">
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-3 shadow-[0_12px_32px_rgba(239,68,68,0.12)] backdrop-blur sm:p-4 lg:max-w-xs">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4 lg:max-w-xs">
               <div className="text-sm font-medium text-zinc-900">Start something new</div>
               <p className="mt-1 text-sm leading-6 text-zinc-500">Create a project from here instead of relying on a floating action button.</p>
               <Button onClick={() => setShowCreateModal(true)} size="lg" variant="warm" className="mt-4 w-full rounded-xl">
@@ -188,8 +188,7 @@ function ProjectsContent() {
             return (
               <Link key={project.id} href={`/projects/${project.id}`} className="group block min-w-0">
                 <Card variant="featured" className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px]">
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-500 to-amber-400 opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
-                  <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
+                                    <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-3">
                         <ProjectTypeBadge type={project.type} status={project.status} />
@@ -202,7 +201,7 @@ function ProjectsContent() {
                       <ProjectStatusBadge status={project.status} className="shrink-0" />
                     </div>
 
-                    <div className={`rounded-2xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ${statusTone.surface}`}>
+                    <div className={`rounded-2xl border p-4 ${statusTone.surface}`}>
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <div>
                           <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Progress</p>
@@ -214,7 +213,7 @@ function ProjectsContent() {
                         <div className="text-right text-xs text-zinc-500">{formatRelativeDate(project.updated_at || project.created_at)}</div>
                       </div>
                       <div className={`mt-3 h-2 overflow-hidden rounded-full ${statusTone.progressTrack}`}>
-                        <div className={`h-full rounded-full bg-gradient-to-r ${statusTone.progress} transition-all`} style={{ width: `${progress}%` }} />
+                        <div className={`h-full rounded-full ${statusTone.progress} transition-all`} style={{ width: `${progress}%` }} />
                       </div>
                     </div>
 

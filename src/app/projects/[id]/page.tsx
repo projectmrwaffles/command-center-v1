@@ -202,7 +202,7 @@ function LinkEditor({
   };
 
   return (
-    <details className="group rounded-2xl border border-zinc-200/90 bg-zinc-50/80" open={Boolean(Object.keys(draft || {}).length === 0)}>
+    <details className="group rounded-2xl border border-zinc-200 bg-zinc-50" open={Boolean(Object.keys(draft || {}).length === 0)}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-900">
         <span>Edit project links</span>
         <span className="text-xs text-zinc-400 transition group-open:rotate-180">⌄</span>
@@ -486,21 +486,21 @@ export default function ProjectDetailPage() {
       value: stats.inProgressTasks,
       icon: Activity,
       accent: "text-blue-700",
-      shell: "border-blue-100 shadow-[0_8px_24px_rgba(59,130,246,0.08)]",
+      shell: "border-blue-100",
     },
     {
       label: "Done",
       value: stats.doneTasks,
       icon: CheckCircle2,
       accent: "text-emerald-700",
-      shell: "border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]",
+      shell: "border-emerald-100",
     },
     {
       label: "Blocked",
       value: stats.blockedTasks,
       icon: AlertTriangle,
       accent: "text-amber-700",
-      shell: "border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]",
+      shell: "border-amber-100",
     },
   ];
 
@@ -525,11 +525,11 @@ export default function ProjectDetailPage() {
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/projects" className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-700 shadow-sm backdrop-blur transition hover:border-red-200 hover:text-red-700">
+              <Link href="/projects" className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-700 transition hover:border-red-200 hover:text-red-700">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to projects
               </Link>
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
                 <Sparkles className="h-3.5 w-3.5 text-red-500" />
                 Project detail
               </div>
@@ -563,7 +563,7 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
               <div className={cn("mt-4 h-2.5 overflow-hidden rounded-full", statusTone.progressTrack)}>
-                <div className={cn("h-full rounded-full bg-gradient-to-r transition-all duration-500", statusTone.progress)} style={{ width: `${progress}%` }} />
+                <div className={cn("h-full rounded-full transition-all duration-500", statusTone.progress)} style={{ width: `${progress}%` }} />
               </div>
             </div>
 
@@ -581,7 +581,7 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:max-w-sm">
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-[0_12px_32px_rgba(239,68,68,0.12)] backdrop-blur">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
               <div className="text-sm font-medium text-zinc-900">Project actions</div>
               <p className="mt-1 text-sm leading-6 text-zinc-500">Create tasks, shift delivery state, or remove the project without leaving this workspace.</p>
               <div className="mt-4 grid gap-2">
@@ -606,7 +606,7 @@ export default function ProjectDetailPage() {
                 </Button>
               </div>
             </div>
-            <div className="rounded-2xl border border-zinc-200/80 bg-white/75 p-4 text-sm text-zinc-500 shadow-sm backdrop-blur">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500">
               <div className="flex items-center gap-2 font-medium text-zinc-900">
                 <Clock3 className="h-4 w-4 text-red-500" />
                 Snapshot
@@ -626,7 +626,7 @@ export default function ProjectDetailPage() {
             <Section title="Project brief" description="Scope, readiness, and routing context for everyone touching the work.">
               <div className="space-y-5">
                 {routing ? (
-                  <div className="rounded-2xl border border-red-100 bg-gradient-to-r from-red-50 via-white to-orange-50/70 p-4">
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
                       <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
@@ -637,15 +637,15 @@ export default function ProjectDetailPage() {
 
                 {intake ? (
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Shape</div>
                       <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.shape)}</div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Readiness</div>
                       <div className="mt-1 text-sm text-zinc-900">{getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage)}</div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Context</div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {(intake.context || []).length > 0 ? (
@@ -657,7 +657,7 @@ export default function ProjectDetailPage() {
                         )}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Capabilities</div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {(intake.capabilities || []).length > 0 ? (
@@ -669,11 +669,11 @@ export default function ProjectDetailPage() {
                         )}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Confidence</div>
                       <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.confidence)}</div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
                       <div className="mt-1 text-sm text-zinc-900">{project.intake_summary || intake.summary || "Not set"}</div>
                     </div>
@@ -694,13 +694,13 @@ export default function ProjectDetailPage() {
 
           <Section title="Task board" description="Keep work moving without opening every task.">
             {tasks.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/70 px-4 py-8 text-sm text-zinc-500">
+              <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-sm text-zinc-500">
                 No delivery tasks yet. Add the first task to kick off execution.
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {[
-                  ["Backlog", taskGroups.todo, "border-zinc-200 bg-zinc-50/60"],
+                  ["Backlog", taskGroups.todo, "border-zinc-200 bg-zinc-50"],
                   ["In flight", taskGroups.inProgress, "border-blue-100 bg-blue-50/60"],
                   ["Blocked", taskGroups.blocked, "border-amber-100 bg-amber-50/70"],
                   ["Done", taskGroups.done, "border-emerald-100 bg-emerald-50/70"],
@@ -708,17 +708,17 @@ export default function ProjectDetailPage() {
                   <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold text-zinc-900">{label}</h3>
-                      <span className="rounded-full border border-white/70 bg-white px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{(bucket as any[]).length}</span>
+                      <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{(bucket as any[]).length}</span>
                     </div>
                     <div className="space-y-2">
                       {(bucket as any[]).length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-zinc-200 bg-white/90 px-3 py-4 text-xs text-zinc-400">No items</div>
+                        <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No items</div>
                       ) : (
                         (bucket as any[]).map((task: any) => {
                           const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
                           const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
                           return (
-                            <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-white/80 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-[0_14px_30px_rgba(239,68,68,0.08)]">
+                            <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
                               <div className="flex items-start justify-between gap-2">
                                 <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
                                 <TaskStatusBadge status={task.status} />
@@ -746,7 +746,7 @@ export default function ProjectDetailPage() {
           <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
             <div className="space-y-4">
               {projectLinks.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/70 px-4 py-6 text-sm text-zinc-500">{artifactEmptyState(project.type, intake)}</div>
+                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-sm text-zinc-500">{artifactEmptyState(project.type, intake)}</div>
               ) : (
                 <div className="space-y-2">
                   {projectLinks.map((link) => (
@@ -755,7 +755,7 @@ export default function ProjectDetailPage() {
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm transition hover:border-red-200 hover:shadow-[0_14px_30px_rgba(239,68,68,0.08)]"
+                      className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 transition hover:border-red-200"
                     >
                       <div className="min-w-0">
                         <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>

@@ -466,9 +466,9 @@ export function CreateProjectForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <div className="min-w-0">
-        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 bg-white p-0 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
-          <div className="border-b border-red-100/80 pb-3 sm:pb-4">
+      <div className="min-w-0 px-1 sm:px-0">
+        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 bg-white px-3 py-3 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
+          <div className="border-b border-red-100/80 px-1 pb-3 sm:px-0 sm:pb-4">
             <div className="hidden sm:block">
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
@@ -533,8 +533,8 @@ export function CreateProjectForm({
             </div>
           </div>
 
-          <div className="mt-3 min-h-0 sm:mt-4">
-            <div className="min-w-0 max-w-full p-0 sm:max-w-4xl sm:rounded-[24px] sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-5">
+          <div className="mt-4 min-h-0 sm:mt-4">
+            <div className="min-w-0 max-w-full rounded-[24px] bg-zinc-50/35 px-1 py-1 sm:max-w-4xl sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-5">
               <div className={cn("flex flex-col gap-3 md:flex-row md:items-start md:justify-between", isDesktopModeStep && "md:hidden")}>
                 <div className="max-w-2xl">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
@@ -546,7 +546,7 @@ export function CreateProjectForm({
 
               <div className={cn("mt-3 text-sm leading-6 text-zinc-600 sm:hidden", isDesktopModeStep && "hidden")}>{activeStep.description}</div>
 
-              <div className={cn("mt-5", isDesktopModeStep && "md:mt-0")}>
+              <div className={cn("mt-5 px-1 sm:px-0", isDesktopModeStep && "md:mt-0")}>
                 {activeStep.id === "mode" ? (
                   <div className="space-y-4">
                     <div className="hidden md:block">
@@ -998,7 +998,7 @@ export function CreateProjectForm({
                 ) : null}
               </div>
 
-              <div className="mt-8 flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-8 flex flex-col gap-3 border-t border-zinc-100 px-1 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-0">
                 <div className={cn("text-sm", showValidation && !currentStepValid ? "text-red-600" : "text-zinc-500")}>
                   {activeStep.id === "review"
                     ? "Looks good? Create the project."

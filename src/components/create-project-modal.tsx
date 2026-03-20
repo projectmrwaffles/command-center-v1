@@ -343,7 +343,7 @@ export function CreateProjectModal({
             </div>
           </div>
 
-          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-white px-4 py-4 pb-20 sm:px-6 sm:py-5">
+          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-white px-3 py-3 pb-20 sm:px-6 sm:py-5">
           {createdProject ? (
             <SuccessState
               project={createdProject}

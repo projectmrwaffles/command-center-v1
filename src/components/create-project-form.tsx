@@ -693,7 +693,7 @@ export function CreateProjectForm({
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-sm font-semibold text-zinc-950">Improve an existing project</p>
-                              <p className="mt-2 text-sm leading-6 text-zinc-600">There’s already a site, app, workflow, or repo in place and this work will improve, extend, or branch from it.</p>
+                              <p className="mt-2 text-sm leading-6 text-zinc-600">There’s already a site, app, workflow, or repo in place, and this work will improve or extend it using the current materials as reference.</p>
                             </div>
                             <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "existing" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
                           </div>
@@ -702,7 +702,7 @@ export function CreateProjectForm({
 
                       <FieldHint>
                         {showExistingProjectLinks
-                          ? "Optional links are available below so the team can review the current project and branch from the right source."
+                          ? "Optional links are available below so the team can review the current project and use those materials as reference."
                           : "Links stay hidden for brand-new projects to keep intake focused."}
                       </FieldHint>
                     </section>
@@ -711,7 +711,7 @@ export function CreateProjectForm({
                       <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
                         <div>
                           <h4 className="text-sm font-semibold text-zinc-900">Existing project links</h4>
-                          <p className="mt-1 text-sm text-zinc-500">Optional, but especially helpful when there’s an original repo, live environment, docs, or designs the team should branch from.</p>
+                          <p className="mt-1 text-sm text-zinc-500">Optional, but especially helpful when there’s an existing repo, live environment, docs, or designs the team should review and use as source material.</p>
                         </div>
 
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -737,7 +737,7 @@ export function CreateProjectForm({
                           ))}
                         </div>
 
-                        <FieldHint>GitHub or repo links are the most useful when engineering will branch from an existing codebase.</FieldHint>
+                        <FieldHint>GitHub or repo links are especially useful when the team should review an existing codebase as reference.</FieldHint>
                       </section>
                     ) : null}
 

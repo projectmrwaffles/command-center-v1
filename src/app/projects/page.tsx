@@ -202,7 +202,7 @@ function ProjectsContent() {
                       <ProjectStatusBadge status={project.status} className="shrink-0" />
                     </div>
 
-                    <div className={`rounded-2xl border p-4 ${statusTone.surface}`}>
+                    <div className={`rounded-2xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ${statusTone.surface}`}>
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <div>
                           <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Progress</p>

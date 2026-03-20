@@ -550,7 +550,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">{progress}%</span>
           </div>
 
-          <div className="rounded-2xl border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.9),rgba(255,255,255,0.98))] p-4">
+          <div className="rounded-2xl border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,249,248,0.82),rgba(255,255,255,0.98))] p-4">
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Progress</p>
@@ -586,7 +586,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
 function UsageCard({ usage }: { usage: UsageModel }) {
   return (
-    <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.75),rgba(255,255,255,0.98)_50%,rgba(255,247,237,0.9)_100%)]">
+    <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.5),rgba(255,255,255,0.985)_52%,rgba(255,248,240,0.72)_100%)]">
       <CardContent className="space-y-5 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

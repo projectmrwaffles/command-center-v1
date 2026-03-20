@@ -74,7 +74,7 @@ function SelectionCard({
         compact ? "min-h-[180px] snap-center sm:min-h-[220px]" : "",
         "focus:outline-none focus:ring-2 focus:ring-red-300",
         selected
-          ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
+          ? "border-red-400 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(255,248,248,0.96),rgba(255,250,244,0.92))] shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
           : "border-zinc-200 bg-white hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_12px_30px_rgba(24,24,27,0.08)]"
       )}
     >
@@ -468,7 +468,7 @@ export function CreateProjectForm({
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <div className="min-w-0">
-        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,250,250,0.98))] p-0 shadow-[0_18px_48px_rgba(239,68,68,0.08)] sm:px-6 sm:pt-4 sm:pb-5">
+        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,252,250,0.98))] p-0 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
           <div className="border-b border-red-100/80 pb-3 sm:pb-4">
             <div className="hidden sm:block">
               <div className="space-y-2.5">
@@ -478,8 +478,8 @@ export function CreateProjectForm({
                     {stepCounter}
                   </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-red-100/70">
-                  <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
+                <div className="h-2 w-full overflow-hidden rounded-full bg-red-100/55">
+                  <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-orange-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
                 </div>
               </div>
             </div>
@@ -492,7 +492,7 @@ export function CreateProjectForm({
                 <p className="text-[11px] font-medium text-zinc-500">Progress</p>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
-                <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-amber-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
+                <div className="h-full rounded-full bg-gradient-to-r from-red-500 via-red-500 to-orange-400 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
               </div>
             </div>
 
@@ -561,7 +561,7 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "quick"
-                            ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
+                            ? "border-red-400 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(255,248,248,0.96),rgba(255,250,244,0.92))] shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
                             : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
                         )}
                       >
@@ -585,7 +585,7 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "guided"
-                            ? "border-red-500 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(254,242,242,1),rgba(255,247,237,0.95))] shadow-[0_14px_40px_rgba(239,68,68,0.16)]"
+                            ? "border-red-400 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(255,248,248,0.96),rgba(255,250,244,0.92))] shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
                             : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
                         )}
                       >
@@ -667,7 +667,7 @@ export function CreateProjectForm({
                           className={cn(
                             "rounded-[24px] border p-4 text-left transition-all",
                             projectOrigin === "new"
-                              ? "border-red-500 bg-white shadow-[0_10px_28px_rgba(239,68,68,0.12)]"
+                              ? "border-red-400 bg-white shadow-[0_8px_22px_rgba(24,24,27,0.06)]"
                               : "border-zinc-200 bg-white hover:border-zinc-300"
                           )}
                         >
@@ -686,7 +686,7 @@ export function CreateProjectForm({
                           className={cn(
                             "rounded-[24px] border p-4 text-left transition-all",
                             projectOrigin === "existing"
-                              ? "border-red-500 bg-white shadow-[0_10px_28px_rgba(239,68,68,0.12)]"
+                              ? "border-red-400 bg-white shadow-[0_8px_22px_rgba(24,24,27,0.06)]"
                               : "border-zinc-200 bg-white hover:border-zinc-300"
                           )}
                         >
@@ -909,14 +909,14 @@ export function CreateProjectForm({
 
                 {activeStep.id === "review" ? (
                   <div className="space-y-6">
-                    <section className="rounded-[28px] border border-red-100 bg-[linear-gradient(135deg,rgba(254,242,242,0.9),rgba(255,255,255,1),rgba(255,247,237,0.9))] p-5">
+                    <section className="rounded-[28px] border border-red-100/70 bg-[linear-gradient(135deg,rgba(255,248,248,0.82),rgba(255,255,255,1),rgba(255,250,244,0.84))] p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Routing preview</p>
                           <h4 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950">{name.trim() || "Untitled project"}</h4>
                           <p className="mt-2 text-sm leading-6 text-zinc-600">{goals.trim() || intake.summary}</p>
                         </div>
-                        <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-zinc-600 shadow-sm">
+                        <div className="rounded-2xl border border-zinc-200/80 bg-white/88 px-4 py-3 text-sm text-zinc-600 shadow-sm">
                           <div className="flex items-center justify-between gap-4">
                             <span>Legacy type</span>
                             <span className="font-medium text-zinc-900">{deriveLegacyProjectType(intake).replace(/_/g, " ")}</span>

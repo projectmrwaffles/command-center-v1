@@ -125,9 +125,9 @@ function SuccessState({
 
   return (
     <div className="relative overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(254,215,170,0.92),rgba(255,255,255,0)_26%),radial-gradient(circle_at_20%_16%,rgba(251,207,232,0.34),rgba(255,255,255,0)_30%),radial-gradient(circle_at_80%_18%,rgba(253,230,138,0.28),rgba(255,255,255,0)_30%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.95))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(254,215,170,0.52),rgba(255,255,255,0)_24%),radial-gradient(circle_at_18%_14%,rgba(251,207,232,0.18),rgba(255,255,255,0)_28%),radial-gradient(circle_at_82%_18%,rgba(253,230,138,0.16),rgba(255,255,255,0)_28%),linear-gradient(180deg,rgba(255,255,255,0.985),rgba(255,252,250,0.97))]" />
       <div className="celebration-overlay pointer-events-none absolute inset-x-0 top-0 z-40 h-[400px] overflow-hidden sm:h-[490px]">
-        <div className="absolute inset-x-[-6%] top-0 h-full bg-[radial-gradient(circle_at_50%_14%,rgba(255,255,255,0.99),rgba(255,244,244,0.72)_18%,rgba(255,255,255,0)_50%),radial-gradient(circle_at_18%_80%,rgba(251,191,36,0.18),rgba(255,255,255,0)_22%),radial-gradient(circle_at_82%_82%,rgba(244,63,94,0.18),rgba(255,255,255,0)_24%),radial-gradient(circle_at_50%_92%,rgba(217,70,239,0.14),rgba(255,255,255,0)_20%)]" />
+        <div className="absolute inset-x-[-6%] top-0 h-full bg-[radial-gradient(circle_at_50%_14%,rgba(255,255,255,0.985),rgba(255,247,247,0.46)_18%,rgba(255,255,255,0)_46%),radial-gradient(circle_at_18%_80%,rgba(251,191,36,0.10),rgba(255,255,255,0)_20%),radial-gradient(circle_at_82%_82%,rgba(244,63,94,0.10),rgba(255,255,255,0)_22%),radial-gradient(circle_at_50%_92%,rgba(217,70,239,0.08),rgba(255,255,255,0)_18%)]" />
         <span className="celebration-cannon celebration-cannon-left absolute bottom-8 left-[6%] h-24 w-24 rounded-full sm:bottom-10 sm:left-[12%] sm:h-28 sm:w-28" />
         <span className="celebration-cannon celebration-cannon-center absolute bottom-6 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full sm:bottom-8 sm:h-28 sm:w-28" />
         <span className="celebration-cannon celebration-cannon-right absolute bottom-8 right-[6%] h-24 w-24 rounded-full sm:bottom-10 sm:right-[12%] sm:h-28 sm:w-28" />
@@ -173,7 +173,7 @@ function SuccessState({
 
             <div className="celebration-orb relative flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
               <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.98),rgba(255,255,255,0.24)_58%,rgba(255,255,255,0)_70%)]" />
-              <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_28px_80px_rgba(24,24,27,0.26)] sm:h-24 sm:w-24">
+              <div className="celebration-pulse celebration-pulse-glow relative z-10 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-full bg-zinc-950 text-white shadow-[0_20px_54px_rgba(24,24,27,0.18)] sm:h-24 sm:w-24">
                 <Check className="h-11 w-11 sm:h-12 sm:w-12" strokeWidth={2.6} />
               </div>
               <div className="celebration-star celebration-star-delay absolute left-0 top-2 rounded-full bg-white/90 p-1 text-rose-500 shadow-sm">
@@ -189,12 +189,12 @@ function SuccessState({
           </div>
         </div>
 
-        <div className="celebration-card relative z-10 -mt-10 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur sm:-mt-12">
+        <div className="celebration-card relative z-10 -mt-10 inline-flex items-center gap-2 rounded-full border border-rose-100/80 bg-white/94 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600 shadow-sm backdrop-blur sm:-mt-12">
           <Sparkles className="h-3.5 w-3.5" />
           Project created
         </div>
 
-        <div className="celebration-card mt-4 w-full max-w-md rounded-[28px] border border-white/80 bg-white/92 px-5 py-5 text-center shadow-[0_20px_60px_rgba(24,24,27,0.08)] backdrop-blur sm:px-6">
+        <div className="celebration-card mt-4 w-full max-w-md rounded-[28px] border border-white/85 bg-white/95 px-5 py-5 text-center shadow-[0_16px_42px_rgba(24,24,27,0.06)] backdrop-blur sm:px-6">
           <h3 className="text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-[2.5rem]">
             {project.name || "Your project"} is ready.
           </h3>
@@ -383,7 +383,7 @@ export function CreateProjectModal({
   }
 
   const docsSection = (
-    <div className="overflow-hidden rounded-[28px] border border-red-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.98))] p-4 shadow-[0_16px_40px_rgba(239,68,68,0.08)] sm:p-5">
+    <div className="overflow-hidden rounded-[28px] border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,252,250,0.97))] p-4 shadow-[0_12px_30px_rgba(24,24,27,0.05)] sm:p-5">
       <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
         <Sparkles className="h-3.5 w-3.5 text-red-500" />
         Supporting materials
@@ -431,18 +431,18 @@ export function CreateProjectModal({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(24,24,27,0.52),rgba(24,24,27,0.38))] backdrop-blur-[2px]" onClick={() => !createdProject && onOpenChange(false)} />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(24,24,27,0.44),rgba(24,24,27,0.32))] backdrop-blur-[2px]" onClick={() => !createdProject && onOpenChange(false)} />
 
       <div className={mobile ? undefined : "fixed inset-0 flex items-center justify-center px-6 py-6 xl:px-8"}>
         <div
           className={
             mobile
-              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[32px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.98))] shadow-[0_-16px_56px_rgba(24,24,27,0.20)]"
-              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,250,250,0.98))] shadow-[0_28px_96px_rgba(15,23,42,0.22)] xl:max-w-[1020px]"
+              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-x-hidden overflow-y-hidden rounded-t-[32px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,252,250,0.98))] shadow-[0_-14px_40px_rgba(24,24,27,0.16)]"
+              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,252,250,0.98))] shadow-[0_24px_72px_rgba(15,23,42,0.16)] xl:max-w-[1020px]"
           }
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.92),rgba(255,255,255,0.96)_38%,rgba(255,237,213,0.86)_78%,rgba(255,247,237,0.92)_100%)] px-4 py-4 sm:px-6 sm:py-5">
+          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.58),rgba(255,255,255,0.98)_40%,rgba(255,241,230,0.52)_80%,rgba(255,250,245,0.95)_100%)] px-4 py-4 sm:px-6 sm:py-5">
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-red-200 to-transparent" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -467,7 +467,7 @@ export function CreateProjectModal({
             </div>
           </div>
 
-          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.4),rgba(255,255,255,0))] px-4 py-4 pb-20 sm:px-6 sm:py-5">
+          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.24),rgba(255,255,255,0))] px-4 py-4 pb-20 sm:px-6 sm:py-5">
           {createdProject ? (
             <SuccessState
               project={createdProject}

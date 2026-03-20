@@ -117,7 +117,7 @@ export default async function TeamsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between rounded-2xl border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.9),rgba(255,255,255,0.98))] px-4 py-3">
+                  <div className="mt-auto flex items-center justify-between rounded-2xl border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,249,248,0.82),rgba(255,255,255,0.98))] px-4 py-3">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Rollups</p>
                       <p className="mt-1 text-sm text-zinc-600">Members, projects, and signals</p>

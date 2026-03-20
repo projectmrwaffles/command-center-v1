@@ -130,9 +130,9 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                   <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeMembers}</div>
                   <p className="mt-1 text-xs text-zinc-500">Currently marked active.</p>
                 </PageHeroStat>
-                <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+                <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
-                    <FolderKanban className="h-4 w-4 text-amber-500" />
+                    <FolderKanban className="h-4 w-4 text-red-500" />
                     Projects
                   </div>
                   <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{projects.length}</div>
@@ -252,7 +252,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
               <Card variant="soft" className="rounded-[24px]">
                 <CardContent className="space-y-5 p-5 sm:p-6">
                   <div className="space-y-2">
-                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-100 bg-amber-50/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-amber-700">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-red-50/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-700">
                       Recent signals
                     </div>
                     <div>

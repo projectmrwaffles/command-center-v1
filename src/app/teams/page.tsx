@@ -42,7 +42,7 @@ export default async function TeamsPage() {
             </div>
             <div className="space-y-3">
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
-                Teams, ownership, and warm rollups in one place.
+                Teams, ownership, and shared rollups in one place.
               </h1>
               <p className="max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
                 Browse each team’s current coverage, see who is active, and jump straight into the projects they’re responsible for.
@@ -59,9 +59,9 @@ export default async function TeamsPage() {
               <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{teams.length}</div>
               <p className="mt-1 text-xs text-zinc-500">Configured groups in the system.</p>
             </PageHeroStat>
-            <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+            <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
-                <FolderKanban className="h-4 w-4 text-amber-500" />
+                <FolderKanban className="h-4 w-4 text-red-500" />
                 Coverage
               </div>
               <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">Live</div>

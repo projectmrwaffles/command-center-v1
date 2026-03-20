@@ -28,7 +28,7 @@ function cn(...classes: Array<string | undefined | false | null>) {
 }
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === "active" ? "bg-emerald-500" : status === "idle" ? "bg-amber-500" : "bg-zinc-400";
+  const color = status === "active" ? "bg-emerald-500" : status === "idle" ? "bg-zinc-400" : "bg-zinc-400";
   return <span className={cn("h-2.5 w-2.5 rounded-full", color)} />;
 }
 
@@ -283,7 +283,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Dashboard</h1>
               <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-                Keep the warm overview up top: what needs a decision, which projects are moving, and whether the live operator feed is healthy.
+                Keep the overview up top: what needs a decision, which projects are moving, and whether the live operator feed is healthy.
               </p>
             </div>
 
@@ -309,9 +309,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-amber-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
-                  <Workflow className="h-4 w-4 text-amber-500" />
+              <PageHeroStat className="border-red-100">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
+                  <Workflow className="h-4 w-4 text-red-500" />
                   Signals
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{recentSignals.length}</div>
@@ -599,7 +599,7 @@ function UsageCard({ usage }: { usage: UsageModel }) {
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Tokens</div>
             <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{usage.totalTokens.toLocaleString()}</div>
           </div>
-          <div className="rounded-2xl border border-amber-100 bg-white p-4">
+          <div className="rounded-2xl border border-red-100 bg-white p-4">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Cost</div>
             <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">${usage.totalCost.toFixed(4)}</div>
           </div>

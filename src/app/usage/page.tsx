@@ -50,16 +50,12 @@ function SummaryCard({
   icon: ReactNode;
   label: string;
   value: string;
-  tone: "red" | "amber" | "emerald";
+  tone: "red" | "emerald";
 }) {
   const tones = {
     red: {
       wrap: "border-red-100 bg-white",
       badge: "border-red-100 bg-red-50 text-red-700",
-    },
-    amber: {
-      wrap: "border-amber-100 bg-white",
-      badge: "border-amber-100 bg-amber-50 text-amber-700",
     },
     emerald: {
       wrap: "border-emerald-100 bg-white",
@@ -140,7 +136,7 @@ export default async function UsagePage() {
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Usage</h1>
               <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-                A warm 24-hour rollup of token spend, cost, and the models doing most of the work across the workspace.
+                A 24-hour rollup of token spend, cost, and the models doing most of the work across the workspace.
               </p>
             </div>
 
@@ -152,9 +148,9 @@ export default async function UsagePage() {
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{rows.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-amber-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
-                  <BadgeDollarSign className="h-4 w-4 text-amber-500" />
+              <PageHeroStat className="border-red-100">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
+                  <BadgeDollarSign className="h-4 w-4 text-red-500" />
                   Spend window
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">24h</div>
@@ -182,7 +178,7 @@ export default async function UsagePage() {
                 <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
                   {totalTokens.toLocaleString()} tokens
                 </span>
-                <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
                   ${totalCost.toFixed(4)} total cost
                 </span>
               </div>
@@ -202,13 +198,13 @@ export default async function UsagePage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SummaryCard icon={<Coins className="h-5 w-5" />} label="Total tokens (24h)" value={totalTokens.toLocaleString()} tone="red" />
-        <SummaryCard icon={<BadgeDollarSign className="h-5 w-5" />} label="Total cost (24h)" value={`$${totalCost.toFixed(4)}`} tone="amber" />
+        <SummaryCard icon={<BadgeDollarSign className="h-5 w-5" />} label="Total cost (24h)" value={`$${totalCost.toFixed(4)}`} tone="red" />
         <SummaryCard icon={<BrainCircuit className="h-5 w-5" />} label="Models" value={byModel.size.toLocaleString()} tone="emerald" />
       </div>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <SectionTitle meta="Same top-model ranking, now presented with the shared warm card and badge language.">Top models</SectionTitle>
+          <SectionTitle meta="Same top-model ranking, now presented with the shared card and badge language.">Top models</SectionTitle>
           {top.length > 0 ? <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">Top 8 by tokens</span> : null}
         </div>
 

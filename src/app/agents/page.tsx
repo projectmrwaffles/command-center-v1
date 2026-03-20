@@ -83,7 +83,7 @@ export default async function AgentsPage() {
             </div>
             <div className="space-y-3">
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
-                Agents, presence, and execution context in one warm surface.
+                Agents, presence, and execution context in one focused workspace.
               </h1>
               <p className="max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
                 Review every registered agent, scan live presence, and open a detail route for recent activity without changing how the workspace behaves.
@@ -108,9 +108,9 @@ export default async function AgentsPage() {
               <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
               <p className="mt-1 text-xs text-zinc-500">Currently marked active.</p>
             </PageHeroStat>
-            <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+            <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
-                <Workflow className="h-4 w-4 text-amber-500" />
+                <Workflow className="h-4 w-4 text-red-500" />
                 Idle / standby
               </div>
               <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{idleAgents}</div>

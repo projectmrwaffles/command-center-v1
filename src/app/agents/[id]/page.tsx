@@ -147,9 +147,9 @@ export default async function AgentDetailPage({
               <div className="mt-3 text-lg font-semibold tracking-tight text-zinc-950">{formatLastSeen(agent.last_seen)}</div>
               <p className="mt-1 text-xs text-zinc-500">Latest heartbeat or reported presence.</p>
             </PageHeroStat>
-            <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+            <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
-                <Activity className="h-4 w-4 text-amber-500" />
+                <Activity className="h-4 w-4 text-red-500" />
                 Events
               </div>
               <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{events.length}</div>

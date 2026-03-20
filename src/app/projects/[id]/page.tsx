@@ -4,20 +4,17 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { ProjectStatusBadge, ProjectTypeBadge } from "@/components/ui/project-badges";
 import {
   formatIntakeValue,
   getReadinessOption,
   getRoutingSummary,
-  legacyTypeToLabel,
 } from "@/lib/project-intake";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
 import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { useRealtimeStore } from "@/lib/realtime-store";
-
-function cn(...classes: Array<string | undefined | false | null>) {
-  return classes.filter(Boolean).join(" ");
-}
+import { cn } from "@/lib/utils";
 
 type ProjectDocument = {
   id: string;
@@ -62,20 +59,6 @@ type ProjectDetail = {
     pendingApprovals?: number;
   };
 };
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active: "bg-green-100 text-green-700 border-green-200",
-    paused: "bg-amber-100 text-amber-700 border-amber-200",
-    completed: "bg-blue-100 text-blue-700 border-blue-200",
-    archived: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  };
-  return (
-    <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium", styles[status] || styles.active)}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  );
-}
 
 function TaskStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -481,14 +464,14 @@ export default function ProjectDetailPage() {
                   <Link href="/projects" className="shrink-0 text-zinc-400 hover:text-zinc-600">←</Link>
                   <h1 className="min-w-0 break-words text-2xl font-semibold text-zinc-900 sm:truncate">{project.name}</h1>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 sm:text-sm">
-                  {project.type && <span className="break-words">{legacyTypeToLabel(project.type)}</span>}
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-zinc-500 sm:text-sm">
+                  {project.type ? <ProjectTypeBadge type={project.type} status={project.status} className="normal-case tracking-normal" /> : null}
                   <span>{project.progress_pct}% complete</span>
                   <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
                 </div>
               </div>
               <div className="sm:pt-0.5">
-                <StatusBadge status={project.status} />
+                <ProjectStatusBadge status={project.status} />
               </div>
             </div>
           </div>
@@ -748,7 +731,7 @@ export default function ProjectDetailPage() {
                   <div key={team.id} className="rounded-xl border border-zinc-200 px-3 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-zinc-900">{team.name}</p>
-                      <StatusBadge status={team.status === "on_track" ? "active" : team.status === "waiting" ? "archived" : team.status} />
+                      <ProjectStatusBadge status={team.status === "on_track" ? "active" : team.status === "waiting" ? "archived" : team.status} />
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-500">
                       <span>{team.memberCount} members</span>

@@ -6,9 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { ArrowRight, FolderKanban, Layers3, Plus, Sparkles, Target } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
+import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
+import { ProjectStatusBadge, ProjectTypeBadge } from "@/components/ui/project-badges";
 import { CreateProjectModal } from "@/components/create-project-modal";
 import { DbBanner } from "@/components/db-banner";
-import { legacyTypeToLabel } from "@/lib/project-intake";
+import { getProjectStatusTone } from "@/lib/project-ui";
 
 type Project = {
   id: string;
@@ -39,66 +42,6 @@ function formatRelativeDate(value?: string | null) {
     month: "short",
     day: "numeric",
   })}`;
-}
-
-function getStatusTone(status?: string | null) {
-  switch ((status || "active").toLowerCase()) {
-    case "completed":
-      return {
-        badge: "border-emerald-200/90 bg-emerald-50 text-emerald-700",
-        dot: "bg-emerald-500",
-        progress: "from-emerald-500 via-emerald-400 to-teal-400",
-        progressTrack: "bg-emerald-100/80",
-        surface: "border-emerald-100/80 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/70",
-        pill: "bg-emerald-100 text-emerald-700",
-        label: "Completed",
-      };
-    case "blocked":
-      return {
-        badge: "border-amber-200/90 bg-amber-50 text-amber-700",
-        dot: "bg-amber-500",
-        progress: "from-amber-500 via-orange-400 to-amber-300",
-        progressTrack: "bg-amber-100/80",
-        surface: "border-amber-100/80 bg-gradient-to-br from-amber-50 via-white to-orange-50/70",
-        pill: "bg-amber-100 text-amber-700",
-        label: "Blocked",
-      };
-    case "archived":
-      return {
-        badge: "border-slate-200/90 bg-slate-100 text-slate-600",
-        dot: "bg-slate-400",
-        progress: "from-slate-500 via-slate-400 to-slate-300",
-        progressTrack: "bg-slate-200/80",
-        surface: "border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-slate-100/80",
-        pill: "bg-slate-100 text-slate-600",
-        label: "Archived",
-      };
-    default:
-      return {
-        badge: "border-red-200/90 bg-red-50 text-red-700",
-        dot: "bg-red-500",
-        progress: "from-red-500 via-red-500 to-amber-400",
-        progressTrack: "bg-red-100/80",
-        surface: "border-red-100/80 bg-gradient-to-br from-red-50 via-white to-orange-50/70",
-        pill: "bg-red-100 text-red-700",
-        label: "Active",
-      };
-  }
-}
-
-function getTypeTone(type?: string | null) {
-  switch ((type || "other").toLowerCase()) {
-    case "marketing":
-      return "border-red-200/80 bg-red-50 text-red-700";
-    case "product":
-      return "border-rose-200/80 bg-rose-50 text-rose-700";
-    case "engineering":
-      return "border-orange-200/80 bg-orange-50 text-orange-700";
-    case "operations":
-      return "border-amber-200/80 bg-amber-50 text-amber-700";
-    default:
-      return "border-zinc-200 bg-zinc-50 text-zinc-600";
-  }
 }
 
 function ProjectsContent() {
@@ -150,7 +93,7 @@ function ProjectsContent() {
         }}
       />
 
-      <section className="overflow-hidden rounded-[28px] border border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.9),rgba(255,255,255,0.96)_34%,rgba(255,237,213,0.88)_66%,rgba(255,247,237,0.9)_100%)] shadow-[0_20px_60px_rgba(239,68,68,0.10)]">
+      <PageHero>
         <div className="pointer-events-none absolute" />
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-2xl space-y-4">
@@ -166,27 +109,27 @@ function ProjectsContent() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-red-100 bg-white/85 p-4 shadow-[0_8px_24px_rgba(239,68,68,0.08)] backdrop-blur">
+              <PageHeroStat className="border-red-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
                   <Layers3 className="h-4 w-4 text-red-500" />
                   Total projects
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{stats.total}</div>
-              </div>
-              <div className="rounded-2xl border border-rose-100 bg-white/85 p-4 shadow-[0_8px_24px_rgba(244,63,94,0.08)] backdrop-blur">
+              </PageHeroStat>
+              <PageHeroStat className="border-rose-100 shadow-[0_8px_24px_rgba(244,63,94,0.08)]">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-rose-700">
                   <FolderKanban className="h-4 w-4 text-rose-500" />
                   Active now
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{stats.active}</div>
-              </div>
-              <div className="rounded-2xl border border-emerald-100 bg-white/85 p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)] backdrop-blur">
+              </PageHeroStat>
+              <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
                   <Target className="h-4 w-4 text-emerald-500" />
                   Avg. progress
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{stats.avgProgress}%</div>
-              </div>
+              </PageHeroStat>
             </div>
           </div>
 
@@ -194,11 +137,7 @@ function ProjectsContent() {
             <div className="rounded-2xl border border-white/70 bg-white/80 p-3 shadow-[0_12px_32px_rgba(239,68,68,0.12)] backdrop-blur sm:p-4 lg:max-w-xs">
               <div className="text-sm font-medium text-zinc-900">Start something new</div>
               <p className="mt-1 text-sm leading-6 text-zinc-500">Create a project from here instead of relying on a floating action button.</p>
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                size="lg"
-                className="mt-4 w-full rounded-xl border-0 bg-gradient-to-r from-red-600 via-red-600 to-amber-500 text-white shadow-[0_10px_24px_rgba(239,68,68,0.28)] hover:from-red-500 hover:via-red-500 hover:to-amber-400"
-              >
+              <Button onClick={() => setShowCreateModal(true)} size="lg" variant="warm" className="mt-4 w-full rounded-xl">
                 <Plus className="h-4 w-4" />
                 New project
               </Button>
@@ -206,7 +145,7 @@ function ProjectsContent() {
             {stats.completed > 0 ? <p className="px-1 text-xs text-zinc-500">{stats.completed} completed project{stats.completed === 1 ? "" : "s"} in the archive-ready set.</p> : null}
           </div>
         </div>
-      </section>
+      </PageHero>
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -228,50 +167,39 @@ function ProjectsContent() {
       ) : error ? (
         <div className="rounded-[24px] border border-red-200 bg-red-50 px-6 py-12 text-center text-red-700 shadow-sm">{error}</div>
       ) : projects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-red-200 bg-[radial-gradient(circle_at_top,rgba(254,226,226,0.75),rgba(255,255,255,0.96)_55%,rgba(255,237,213,0.7)_100%)] px-6 py-16 text-center shadow-sm">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 shadow-inner">
-            <FolderKanban className="h-8 w-8 text-red-600" />
-          </div>
-          <p className="text-xl font-semibold tracking-tight text-zinc-900">No projects yet</p>
-          <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">Create your first project to start routing work, tracking delivery, and building a more useful overview here.</p>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            size="lg"
-            className="mt-6 rounded-xl border-0 bg-gradient-to-r from-red-600 via-red-600 to-amber-500 px-5 text-white shadow-[0_10px_24px_rgba(239,68,68,0.28)] hover:from-red-500 hover:via-red-500 hover:to-amber-400"
-          >
-            <Plus className="h-4 w-4" />
-            Create your first project
-          </Button>
-        </div>
+        <BrandedEmptyState
+          icon={<FolderKanban className="h-8 w-8 text-red-600" />}
+          title="No projects yet"
+          description="Create your first project to start routing work, tracking delivery, and building a more useful overview here."
+          action={
+            <Button onClick={() => setShowCreateModal(true)} size="lg" variant="warm" className="rounded-xl px-5">
+              <Plus className="h-4 w-4" />
+              Create your first project
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => {
-            const typeLabel = legacyTypeToLabel(project.type || "other");
             const progress = Math.max(0, Math.min(100, project.progress_pct || 0));
-            const statusTone = getStatusTone(project.status);
+            const statusTone = getProjectStatusTone(project.status);
             const summary = project.intake_summary || project.description || "Open the project to see its current scope, active tasks, and delivery details.";
 
             return (
               <Link key={project.id} href={`/projects/${project.id}`} className="group block min-w-0">
-                <Card className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border-zinc-200/90 bg-white/96 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-[0_20px_44px_rgba(239,68,68,0.12)]">
+                <Card variant="featured" className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px]">
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-500 to-amber-400 opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
                   <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-3">
-                        <div className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] ${getTypeTone(project.type)}`}>
-                          <span className={`h-2 w-2 rounded-full ${statusTone.dot} opacity-80`} />
-                          {typeLabel}
-                        </div>
+                        <ProjectTypeBadge type={project.type} status={project.status} />
                         <div>
                           <h2 className="text-lg font-semibold tracking-tight text-zinc-950 transition-colors group-hover:text-red-700">{project.name}</h2>
                           <p className="mt-2 mobile-summary-clamp text-sm leading-6 text-zinc-600">{summary}</p>
                         </div>
                       </div>
 
-                      <div className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium ${statusTone.badge}`}>
-                        <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
-                        {statusTone.label}
-                      </div>
+                      <ProjectStatusBadge status={project.status} className="shrink-0" />
                     </div>
 
                     <div className={`rounded-2xl border p-4 ${statusTone.surface}`}>

@@ -1,15 +1,13 @@
 import * as React from "react";
-
-function cn(...classes: Array<string | undefined | false | null>) {
-  return classes.filter(Boolean).join(" ");
-}
+import { cn } from "@/lib/utils";
 
 export type ButtonVariant =
   | "default"
   | "secondary"
   | "outline"
   | "destructive"
-  | "ghost";
+  | "ghost"
+  | "warm";
 
 export type ButtonSize = "default" | "sm" | "lg" | "icon";
 
@@ -40,6 +38,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
       destructive: "bg-red-600 text-white hover:bg-red-700",
       ghost: "hover:bg-zinc-100 text-zinc-900",
+      warm: "border-0 bg-gradient-to-r from-red-600 via-red-600 to-amber-500 text-white shadow-[0_10px_24px_rgba(239,68,68,0.28)] hover:from-red-500 hover:via-red-500 hover:to-amber-400",
     };
 
     const sizes: Record<ButtonSize, string> = {

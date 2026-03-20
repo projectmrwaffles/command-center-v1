@@ -700,11 +700,11 @@ export function CreateProjectForm({
                         </button>
                       </div>
 
-                      <FieldHint>
-                        {showExistingProjectLinks
-                          ? "Optional links are available below so the team can review the current project and use those materials as reference."
-                          : "Links stay hidden for brand-new projects to keep intake focused."}
-                      </FieldHint>
+                      {showExistingProjectLinks ? (
+                        <FieldHint>
+                          Optional links are available below so the team can review the current project and use those materials as reference.
+                        </FieldHint>
+                      ) : null}
                     </section>
 
                     {showExistingProjectLinks ? (

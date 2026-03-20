@@ -40,6 +40,12 @@ export const PROJECT_SHAPES: IntakeOption[] = [
     examples: ["Internal or client-facing dashboard", "Booking or workflow tool", "Interactive web experience"],
   },
   {
+    value: "native-app",
+    label: "Native app development",
+    description: "A mobile or desktop app built for a device platform, usually iOS, Android, or another installable native experience.",
+    examples: ["iPhone or Android app", "React Native product", "Tablet or device-first experience"],
+  },
+  {
     value: "website",
     label: "Website",
     description: "A marketing site, brand site, content site, landing page system, or brochure-style experience for the web.",
@@ -253,7 +259,7 @@ export function inferIntakeReadiness(intake: Pick<ProjectIntake, "shape" | "cont
   const discoverySignals = /\b(not sure|unsure|figure out|help define|help decide|scope|scoping|strategy|discovery|explore|investigate|audit|recommend|planning|plan|roadmap|brief)\b/.test(goals);
   const executionSignals = /\b(build|ship|implement|implementation|develop|launch|execute|execution|wireframe|wireframes|design|designs|prototype|prototypes|spec|requirements|handoff)\b/.test(goals);
   const strategyShapes = ["research-strategy", "hybrid-not-sure"];
-  const executionShapes = ["saas-product", "web-app", "ops-system", "website"];
+  const executionShapes = ["saas-product", "web-app", "native-app", "ops-system", "website"];
 
   if (referencesExistingAsset) {
     return { stage: "already-live", confidence: executionSignals || hasBuild || hasGrowth ? "clear" : "somewhat-clear" };
@@ -340,7 +346,7 @@ function getRoutingSignals(intake: ProjectIntake) {
   const marketingHeavy = shape === "launch-campaign" || hasGrowth || (hasContent && !buildHeavy);
   const designHeavy = hasDesign && !buildHeavy;
   const websiteLike = shape === "website";
-  const productLike = ["saas-product", "web-app", "ops-system"].includes(shape);
+  const productLike = ["saas-product", "web-app", "native-app", "ops-system"].includes(shape);
   const liveOptimization = stage === "already-live" || hasQa;
 
   return {
@@ -380,6 +386,7 @@ export function deriveLegacyProjectType(intake: ProjectIntake) {
   if (intake.shape === "launch-campaign") return "marketing_growth";
   if (intake.shape === "ops-system") return "ops_enablement";
   if (intake.shape === "research-strategy") return "strategy_research";
+  if (intake.shape === "native-app") return "native_app";
   if (intake.shape === "hybrid-not-sure" || intake.confidence === "not-sure") return "hybrid";
   return "product_build";
 }

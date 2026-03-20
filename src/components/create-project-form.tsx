@@ -190,7 +190,7 @@ function buildFlow(mode: IntakePath): FlowStep[] {
       eyebrow: "Step 2 • Project type",
       title: "What kind of project is this?",
       description: "Pick the closest fit. It helps us suggest the right starting route without turning this into a long intake.",
-      helper: "Choose the closest fit — SaaS product, web app, website, or something else all work here.",
+      helper: "Choose the closest fit — SaaS product, web app, native app, website, or something else all work here.",
     },
     {
       id: "brief",
@@ -220,6 +220,11 @@ function getRecommendedSelections(shape: string) {
       return {
         context: ["customer-facing", "new-initiative"],
         capabilities: ["ux-ui", "frontend"],
+      };
+    case "native-app":
+      return {
+        context: ["customer-facing", "new-initiative"],
+        capabilities: ["ux-ui", "frontend", "backend-data"],
       };
     case "website":
       return {
@@ -623,7 +628,7 @@ export function CreateProjectForm({
                         </div>
                       ))}
                     </OptionBrowser>
-                    {showValidation && !shape ? <FieldHint tone="error">Choose the option that best matches the work to continue.</FieldHint> : <FieldHint>Pick the closest fit. Common choices like SaaS product, web app, website, and something else are all covered.</FieldHint>}
+                    {showValidation && !shape ? <FieldHint tone="error">Choose the option that best matches the work to continue.</FieldHint> : <FieldHint>Pick the closest fit. Common choices like SaaS product, web app, native app, website, and something else are all covered.</FieldHint>}
                   </div>
                 ) : null}
 

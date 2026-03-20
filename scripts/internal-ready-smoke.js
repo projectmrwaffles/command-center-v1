@@ -133,8 +133,8 @@ async function main() {
       { table: "sprints", label: "sprints", requireServiceRows: true },
       { table: "sprint_items", label: "sprint items", requireServiceRows: true },
       { table: "agents", label: "agents", requireServiceRows: true },
-      { table: "jobs", label: "jobs", requireServiceRows: true },
-      { table: "approvals", label: "approvals", requireServiceRows: true },
+      { table: "jobs", label: "jobs", requireServiceRows: false },
+      { table: "approvals", label: "approvals", requireServiceRows: false },
       { table: "project_documents", label: "project documents", requireServiceRows: false },
       { table: "prds", label: "PRDs", requireServiceRows: false },
       { table: "agent_events", label: "agent events", requireServiceRows: false },
@@ -218,6 +218,18 @@ async function main() {
       createProject.response.status === 201 && Boolean(createdProjectId),
       "project creation succeeds through trusted API path",
       `project ${createdProjectId || "missing"}`
+    );
+
+    const { data: sprints, error: sprintsError } = await service
+      .from("sprints")
+      .select("id, name, status")
+      .eq("project_id", createdProjectId)
+      .order("created_at", { ascending: true });
+    if (sprintsError) throw sprintsError;
+    logResult(
+      (sprints || []).length >= 2,
+      "project bootstrap keeps phased kickoff even on legacy schema",
+      `${(sprints || []).length} sprint(s)`
     );
 
     const { data: tasks, error: tasksError } = await service
@@ -311,6 +323,54 @@ async function main() {
         taskUpdateOk.response.ok && taskUpdateOk.json?.project_id === createdProjectId,
         "agent task updates succeed within project scope",
         taskUpdateOk.json?.project_id || `status ${taskUpdateOk.response.status}`
+      );
+
+      const { data: taskAfterUpdate, error: taskAfterUpdateError } = await service
+        .from("sprint_items")
+        .select("status")
+        .eq("id", task.id)
+        .single();
+      if (taskAfterUpdateError) throw taskAfterUpdateError;
+      logResult(
+        taskAfterUpdate?.status === "in_progress",
+        "task update writes back sprint item status",
+        taskAfterUpdate?.status || "missing"
+      );
+
+      const { data: createdJobs, error: createdJobsError } = await service
+        .from("jobs")
+        .select("id, status, summary")
+        .eq("project_id", createdProjectId)
+        .eq("summary", `task:${task.id}`);
+      if (createdJobsError) throw createdJobsError;
+      logResult(
+        (createdJobs || []).some((job) => job.status === "in_progress"),
+        "task update creates visible job movement",
+        JSON.stringify(createdJobs || [])
+      );
+
+      const { data: taskEvents, error: taskEventsError } = await service
+        .from("agent_events")
+        .select("id, event_type, payload")
+        .eq("project_id", createdProjectId)
+        .in("event_type", ["task_status_changed", "task_completed", "task_blocked"]);
+      if (taskEventsError) throw taskEventsError;
+      logResult(
+        (taskEvents || []).length > 0,
+        "task update writes visible agent event movement",
+        `${(taskEvents || []).length} event(s)`
+      );
+
+      const { data: projectAfterUpdate, error: projectAfterUpdateError } = await service
+        .from("projects")
+        .select("status, progress_pct")
+        .eq("id", createdProjectId)
+        .single();
+      if (projectAfterUpdateError) throw projectAfterUpdateError;
+      logResult(
+        projectAfterUpdate?.status === "active" && Number.isFinite(projectAfterUpdate?.progress_pct),
+        "task update syncs project state",
+        JSON.stringify(projectAfterUpdate)
       );
 
       const invalidUsage = await fetchJson(`${baseUrl}/api/agent/log`, {

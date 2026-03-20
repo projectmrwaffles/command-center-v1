@@ -38,6 +38,12 @@ function hasCapability(intake: ProjectIntake | undefined, capability: string) {
   return intake?.capabilities?.includes(capability) ?? false;
 }
 
+function isMissingColumnError(error: { code?: string; message?: string } | null | undefined, columns: string[]) {
+  if (!error) return false;
+  const message = error.message || "";
+  return error.code === "PGRST204" && columns.some((column) => message.includes(`'${column}' column`));
+}
+
 function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string, string>): KickoffPhaseTemplate["tasks"][number] {
   const config = TASK_TYPE_CONFIG[taskType];
   const templateKeyField = config.metadataFields[0]?.key;
@@ -221,21 +227,39 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
   const createdTasks: Array<{ id: string; title: string; assigneeAgentId: string | null; phaseKey: string; phaseStatus: "active" | "draft" }> = [];
 
   for (const phase of phases) {
-    const { data: sprint, error: sprintError } = await db
+    const sprintInsert = {
+      project_id: input.projectId,
+      name: phase.name,
+      goal: phase.goal,
+      status: phase.status,
+      phase_key: phase.key,
+      phase_order: phase.order,
+      auto_generated: true,
+      approval_gate_required: phase.gateRequired,
+      approval_gate_status: phase.gateStatus,
+    };
+
+    let sprintResult = await db
       .from("sprints")
-      .insert({
-        project_id: input.projectId,
-        name: phase.name,
-        goal: phase.goal,
-        status: phase.status,
-        phase_key: phase.key,
-        phase_order: phase.order,
-        auto_generated: true,
-        approval_gate_required: phase.gateRequired,
-        approval_gate_status: phase.gateStatus,
-      })
+      .insert(sprintInsert)
       .select("id, name")
       .single();
+
+    if (isMissingColumnError(sprintResult.error, ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status"])) {
+      sprintResult = await db
+        .from("sprints")
+        .insert({
+          project_id: input.projectId,
+          name: phase.name,
+          goal: phase.goal,
+          status: phase.status,
+        })
+        .select("id, name")
+        .single();
+    }
+
+    const sprint = sprintResult.data;
+    const sprintError = sprintResult.error;
 
     if (sprintError || !sprint?.id) {
       throw new Error(sprintError?.message || `Failed to create kickoff phase ${phase.name}`);
@@ -246,30 +270,51 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
     for (const task of phase.tasks) {
       const ownerTeamId = await getTeamIdByLane(db, task.ownerTeam);
       const assigneeAgentId = await getLeadAgentForTeam(db, ownerTeamId);
-      const { data: createdTask, error: taskError } = await db
+      const taskInsert = {
+        sprint_id: sprint.id,
+        project_id: input.projectId,
+        title: task.title,
+        description: task.description,
+        status: "todo",
+        assignee_agent_id: assigneeAgentId,
+        position: nextPosition,
+        task_type: task.taskType,
+        task_goal: task.taskGoal,
+        owner_team_id: ownerTeamId,
+        review_required: task.reviewRequired,
+        task_template_key: task.taskTemplateKey,
+        task_metadata: {
+          ...task.taskMetadata,
+          phase_key: phase.key,
+          auto_generated: true,
+        },
+        review_status: task.reviewRequired ? "awaiting_review" : "not_requested",
+      };
+
+      let taskResult = await db
         .from("sprint_items")
-        .insert({
-          sprint_id: sprint.id,
-          project_id: input.projectId,
-          title: task.title,
-          description: task.description,
-          status: "todo",
-          assignee_agent_id: assigneeAgentId,
-          position: nextPosition,
-          task_type: task.taskType,
-          task_goal: task.taskGoal,
-          owner_team_id: ownerTeamId,
-          review_required: task.reviewRequired,
-          task_template_key: task.taskTemplateKey,
-          task_metadata: {
-            ...task.taskMetadata,
-            phase_key: phase.key,
-            auto_generated: true,
-          },
-          review_status: task.reviewRequired ? "awaiting_review" : "not_requested",
-        })
+        .insert(taskInsert)
         .select("id, title")
         .single();
+
+      if (isMissingColumnError(taskResult.error, ["task_type", "task_goal", "owner_team_id", "review_required", "task_template_key", "task_metadata", "review_status"])) {
+        taskResult = await db
+          .from("sprint_items")
+          .insert({
+            sprint_id: sprint.id,
+            project_id: input.projectId,
+            title: task.title,
+            description: task.description,
+            status: "todo",
+            assignee_agent_id: assigneeAgentId,
+            position: nextPosition,
+          })
+          .select("id, title")
+          .single();
+      }
+
+      const createdTask = taskResult.data;
+      const taskError = taskResult.error;
 
       if (taskError || !createdTask?.id) {
         throw new Error(taskError?.message || `Failed to create kickoff task ${task.title}`);

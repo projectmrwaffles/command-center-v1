@@ -1,3 +1,4 @@
+import { syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { hasBearerToken } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -5,13 +6,21 @@ import { NextRequest, NextResponse } from "next/server";
 const ALLOWED_AGENT_STATUSES = new Set(["active", "idle", "offline", "error"]);
 const ALLOWED_TASK_STATUSES = new Set(["todo", "in_progress", "blocked", "done"]);
 
+type TaskScope = {
+  id: string;
+  project_id: string;
+  status: string;
+  title: string;
+  assignee_agent_id: string | null;
+};
+
 async function getTaskScope(
   db: NonNullable<ReturnType<typeof createRouteHandlerClient>>,
   taskId: string
-) {
+): Promise<TaskScope | null> {
   const { data, error } = await db
     .from("sprint_items")
-    .select("id, project_id, status")
+    .select("id, project_id, status, title, assignee_agent_id")
     .eq("id", taskId)
     .single();
 
@@ -19,7 +28,75 @@ async function getTaskScope(
     return null;
   }
 
-  return data;
+  return data as TaskScope;
+}
+
+async function upsertTaskJob(
+  db: NonNullable<ReturnType<typeof createRouteHandlerClient>>,
+  task: TaskScope,
+  nextStatus: string
+) {
+  if (!task.assignee_agent_id) return null;
+
+  const summary = `task:${task.id}`;
+  const normalizedJobStatus =
+    nextStatus === "done"
+      ? "completed"
+      : nextStatus === "in_progress"
+        ? "in_progress"
+        : nextStatus === "blocked"
+          ? "blocked"
+          : "queued";
+
+  const existingJob = await db
+    .from("jobs")
+    .select("id")
+    .eq("project_id", task.project_id)
+    .eq("owner_agent_id", task.assignee_agent_id)
+    .eq("summary", summary)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingJob.error) {
+    throw new Error(existingJob.error.message);
+  }
+
+  if (existingJob.data?.id) {
+    const updateResult = await db
+      .from("jobs")
+      .update({
+        title: task.title,
+        status: normalizedJobStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingJob.data.id)
+      .select("id")
+      .single();
+
+    if (updateResult.error) {
+      throw new Error(updateResult.error.message);
+    }
+
+    return updateResult.data?.id ?? existingJob.data.id;
+  }
+
+  const createResult = await db
+    .from("jobs")
+    .insert({
+      project_id: task.project_id,
+      owner_agent_id: task.assignee_agent_id,
+      title: task.title,
+      status: normalizedJobStatus,
+      summary,
+    })
+    .select("id")
+    .single();
+
+  if (createResult.error) {
+    throw new Error(createResult.error.message);
+  }
+
+  return createResult.data?.id ?? null;
 }
 
 export async function POST(req: NextRequest) {
@@ -105,6 +182,7 @@ export async function POST(req: NextRequest) {
         const taskId = typeof payload.task_id === "string" ? payload.task_id : "";
         const status = typeof payload.status === "string" ? payload.status : "";
         const projectId = typeof payload.project_id === "string" ? payload.project_id : null;
+        const agentId = typeof payload.agent_id === "string" ? payload.agent_id : null;
 
         if (!taskId || !status) {
           return NextResponse.json({ error: "task_id and status are required" }, { status: 400 });
@@ -126,13 +204,60 @@ export async function POST(req: NextRequest) {
           update.description = payload.description.trim();
         }
 
-        const { error } = await db
+        const updateResult = await db
           .from("sprint_items")
           .update(update)
           .eq("id", taskId)
           .eq("project_id", existingTask.project_id);
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-        return NextResponse.json({ success: true, project_id: existingTask.project_id });
+        if (updateResult.error) return NextResponse.json({ error: updateResult.error.message }, { status: 500 });
+
+        const resolvedAgentId = agentId || existingTask.assignee_agent_id;
+        const jobId = await upsertTaskJob(db, existingTask, status);
+
+        if (resolvedAgentId) {
+          const nextAgentStatus = status === "done" ? "idle" : status === "blocked" ? "error" : "active";
+          const agentUpdate = await db
+            .from("agents")
+            .update({
+              status: nextAgentStatus,
+              last_seen: new Date().toISOString(),
+              current_job_id: status === "done" ? null : jobId,
+            })
+            .eq("id", resolvedAgentId);
+          if (agentUpdate.error) {
+            return NextResponse.json({ error: agentUpdate.error.message }, { status: 500 });
+          }
+
+          const eventType = status === "done" ? "task_completed" : status === "blocked" ? "task_blocked" : "task_status_changed";
+          const eventInsert = await db.from("agent_events").insert({
+            agent_id: resolvedAgentId,
+            event_type: eventType,
+            project_id: existingTask.project_id,
+            job_id: jobId,
+            payload: {
+              task_id: taskId,
+              title: existingTask.title,
+              previous_status: existingTask.status,
+              status,
+              message:
+                typeof payload.description === "string" && payload.description.trim()
+                  ? payload.description.trim()
+                  : `${existingTask.title} moved to ${status.replace(/_/g, " ")}`,
+            },
+          });
+          if (eventInsert.error) {
+            return NextResponse.json({ error: eventInsert.error.message }, { status: 500 });
+          }
+        }
+
+        const projectState = await syncProjectState(db, existingTask.project_id);
+        return NextResponse.json({
+          success: true,
+          project_id: existingTask.project_id,
+          job_id: jobId,
+          project_progress_pct: projectState.progressPct,
+          project_status: projectState.projectStatus ?? null,
+        });
       }
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });

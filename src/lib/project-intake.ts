@@ -246,7 +246,9 @@ export function inferIntakeReadiness(intake: Pick<ProjectIntake, "shape" | "cont
   const shape = intake.shape ?? "";
   const context = intake.context ?? [];
   const capabilities = intake.capabilities ?? [];
-  const goals = (intake.goals ?? "").toLowerCase();
+  const goals = Array.isArray(intake.goals)
+    ? intake.goals.join(" ").toLowerCase()
+    : String(intake.goals ?? "").toLowerCase();
 
   const hasAnyGoalText = goals.trim().length > 0;
   const hasBuild = capabilities.includes("frontend") || capabilities.includes("backend-data");

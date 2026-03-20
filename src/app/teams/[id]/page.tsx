@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { Activity, ArrowLeft, ArrowRight, FolderKanban, Sparkles, Users } from "lucide-react";
 import { DbBanner } from "@/components/db-banner";
 import { ErrorState } from "@/components/error-state";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
 import { createServerClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +17,12 @@ type Team = {
 
 function formatEventType(eventType: string) {
   return eventType.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function statusClasses(status?: string | null) {
+  if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "idle") return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-zinc-200 bg-zinc-100 text-zinc-700";
 }
 
 export default async function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -82,52 +91,114 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
 
       {team && (
         <>
-          <div className="space-y-2">
-            <Link href="/teams" className="text-sm text-zinc-500 hover:text-zinc-700">← Back to teams</Link>
-            <div>
-              <h1 className="text-2xl font-semibold text-zinc-900">{team.name}</h1>
-              <p className="text-sm text-zinc-500">{team.description ?? "No team description yet."}</p>
-            </div>
-          </div>
+          <PageHero>
+            <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl space-y-4">
+                <Link
+                  href="/teams"
+                  className="inline-flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white/85 px-3 py-1.5 text-sm text-zinc-600 shadow-sm transition hover:border-red-200 hover:text-red-700"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to teams
+                </Link>
+                <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Team detail
+                </div>
+                <div className="space-y-3">
+                  <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">{team.name}</h1>
+                  <p className="max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
+                    {team.description ?? "No team description yet."}
+                  </p>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-2"><CardDescription>Members</CardDescription><CardTitle className="text-2xl">{memberAgents.length}</CardTitle></CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardDescription>Active now</CardDescription><CardTitle className="text-2xl text-green-600">{activeMembers}</CardTitle></CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardDescription>Projects</CardDescription><CardTitle className="text-2xl">{projects.length}</CardTitle></CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardDescription>Avg. progress</CardDescription><CardTitle className="text-2xl">{averageProgress}%</CardTitle></CardHeader>
-            </Card>
-          </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[420px] lg:grid-cols-2">
+                <PageHeroStat className="border-red-100">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                    <Users className="h-4 w-4 text-red-500" />
+                    Members
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{memberAgents.length}</div>
+                  <p className="mt-1 text-xs text-zinc-500">Assigned to this team.</p>
+                </PageHeroStat>
+                <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                    <Activity className="h-4 w-4 text-emerald-500" />
+                    Active now
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeMembers}</div>
+                  <p className="mt-1 text-xs text-zinc-500">Currently marked active.</p>
+                </PageHeroStat>
+                <PageHeroStat className="border-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.08)]">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                    <FolderKanban className="h-4 w-4 text-amber-500" />
+                    Projects
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{projects.length}</div>
+                  <p className="mt-1 text-xs text-zinc-500">Current owned workstreams.</p>
+                </PageHeroStat>
+                <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                    <ArrowRight className="h-4 w-4 text-red-500" />
+                    Avg. progress
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{averageProgress}%</div>
+                  <p className="mt-1 text-xs text-zinc-500">Across assigned projects.</p>
+                </PageHeroStat>
+              </div>
+            </div>
+          </PageHero>
 
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle>Projects</CardTitle>
-                <CardDescription>What this team is actively responsible for.</CardDescription>
-              </CardHeader>
-              <CardContent>
+            <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.72),rgba(255,255,255,0.98)_52%,rgba(255,247,237,0.88)_100%)]">
+              <CardContent className="space-y-5 p-5 sm:p-6">
+                <div className="space-y-2">
+                  <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-white/85 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-700">
+                    Projects
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold tracking-tight text-zinc-950">What this team is actively responsible for.</h2>
+                    <p className="mt-1 text-sm text-zinc-500">Open each project to inspect status, progress, and detailed execution.</p>
+                  </div>
+                </div>
+
                 {projects.length === 0 ? (
-                  <p className="text-sm text-zinc-500">No projects assigned.</p>
+                  <BrandedEmptyState
+                    icon={<FolderKanban className="h-8 w-8 text-red-600" />}
+                    title="No projects assigned"
+                    description="Projects connected to this team will appear here once they’re linked in the workspace."
+                    className="px-5 py-12"
+                  />
                 ) : (
                   <div className="space-y-3">
                     {projects.map((project) => (
-                      <Link key={project.id} href={`/projects/${project.id}`} className="block rounded-xl border border-zinc-200 p-4 transition hover:border-zinc-300 hover:shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-zinc-900">{project.name}</p>
-                            <p className="mt-1 text-xs text-zinc-500">Status: {project.status}</p>
-                          </div>
-                          <span className="text-xs text-zinc-500">{project.progress_pct || 0}%</span>
-                        </div>
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100">
-                          <div className="h-full rounded-full bg-gradient-to-r from-red-500 to-red-600" style={{ width: `${project.progress_pct || 0}%` }} />
-                        </div>
+                      <Link key={project.id} href={`/projects/${project.id}`} className="group block">
+                        <Card variant="featured" className="overflow-hidden rounded-[22px]">
+                          <CardContent className="space-y-4 p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-base font-semibold tracking-tight text-zinc-950">{project.name}</p>
+                                <div className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-600">
+                                  Status: {project.status}
+                                </div>
+                              </div>
+                              <span className="shrink-0 text-sm font-medium text-zinc-600">{project.progress_pct || 0}%</span>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="h-2 overflow-hidden rounded-full bg-red-100/70">
+                                <div className="h-full rounded-full bg-gradient-to-r from-red-500 to-amber-500 transition-all" style={{ width: `${project.progress_pct || 0}%` }} />
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-zinc-500">
+                                <span>Progress</span>
+                                <span className="inline-flex items-center gap-1 font-medium text-red-700">
+                                  Open project
+                                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                                </span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </Link>
                     ))}
                   </div>
@@ -136,26 +207,41 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
             </Card>
 
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team Members</CardTitle>
-                  <CardDescription>Who is available right now.</CardDescription>
-                </CardHeader>
-                <CardContent>
+              <Card variant="soft" className="rounded-[24px]">
+                <CardContent className="space-y-5 p-5 sm:p-6">
+                  <div className="space-y-2">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-red-50/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-700">
+                      Team members
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Who is available right now.</h2>
+                      <p className="mt-1 text-sm text-zinc-500">Presence and last-seen data for everyone assigned to this team.</p>
+                    </div>
+                  </div>
+
                   {memberAgents.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No members found.</p>
+                    <BrandedEmptyState
+                      icon={<Users className="h-8 w-8 text-red-600" />}
+                      title="No members found"
+                      description="Team members will show up here once people or agents are assigned."
+                      className="px-5 py-12"
+                    />
                   ) : (
                     <div className="space-y-3">
                       {memberAgents.map((agent) => (
-                        <div key={agent.id} className="rounded-xl border border-zinc-200 p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-medium text-zinc-900">{agent.name}</p>
-                              <p className="text-xs text-zinc-500">{agent.title || "Agent"}</p>
+                        <div key={agent.id} className="rounded-[22px] border border-zinc-200 bg-white/90 p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-zinc-950">{agent.name}</p>
+                              <p className="mt-1 text-xs text-zinc-500">{agent.title || "Agent"}</p>
                             </div>
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${agent.status === "active" ? "bg-green-100 text-green-700" : agent.status === "idle" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-700"}`}>{agent.status}</span>
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status)}`}>
+                              {agent.status}
+                            </span>
                           </div>
-                          {agent.last_seen && <p className="mt-2 text-[11px] text-zinc-400">Last seen {new Date(agent.last_seen).toLocaleString()}</p>}
+                          {agent.last_seen ? (
+                            <p className="mt-3 text-[11px] text-zinc-400">Last seen {new Date(agent.last_seen).toLocaleString()}</p>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -163,27 +249,41 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Signals</CardTitle>
-                  <CardDescription>Approvals and project activity for this team.</CardDescription>
-                </CardHeader>
-                <CardContent>
+              <Card variant="soft" className="rounded-[24px]">
+                <CardContent className="space-y-5 p-5 sm:p-6">
+                  <div className="space-y-2">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-100 bg-amber-50/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-amber-700">
+                      Recent signals
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Approvals and project activity for this team.</h2>
+                      <p className="mt-1 text-sm text-zinc-500">Pending approvals are surfaced first, followed by the latest project events.</p>
+                    </div>
+                  </div>
+
                   {approvals.length === 0 && events.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No recent signals.</p>
+                    <BrandedEmptyState
+                      icon={<Sparkles className="h-8 w-8 text-red-600" />}
+                      title="No recent signals"
+                      description="Approvals and notable activity will appear here as this team starts moving work through the system."
+                      className="px-5 py-12"
+                    />
                   ) : (
                     <div className="space-y-3">
                       {approvals.map((approval) => (
-                        <div key={approval.id} className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                          <p className="text-sm font-medium text-amber-900">{approval.summary || "Approval requested"}</p>
-                          <p className="mt-1 text-xs text-amber-700">{approval.severity || "medium"} priority • {new Date(approval.created_at).toLocaleString()}</p>
+                        <div key={approval.id} className="rounded-[22px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,1),rgba(255,255,255,0.98))] p-4 shadow-sm">
+                          <div className="inline-flex rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">
+                            Pending approval
+                          </div>
+                          <p className="mt-3 text-sm font-semibold text-amber-950">{approval.summary || "Approval requested"}</p>
+                          <p className="mt-2 text-xs text-amber-700">{approval.severity || "medium"} priority • {new Date(approval.created_at).toLocaleString()}</p>
                         </div>
                       ))}
                       {events.slice(0, 6).map((event) => (
-                        <div key={event.id} className="rounded-xl border border-zinc-200 p-3">
-                          <p className="text-sm font-medium text-zinc-900">{formatEventType(event.event_type)}</p>
-                          <p className="mt-1 text-xs text-zinc-500">{event.payload?.title || event.payload?.message || "Recent project activity"}</p>
-                          <p className="mt-1 text-[11px] text-zinc-400">{new Date(event.timestamp).toLocaleString()}</p>
+                        <div key={event.id} className="rounded-[22px] border border-zinc-200 bg-white/90 p-4 shadow-sm">
+                          <p className="text-sm font-semibold text-zinc-950">{formatEventType(event.event_type)}</p>
+                          <p className="mt-2 text-xs leading-5 text-zinc-500">{event.payload?.title || event.payload?.message || "Recent project activity"}</p>
+                          <p className="mt-2 text-[11px] text-zinc-400">{new Date(event.timestamp).toLocaleString()}</p>
                         </div>
                       ))}
                     </div>

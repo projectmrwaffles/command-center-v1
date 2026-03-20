@@ -37,45 +37,46 @@ function getAgentNameFromId(agentId: string): string {
  * which broadcasts to the agent listener running on the Mac mini.
  */
 async function triggerAgentWork(
-  agentId: string, 
-  projectName: string, 
+  db: ReturnType<typeof createRouteHandlerClient>,
+  agentId: string,
+  projectName: string,
   taskTitle: string,
-  taskId: string
+  taskId: string,
 ): Promise<void> {
+  if (!db) return;
+
   try {
     const agentName = getAgentNameFromId(agentId);
-    
-    const vercelUrl = process.env.VERCEL_URL?.trim();
-    const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-    const baseUrl = configuredAppUrl || (vercelUrl ? `https://${vercelUrl}` : "");
+    const message = `New task for project "${projectName}": ${taskTitle}. Start working on this and update the task status to "in_progress" when you begin.`;
+    const payload = {
+      agent_id: agentId,
+      task_id: taskId,
+      project_name: projectName,
+      task_title: taskTitle,
+      message,
+      triggered_at: new Date().toISOString(),
+      status: "pending",
+    };
 
-    if (!baseUrl) {
-      console.log("[Trigger] Skipping - no app URL configured for agent notification callback");
-      return;
+    try {
+      await db.from("agent_notifications").insert({
+        agent_id: agentId,
+        task_id: taskId,
+        project_name: projectName,
+        task_title: taskTitle,
+        message,
+        status: "pending",
+      });
+    } catch {
+      console.log("[Trigger] agent_notifications table not available, using broadcast only");
     }
-    
-    // Call our new trigger API endpoint
-    const response = await fetch(`${baseUrl}/api/agent/trigger`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.AGENT_AUTH_TOKEN ? { Authorization: `Bearer ${process.env.AGENT_AUTH_TOKEN}` } : {}),
-      },
-      body: JSON.stringify({
-        agentId,
-        taskId,
-        projectName,
-        taskTitle,
-      }),
+
+    await db.channel(`agent-${agentId}`).send({
+      type: "broadcast",
+      event: "agent_work",
+      payload,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[Trigger] API error: ${response.status} - ${errorText}`);
-      return;
-    }
-
-    await response.json();
     console.log(`[Trigger] Notified agent ${agentName} (${agentId}) for task: ${taskTitle}`);
   } catch (e) {
     console.error(`[Trigger] Failed to trigger agent ${agentId}:`, e);
@@ -294,7 +295,7 @@ export async function POST(req: NextRequest) {
       kickoff.tasks
         .filter((task) => task.phaseStatus === "active" && task.assigneeAgentId)
         .forEach((task) => {
-          triggerAgentWork(task.assigneeAgentId as string, name, task.title, task.id);
+          triggerAgentWork(db, task.assigneeAgentId as string, name, task.title, task.id);
         });
 
       kickoffSeeded = kickoff.tasks.length > 0;
@@ -360,7 +361,7 @@ export async function POST(req: NextRequest) {
           }
 
           if (createdTask?.id) {
-            triggerAgentWork(leadMember.agent_id, name, teamTask, createdTask.id);
+            triggerAgentWork(db, leadMember.agent_id, name, teamTask, createdTask.id);
           }
         }
       }

@@ -3,6 +3,7 @@ import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
+import { isMissingGithubRepoBindingColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { NextRequest, NextResponse } from "next/server";
 
 type TeamWithId = {
@@ -323,11 +324,11 @@ export async function PATCH(
         return NextResponse.json({ error: "Database not configured" }, { status: 503 });
       }
 
-      const { data: currentProject, error: currentProjectError } = await db
-        .from("projects")
-        .select("id, links, github_repo_binding")
-        .eq("id", projectId)
-        .single();
+      const { data: currentProject, error: currentProjectError } = await selectProjectWithArtifactCompat(
+        db,
+        projectId,
+        "id"
+      );
 
       if (currentProjectError || !currentProject) {
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -363,12 +364,25 @@ export async function PATCH(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const { data, error } = await db
+    let { data, error } = await db
       .from("projects")
       .update(update)
       .eq("id", projectId)
       .select()
       .single();
+
+    if (error && isMissingGithubRepoBindingColumnError(error) && "github_repo_binding" in update) {
+      const updateWithoutBinding = { ...update };
+      delete updateWithoutBinding.github_repo_binding;
+      const retry = await db
+        .from("projects")
+        .update(updateWithoutBinding)
+        .eq("id", projectId)
+        .select()
+        .single();
+      data = retry.data ? { ...retry.data, github_repo_binding: null } : retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error("[API /projects/:id] update error:", error);

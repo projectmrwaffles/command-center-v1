@@ -1,3 +1,4 @@
+import { maybeAdvanceProjectAfterTaskDone } from "@/lib/project-handoff";
 import { normalizeTaskPatch, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -71,6 +72,10 @@ export async function PATCH(
     }
 
     const projectState = await syncProjectState(db, projectId);
+
+    if (data.status === "done") {
+      await maybeAdvanceProjectAfterTaskDone(db as any, { projectId, completedTaskId: taskId });
+    }
 
     await db.from("agent_events").insert({
       agent_id: null,

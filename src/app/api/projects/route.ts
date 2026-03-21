@@ -1,3 +1,4 @@
+import { triggerAgentWork } from "@/lib/agent-dispatch";
 import { getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
@@ -6,122 +7,28 @@ import { sanitizeProjectLinks } from "@/lib/project-links";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Get agent name from ID
- */
-function getAgentNameFromId(agentId: string): string {
-  // Map DB agent IDs to OpenClaw agent names (from openclaw agents list)
-  const agentMap: Record<string, string> = {
-    "11111111-1111-1111-1111-000000000001": "main",              // Mr. Waffles (main orchestrator)
-    "11111111-1111-1111-1111-000000000002": "product-lead",
-    "11111111-1111-1111-1111-000000000003": "head-of-design",
-    "11111111-1111-1111-1111-000000000004": "product-designer-app",
-    "11111111-1111-1111-1111-000000000005": "web-designer-marketing",
-    "11111111-1111-1111-1111-000000000006": "tech-lead-architect",
-    "11111111-1111-1111-1111-000000000007": "frontend-engineer",
-    "11111111-1111-1111-1111-000000000008": "backend-engineer",
-    "11111111-1111-1111-1111-000000000009": "mobile-engineer",
-    "11111111-1111-1111-1111-000000000010": "seo-web-developer",
-    "11111111-1111-1111-1111-000000000011": "growth-lead",
-    "11111111-1111-1111-1111-000000000012": "marketing-producer",
-    "11111111-1111-1111-1111-000000000013": "marketing-ops-analytics",
-    "11111111-1111-1111-1111-000000000014": "qa-auditor",
-  };
-  return agentMap[agentId] || "product-lead";
-}
-
-/**
- * Trigger an agent to start working on a task via Supabase Realtime.
- * This replaces the old approach of running `openclaw agent` on the server.
- * Instead, we send a notification via the /api/agent/trigger endpoint
- * which broadcasts to the agent listener running on the Mac mini.
- */
-async function triggerAgentWork(
-  db: ReturnType<typeof createRouteHandlerClient>,
-  agentId: string,
-  projectName: string,
-  taskTitle: string,
-  taskId: string,
-): Promise<void> {
-  if (!db) return;
-
-  try {
-    const agentName = getAgentNameFromId(agentId);
-    const message = `New task for project "${projectName}": ${taskTitle}. Start working on this and update the task status to "in_progress" when you begin.`;
-    const payload = {
-      agent_id: agentId,
-      task_id: taskId,
-      project_name: projectName,
-      task_title: taskTitle,
-      message,
-      triggered_at: new Date().toISOString(),
-      status: "pending",
-    };
-
-    try {
-      await db.from("agent_notifications").insert({
-        agent_id: agentId,
-        task_id: taskId,
-        project_name: projectName,
-        task_title: taskTitle,
-        message,
-        status: "pending",
-      });
-    } catch {
-      console.log("[Trigger] agent_notifications table not available, using broadcast only");
-    }
-
-    await db.channel(`agent-${agentId}`).send({
-      type: "broadcast",
-      event: "agent_work",
-      payload,
-    });
-
-    console.log(`[Trigger] Notified agent ${agentName} (${agentId}) for task: ${taskTitle}`);
-  } catch (e) {
-    console.error(`[Trigger] Failed to trigger agent ${agentId}:`, e);
-  }
-}
-
-/**
- * Heuristic fallback when AI agent is unavailable
- */
-/**
- * Estimate AI workload based on teams working in parallel
- * Returns the quickest time for AI agents to complete
- */
-function estimateWorkloadFromTeams(teamIds: string[]): { 
-  complexity: string; 
-  hours: number; 
+function estimateWorkloadFromTeams(teamIds: string[]): {
+  complexity: string;
+  hours: number;
   reasoning: string;
 } {
   if (teamIds.length === 0) {
     return { complexity: "low", hours: 0.25, reasoning: "No teams assigned" };
   }
-  
-  // Each team has base minutes for AI to complete their task
-  const teamMinutes = teamIds.map(id => TEAM_BASE_MINUTES[id] || 15);
+
+  const teamMinutes = teamIds.map((id) => TEAM_BASE_MINUTES[id] || 15);
   const maxTeamMinutes = Math.max(...teamMinutes);
-  
-  // Teams work in parallel, so time is based on longest team work
-  // Add 30% buffer for AI iteration/refinement
   const totalMinutes = Math.ceil(maxTeamMinutes * 1.3);
-  const hours = Math.round(totalMinutes / 60 * 10) / 10; // Round to 1 decimal
-  
+  const hours = Math.round((totalMinutes / 60) * 10) / 10;
   const complexity = teamIds.length > 3 ? "high" : teamIds.length > 1 ? "medium" : "low";
-  
-  return { 
+
+  return {
     complexity,
-    hours: Math.max(0.25, hours), // Minimum 15 min
-    reasoning: `${teamIds.length} AI agents parallel, ~${totalMinutes}min each + 30% buffer`
+    hours: Math.max(0.25, hours),
+    reasoning: `${teamIds.length} AI agents parallel, ~${totalMinutes}min each + 30% buffer`,
   };
 }
 
-/**
- * Invoke the product-lead agent to analyze project workload
- * Returns: { complexity, hours, reasoning }
- */
-// Teams IDs
 const TEAMS = {
   ENGINEERING: "11111111-1111-1111-1111-000000000001",
   DESIGN: "11111111-1111-1111-1111-000000000002",
@@ -130,17 +37,14 @@ const TEAMS = {
   QA: "11111111-1111-1111-1111-000000000005",
 };
 
-// Base minutes per team type for AI agents (AI works faster than humans)
-// These are estimates for AI to complete initial team task
 const TEAM_BASE_MINUTES: Record<string, number> = {
-  [TEAMS.ENGINEERING]: 30, // Setup + architecture
-  [TEAMS.DESIGN]: 20,      // Wireframes
-  [TEAMS.PRODUCT]: 15,     // Requirements
-  [TEAMS.MARKETING]: 15,   // Strategy
-  [TEAMS.QA]: 20,          // Test plan
+  [TEAMS.ENGINEERING]: 30,
+  [TEAMS.DESIGN]: 20,
+  [TEAMS.PRODUCT]: 15,
+  [TEAMS.MARKETING]: 15,
+  [TEAMS.QA]: 20,
 };
 
-// Legacy fallback routing for older callers that only send type
 function getAutoRouteTeamIds(type: string): string[] {
   const teamMap: Record<string, string[]> = {
     saas: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
@@ -163,7 +67,7 @@ export async function GET(req: NextRequest) {
     if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
-    
+
     const db = createRouteHandlerClient();
     if (!db) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
@@ -224,8 +128,6 @@ export async function POST(req: NextRequest) {
     }
 
     const sanitizedLinks = sanitizeProjectLinks(links || intake?.links);
-
-    // Auto-route using composable intake when present, else legacy type routing
     const autoTeamIds = teamId
       ? [teamId]
       : intake
@@ -233,12 +135,9 @@ export async function POST(req: NextRequest) {
         : getAutoRouteTeamIds(type);
     const primaryTeamId = autoTeamIds[0];
 
-    // Calculate workload for planning purposes (but don't create sprints)
     const workload = estimateWorkloadFromTeams(autoTeamIds);
     console.log(`[Workload Analysis] ${name}: ${workload.hours}h (${workload.complexity}) - ${workload.reasoning}`);
 
-    // Create project. Some deployed DBs do not have the newer `links` column yet,
-    // so retry without it instead of failing intake entirely.
     const projectInsertBase = {
       name,
       type,
@@ -253,24 +152,12 @@ export async function POST(req: NextRequest) {
     let project: any = null;
     let error: { message: string; code?: string } | null = null;
 
-    const firstInsert = await db
-      .from("projects")
-      .insert({
-        ...projectInsertBase,
-        links: sanitizedLinks,
-      })
-      .select()
-      .single();
-
+    const firstInsert = await db.from("projects").insert({ ...projectInsertBase, links: sanitizedLinks }).select().single();
     project = firstInsert.data;
     error = firstInsert.error;
 
     if (error?.code === "PGRST204" && error.message.includes("'links' column")) {
-      const fallbackInsert = await db
-        .from("projects")
-        .insert(projectInsertBase)
-        .select()
-        .single();
+      const fallbackInsert = await db.from("projects").insert(projectInsertBase).select().single();
       project = fallbackInsert.data;
       error = fallbackInsert.error;
     }
@@ -304,7 +191,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (!kickoffSeeded) {
-      // Legacy fallback so project creation still succeeds on partially migrated databases.
       const { data: kickoffSprint, error: sprintError } = await db
         .from("sprints")
         .insert({
@@ -368,7 +254,6 @@ export async function POST(req: NextRequest) {
     }
 
     await syncProjectState(db, project.id);
-
     return NextResponse.json({ project: { ...project, links: sanitizedLinks }, workload }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);

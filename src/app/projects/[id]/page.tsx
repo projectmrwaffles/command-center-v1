@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
 import { ProjectStatusBadge, ProjectTypeBadge } from "@/components/ui/project-badges";
+import { formatRelativeTimestamp, getExecutionTone, ProgressRing } from "@/components/ui/execution-visibility";
 import {
   formatIntakeValue,
   getReadinessOption,
@@ -103,6 +104,15 @@ function SignalBadge({ kind }: { kind: string }) {
     activity: "border-zinc-200 bg-zinc-100 text-zinc-700",
   };
   return <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", styles[kind] || styles.activity)}>{kind}</span>;
+}
+
+function formatReviewStatus(value?: string | null) {
+  if (!value || value === "not_requested") return "No review started";
+  return value.replace(/_/g, " ");
+}
+
+function taskProgressValue(task: any) {
+  return typeof task?.progress_pct === "number" && Number.isFinite(task.progress_pct) ? task.progress_pct : 0;
 }
 
 function formatBytes(value?: number | null) {
@@ -472,6 +482,12 @@ export default function ProjectDetailPage() {
   const isStatusActionLoading = actionTargetStatus ? actionLoading === actionTargetStatus : false;
   const statusTone = getProjectStatusTone(project.status);
   const progress = Math.max(0, Math.min(100, project.progress_pct || 0));
+  const reviewLoopCount = tasks.filter((task: any) => task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved").length;
+  const projectExecutionTone = getExecutionTone({
+    status: project.status,
+    blocked: stats.blockedTasks > 0,
+    approvalCount: (stats.pendingApprovals || 0) + reviewLoopCount,
+  });
 
   const statsCards = [
     {
@@ -555,6 +571,7 @@ export default function ProjectDetailPage() {
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <p className="text-2xl font-semibold tracking-tight text-zinc-950">{progress}% complete</p>
                     <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone.pill)}>{statusTone.label}</span>
+                    <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", projectExecutionTone.badgeClassName)}>{projectExecutionTone.label}</span>
                   </div>
                 </div>
                 <div className="space-y-1 text-sm text-zinc-500 sm:text-right">
@@ -717,17 +734,35 @@ export default function ProjectDetailPage() {
                         (bucket as any[]).map((task: any) => {
                           const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
                           const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
+                          const executionTone = getExecutionTone({
+                            status: task.status,
+                            reviewRequired: task.review_required,
+                            reviewStatus: task.review_status,
+                          });
+                          const taskProgress = taskProgressValue(task);
                           return (
                             <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
-                              <div className="flex items-start justify-between gap-2">
-                                <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
-                                <TaskStatusBadge status={task.status} />
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
+                                    <TaskStatusBadge status={task.status} />
+                                  </div>
+                                  {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
+                                    {task.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
+                                  </div>
+                                </div>
+                                <ProgressRing value={taskProgress} size={48} strokeWidth={4} />
                               </div>
-                              {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
-                              {(task.description || assignee) && (
+                              {(task.description || assignee || task.updated_at) && (
                                 <div className="mt-2 space-y-1">
                                   {task.description && <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{task.description}</p>}
-                                  {assignee && <p className="text-[11px] text-zinc-400">Owner: {assignee.name}</p>}
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                                    {assignee ? <p>Owner: {assignee.name}</p> : null}
+                                    {task.updated_at ? <p>{formatRelativeTimestamp(task.updated_at)}</p> : null}
+                                  </div>
                                 </div>
                               )}
                             </button>
@@ -857,13 +892,25 @@ export default function ProjectDetailPage() {
           <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-zinc-900">Task Details</h3>
             <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700">Task</label>
-                <p className="text-sm font-medium text-zinc-900">{selectedTask.title}</p>
-                <p className="mt-1 text-xs text-zinc-500">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "Unassigned"}</p>
-                {selectedTask.task_type && TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] ? (
-                  <p className="mt-2 text-xs text-red-600">Structured type: {TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG].label}</p>
-                ) : null}
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <label className="block text-sm font-medium text-zinc-700">Task</label>
+                    <p className="text-sm font-medium text-zinc-900">{selectedTask.title}</p>
+                    <p className="mt-1 text-xs text-zinc-500">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "Unassigned"}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status }).badgeClassName)}>
+                        {getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status }).label}
+                      </span>
+                      {selectedTask.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(selectedTask.review_status)}</span> : null}
+                      {selectedTask.updated_at ? <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">{formatRelativeTimestamp(selectedTask.updated_at)}</span> : null}
+                    </div>
+                    {selectedTask.task_type && TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] ? (
+                      <p className="mt-2 text-xs text-red-600">Structured type: {TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG].label}</p>
+                    ) : null}
+                  </div>
+                  <ProgressRing value={taskProgressValue(selectedTask)} size={60} strokeWidth={5} />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700">Status</label>

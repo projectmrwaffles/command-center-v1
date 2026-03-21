@@ -220,10 +220,13 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       id: project.id,
       name: project.name,
       type: project.type,
+      status: project.status,
       teamName: project.teamName,
       progress_pct: project.progress_pct ?? 0,
-      approvalCount: approvalsByProject.get(project.id) ?? 0,
-      blockedCount: blockedByProject.get(project.id) ?? 0,
+      approvalCount: approvalsByProject.get(project.id) ?? project.approvalCount ?? 0,
+      blockedCount: blockedByProject.get(project.id) ?? project.blockedCount ?? 0,
+      reviewCount: project.reviewCount ?? 0,
+      lastUpdate: project.lastUpdate ?? project.updated_at,
     }));
   }, [blockedJobs, pendingApprovals, projectsById]);
 

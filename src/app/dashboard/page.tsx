@@ -92,7 +92,7 @@ async function loadDashboardData(): Promise<DashboardData> {
     const projectsRes = await db.from("projects").select("id, name, type, team_id").eq("status", "active");
     const teamsRes = await db.from("teams").select("id, name");
     const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status").eq("status", "active");
-    const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status");
+    const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status, review_status");
     const agentsRes = await db
       .from("agents")
       .select("id, name, status, last_seen, current_job_id")

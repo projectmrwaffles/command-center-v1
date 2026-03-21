@@ -12,6 +12,7 @@ import { ProjectStatusBadge, ProjectTypeBadge } from "@/components/ui/project-ba
 import { CreateProjectModal } from "@/components/create-project-modal";
 import { DbBanner } from "@/components/db-banner";
 import { getProjectStatusTone } from "@/lib/project-ui";
+import { formatRelativeTimestamp, getExecutionTone } from "@/components/ui/execution-visibility";
 
 type Project = {
   id: string;
@@ -183,6 +184,7 @@ function ProjectsContent() {
           {projects.map((project) => {
             const progress = Math.max(0, Math.min(100, project.progress_pct || 0));
             const statusTone = getProjectStatusTone(project.status);
+            const executionTone = getExecutionTone({ status: project.status, blocked: project.status === "blocked" });
             const summary = project.intake_summary || project.description || "Open the project to see its current scope, active tasks, and delivery details.";
 
             return (
@@ -198,7 +200,10 @@ function ProjectsContent() {
                         </div>
                       </div>
 
-                      <ProjectStatusBadge status={project.status} className="shrink-0" />
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <ProjectStatusBadge status={project.status} className="shrink-0" />
+                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${executionTone.badgeClassName}`}>{executionTone.label}</span>
+                      </div>
                     </div>
 
                     <div className={`rounded-2xl border p-4 ${statusTone.surface}`}>
@@ -210,7 +215,10 @@ function ProjectsContent() {
                             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone.pill}`}>{statusTone.label}</span>
                           </div>
                         </div>
-                        <div className="text-right text-xs text-zinc-500">{formatRelativeDate(project.updated_at || project.created_at)}</div>
+                        <div className="text-right text-xs text-zinc-500">
+                          <div>{formatRelativeDate(project.updated_at || project.created_at)}</div>
+                          <div className="mt-1">{formatRelativeTimestamp(project.updated_at || project.created_at)}</div>
+                        </div>
                       </div>
                       <div className={`mt-3 h-2 overflow-hidden rounded-full ${statusTone.progressTrack}`}>
                         <div className={`h-full rounded-full ${statusTone.progress} transition-all`} style={{ width: `${progress}%` }} />

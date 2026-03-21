@@ -33,6 +33,7 @@ export type ProjectSummary = {
   name: string;
   type?: string;
   teamName?: string;
+  progress_pct?: number;
   activeSprint?: {
     id: string;
     name: string;
@@ -89,7 +90,7 @@ async function loadDashboardData(): Promise<DashboardData> {
     const blockedJobs = blockedJobsRes.status === "fulfilled" ? blockedJobsRes.value.data ?? [] : [];
 
     // Fetch projects with their active sprint + sprint items for progress
-    const projectsRes = await db.from("projects").select("id, name, type, team_id").eq("status", "active");
+    const projectsRes = await db.from("projects").select("id, name, type, team_id, progress_pct").eq("status", "active");
     const teamsRes = await db.from("teams").select("id, name");
     const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status").eq("status", "active");
     const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status, review_status");
@@ -149,6 +150,7 @@ async function loadDashboardData(): Promise<DashboardData> {
         name: p.name,
         type: p.type,
         teamName,
+        progress_pct: p.progress_pct ?? 0,
         activeSprint: activeSprint
           ? {
               id: activeSprint.id,

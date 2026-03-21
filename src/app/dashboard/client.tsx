@@ -115,7 +115,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
   useEffect(() => {
     replaceAgents(initialData.agents as any);
-    initialData.projects.forEach((p: any) => upsertProject({ ...p, progress_pct: p.activeSprint?.progress ?? p.progress_pct ?? 0 }));
+    initialData.projects.forEach((p: any) => upsertProject({ ...p, progress_pct: p.progress_pct ?? p.activeSprint?.progress ?? 0 }));
     initialData.needsYou.forEach((n: any) => {
       if (n.type === "approval") {
         upsertApproval({

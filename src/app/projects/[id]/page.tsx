@@ -70,6 +70,13 @@ type Milestone = {
 };
 
 type ProjectDetail = {
+  deliveryIntegrity?: {
+    requiresGitHubRepo?: boolean;
+    hasGitHubRepo?: boolean;
+    blockingReason?: string | null;
+    completionBlocked?: boolean;
+    completionCapPct?: number | null;
+  };
   project: {
     name: string;
     status: string;
@@ -266,7 +273,7 @@ function MilestoneReviewCard({
       ) : canRequestReview ? (
         <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
           <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Request review</summary>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section.</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. Code-heavy phases require a real GitHub repo link before review can start.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {PROJECT_LINK_FIELDS.map((key) => (
               <label key={key} className="block">
@@ -625,7 +632,7 @@ export default function ProjectDetailPage() {
     return null;
   }
 
-  const { project, teams, milestones = [], tasks, recentSignals = [], stats } = data;
+  const { project, teams, milestones = [], tasks, recentSignals = [], stats, deliveryIntegrity } = data;
   const intake = project.intake || null;
   const routing = intake ? getRoutingSummary(intake) : null;
   const projectLinks = getProjectLinkEntries(project.links);
@@ -718,6 +725,12 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className={cn("rounded-2xl border p-4", statusTone.surface)}>
+              {deliveryIntegrity?.blockingReason ? (
+                <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <div className="font-medium">Delivery integrity hold</div>
+                  <div className="mt-1 leading-6">{deliveryIntegrity.blockingReason}</div>
+                </div>
+              ) : null}
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Delivery progress</p>

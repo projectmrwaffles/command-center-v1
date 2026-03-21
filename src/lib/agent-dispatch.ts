@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { createRouteHandlerClient } from "./supabase-server.ts";
 
 const AGENT_MAP: Record<string, string> = {
   "11111111-1111-1111-1111-000000000001": "main",

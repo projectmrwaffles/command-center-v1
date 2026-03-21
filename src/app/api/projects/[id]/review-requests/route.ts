@@ -1,3 +1,4 @@
+import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { getSprintReviewEligibility } from "@/lib/review-request-guards";
 import { mergeProjectLinks, buildReviewRequestContext, buildReviewRequestSummary } from "@/lib/review-requests";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
@@ -71,9 +72,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }] = await Promise.all([
-      db.from("projects").select("id, name, links").eq("id", projectId).single(),
+      db.from("projects").select("id, name, type, intake, links, github_repo_binding").eq("id", projectId).single(),
       db.from("sprints").select("id, project_id, name, approval_gate_required, approval_gate_status").eq("id", sprintId).eq("project_id", projectId).single(),
-      db.from("sprint_items").select("status").eq("project_id", projectId).eq("sprint_id", sprintId),
+      db.from("sprint_items").select("status, task_type").eq("project_id", projectId).eq("sprint_id", sprintId),
     ]);
 
     if (projectError || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -91,12 +92,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: eligibility.reason }, { status });
     }
 
+    const mergedLinks = mergeProjectLinks(project.links, body?.links);
+    const artifactIntegrity = getProjectArtifactIntegrity(
+      {
+        type: project.type,
+        intake: project.intake,
+        links: mergedLinks || project.links,
+        github_repo_binding: project.github_repo_binding,
+      },
+      sprintTasks || []
+    );
+
+    if (artifactIntegrity.blockingReason) {
+      return NextResponse.json({ error: artifactIntegrity.blockingReason }, { status: 400 });
+    }
+
     const ownerAgentId = await resolveReviewOwner(db, projectId, sprintId);
     if (!ownerAgentId) {
       return NextResponse.json({ error: "No agent available to own this review request" }, { status: 400 });
     }
 
-    const mergedLinks = mergeProjectLinks(project.links, body?.links);
     const summary = buildReviewRequestSummary({ projectName: project.name, sprintName: sprint.name });
     const context = buildReviewRequestContext({
       sprintId: sprint.id,

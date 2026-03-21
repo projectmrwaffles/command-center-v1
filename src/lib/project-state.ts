@@ -1,3 +1,5 @@
+import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
+
 type DbClient = {
   from: (table: string) => any;
 };
@@ -114,7 +116,7 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
 
   const { data: project, error: projectError } = await db
     .from("projects")
-    .select("status")
+    .select("status, type, intake, links, github_repo_binding")
     .eq("id", projectId)
     .single();
 
@@ -123,16 +125,21 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
   }
 
   const hasActiveTasks = tasks?.some((task: { status: string }) => ACTIVE_TASK_STATUSES.has(task.status)) ?? false;
+  const artifactIntegrity = getProjectArtifactIntegrity(project || {}, tasks || []);
+  const effectiveProgressPct =
+    totalTasks > 0 && doneTasks === totalTasks && artifactIntegrity.completionCapPct != null
+      ? Math.min(progressPct, artifactIntegrity.completionCapPct)
+      : progressPct;
   let nextStatus = project?.status as string | undefined;
 
-  if (totalTasks > 0 && doneTasks === totalTasks) {
+  if (totalTasks > 0 && doneTasks === totalTasks && !artifactIntegrity.completionBlocked) {
     nextStatus = "completed";
-  } else if (nextStatus === "completed" && hasActiveTasks) {
+  } else if (nextStatus === "completed" && (hasActiveTasks || artifactIntegrity.completionBlocked)) {
     nextStatus = "active";
   }
 
   const updatePayload: Record<string, unknown> = {
-    progress_pct: progressPct,
+    progress_pct: effectiveProgressPct,
     updated_at: new Date().toISOString(),
   };
 
@@ -154,5 +161,10 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
     throw new Error(updateError.message);
   }
 
-  return { totalTasks, doneTasks, progressPct, projectStatus: updatePayload.status as string | undefined };
+  return {
+    totalTasks,
+    doneTasks,
+    progressPct: effectiveProgressPct,
+    projectStatus: updatePayload.status as string | undefined,
+  };
 }

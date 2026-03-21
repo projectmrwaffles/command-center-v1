@@ -1,3 +1,4 @@
+import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
@@ -173,9 +174,13 @@ export async function GET(
       };
     });
 
+    const artifactIntegrity = getProjectArtifactIntegrity(project, tasks || []);
     const totalTasks = tasks?.length || 0;
     const doneTasks = tasks?.filter((task) => task.status === "done").length || 0;
-    const overallProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : project.progress_pct || 0;
+    const rawProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : project.progress_pct || 0;
+    const overallProgress = artifactIntegrity.completionCapPct != null && doneTasks === totalTasks && totalTasks > 0
+      ? Math.min(rawProgress, artifactIntegrity.completionCapPct)
+      : rawProgress;
 
     const milestones = (sprints || []).map((sprint: any) => {
       const sprintTasks = (tasks || []).filter((task: any) => task.sprint_id === sprint.id);
@@ -247,6 +252,7 @@ export async function GET(
         ...project,
         progress_pct: overallProgress,
       },
+      deliveryIntegrity: artifactIntegrity,
       teams: teamsWithStats,
       milestones,
       sprints: sprints || [],

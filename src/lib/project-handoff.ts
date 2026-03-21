@@ -1,4 +1,5 @@
-import { triggerAgentWork } from "@/lib/agent-dispatch";
+import { triggerAgentWork } from "./agent-dispatch.ts";
+import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
 
@@ -8,6 +9,8 @@ type SprintRow = {
   status: string;
   created_at?: string | null;
   phase_order?: number | null;
+  approval_gate_required?: boolean | null;
+  approval_gate_status?: string | null;
 };
 
 type TaskRow = {
@@ -17,6 +20,7 @@ type TaskRow = {
   status: string;
   assignee_agent_id: string | null;
   position?: number | null;
+  task_type?: string | null;
 };
 
 const DONE_LIKE = new Set(["done", "cancelled"]);
@@ -34,13 +38,15 @@ export async function maybeAdvanceProjectAfterTaskDone(db: DbClient, input: {
   completedTaskId: string;
   projectName?: string | null;
 }) {
-  const [{ data: sprints, error: sprintsError }, { data: tasks, error: tasksError }] = await Promise.all([
+  const [{ data: sprints, error: sprintsError }, { data: tasks, error: tasksError }, { data: project, error: projectError }] = await Promise.all([
     db.from("sprints").select("*").eq("project_id", input.projectId),
     db.from("sprint_items").select("*").eq("project_id", input.projectId),
+    db.from("projects").select("name, type, intake, links, github_repo_binding").eq("id", input.projectId).single(),
   ]);
 
   if (sprintsError) throw new Error(sprintsError.message);
   if (tasksError) throw new Error(tasksError.message);
+  if (projectError) throw new Error(projectError.message);
 
   const sprintRows = ((sprints || []) as SprintRow[]).slice().sort(sortSprints);
   const taskRows = ((tasks || []) as TaskRow[]).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -65,6 +71,15 @@ export async function maybeAdvanceProjectAfterTaskDone(db: DbClient, input: {
     return { advanced: false, reason: "current_sprint_not_complete" };
   }
 
+  const artifactIntegrity = getProjectArtifactIntegrity(project || {}, currentSprintTasks);
+  if (artifactIntegrity.blockingReason) {
+    return { advanced: false, reason: "required_artifacts_missing" };
+  }
+
+  if (currentSprint.approval_gate_required && currentSprint.approval_gate_status !== "approved") {
+    return { advanced: false, reason: "review_gate_not_approved" };
+  }
+
   const currentIndex = sprintRows.findIndex((sprint) => sprint.id === currentSprint.id);
   const nextSprint = sprintRows.slice(currentIndex + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
   if (!nextSprint) {
@@ -82,7 +97,7 @@ export async function maybeAdvanceProjectAfterTaskDone(db: DbClient, input: {
   }
 
   const nextTasks = taskRows.filter((task) => task.sprint_id === nextSprint.id && task.status === "todo" && task.assignee_agent_id);
-  const projectName = input.projectName || (await db.from("projects").select("name").eq("id", input.projectId).single()).data?.name || "Unknown Project";
+  const projectName = input.projectName || project?.name || "Unknown Project";
 
   for (const task of nextTasks) {
     await triggerAgentWork(db as any, task.assignee_agent_id as string, projectName, task.title, task.id);

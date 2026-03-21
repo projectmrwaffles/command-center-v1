@@ -201,8 +201,8 @@ async function main() {
         type: "ops_enablement",
         description: "Disposable smoke project for backend closeout verification.",
         links: {
-          github: "https://github.com/example/command-center",
-          docs: "https://example.com/internal-ready",
+          github: "https://github.com/vercel/next.js",
+          docs: "https://nextjs.org/docs",
         },
         intake: {
           summary: "Smoke-check intake",

@@ -11,6 +11,10 @@ export type ProjectLinkKey = (typeof PROJECT_LINK_FIELDS)[number];
 
 export type ProjectLinks = Partial<Record<ProjectLinkKey, string>>;
 
+const RESERVED_PLACEHOLDER_HOSTS = new Set(["example.com", "example.org", "example.net"]);
+const RESERVED_GITHUB_OWNERS = new Set(["example", "demo", "placeholder", "sample", "your-org", "org"]);
+const RESERVED_GITHUB_REPOS = new Set(["repo", "your-repo", "project", "sample", "demo", "placeholder"]);
+
 export const PROJECT_LINK_LABELS: Record<ProjectLinkKey, string> = {
   github: "GitHub",
   preview: "Preview",
@@ -19,6 +23,22 @@ export const PROJECT_LINK_LABELS: Record<ProjectLinkKey, string> = {
   figma: "Figma",
   admin: "Admin",
 };
+
+export function isPlaceholderArtifactUrl(input: URL): boolean {
+  const hostname = input.hostname.toLowerCase();
+  if (RESERVED_PLACEHOLDER_HOSTS.has(hostname)) return true;
+  if ([...RESERVED_PLACEHOLDER_HOSTS].some((host) => hostname.endsWith(`.${host}`))) return true;
+
+  if (hostname === "github.com") {
+    const parts = input.pathname.split("/").filter(Boolean).map((part) => part.toLowerCase());
+    const owner = parts[0] || "";
+    const repo = parts[1] || "";
+    if (RESERVED_GITHUB_OWNERS.has(owner)) return true;
+    if (RESERVED_GITHUB_REPOS.has(repo)) return true;
+  }
+
+  return false;
+}
 
 export function normalizeUrl(value?: string | null): string | null {
   if (!value) return null;
@@ -30,6 +50,7 @@ export function normalizeUrl(value?: string | null): string | null {
   try {
     const url = new URL(withProtocol);
     if (!["http:", "https:"].includes(url.protocol)) return null;
+    if (isPlaceholderArtifactUrl(url)) return null;
     return url.toString();
   } catch {
     return null;

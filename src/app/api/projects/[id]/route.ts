@@ -3,7 +3,7 @@ import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { isMissingGithubRepoBindingColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
+import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { NextRequest, NextResponse } from "next/server";
 
 type TeamWithId = {
@@ -75,11 +75,11 @@ export async function GET(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const { data: project, error: projectError } = await db
-      .from("projects")
-      .select("*")
-      .eq("id", projectId)
-      .single();
+    const { data: project, error: projectError } = await selectProjectWithArtifactCompat(
+      db,
+      projectId,
+      "id, name, type, team_id, description, intake, intake_summary, status, progress_pct, created_at, updated_at"
+    );
 
     if (projectError || !project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -381,6 +381,20 @@ export async function PATCH(
         .select()
         .single();
       data = retry.data ? { ...retry.data, github_repo_binding: null } : retry.data;
+      error = retry.error;
+    }
+
+    if (error && isMissingLinksColumnError(error) && "links" in update) {
+      const updateWithoutArtifacts = { ...update };
+      delete updateWithoutArtifacts.links;
+      delete updateWithoutArtifacts.github_repo_binding;
+      const retry = await db
+        .from("projects")
+        .update(updateWithoutArtifacts)
+        .eq("id", projectId)
+        .select()
+        .single();
+      data = retry.data ? { ...retry.data, links: null, github_repo_binding: null } : retry.data;
       error = retry.error;
     }
 

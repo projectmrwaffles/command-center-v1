@@ -6,6 +6,24 @@ import { selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
+async function selectSprintTasksForReviewCompat(
+  db: NonNullable<ReturnType<typeof createRouteHandlerClient>>,
+  projectId: string,
+  sprintId: string,
+) {
+  const first = await db.from("sprint_items").select("status, task_type").eq("project_id", projectId).eq("sprint_id", sprintId);
+
+  if (!first.error || !(first.error.code === "PGRST204" || first.error.code === "42703") || !first.error.message?.includes("task_type")) {
+    return first;
+  }
+
+  const fallback = await db.from("sprint_items").select("status").eq("project_id", projectId).eq("sprint_id", sprintId);
+  return {
+    ...fallback,
+    data: (fallback.data || []).map((task: any) => ({ ...task, task_type: null })),
+  };
+}
+
 async function resolveReviewOwner(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, projectId: string, sprintId: string) {
   const { data: sprintTasks } = await db
     .from("sprint_items")
@@ -75,7 +93,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }] = await Promise.all([
       selectProjectWithArtifactCompat(db, projectId, "id, name, type, intake"),
       db.from("sprints").select("id, project_id, name, approval_gate_required, approval_gate_status").eq("id", sprintId).eq("project_id", projectId).single(),
-      db.from("sprint_items").select("status, task_type").eq("project_id", projectId).eq("sprint_id", sprintId),
+      selectSprintTasksForReviewCompat(db, projectId, sprintId),
     ]);
 
     if (projectError || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });

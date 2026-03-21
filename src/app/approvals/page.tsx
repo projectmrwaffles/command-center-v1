@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
+import { getProjectLinkEntries, type ProjectLinks } from "@/lib/project-links";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,10 @@ type ApprovalRow = {
   created_at: string;
   agents?: { name: string; title: string | null } | { name: string; title: string | null }[] | null;
   jobs?: { title: string | null; status: string | null } | { title: string | null; status: string | null }[] | null;
-  projects?: { name: string | null } | { name: string | null }[] | null;
+  sprint_id: string | null;
+  context?: { links?: ProjectLinks | null; sprint_name?: string | null; note?: string | null } | null;
+  projects?: { name: string | null; links?: ProjectLinks | null } | { name: string | null; links?: ProjectLinks | null }[] | null;
+  sprints?: { name: string | null } | { name: string | null }[] | null;
 };
 
 function getJoinedRow<T>(value: T | T[] | null | undefined): T | null {
@@ -110,7 +114,7 @@ async function handleApproval(formData: FormData) {
 
   const { data: existingApproval } = await db
     .from("approvals")
-    .select("id, project_id, job_id, agent_id, summary, status")
+    .select("id, project_id, job_id, agent_id, summary, status, sprint_id")
     .eq("id", id)
     .single();
 
@@ -133,6 +137,16 @@ async function handleApproval(formData: FormData) {
       .eq("id", existingApproval.job_id);
   }
 
+  if (existingApproval?.sprint_id) {
+    await db
+      .from("sprints")
+      .update({
+        approval_gate_status: decision === "approve" ? "approved" : "rejected",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingApproval.sprint_id);
+  }
+
   if (existingApproval?.project_id) {
     await db.from("agent_events").insert({
       agent_id: existingApproval.agent_id,
@@ -141,6 +155,7 @@ async function handleApproval(formData: FormData) {
       event_type: "approval_decided",
       payload: {
         approval_id: id,
+        sprint_id: existingApproval.sprint_id,
         summary: existingApproval.summary,
         previous_status: existingApproval.status,
         decision: decision === "approve" ? "approved" : "changes_requested",
@@ -183,7 +198,7 @@ export default async function ApprovalsPage({
   try {
     const res = await db
       .from("approvals")
-      .select("id, status, summary, note, decided_at, agent_id, job_id, project_id, severity, requester_name, created_at, agents(name, title), jobs(title, status), projects(name)")
+      .select("id, status, summary, note, decided_at, agent_id, job_id, project_id, severity, requester_name, created_at, sprint_id, context, agents(name, title), jobs(title, status), projects(name, links), sprints(name)")
       .order("created_at", { ascending: false });
     approvals = (res.data ?? null) as ApprovalRow[] | null;
   } catch (err) {
@@ -303,6 +318,8 @@ export default async function ApprovalsPage({
               const agent = getJoinedRow(a.agents);
               const job = getJoinedRow(a.jobs);
               const project = getJoinedRow(a.projects);
+              const sprint = getJoinedRow(a.sprints);
+              const reviewLinks = getProjectLinkEntries(a.context?.links || project?.links || null);
 
               return (
                 <Card key={a.id} variant="featured" className="relative overflow-hidden rounded-[24px]">
@@ -343,20 +360,21 @@ export default async function ApprovalsPage({
                         <div className="mt-1 text-sm font-medium text-zinc-900">{project?.name || "Unknown project"}</div>
                       </div>
                       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Milestone</div>
+                        <div className="mt-1 text-sm font-medium text-zinc-900">{a.context?.sprint_name || sprint?.name || "Project review"}</div>
+                      </div>
+                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                         <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Agent</div>
                         <div className="mt-1 text-sm font-medium text-zinc-900">{agent?.name || "Unknown agent"}</div>
                       </div>
                       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                         <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Execution job</div>
                         <div className="mt-1 text-sm font-medium text-zinc-900">{job?.title || "Unknown job"}</div>
-                      </div>
-                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Execution status</div>
-                        <div className="mt-1 text-sm font-medium capitalize text-zinc-900">{formatStatus(job?.status)}</div>
+                        <div className="mt-1 text-xs capitalize text-zinc-500">{formatStatus(job?.status)}</div>
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requester</div>
@@ -368,6 +386,27 @@ export default async function ApprovalsPage({
                             <ArrowRight className="h-4 w-4" />
                           </Link>
                         ) : null}
+                      </div>
+                      {a.context?.note ? (
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review note</div>
+                          <p className="mt-1 text-sm leading-6 text-zinc-600">{a.context.note}</p>
+                        </div>
+                      ) : null}
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Artifact links</div>
+                        {reviewLinks.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {reviewLinks.map((link) => (
+                              <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700 hover:border-red-200 hover:text-red-700">
+                                {link.label}
+                                <ArrowRight className="h-3.5 w-3.5" />
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-1 text-sm text-zinc-500">No artifact links attached yet.</p>
+                        )}
                       </div>
                     </div>
 

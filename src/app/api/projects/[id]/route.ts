@@ -93,7 +93,7 @@ export async function GET(
         .limit(50),
       db
         .from("approvals")
-        .select("id, summary, severity, status, created_at")
+        .select("id, summary, severity, status, created_at, sprint_id, context")
         .eq("project_id", projectId)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -180,6 +180,7 @@ export async function GET(
       const sprintTasks = (tasks || []).filter((task: any) => task.sprint_id === sprint.id);
       const total = sprintTasks.length;
       const done = sprintTasks.filter((task: any) => task.status === "done").length;
+      const pendingReview = (approvals || []).find((approval: any) => approval.sprint_id === sprint.id && approval.status === "pending");
       return {
         id: sprint.id,
         name: sprint.name,
@@ -193,6 +194,15 @@ export async function GET(
         totalTasks: total,
         doneTasks: done,
         progressPct: total > 0 ? Math.round((done / total) * 100) : 0,
+        reviewRequest: pendingReview
+          ? {
+              id: pendingReview.id,
+              status: pendingReview.status,
+              summary: pendingReview.summary,
+              createdAt: pendingReview.created_at,
+              links: pendingReview.context?.links ?? null,
+            }
+          : null,
       };
     });
 

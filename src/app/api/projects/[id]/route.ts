@@ -1,5 +1,5 @@
 import { sanitizeProjectLinks } from "@/lib/project-links";
-import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
+import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -312,15 +312,40 @@ export async function PATCH(
     }
 
     if (links !== undefined || githubRepo !== undefined) {
+      const db = createRouteHandlerClient();
+      if (!db) {
+        return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+      }
+
+      const { data: currentProject, error: currentProjectError } = await db
+        .from("projects")
+        .select("id, links, github_repo_binding")
+        .eq("id", projectId)
+        .single();
+
+      if (currentProjectError || !currentProject) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 });
+      }
+
+      const existingBinding = (currentProject.github_repo_binding || null) as GitHubRepoBinding | null;
+      const sanitizedIncomingLinks = links === undefined ? undefined : sanitizeProjectLinks(links);
       const githubBinding = githubRepo === null
         ? null
-        : createGitHubRepoBinding({
-            url: githubRepoUrl,
-            source: provisionGithubRepo ? "provisioned" : githubRepo?.source || "linked",
-            ...githubRepo,
-          });
+        : createGitHubRepoBinding(
+            {
+              url: githubRepoUrl,
+              source: provisionGithubRepo ? "provisioned" : githubRepo?.source || existingBinding?.source || "linked",
+              ...githubRepo,
+            },
+            existingBinding
+          ) ?? existingBinding;
       update.github_repo_binding = githubBinding;
-      update.links = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links), githubBinding);
+      update.links = mergeProjectLinksForGitHubUpdate(
+        currentProject.links as Record<string, string> | null | undefined,
+        sanitizedIncomingLinks,
+        githubBinding,
+        { replaceAll: links !== undefined }
+      );
     }
 
     if (Object.keys(update).length === 1) {

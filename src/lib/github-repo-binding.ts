@@ -64,9 +64,12 @@ export function parseGitHubRepoUrl(input?: string | null) {
   };
 }
 
-export function createGitHubRepoBinding(input: GitHubRepoBindingInput): GitHubRepoBinding | null {
+export function createGitHubRepoBinding(input: GitHubRepoBindingInput, existing?: GitHubRepoBinding | null): GitHubRepoBinding | null {
   const parsed = parseGitHubRepoUrl(input.url);
   if (!parsed) return null;
+
+  const source = input.source || existing?.source || "linked";
+  const isSameRepo = existing?.provider === "github" && existing.fullName.toLowerCase() === parsed.fullName.toLowerCase();
 
   return {
     provider: "github",
@@ -74,17 +77,19 @@ export function createGitHubRepoBinding(input: GitHubRepoBindingInput): GitHubRe
     repo: parsed.repo,
     fullName: parsed.fullName,
     url: parsed.url,
-    source: input.source || "linked",
-    linkedAt: new Date().toISOString(),
-    defaultBranch: input.defaultBranch || null,
-    installationId: typeof input.installationId === "number" ? input.installationId : null,
+    source,
+    linkedAt: isSameRepo ? existing?.linkedAt || new Date().toISOString() : new Date().toISOString(),
+    defaultBranch: input.defaultBranch !== undefined ? input.defaultBranch || null : isSameRepo ? existing?.defaultBranch || null : null,
+    installationId: typeof input.installationId === "number" ? input.installationId : isSameRepo ? existing?.installationId || null : null,
     projectLinkKey: "github",
     provisioning:
-      input.source === "provisioned"
-        ? {
-            status: "pending",
-            reason: "Provisioning scaffolded but not yet connected to authenticated GitHub runtime in this environment.",
-          }
+      source === "provisioned"
+        ? existing?.provisioning && isSameRepo
+          ? existing.provisioning
+          : {
+              status: "pending",
+              reason: "Provisioning scaffolded but not yet connected to authenticated GitHub runtime in this environment.",
+            }
         : {
             status: "not_configured",
             reason: "Existing repository linked. Explicit provisioning is not configured in this environment.",
@@ -116,4 +121,16 @@ export function getGitHubRepoValidationError(input?: string | null) {
 
 export function githubProvisioningAvailable() {
   return false;
+}
+
+
+export function mergeProjectLinksForGitHubUpdate(
+  existingLinks: Record<string, string> | null | undefined,
+  incomingLinks: Record<string, string> | null | undefined,
+  binding: GitHubRepoBinding | null | undefined,
+  options?: { replaceAll?: boolean }
+) {
+  const base = options?.replaceAll ? {} : { ...(existingLinks || {}) };
+  const merged = incomingLinks ? { ...base, ...incomingLinks } : base;
+  return syncProjectLinksWithGitHubBinding(merged, binding);
 }

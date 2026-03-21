@@ -30,6 +30,7 @@ import {
 } from "@/lib/project-intake";
 import { getProjectStatusTone } from "@/lib/project-ui";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
+import { parseGitHubRepoUrl, type GitHubRepoBinding } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
 import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { useRealtimeStore } from "@/lib/realtime-store";
@@ -79,6 +80,7 @@ type ProjectDetail = {
     description?: string | null;
     intake?: any;
     links?: ProjectLinks | null;
+    github_repo_binding?: GitHubRepoBinding | null;
     [key: string]: any;
   };
   teams: any[];
@@ -307,18 +309,21 @@ function LinkEditor({
   projectType,
   intake,
   links,
+  githubBinding,
   onSaved,
 }: {
   projectId: string;
   projectType?: string | null;
   intake?: any;
   links?: ProjectLinks | null;
-  onSaved: (links: ProjectLinks | null) => void;
+  githubBinding?: GitHubRepoBinding | null;
+  onSaved: (payload: { links: ProjectLinks | null; githubBinding: GitHubRepoBinding | null }) => void;
 }) {
   const [draft, setDraft] = useState<ProjectLinks>(links || {});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const suggestedFields = useMemo(() => getProjectLinkSuggestions(projectType, intake), [projectType, intake]);
+  const parsedGithubRepo = useMemo(() => parseGitHubRepoUrl(draft.github), [draft.github]);
 
   useEffect(() => {
     setDraft(links || {});
@@ -338,11 +343,11 @@ function LinkEditor({
       const res = await fetch(`/api/projects/${projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ links: draft }),
+        body: JSON.stringify({ links: draft, githubRepo: draft.github ? { url: draft.github } : null }),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.error || "Failed to save links");
-      onSaved(payload.project?.links || null);
+      onSaved({ links: payload.project?.links || null, githubBinding: payload.project?.github_repo_binding || null });
       setMessage("Saved");
     } catch (e: any) {
       setMessage(e.message || "Failed to save links");
@@ -363,6 +368,14 @@ function LinkEditor({
             <span key={key} className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Suggested: {PROJECT_LINK_LABELS[key]}</span>
           ))}
         </div>
+
+        {(githubBinding || parsedGithubRepo) ? (
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">GitHub repo binding</div>
+            <div className="mt-1 font-medium text-zinc-900">{githubBinding?.fullName || parsedGithubRepo?.fullName}</div>
+            <p className="mt-1 leading-6">{githubBinding ? "Project-level repo binding is live and synced from the GitHub link below." : "Saving this GitHub URL will create a first-class repo binding for this project."}</p>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           {orderedFields.map((key) => (
@@ -975,7 +988,8 @@ export default function ProjectDetailPage() {
                 projectType={project.type}
                 intake={intake}
                 links={project.links}
-                onSaved={(links) => setData((prev) => (prev ? { ...prev, project: { ...prev.project, links } } : prev))}
+                githubBinding={project.github_repo_binding}
+                onSaved={({ links, githubBinding }) => setData((prev) => (prev ? { ...prev, project: { ...prev.project, links, github_repo_binding: githubBinding } } : prev))}
               />
             </div>
           </Section>

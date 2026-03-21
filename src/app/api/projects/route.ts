@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
 import { sanitizeProjectLinks } from "@/lib/project-links";
+import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -109,13 +110,15 @@ export async function POST(req: NextRequest) {
     const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
     if (!auth.ok) return auth.response;
     const body = await req.json();
-    const { name, type, teamId, description, intake, links } = body as {
+    const { name, type, teamId, description, intake, links, githubRepo, provisionGithubRepo } = body as {
       name?: string;
       type?: string;
       teamId?: string;
       description?: string;
       intake?: ProjectIntake;
       links?: Record<string, string>;
+      githubRepo?: GitHubRepoBindingInput;
+      provisionGithubRepo?: boolean;
     };
 
     if (!name || !type) {
@@ -127,7 +130,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const sanitizedLinks = sanitizeProjectLinks(links || intake?.links);
+    const githubRepoUrl = githubRepo?.url || links?.github || intake?.links?.github;
+    const githubRepoError = getGitHubRepoValidationError(githubRepoUrl);
+    if (githubRepoError) {
+      return NextResponse.json({ error: githubRepoError }, { status: 400 });
+    }
+
+    if (provisionGithubRepo && !githubProvisioningAvailable()) {
+      return NextResponse.json({ error: "GitHub repo provisioning is not available in this environment yet. Link an existing repo for now." }, { status: 501 });
+    }
+
+    const githubBinding = createGitHubRepoBinding({
+      url: githubRepoUrl,
+      source: provisionGithubRepo ? "provisioned" : "linked",
+      ...githubRepo,
+    });
+    const sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || intake?.links), githubBinding);
     const autoTeamIds = teamId
       ? [teamId]
       : intake
@@ -147,6 +165,7 @@ export async function POST(req: NextRequest) {
       intake_summary: intake?.summary || null,
       status: "active",
       progress_pct: 0,
+      github_repo_binding: githubBinding,
     };
 
     let project: any = null;
@@ -156,8 +175,14 @@ export async function POST(req: NextRequest) {
     project = firstInsert.data;
     error = firstInsert.error;
 
+    if (error?.code === "PGRST204" && error.message.includes("'github_repo_binding' column")) {
+      const retryWithoutBinding = await db.from("projects").insert({ ...projectInsertBase, github_repo_binding: undefined, links: sanitizedLinks }).select().single();
+      project = retryWithoutBinding.data;
+      error = retryWithoutBinding.error;
+    }
+
     if (error?.code === "PGRST204" && error.message.includes("'links' column")) {
-      const fallbackInsert = await db.from("projects").insert(projectInsertBase).select().single();
+      const fallbackInsert = await db.from("projects").insert({ ...projectInsertBase, github_repo_binding: undefined }).select().single();
       project = fallbackInsert.data;
       error = fallbackInsert.error;
     }

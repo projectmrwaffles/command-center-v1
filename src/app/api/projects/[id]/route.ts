@@ -1,4 +1,5 @@
 import { sanitizeProjectLinks } from "@/lib/project-links";
+import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -278,7 +279,12 @@ export async function PATCH(
     const params = await ctx.params;
     const projectId = params.id;
     const body = await req.json();
-    const { status, links } = body;
+    const { status, links, githubRepo, provisionGithubRepo } = body as {
+      status?: string;
+      links?: Record<string, string>;
+      githubRepo?: GitHubRepoBindingInput | null;
+      provisionGithubRepo?: boolean;
+    };
 
     if (!projectId) {
       return NextResponse.json({ error: "Project ID required" }, { status: 400 });
@@ -295,8 +301,26 @@ export async function PATCH(
       update.status = status;
     }
 
-    if (links !== undefined) {
-      update.links = sanitizeProjectLinks(links);
+    const githubRepoUrl = githubRepo === null ? null : githubRepo?.url || links?.github;
+    const githubRepoError = getGitHubRepoValidationError(githubRepoUrl);
+    if (githubRepoError) {
+      return NextResponse.json({ error: githubRepoError }, { status: 400 });
+    }
+
+    if (provisionGithubRepo && !githubProvisioningAvailable()) {
+      return NextResponse.json({ error: "GitHub repo provisioning is not available in this environment yet. Link an existing repo for now." }, { status: 501 });
+    }
+
+    if (links !== undefined || githubRepo !== undefined) {
+      const githubBinding = githubRepo === null
+        ? null
+        : createGitHubRepoBinding({
+            url: githubRepoUrl,
+            source: provisionGithubRepo ? "provisioned" : githubRepo?.source || "linked",
+            ...githubRepo,
+          });
+      update.github_repo_binding = githubBinding;
+      update.links = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links), githubBinding);
     }
 
     if (Object.keys(update).length === 1) {

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 
 const PROJECT_LINK_FIELDS = ["github", "preview", "production", "docs", "figma", "admin"];
+const DONE_LIKE = new Set(["done", "cancelled"]);
+const ACTIVE_REVIEW_BLOCKERS = new Set(["todo", "in_progress", "blocked"]);
 
 function normalizeUrl(value) {
   if (!value) return null;
@@ -51,6 +53,38 @@ function buildReviewRequestContext(input) {
   };
 }
 
+function getSprintReviewEligibility(input) {
+  const taskStatuses = (input.taskStatuses || []).filter((status) => typeof status === "string");
+  const totalTasks = taskStatuses.length;
+  const doneTasks = taskStatuses.filter((status) => DONE_LIKE.has(status)).length;
+
+  if (!input.approvalGateRequired) {
+    return { ok: false, reason: "Milestone is not review-gated", totalTasks, doneTasks };
+  }
+
+  if (input.approvalGateStatus === "pending") {
+    return { ok: false, reason: "Review request already pending for this milestone", totalTasks, doneTasks };
+  }
+
+  if (input.approvalGateStatus === "approved") {
+    return { ok: false, reason: "Milestone has already been approved", totalTasks, doneTasks };
+  }
+
+  if (totalTasks === 0) {
+    return { ok: false, reason: "Milestone needs at least one task before requesting review", totalTasks, doneTasks };
+  }
+
+  if (taskStatuses.some((status) => ACTIVE_REVIEW_BLOCKERS.has(status))) {
+    return { ok: false, reason: "Finish milestone tasks before requesting review", totalTasks, doneTasks };
+  }
+
+  if (doneTasks !== totalTasks) {
+    return { ok: false, reason: "Milestone is not complete enough for review", totalTasks, doneTasks };
+  }
+
+  return { ok: true, totalTasks, doneTasks };
+}
+
 const merged = mergeProjectLinks(
   { docs: "docs.example.com/spec", github: "https://github.com/acme/old" },
   { github: "github.com/acme/new", preview: "preview.example.com/review" },
@@ -76,5 +110,41 @@ assert.equal(context.kind, "project_phase_review");
 assert.equal(context.sprint_id, "s1");
 assert.equal(context.links?.github, "https://github.com/acme/new");
 assert.equal(context.note, "Ready for QC with GitHub + preview attached.");
+
+assert.deepEqual(getSprintReviewEligibility({
+  approvalGateRequired: true,
+  approvalGateStatus: "not_requested",
+  taskStatuses: ["done", "cancelled"],
+}), { ok: true, totalTasks: 2, doneTasks: 2 });
+
+assert.equal(getSprintReviewEligibility({
+  approvalGateRequired: false,
+  approvalGateStatus: "not_requested",
+  taskStatuses: ["done"],
+}).reason, "Milestone is not review-gated");
+
+assert.equal(getSprintReviewEligibility({
+  approvalGateRequired: true,
+  approvalGateStatus: "pending",
+  taskStatuses: ["done"],
+}).reason, "Review request already pending for this milestone");
+
+assert.equal(getSprintReviewEligibility({
+  approvalGateRequired: true,
+  approvalGateStatus: "approved",
+  taskStatuses: ["done"],
+}).reason, "Milestone has already been approved");
+
+assert.equal(getSprintReviewEligibility({
+  approvalGateRequired: true,
+  approvalGateStatus: "not_requested",
+  taskStatuses: [],
+}).reason, "Milestone needs at least one task before requesting review");
+
+assert.equal(getSprintReviewEligibility({
+  approvalGateRequired: true,
+  approvalGateStatus: "rejected",
+  taskStatuses: ["done", "in_progress"],
+}).reason, "Finish milestone tasks before requesting review");
 
 console.log("verify-review-request-flow: ok");

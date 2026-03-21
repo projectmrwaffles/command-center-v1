@@ -1,4 +1,5 @@
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
+import { selectProjectWithArtifactCompat } from "./project-db-compat";
 
 type DbClient = {
   from: (table: string) => any;
@@ -114,11 +115,11 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
   const doneTasks = tasks?.filter((task: { status: string }) => task.status === "done").length ?? 0;
   const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-  const { data: project, error: projectError } = await db
-    .from("projects")
-    .select("status, type, intake, links, github_repo_binding")
-    .eq("id", projectId)
-    .single();
+  const { data: project, error: projectError } = await selectProjectWithArtifactCompat(
+    db,
+    projectId,
+    "status, type, intake"
+  );
 
   if (projectError) {
     throw new Error(projectError.message);

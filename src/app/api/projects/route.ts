@@ -5,6 +5,7 @@ import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
+import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError } from "@/lib/project-db-compat";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -87,7 +88,7 @@ export async function GET(req: NextRequest) {
     let projects: any[] = initial.data ?? [];
     let error = initial.error;
 
-    if (error?.code === "PGRST204" && error.message.includes("'links' column")) {
+    if (isMissingLinksColumnError(error)) {
       const fallback = await runQuery(selectWithoutLinks);
       projects = (fallback.data ?? []).map((project) => ({ ...(project as any), links: null }));
       error = fallback.error;
@@ -175,13 +176,13 @@ export async function POST(req: NextRequest) {
     project = firstInsert.data;
     error = firstInsert.error;
 
-    if (error?.code === "PGRST204" && error.message.includes("'github_repo_binding' column")) {
+    if (isMissingGithubRepoBindingColumnError(error)) {
       const retryWithoutBinding = await db.from("projects").insert({ ...projectInsertBase, github_repo_binding: undefined, links: sanitizedLinks }).select().single();
       project = retryWithoutBinding.data;
       error = retryWithoutBinding.error;
     }
 
-    if (error?.code === "PGRST204" && error.message.includes("'links' column")) {
+    if (isMissingLinksColumnError(error)) {
       const fallbackInsert = await db.from("projects").insert({ ...projectInsertBase, github_repo_binding: undefined }).select().single();
       project = fallbackInsert.data;
       error = fallbackInsert.error;

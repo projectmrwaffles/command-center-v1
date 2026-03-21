@@ -1,5 +1,6 @@
 import { triggerAgentWork } from "./agent-dispatch.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
+import { selectProjectWithArtifactCompat } from "./project-db-compat";
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
 
@@ -41,7 +42,7 @@ export async function maybeAdvanceProjectAfterTaskDone(db: DbClient, input: {
   const [{ data: sprints, error: sprintsError }, { data: tasks, error: tasksError }, { data: project, error: projectError }] = await Promise.all([
     db.from("sprints").select("*").eq("project_id", input.projectId),
     db.from("sprint_items").select("*").eq("project_id", input.projectId),
-    db.from("projects").select("name, type, intake, links, github_repo_binding").eq("id", input.projectId).single(),
+    selectProjectWithArtifactCompat(db, input.projectId, "name, type, intake"),
   ]);
 
   if (sprintsError) throw new Error(sprintsError.message);

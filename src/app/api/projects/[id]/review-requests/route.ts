@@ -2,6 +2,7 @@ import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements
 import { getSprintReviewEligibility } from "@/lib/review-request-guards";
 import { mergeProjectLinks, buildReviewRequestContext, buildReviewRequestSummary } from "@/lib/review-requests";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }] = await Promise.all([
-      db.from("projects").select("id, name, type, intake, links, github_repo_binding").eq("id", projectId).single(),
+      selectProjectWithArtifactCompat(db, projectId, "id, name, type, intake"),
       db.from("sprints").select("id, project_id, name, approval_gate_required, approval_gate_status").eq("id", sprintId).eq("project_id", projectId).single(),
       db.from("sprint_items").select("status, task_type").eq("project_id", projectId).eq("sprint_id", sprintId),
     ]);

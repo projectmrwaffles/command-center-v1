@@ -73,6 +73,8 @@ type ProjectDetail = {
   deliveryIntegrity?: {
     requiresGitHubRepo?: boolean;
     hasGitHubRepo?: boolean;
+    pendingProvisioning?: boolean;
+    pendingProvisioningReason?: string | null;
     blockingReason?: string | null;
     completionBlocked?: boolean;
     completionCapPct?: number | null;
@@ -729,6 +731,11 @@ export default function ProjectDetailPage() {
                 <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                   <div className="font-medium">Delivery integrity hold</div>
                   <div className="mt-1 leading-6">{deliveryIntegrity.blockingReason}</div>
+                </div>
+              ) : deliveryIntegrity?.pendingProvisioningReason ? (
+                <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                  <div className="font-medium">GitHub repo provisioning pending</div>
+                  <div className="mt-1 leading-6">{deliveryIntegrity.pendingProvisioningReason}</div>
                 </div>
               ) : null}
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

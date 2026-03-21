@@ -4,7 +4,7 @@ import { getProjectArtifactIntegrity } from "../src/lib/project-artifact-require
 const blockedCodeHeavy = getProjectArtifactIntegrity(
   {
     type: "product_build",
-    intake: { shape: "web-app", capabilities: ["frontend"] },
+    intake: { shape: "web-app", capabilities: ["frontend"], projectOrigin: "existing" },
     links: { docs: "https://docs.acme.com/spec" },
     github_repo_binding: null,
   },
@@ -13,9 +13,28 @@ const blockedCodeHeavy = getProjectArtifactIntegrity(
 
 assert.equal(blockedCodeHeavy.requiresGitHubRepo, true);
 assert.equal(blockedCodeHeavy.hasGitHubRepo, false);
+assert.equal(blockedCodeHeavy.pendingProvisioning, false);
 assert.equal(blockedCodeHeavy.completionBlocked, true);
 assert.equal(blockedCodeHeavy.completionCapPct, 95);
 assert.match(blockedCodeHeavy.blockingReason || "", /GitHub repo/i);
+
+const pendingProvisioning = getProjectArtifactIntegrity(
+  {
+    type: "product_build",
+    intake: { shape: "web-app", capabilities: ["frontend"], projectOrigin: "new" },
+    links: { docs: "https://docs.acme.com/spec" },
+    github_repo_binding: null,
+  },
+  [{ task_type: "build_implementation" }],
+);
+
+assert.equal(pendingProvisioning.requiresGitHubRepo, true);
+assert.equal(pendingProvisioning.hasGitHubRepo, false);
+assert.equal(pendingProvisioning.pendingProvisioning, true);
+assert.equal(pendingProvisioning.completionBlocked, false);
+assert.equal(pendingProvisioning.completionCapPct, null);
+assert.equal(pendingProvisioning.blockingReason, null);
+assert.match(pendingProvisioning.pendingProvisioningReason || "", /provisioning/i);
 
 const readyCodeHeavy = getProjectArtifactIntegrity(
   {

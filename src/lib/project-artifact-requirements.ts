@@ -15,6 +15,7 @@ export type ArtifactIntegrityProjectLike = {
   intake?: {
     shape?: string | null;
     capabilities?: string[] | null;
+    projectOrigin?: "new" | "existing" | null;
   } | null;
   links?: ProjectLinks | null;
   github_repo_binding?: GitHubRepoBinding | null;
@@ -25,6 +26,8 @@ export type ProjectArtifactIntegrity = {
   requiresGitHubRepo: boolean;
   hasGitHubRepo: boolean;
   githubRepoUrl: string | null;
+  pendingProvisioning: boolean;
+  pendingProvisioningReason: string | null;
   blockingReason: string | null;
   completionBlocked: boolean;
   completionCapPct: number | null;
@@ -51,6 +54,15 @@ function resolveGitHubRepoUrl(project: ArtifactIntegrityProjectLike) {
   return parseGitHubRepoUrl(normalizedLink)?.url || null;
 }
 
+function shouldTreatRepoAsPendingProvisioning(project: ArtifactIntegrityProjectLike, isCodeHeavy: boolean, hasGitHubRepo: boolean) {
+  if (!isCodeHeavy || hasGitHubRepo) return false;
+
+  const projectOrigin = project.intake?.projectOrigin;
+  const provisioningStatus = project.github_repo_binding?.provisioning?.status;
+
+  return projectOrigin === "new" || provisioningStatus === "pending";
+}
+
 export function getProjectArtifactIntegrity(project: ArtifactIntegrityProjectLike, tasks?: ArtifactIntegrityTaskLike[] | null): ProjectArtifactIntegrity {
   const isCodeHeavy = Boolean(
     (project.type && CODE_HEAVY_PROJECT_TYPES.has(project.type)) ||
@@ -62,7 +74,11 @@ export function getProjectArtifactIntegrity(project: ArtifactIntegrityProjectLik
   const requiresGitHubRepo = isCodeHeavy;
   const githubRepoUrl = resolveGitHubRepoUrl(project);
   const hasGitHubRepo = Boolean(githubRepoUrl);
-  const blockingReason = requiresGitHubRepo && !hasGitHubRepo
+  const pendingProvisioning = shouldTreatRepoAsPendingProvisioning(project, isCodeHeavy, hasGitHubRepo);
+  const pendingProvisioningReason = pendingProvisioning
+    ? "GitHub repo provisioning is still expected for this net-new code-heavy project, so delivery is not on hold yet. A real repo will still be required before review or completion."
+    : null;
+  const blockingReason = requiresGitHubRepo && !hasGitHubRepo && !pendingProvisioning
     ? "Code-heavy delivery cannot advance to review or completion without a real GitHub repo linked to the project."
     : null;
 
@@ -71,6 +87,8 @@ export function getProjectArtifactIntegrity(project: ArtifactIntegrityProjectLik
     requiresGitHubRepo,
     hasGitHubRepo,
     githubRepoUrl,
+    pendingProvisioning,
+    pendingProvisioningReason,
     blockingReason,
     completionBlocked: Boolean(blockingReason),
     completionCapPct: blockingReason ? 95 : null,

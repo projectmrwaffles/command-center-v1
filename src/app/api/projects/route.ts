@@ -5,6 +5,7 @@ import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
+import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError } from "@/lib/project-db-compat";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -137,16 +138,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: githubRepoError }, { status: 400 });
     }
 
-    if (provisionGithubRepo && !githubProvisioningAvailable()) {
+    const shouldProvisionGithubRepo = shouldAutoProvisionGitHubRepo({
+      type,
+      intake,
+      existingGitHubUrl: githubRepoUrl,
+      provisionGithubRepo,
+    });
+
+    if (shouldProvisionGithubRepo && !githubProvisioningAvailable()) {
       return NextResponse.json({ error: "GitHub repo provisioning is not available in this environment yet. Link an existing repo for now." }, { status: 501 });
     }
 
     const githubBinding = createGitHubRepoBinding({
       url: githubRepoUrl,
-      source: provisionGithubRepo ? "provisioned" : "linked",
+      source: shouldProvisionGithubRepo ? "provisioned" : "linked",
       ...githubRepo,
     });
-    const sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || intake?.links), githubBinding);
+    let sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || intake?.links), githubBinding);
     const autoTeamIds = teamId
       ? [teamId]
       : intake
@@ -191,6 +199,68 @@ export async function POST(req: NextRequest) {
     if (error || !project) {
       console.error("[API /projects] insert error:", error);
       return NextResponse.json({ error: error?.message || "Failed to create project", code: error?.code }, { status: 500 });
+    }
+
+    if (shouldProvisionGithubRepo && !githubBinding) {
+      try {
+        const provisionedBinding = await provisionGitHubRepoForProject({
+          projectId: project.id,
+          projectName: name,
+          description: description || intake?.summary || null,
+        });
+        sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || intake?.links), provisionedBinding);
+
+        const provisioningUpdate = {
+          github_repo_binding: provisionedBinding,
+          links: sanitizedLinks,
+          updated_at: new Date().toISOString(),
+        };
+
+        let updatedProject: any = null;
+        let updateError: { message: string; code?: string } | null = null;
+
+        const firstUpdate = await db
+          .from("projects")
+          .update(provisioningUpdate)
+          .eq("id", project.id)
+          .select()
+          .single();
+        updatedProject = firstUpdate.data;
+        updateError = firstUpdate.error;
+
+        if (updateError && (isMissingGithubRepoBindingColumnError(updateError) || isMissingLinksColumnError(updateError))) {
+          const fallbackIntake = {
+            ...(project.intake || intake || {}),
+            links: {
+              ...((project.intake || intake || {}).links || {}),
+              github: provisionedBinding.url,
+            },
+          };
+
+          const fallbackUpdate = await db
+            .from("projects")
+            .update({
+              intake: fallbackIntake,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", project.id)
+            .select()
+            .single();
+
+          updatedProject = fallbackUpdate.data
+            ? { ...fallbackUpdate.data, links: sanitizedLinks, github_repo_binding: provisionedBinding }
+            : fallbackUpdate.data;
+          updateError = fallbackUpdate.error;
+        }
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        project = updatedProject ?? { ...project, github_repo_binding: provisionedBinding, links: sanitizedLinks };
+      } catch (provisionError) {
+        console.error("[API /projects] GitHub provisioning failed:", provisionError);
+      }
     }
 
     let kickoffSeeded = false;
@@ -280,7 +350,7 @@ export async function POST(req: NextRequest) {
     }
 
     await syncProjectState(db, project.id);
-    return NextResponse.json({ project: { ...project, links: sanitizedLinks }, workload }, { status: 201 });
+    return NextResponse.json({ project: { ...project, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null }, workload }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

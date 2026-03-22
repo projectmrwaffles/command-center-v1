@@ -1,6 +1,6 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { sanitizeProjectLinks } from "@/lib/project-links";
-import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
+import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
@@ -84,6 +84,22 @@ export async function GET(
     if (projectError || !project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
+
+    const derivedGithubBinding = project.github_repo_binding || createGitHubRepoBinding({
+      url: project.links?.github || project.intake?.links?.github,
+      source: project.intake?.projectOrigin === "new" ? "provisioned" : "linked",
+      provisioning: project.intake?.projectOrigin === "new"
+        ? {
+            status: "ready",
+            reason: "GitHub repository was provisioned and persisted via intake fallback because artifact columns are unavailable in this database.",
+          }
+        : undefined,
+    });
+    const projectWithDerivedArtifacts = {
+      ...project,
+      github_repo_binding: derivedGithubBinding,
+      links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
+    };
 
     const [{ data: tasks }, { data: sprints }, { data: events }, { data: approvals }, { data: jobs }] = await Promise.all([
       db.from("sprint_items").select("*").eq("project_id", projectId).order("position", { ascending: true }),
@@ -175,7 +191,7 @@ export async function GET(
       };
     });
 
-    const artifactIntegrity = getProjectArtifactIntegrity(project, tasks || []);
+    const artifactIntegrity = getProjectArtifactIntegrity(projectWithDerivedArtifacts, tasks || []);
     const totalTasks = tasks?.length || 0;
     const doneTasks = tasks?.filter((task) => task.status === "done").length || 0;
     const rawProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : project.progress_pct || 0;
@@ -250,7 +266,7 @@ export async function GET(
 
     return NextResponse.json({
       project: {
-        ...project,
+        ...projectWithDerivedArtifacts,
         progress_pct: overallProgress,
       },
       deliveryIntegrity: artifactIntegrity,

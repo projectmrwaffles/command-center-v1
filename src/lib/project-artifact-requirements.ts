@@ -16,6 +16,7 @@ export type ArtifactIntegrityProjectLike = {
     shape?: string | null;
     capabilities?: string[] | null;
     projectOrigin?: "new" | "existing" | null;
+    links?: ProjectLinks | null;
   } | null;
   links?: ProjectLinks | null;
   github_repo_binding?: GitHubRepoBinding | null;
@@ -47,7 +48,7 @@ function resolveGitHubRepoUrl(project: ArtifactIntegrityProjectLike) {
     return parseGitHubRepoUrl(bindingUrl)?.url || null;
   }
 
-  const rawLink = project.links?.github;
+  const rawLink = project.links?.github || project.intake?.links?.github;
   const normalizedLink = normalizeUrl(rawLink);
   if (!normalizedLink) return null;
 

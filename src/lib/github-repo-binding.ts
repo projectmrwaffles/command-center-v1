@@ -22,6 +22,7 @@ export type GitHubRepoBindingInput = {
   source?: "linked" | "provisioned";
   defaultBranch?: string | null;
   installationId?: number | null;
+  provisioning?: GitHubRepoBinding["provisioning"];
 };
 
 const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
@@ -83,17 +84,19 @@ export function createGitHubRepoBinding(input: GitHubRepoBindingInput, existing?
     installationId: typeof input.installationId === "number" ? input.installationId : isSameRepo ? existing?.installationId || null : null,
     projectLinkKey: "github",
     provisioning:
-      source === "provisioned"
-        ? existing?.provisioning && isSameRepo
-          ? existing.provisioning
+      input.provisioning !== undefined
+        ? input.provisioning
+        : source === "provisioned"
+          ? existing?.provisioning && isSameRepo
+            ? existing.provisioning
+            : {
+                status: "pending",
+                reason: "Provisioning scaffolded but not yet connected to authenticated GitHub runtime in this environment.",
+              }
           : {
-              status: "pending",
-              reason: "Provisioning scaffolded but not yet connected to authenticated GitHub runtime in this environment.",
-            }
-        : {
-            status: "not_configured",
-            reason: "Existing repository linked. Explicit provisioning is not configured in this environment.",
-          },
+              status: "not_configured",
+              reason: "Existing repository linked. Explicit provisioning is not configured in this environment.",
+            },
   };
 }
 
@@ -120,7 +123,7 @@ export function getGitHubRepoValidationError(input?: string | null) {
 }
 
 export function githubProvisioningAvailable() {
-  return false;
+  return true;
 }
 
 

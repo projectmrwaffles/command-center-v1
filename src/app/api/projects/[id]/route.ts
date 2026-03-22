@@ -121,7 +121,7 @@ export async function GET(
         .from("jobs")
         .select("id, title, status, updated_at, owner_agent_id")
         .eq("project_id", projectId)
-        .in("status", ["blocked", "in_progress"])
+        .in("status", ["queued", "blocked", "in_progress"])
         .order("updated_at", { ascending: false })
         .limit(10),
     ]);
@@ -240,8 +240,19 @@ export async function GET(
       ...(jobs || []).map((job) => ({
         id: `job-${job.id}`,
         kind: job.status === "blocked" ? ("blocked" as const) : ("progress" as const),
-        title: job.title || (job.status === "blocked" ? "Blocked job" : "Active job"),
-        detail: job.status === "blocked" ? "A job is blocked and needs attention" : "A job is currently running",
+        title:
+          job.title ||
+          (job.status === "blocked"
+            ? "Blocked job"
+            : job.status === "queued"
+              ? "Queued job"
+              : "Active job"),
+        detail:
+          job.status === "blocked"
+            ? "A job is blocked and needs attention"
+            : job.status === "queued"
+              ? "A dispatched job is queued for agent pickup"
+              : "A job is currently running",
         timestamp: job.updated_at || new Date().toISOString(),
       })),
       ...(events || []).map((event: any) => ({
@@ -249,9 +260,11 @@ export async function GET(
         kind:
           event.event_type === "task_completed"
             ? ("completed" as const)
-            : event.event_type.includes("blocked")
-              ? ("blocked" as const)
-              : ("activity" as const),
+            : event.event_type === "task_dispatched" || event.event_type.includes("status_changed")
+              ? ("progress" as const)
+              : event.event_type.includes("blocked")
+                ? ("blocked" as const)
+                : ("activity" as const),
         title: formatEventType(event.event_type),
         detail:
           event.payload?.title ||

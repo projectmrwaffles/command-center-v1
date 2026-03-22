@@ -275,11 +275,13 @@ export async function POST(req: NextRequest) {
         startPosition: nextTaskPosition,
       });
 
-      kickoff.tasks
-        .filter((task) => task.phaseStatus === "active" && task.assigneeAgentId)
-        .forEach((task) => {
-          triggerAgentWork(db, task.assigneeAgentId as string, name, task.title, task.id);
-        });
+      await Promise.all(
+        kickoff.tasks
+          .filter((task) => task.phaseStatus === "active" && task.assigneeAgentId)
+          .map((task) =>
+            triggerAgentWork(db, task.assigneeAgentId as string, name, task.title, task.id, project.id)
+          )
+      );
 
       kickoffSeeded = kickoff.tasks.length > 0;
     } catch (kickoffError) {
@@ -343,7 +345,7 @@ export async function POST(req: NextRequest) {
           }
 
           if (createdTask?.id) {
-            triggerAgentWork(db, leadMember.agent_id, name, teamTask, createdTask.id);
+            await triggerAgentWork(db, leadMember.agent_id, name, teamTask, createdTask.id, project.id);
           }
         }
       }

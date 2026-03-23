@@ -1,6 +1,6 @@
 # Command Center V1
 
-Internal command-and-control surface for projects, agents, approvals, usage, and real-time orchestration.
+Internal command-and-control surface for projects, agents, approvals, proof review, usage, and real-time orchestration.
 
 ## Core commands
 

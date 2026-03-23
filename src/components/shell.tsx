@@ -60,11 +60,23 @@ function TeamsIcon({ className }: { className?: string }) {
   );
 }
 
+function ProofsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M7 4h7l5 5v11a1 1 0 01-1 1H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+      <path d="M14 4v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+
 // Full navigation (used on mobile + desktop sidebar)
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: OverviewIcon },
   { href: "/projects", label: "Projects", icon: ProjectsIcon },
   { href: "/agents", label: "Agents", icon: AgentsIcon },
+  { href: "/proofs", label: "Proofs", icon: ProofsIcon },
   { href: "/usage", label: "Usage", icon: UsageIcon },
   { href: "/teams", label: "Teams", icon: TeamsIcon },
 ] as const;

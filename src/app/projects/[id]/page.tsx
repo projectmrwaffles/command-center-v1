@@ -292,7 +292,7 @@ function MilestoneReviewCard({
               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Review request live</div>
               <p className="mt-1 text-sm font-medium text-amber-950">{milestone.reviewRequest.summary || "Approval requested"}</p>
             </div>
-            <Link href="/approvals" className="text-sm font-medium text-red-700 hover:text-red-800">Open approvals →</Link>
+            <Link href={`/approvals?approval=${milestone.reviewRequest.id}#approval-${milestone.reviewRequest.id}`} className="text-sm font-medium text-red-700 hover:text-red-800">Open linked approval →</Link>
           </div>
           {reviewLinks.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">

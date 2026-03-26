@@ -29,6 +29,7 @@ import {
   getRoutingSummary,
 } from "@/lib/project-intake";
 import { getProjectStatusTone } from "@/lib/project-ui";
+import { resolveProjectDetailRecentUpdates } from "@/lib/project-detail-truth";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 import { parseGitHubRepoUrl, type GitHubRepoBinding } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
@@ -634,7 +635,7 @@ export default function ProjectDetailPage() {
     return null;
   }
 
-  const { project, teams, milestones = [], tasks, recentSignals = [], stats, deliveryIntegrity } = data;
+  const { project, teams, milestones = [], tasks, recentSignals = [], events = [], stats, deliveryIntegrity } = data;
   const intake = project.intake || null;
   const routing = intake ? getRoutingSummary(intake) : null;
   const projectLinks = getProjectLinkEntries(project.links);
@@ -650,6 +651,7 @@ export default function ProjectDetailPage() {
     blocked: stats.blockedTasks > 0,
     approvalCount: (stats.pendingApprovals || 0) + reviewLoopCount,
   });
+  const displayedRecentUpdates = resolveProjectDetailRecentUpdates({ recentSignals, events });
 
   const statsCards = [
     {
@@ -1014,10 +1016,10 @@ export default function ProjectDetailPage() {
             </div>
           </Section>
 
-          {recentSignals.length > 0 ? (
-            <Section title="Recent signals" description="Operator-facing moments worth noticing right now.">
+          {displayedRecentUpdates.length > 0 ? (
+            <Section title="Recent updates" description="Important recent project activity and decisions.">
               <div className="space-y-2">
-                {recentSignals.map((signal) => (
+                {displayedRecentUpdates.map((signal) => (
                   <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -1026,7 +1028,11 @@ export default function ProjectDetailPage() {
                           <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
                         </div>
                         <p className="mt-1 text-xs leading-5 text-zinc-500">{signal.detail}</p>
-                        {signal.actorName && <p className="mt-1 text-[11px] text-zinc-400">By {signal.actorName}</p>}
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                          {signal.actorName ? <p>Updated by {signal.actorName}</p> : null}
+                          <p>{signal.sourceLabel}</p>
+                        </div>
+                        {signal.sourceDetail ? <p className="mt-1 text-[11px] leading-5 text-zinc-400">{signal.sourceDetail}</p> : null}
                       </div>
                       <span className="whitespace-nowrap text-[11px] text-zinc-400">{new Date(signal.timestamp).toLocaleString()}</span>
                     </div>

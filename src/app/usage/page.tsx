@@ -175,10 +175,10 @@ export default async function UsagePage() {
                 Metrics stay scoped to the latest day so spend and model mix are easy to compare at a glance.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700">
                   {totalTokens.toLocaleString()} tokens
                 </span>
-                <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700">
                   ${totalCost.toFixed(4)} total cost
                 </span>
               </div>
@@ -205,7 +205,7 @@ export default async function UsagePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <SectionTitle meta="Same top-model ranking, now presented with the shared card and badge language.">Top models</SectionTitle>
-          {top.length > 0 ? <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">Top 8 by tokens</span> : null}
+          {top.length > 0 ? <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">Top 8 by tokens</span> : null}
         </div>
 
         {top.length === 0 ? (
@@ -222,7 +222,7 @@ export default async function UsagePage() {
                                 <CardContent className="flex items-center justify-between gap-4 p-5">
                   <div className="min-w-0 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700">
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-700">
                         #{index + 1}
                       </span>
                       <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">

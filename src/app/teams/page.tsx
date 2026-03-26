@@ -36,7 +36,7 @@ export default async function TeamsPage() {
       <PageHero>
         <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-zinc-700 shadow-sm backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
               Team workspace
             </div>
@@ -102,9 +102,6 @@ export default async function TeamsPage() {
                 <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 space-y-2">
-                      <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-red-50/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-700">
-                        Team
-                      </div>
                       <div>
                         <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{t.name}</h2>
                         <p className="mt-2 line-clamp-3 text-sm leading-6 text-zinc-600">
@@ -112,17 +109,17 @@ export default async function TeamsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-500 shadow-sm transition-colors group-hover:border-red-200 group-hover:text-red-600">
+                    <div className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-500 transition-colors group-hover:border-zinc-300 group-hover:text-zinc-700">
                       <ArrowRight className="h-4 w-4" />
                     </div>
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between rounded-2xl border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,249,248,0.82),rgba(255,255,255,0.98))] px-4 py-3">
+                  <div className="mt-auto flex items-center justify-between rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Rollups</p>
-                      <p className="mt-1 text-sm text-zinc-600">Members, projects, and signals</p>
+                      <p className="mt-1 text-sm text-zinc-600">Members, projects, and current work</p>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-red-700">
+                    <span className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700">
                       View details
                       <ArrowRight className="h-4 w-4" />
                     </span>

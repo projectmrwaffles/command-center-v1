@@ -101,17 +101,17 @@ export default async function AgentDetailPage({
           <div className="max-w-2xl space-y-4">
             <Link
               href="/agents"
-              className="inline-flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white/85 px-3 py-1.5 text-sm text-zinc-600 shadow-sm transition hover:border-red-200 hover:text-red-700"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white/85 px-3 py-1.5 text-sm text-zinc-600 shadow-sm transition hover:border-red-200 hover:text-zinc-700"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to agents
             </Link>
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-zinc-700 shadow-sm backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
               Agent detail
             </div>
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.95),rgba(255,255,255,1))] text-3xl shadow-sm">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border border-zinc-200 bg-white text-3xl">
                 <span aria-hidden="true">{getAgentEmoji(agent.name)}</span>
               </div>
               <div className="space-y-3">
@@ -131,7 +131,7 @@ export default async function AgentDetailPage({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[460px]">
-            <PageHeroStat className="border-red-100">
+            <PageHeroStat className="border-zinc-200 bg-white">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
                 <Bot className="h-4 w-4 text-red-500" />
                 Identity
@@ -147,7 +147,7 @@ export default async function AgentDetailPage({
               <div className="mt-3 text-lg font-semibold tracking-tight text-zinc-950">{formatLastSeen(agent.last_seen)}</div>
               <p className="mt-1 text-xs text-zinc-500">Latest heartbeat or reported presence.</p>
             </PageHeroStat>
-            <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
+            <PageHeroStat className="border-zinc-200 bg-white">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
                 <Activity className="h-4 w-4 text-red-500" />
                 Events
@@ -159,10 +159,10 @@ export default async function AgentDetailPage({
         </div>
       </PageHero>
 
-      <Card variant="soft" className="rounded-[24px] border-red-100/70 bg-[radial-gradient(circle_at_top_left,rgba(254,242,242,0.72),rgba(255,255,255,0.98)_52%,rgba(255,241,242,0.88)_100%)]">
+      <Card variant="soft" className="rounded-[24px] border-zinc-200 bg-white">
         <CardContent className="space-y-5 p-5 sm:p-6">
           <div className="space-y-2">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-white/85 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-700">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-100 bg-white/85 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-700">
               Recent activity
             </div>
             <div>
@@ -189,7 +189,7 @@ export default async function AgentDetailPage({
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <div className="inline-flex w-fit items-center rounded-full border border-red-100 bg-red-50/80 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">
+                      <div className="inline-flex w-fit items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">
                         {formatEventType(event.event_type)}
                       </div>
                       {event.payload && Object.keys(event.payload).length > 0 ? (

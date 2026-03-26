@@ -175,9 +175,10 @@ async function handleApproval(formData: FormData) {
 export default async function ApprovalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; approval?: string }>;
 }) {
   const sp = await searchParams;
+  const selectedApprovalId = sp.approval || null;
   const db = createServerClient();
   let approvals: ApprovalRow[] | null = null;
   let error: { message: string; details?: string } | null = null;
@@ -317,8 +318,16 @@ export default async function ApprovalsPage({
               const reviewLinks = getProjectLinkEntries(a.context?.links || project?.links || null);
 
               return (
-                <Card key={a.id} variant="featured" className="relative overflow-hidden rounded-[24px]">
-                                    <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
+                <Card
+                  key={a.id}
+                  id={`approval-${a.id}`}
+                  variant="featured"
+                  className={cn(
+                    "relative scroll-mt-24 overflow-hidden rounded-[24px] transition-shadow",
+                    selectedApprovalId === a.id ? "border-red-300 shadow-[0_0_0_2px_rgba(220,38,38,0.14)]" : undefined,
+                  )}
+                >
+                  <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -341,11 +350,11 @@ export default async function ApprovalsPage({
                       </div>
 
                       <div className="shrink-0 rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-right">
-                        <div className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-400">
-                          <Clock3 className="h-3.5 w-3.5" />
-                          Submitted
+                        <div className="flex items-center justify-end gap-1 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-400">
+                          {selectedApprovalId === a.id ? <Sparkles className="h-3.5 w-3.5 text-red-500" /> : <Clock3 className="h-3.5 w-3.5" />}
+                          {selectedApprovalId === a.id ? "Opened from project" : "Submitted"}
                         </div>
-                        <div className="mt-1 text-sm font-medium text-zinc-900">{timeAgo(a.created_at)}</div>
+                        <div className="mt-1 text-sm font-medium text-zinc-900">{selectedApprovalId === a.id ? "Linked request" : timeAgo(a.created_at)}</div>
                       </div>
                     </div>
 

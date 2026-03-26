@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase-server";
 import { ErrorState } from "@/components/error-state";
 import { DbBanner } from "@/components/db-banner";
+import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
 import { OverviewClient } from "./client";
 
 export const dynamic = "force-dynamic";
@@ -90,7 +91,7 @@ async function loadDashboardData(): Promise<DashboardData> {
     const blockedJobs = blockedJobsRes.status === "fulfilled" ? blockedJobsRes.value.data ?? [] : [];
 
     // Fetch projects with their active sprint + sprint items for progress
-    const projectsRes = await db.from("projects").select("id, name, type, team_id, progress_pct").eq("status", "active");
+    const projectsRes = await db.from("projects").select("id, name, type, team_id, progress_pct, intake, links, github_repo_binding").eq("status", "active");
     const teamsRes = await db.from("teams").select("id, name");
     const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status").eq("status", "active");
     const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status, review_status");
@@ -130,6 +131,13 @@ async function loadDashboardData(): Promise<DashboardData> {
       itemsBySprintId.set(si.sprint_id, arr);
     });
 
+    const projectTruthById = buildProjectTruthIndex({
+      projects: (projectsRes.data ?? []) as any[],
+      tasks: (sprintItemsRes.data ?? []) as any[],
+      sprints: (sprintsRes.data ?? []) as any[],
+      jobs: (blockedJobs as any[]) ?? [],
+    });
+
     const projects: ProjectSummary[] = (projectsRes.data ?? []).map((p) => {
       const teamName = p.team_id ? teamsById.get(p.team_id) : undefined;
       const projectSprints = sprintsByProjectId.get(p.id) ?? [];
@@ -141,6 +149,7 @@ async function loadDashboardData(): Promise<DashboardData> {
         doneCount = items.filter((i) => i.status === "done").length;
         progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
       }
+      const projectTruth = projectTruthById.get(p.id);
       // Count approvals and blocked jobs per project
       const approvalCount = approvals.filter((a) => a.project_id === p.id).length;
       const blockedJobCount = blockedJobs.filter((j) => j.project_id === p.id).length;
@@ -150,7 +159,7 @@ async function loadDashboardData(): Promise<DashboardData> {
         name: p.name,
         type: p.type,
         teamName,
-        progress_pct: p.progress_pct ?? 0,
+        progress_pct: projectTruth?.progressPct ?? p.progress_pct ?? 0,
         activeSprint: activeSprint
           ? {
               id: activeSprint.id,

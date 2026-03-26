@@ -201,18 +201,22 @@ function MilestoneReviewCard({
   projectId,
   milestone,
   projectLinks,
+  reviewTasks,
   onSaved,
 }: {
   projectId: string;
   milestone: Milestone;
   projectLinks?: ProjectLinks | null;
+  reviewTasks: Array<{ id: string; title: string; status: string; review_status?: string | null }>;
   onSaved: (payload: { links: ProjectLinks | null }) => void;
 }) {
   const [draftLinks, setDraftLinks] = useState<ProjectLinks>(projectLinks || milestone.reviewRequest?.links || {});
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const canRequestReview = milestone.approvalGateRequired && milestone.progressPct === 100 && !milestone.reviewRequest;
+  const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
+  const missingReviewRequestRecord = milestone.approvalGateRequired && milestone.approvalGateStatus === "pending" && !milestone.reviewRequest;
+  const canRequestReview = Boolean(milestone.approvalGateRequired && !milestone.reviewRequest && reviewTasksReady);
   const reviewLinks = getProjectLinkEntries(milestone.reviewRequest?.links || projectLinks || null);
 
   useEffect(() => {
@@ -253,6 +257,34 @@ function MilestoneReviewCard({
         <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
       </div>
 
+      {reviewTasks.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
+          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-purple-700">
+            {missingReviewRequestRecord ? "Review handoff needs attention" : milestone.reviewRequest ? "Awaiting review on" : "What will be reviewed"}
+          </div>
+          <p className="mt-1 text-sm text-purple-950">
+            {reviewTasks.length} deliverable{reviewTasks.length === 1 ? " is" : "s are"} awaiting review for this milestone.
+            {missingReviewRequestRecord ? " The milestone is marked pending review, but there is no live review request record yet." : ""}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-purple-900">
+            {reviewTasks.map((task) => (
+              <li key={task.id} className="flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
+                <span>
+                  {task.title}
+                  <span className="ml-2 text-xs text-purple-700">({formatReviewStatus(task.review_status)})</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs leading-5 text-purple-800">
+            {milestone.reviewRequest
+              ? "Use Open approvals to review this milestone and record the decision."
+              : "Add the key artifact links below, then request review to create the approvals handoff for this milestone."}
+          </p>
+        </div>
+      ) : null}
+
       {milestone.reviewRequest ? (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -276,7 +308,7 @@ function MilestoneReviewCard({
       ) : canRequestReview ? (
         <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
           <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Request review</summary>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. Code-heavy phases require a real GitHub repo link before review can start.</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. Code-heavy phases require a real GitHub repo link before review can start.{missingReviewRequestRecord ? " This will repair the stuck pending-review state and create the actual approvals record." : ""}</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {PROJECT_LINK_FIELDS.map((key) => (
               <label key={key} className="block">
@@ -892,6 +924,7 @@ export default function ProjectDetailPage() {
                     key={milestone.id}
                     projectId={projectId}
                     milestone={milestone}
+                    reviewTasks={tasks.filter((task: any) => task.sprint_id === milestone.id && task.review_required)}
                     projectLinks={project.links}
                     onSaved={({ links }) => {
                       setData((prev) => {

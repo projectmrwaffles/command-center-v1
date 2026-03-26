@@ -7,6 +7,7 @@ import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError } from "@/lib/project-db-compat";
+import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -99,7 +100,34 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ projects });
+    const projectIds = projects.map((project) => project.id).filter(Boolean);
+    if (projectIds.length === 0) {
+      return NextResponse.json({ projects });
+    }
+
+    const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
+      db.from("sprint_items").select("project_id, sprint_id, status, task_type").in("project_id", projectIds),
+      db.from("sprints").select("id, project_id, approval_gate_required, approval_gate_status").in("project_id", projectIds),
+      db.from("jobs").select("project_id, status").in("project_id", projectIds).in("status", ["queued", "in_progress", "blocked"]),
+    ]);
+
+    if (tasksError || sprintsError || jobsError) {
+      return NextResponse.json({ error: tasksError?.message || sprintsError?.message || jobsError?.message || "Failed to resolve project progress truth" }, { status: 500 });
+    }
+
+    const projectTruthById = buildProjectTruthIndex({
+      projects,
+      tasks: tasks ?? [],
+      sprints: sprints ?? [],
+      jobs: jobs ?? [],
+    });
+
+    return NextResponse.json({
+      projects: projects.map((project) => ({
+        ...project,
+        progress_pct: projectTruthById.get(project.id)?.progressPct ?? project.progress_pct ?? 0,
+      })),
+    });
   } catch (e: unknown) {
     console.error("[API /projects GET] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

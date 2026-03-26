@@ -90,19 +90,41 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }] = await Promise.all([
-      selectProjectWithArtifactCompat(db, projectId, "id, name, type, intake"),
+    const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }, { data: pendingApproval, error: pendingApprovalError }] = await Promise.all([
+      selectProjectWithArtifactCompat(db, projectId, "id, name, type, intake, links, github_repo_binding"),
       db.from("sprints").select("id, project_id, name, approval_gate_required, approval_gate_status").eq("id", sprintId).eq("project_id", projectId).single(),
       selectSprintTasksForReviewCompat(db, projectId, sprintId),
+      db.from("approvals").select("id").eq("project_id", projectId).eq("sprint_id", sprintId).eq("status", "pending").maybeSingle(),
     ]);
 
     if (projectError || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     if (sprintError || !sprint) return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
     if (sprintTasksError) return NextResponse.json({ error: sprintTasksError.message || "Failed to inspect milestone tasks" }, { status: 500 });
+    if (pendingApprovalError) return NextResponse.json({ error: pendingApprovalError.message || "Failed to inspect milestone review state" }, { status: 500 });
+
+    const effectiveApprovalGateStatus = pendingApproval?.id
+      ? sprint.approval_gate_status
+      : sprint.approval_gate_status === "pending"
+        ? "not_requested"
+        : sprint.approval_gate_status;
+
+    if (!pendingApproval?.id && sprint.approval_gate_status === "pending") {
+      const { error: sprintRepairError } = await db
+        .from("sprints")
+        .update({ approval_gate_status: "not_requested", updated_at: new Date().toISOString() })
+        .eq("id", sprintId)
+        .eq("project_id", projectId);
+
+      if (sprintRepairError) {
+        return NextResponse.json({ error: sprintRepairError.message || "Failed to repair milestone review state" }, { status: 500 });
+      }
+
+      sprint.approval_gate_status = "not_requested";
+    }
 
     const eligibility = getSprintReviewEligibility({
       approvalGateRequired: sprint.approval_gate_required,
-      approvalGateStatus: sprint.approval_gate_status,
+      approvalGateStatus: effectiveApprovalGateStatus,
       taskStatuses: (sprintTasks || []).map((task: any) => task.status),
     });
 
@@ -119,7 +141,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         links: mergedLinks || project.links,
         github_repo_binding: project.github_repo_binding,
       },
-      sprintTasks || []
+      sprintTasks || [],
     );
 
     if (artifactIntegrity.blockingReason) {

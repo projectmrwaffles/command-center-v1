@@ -77,7 +77,7 @@ export default async function AgentsPage() {
       <PageHero>
         <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-zinc-700 shadow-sm backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
               Agent workspace
             </div>
@@ -92,7 +92,7 @@ export default async function AgentsPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
-            <PageHeroStat className="border-red-100">
+            <PageHeroStat className="border-zinc-200 bg-white">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
                 <Bot className="h-4 w-4 text-red-500" />
                 Agents
@@ -108,7 +108,7 @@ export default async function AgentsPage() {
               <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
               <p className="mt-1 text-xs text-zinc-500">Currently marked active.</p>
             </PageHeroStat>
-            <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
+            <PageHeroStat className="border-zinc-200 bg-white">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
                 <Workflow className="h-4 w-4 text-red-500" />
                 Idle / standby
@@ -136,7 +136,7 @@ export default async function AgentsPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 space-y-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 bg-[linear-gradient(180deg,rgba(254,242,242,0.95),rgba(255,255,255,1))] text-2xl shadow-sm">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-2xl">
                           <span aria-hidden="true">{getAgentEmoji(agent.name)}</span>
                         </div>
                         <div className="min-w-0">
@@ -155,10 +155,10 @@ export default async function AgentsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-auto rounded-2xl border border-red-100/70 bg-[linear-gradient(180deg,rgba(255,249,248,0.82),rgba(255,255,255,0.98))] px-4 py-3">
+                  <div className="mt-auto rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
                     <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Last seen</p>
                     <p className="mt-1 text-sm text-zinc-700">{formatLastSeen(agent.last_seen)}</p>
-                    <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-red-700">
+                    <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-zinc-700">
                       Open agent detail
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                     </p>

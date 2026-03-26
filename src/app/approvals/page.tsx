@@ -230,15 +230,10 @@ export default async function ApprovalsPage({
       <PageHero>
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
-              <Sparkles className="h-3.5 w-3.5 text-red-500" />
-              Operator approvals
-            </div>
-
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Approvals</h1>
               <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-                Review trust-gated decisions with project context, execution status, and a clear audit trail without losing the current workflow.
+                Review decisions that need approval, see recent outcomes, and keep the audit trail clear.
               </p>
             </div>
 
@@ -246,7 +241,7 @@ export default async function ApprovalsPage({
               <PageHeroStat className="border-red-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
                   <ShieldAlert className="h-4 w-4 text-red-500" />
-                  Pending queue
+                  Needs attention
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{pending.length}</div>
               </PageHeroStat>
@@ -269,9 +264,9 @@ export default async function ApprovalsPage({
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:max-w-sm">
             <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="text-sm font-medium text-zinc-900">How to use this queue</div>
+              <div className="text-sm font-medium text-zinc-900">Approval queue</div>
               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                Approve to move the linked job back into progress, or request changes with a note to block execution and create a review breadcrumb.
+                Approve to move work forward, or request changes with a note so the team knows what to fix.
               </p>
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
                 {pending.length > 0

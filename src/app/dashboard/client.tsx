@@ -38,7 +38,7 @@ function SeverityBadge({ severity }: { severity?: string }) {
     low: "border-zinc-200 bg-zinc-100 text-zinc-600",
     medium: "border-amber-200 bg-amber-50 text-amber-700",
     high: "border-orange-200 bg-orange-50 text-orange-700",
-    critical: "border-red-200 bg-red-50 text-red-700",
+    critical: "border-red-200 bg-red-50 text-zinc-700",
   };
 
   return (
@@ -50,10 +50,10 @@ function SeverityBadge({ severity }: { severity?: string }) {
 
 function BentoBadge({ children, color }: { children: React.ReactNode; color: "red" | "amber" | "blue" | "green" }) {
   const styles = {
-    red: "border-red-200 bg-red-50 text-red-700",
+    red: "border-red-200 bg-red-50 text-zinc-700",
     amber: "border-amber-200 bg-amber-50 text-amber-700",
     blue: "border-sky-200 bg-sky-50 text-sky-700",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    green: "border-emerald-200 bg-emerald-50 text-zinc-700",
   };
   return <span className={cn("rounded-full border px-2 py-1 text-[11px] font-medium", styles[color])}>{children}</span>;
 }
@@ -278,67 +278,55 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       <PageHero>
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
-              <Sparkles className="h-3.5 w-3.5 text-red-500" />
-              Ops command center
-            </div>
-
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Dashboard</h1>
               <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-                Keep the overview up top: what needs a decision, which projects are moving, and whether the live operator feed is healthy.
+                What needs attention, which projects are moving, and where to jump in.
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <PageHeroStat className="border-red-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                  Needs you
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <PageHeroStat className="border-zinc-200 bg-zinc-50/70 shadow-none">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">
+                  <AlertTriangle className="h-4 w-4 text-zinc-500" />
+                  Needs attention
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{needsYou.length}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{needsYou.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-rose-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-rose-700">
-                  <Layers3 className="h-4 w-4 text-rose-500" />
-                  Active projects
+              <PageHeroStat className="border-zinc-200 bg-zinc-50/70 shadow-none">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">
+                  <Layers3 className="h-4 w-4 text-zinc-500" />
+                  Active work
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{projectCards.length}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{projectCards.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-emerald-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
-                  <Bot className="h-4 w-4 text-emerald-500" />
+              <PageHeroStat className="border-zinc-200 bg-zinc-50/70 shadow-none">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">
+                  <Bot className="h-4 w-4 text-zinc-500" />
                   Agents active
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
-              </PageHeroStat>
-              <PageHeroStat className="border-red-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
-                  <Workflow className="h-4 w-4 text-red-500" />
-                  Signals
-                </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{recentSignals.length}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
               </PageHeroStat>
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[290px] lg:items-end">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4 lg:max-w-sm">
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:items-end">
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-3 lg:max-w-sm">
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-                <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-emerald-500" : connectionStatus === "connecting" ? "text-amber-500" : "text-red-500")} />
+                <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-zinc-500" : connectionStatus === "connecting" ? "text-amber-500" : "text-zinc-500")} />
                 {connectionStatus === "connected" ? "Live updates on" : connectionStatus === "connecting" ? "Connecting live feed..." : "Live feed offline"}
               </div>
               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                Open a new project from the dashboard while the overview stays focused on approvals, projects, teams, and usage.
+                Open a project or jump into the project list.
               </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                 <Button onClick={() => setShowCreateProject(true)} size="lg" variant="warm" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm">
                   <Plus className="h-4 w-4" />
                   New project
                 </Button>
                 <Link
                   href="/projects"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-6 text-sm font-medium text-red-700 transition-colors hover:bg-red-50"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                 >
                   <Briefcase className="h-4 w-4" />
                   All projects
@@ -357,7 +345,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <SectionTitle meta="Approvals and blocked work that need operator attention right now.">Needs You ({needsYou.length})</SectionTitle>
-              {needsYou.length > 0 ? <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">Priority queue</span> : null}
+              {needsYou.length > 0 ? <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-zinc-700">Attention queue</span> : null}
             </div>
 
             {needsYou.length === 0 ? (
@@ -374,7 +362,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                     <CardContent className="flex items-start justify-between gap-3 p-5">
                       <div className="min-w-0 space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", item.type === "approval" ? "bg-amber-100 text-amber-700" : item.type === "blocked" ? "bg-red-100 text-red-700" : "bg-zinc-100 text-zinc-700")}>
+                          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", item.type === "approval" ? "bg-amber-100 text-amber-700" : item.type === "blocked" ? "bg-red-100 text-zinc-700" : "bg-zinc-100 text-zinc-700")}>
                             {item.type}
                           </span>
                           {item.severity && <SeverityBadge severity={item.severity} />}
@@ -394,13 +382,13 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <SectionTitle meta="Fresh system activity, approvals, and project movement in one stream.">Recent Signals</SectionTitle>
+              <SectionTitle meta="Recent approvals and key project changes.">Recent Updates</SectionTitle>
             </div>
             {recentSignals.length === 0 ? (
               <BrandedEmptyState
                 className="items-start px-6 py-10 text-left"
                 icon={<Activity className="h-7 w-7 text-red-600" />}
-                title="No recent signals"
+                title="No recent updates"
                 description="Once approvals, jobs, and events start flowing, the latest signal feed will collect them here."
               />
             ) : (
@@ -410,7 +398,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", signal.kind === "approval" ? "bg-amber-100 text-amber-700" : signal.kind === "blocked" ? "bg-red-100 text-red-700" : signal.kind === "project" ? "bg-sky-100 text-sky-700" : "bg-emerald-100 text-emerald-700")}>
+                          <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", signal.kind === "approval" ? "bg-amber-100 text-amber-700" : signal.kind === "blocked" ? "bg-red-100 text-zinc-700" : signal.kind === "project" ? "bg-sky-100 text-sky-700" : "bg-emerald-100 text-zinc-700")}>
                             {signal.kind}
                           </span>
                           <p className="truncate text-sm font-semibold text-zinc-950">{signal.title}</p>
@@ -427,8 +415,8 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <SectionTitle meta="Active project health, progress, and any open flags.">Active Projects ({projectCards.length})</SectionTitle>
-              <Link href="/projects" className="text-sm font-medium text-red-700 transition-colors hover:text-red-800">
+              <SectionTitle meta="Active work, current state, and open flags.">Active Work ({projectCards.length})</SectionTitle>
+              <Link href="/projects" className="text-sm font-medium text-zinc-700 transition-colors hover:text-red-800">
                 View all
               </Link>
             </div>
@@ -462,7 +450,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <SectionTitle meta="Team availability, project load, and approvals needing attention.">Teams ({teams.length})</SectionTitle>
-              <Link href="/teams" className="text-sm font-medium text-red-700 transition-colors hover:text-red-800">View all</Link>
+              <Link href="/teams" className="text-sm font-medium text-zinc-700 transition-colors hover:text-red-800">View all</Link>
             </div>
 
             {teams.length === 0 ? (
@@ -541,14 +529,14 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-base font-semibold tracking-tight text-zinc-950 transition-colors group-hover:text-red-700">{project.name}</p>
+              <p className="truncate text-base font-semibold tracking-tight text-zinc-950 transition-colors group-hover:text-zinc-700">{project.name}</p>
               <p className="mt-1 text-sm text-zinc-500">
                 {project.type ? <span className="uppercase tracking-[0.14em] text-[11px] text-zinc-400">{project.type}</span> : null}
                 {project.type && project.teamName ? <span> • </span> : null}
                 {project.teamName ? <span>{project.teamName}</span> : null}
               </p>
             </div>
-            <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">{progress}%</span>
+            <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-700">{progress}%</span>
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
@@ -557,7 +545,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Progress</p>
                 <p className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">{progress}% complete</p>
               </div>
-              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", hasFlags ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", hasFlags ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-zinc-700")}>
                 {hasFlags ? `${(project.approvalCount ?? 0) + (project.blockedCount ?? 0)} active flags` : "Healthy"}
               </span>
             </div>
@@ -567,14 +555,14 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
           </div>
 
           <div className="mt-auto flex flex-wrap gap-2">
-            {(project.approvalCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-red-100 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">{project.approvalCount} approvals</span> : null}
+            {(project.approvalCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-red-100 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-zinc-700">{project.approvalCount} approvals</span> : null}
             {(project.blockedCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">{project.blockedCount} blocked</span> : null}
-            {!hasFlags ? <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">No active flags</span> : null}
+            {!hasFlags ? <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-zinc-700">No active flags</span> : null}
           </div>
 
           <div className="flex items-center justify-between border-t border-zinc-100 pt-1 text-sm text-zinc-500">
             <span>Open project workspace</span>
-            <span className="inline-flex items-center gap-1 font-medium text-red-700 transition-colors group-hover:text-red-800">
+            <span className="inline-flex items-center gap-1 font-medium text-zinc-700 transition-colors group-hover:text-red-800">
               View project
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </span>
@@ -591,20 +579,20 @@ function UsageCard({ usage }: { usage: UsageModel }) {
       <CardContent className="space-y-5 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-red-700">24h summary</p>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">24h summary</p>
             <p className="mt-2 text-sm text-zinc-500">Usage totals and the models carrying most of the load.</p>
           </div>
-          <span className="rounded-full border border-red-100 bg-white px-3 py-1 text-xs font-medium text-red-700">Live rollup</span>
+          <span className="rounded-full border border-red-100 bg-white px-3 py-1 text-xs font-medium text-zinc-700">Live rollup</span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-red-100 bg-white p-4">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Tokens</div>
-            <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{usage.totalTokens.toLocaleString()}</div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{usage.totalTokens.toLocaleString()}</div>
           </div>
           <div className="rounded-2xl border border-red-100 bg-white p-4">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Cost</div>
-            <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">${usage.totalCost.toFixed(4)}</div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">${usage.totalCost.toFixed(4)}</div>
           </div>
         </div>
 

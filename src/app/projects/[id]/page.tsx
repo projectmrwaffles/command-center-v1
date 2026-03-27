@@ -61,6 +61,14 @@ type MilestoneReviewSummary = {
   feedbackItemCount: number;
 };
 
+type ReviewArtifact = {
+  kind: "workspace_file" | "git_commit";
+  label: string;
+  value: string;
+  sourceTaskId?: string;
+  sourceTaskTitle?: string;
+};
+
 type Milestone = {
   id: string;
   name: string;
@@ -79,6 +87,7 @@ type Milestone = {
   blockedTasks?: number;
   hiddenBootstrapTasks?: number;
   progressPct: number;
+  reviewArtifacts?: ReviewArtifact[] | null;
   reviewRequest?: {
     id: string;
     status: string;
@@ -298,6 +307,187 @@ function Section({ title, description, children, className, action }: { title: s
         {children}
       </CardContent>
     </Card>
+  );
+}
+
+function MilestoneReviewCard({
+  projectId,
+  milestone,
+  projectLinks,
+  reviewTasks,
+  onSaved,
+}: {
+  projectId: string;
+  milestone: Milestone;
+  projectLinks?: ProjectLinks | null;
+  reviewTasks: Array<{ id: string; title: string; status: string; review_status?: string | null }>;
+  onSaved: (payload: { links: ProjectLinks | null }) => void;
+}) {
+  const [draftLinks, setDraftLinks] = useState<ProjectLinks>(projectLinks || milestone.reviewRequest?.links || {});
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
+  const missingReviewRequestRecord = milestone.approvalGateRequired && milestone.approvalGateStatus === "pending" && !milestone.reviewRequest;
+  const canRequestReview = Boolean(milestone.approvalGateRequired && !milestone.reviewRequest && reviewTasksReady);
+  const reviewLinks = getProjectLinkEntries(milestone.reviewRequest?.links || projectLinks || null);
+  const reviewArtifacts = milestone.reviewArtifacts || [];
+  const hasDerivedArtifacts = reviewArtifacts.length > 0;
+
+  useEffect(() => {
+    setDraftLinks(projectLinks || milestone.reviewRequest?.links || {});
+  }, [projectLinks, milestone.reviewRequest?.links]);
+
+  const requestReview = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/review-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sprintId: milestone.id, note, links: draftLinks }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || "Failed to request review");
+      onSaved({ links: payload.links || null });
+      setMessage("Review requested");
+    } catch (e: any) {
+      setMessage(e.message || "Failed to request review");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
+            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
+            {milestone.approvalGateRequired ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-purple-700">Review gate</span> : null}
+          </div>
+          {milestone.goal ? <p className="mt-2 text-sm leading-6 text-zinc-600">{milestone.goal}</p> : null}
+        </div>
+        <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
+      </div>
+
+      {reviewTasks.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
+          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-purple-700">
+            {missingReviewRequestRecord ? "Review handoff needs attention" : milestone.reviewRequest ? "Awaiting review on" : "What will be reviewed"}
+          </div>
+          <p className="mt-1 text-sm text-purple-950">
+            {reviewTasks.length} deliverable{reviewTasks.length === 1 ? " is" : "s are"} awaiting review for this milestone.
+            {missingReviewRequestRecord ? " The milestone is marked pending review, but there is no live review request record yet." : ""}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-purple-900">
+            {reviewTasks.map((task) => (
+              <li key={task.id} className="flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
+                <span>
+                  {task.title}
+                  <span className="ml-2 text-xs text-purple-700">({formatReviewStatus(task.review_status)})</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs leading-5 text-purple-800">
+            {milestone.reviewRequest
+              ? "Use Open approvals to review this milestone and record the decision."
+              : hasDerivedArtifacts
+                ? "The review handoff already found concrete deliverables from completed task output. Add links only if you want extra external context."
+                : "Add the key artifact links below, then request review to create the approvals handoff for this milestone."}
+          </p>
+        </div>
+      ) : null}
+
+      {milestone.reviewRequest ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Review request live</div>
+              <p className="mt-1 text-sm font-medium text-amber-950">{milestone.reviewRequest.summary || "Approval requested"}</p>
+            </div>
+            <Link href={`/approvals?approval=${milestone.reviewRequest.id}#approval-${milestone.reviewRequest.id}`} className="text-sm font-medium text-red-700 hover:text-red-800">Open linked approval →</Link>
+          </div>
+          {reviewLinks.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {reviewLinks.map((link) => (
+                <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-medium text-amber-800">
+                  {link.label}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {reviewArtifacts.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Attached review artifacts</div>
+              <div className="space-y-2">
+                {reviewArtifacts.map((artifact) => (
+                  <div key={`${artifact.kind}-${artifact.value}`} className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-900">
+                    <div className="font-medium">{artifact.label}</div>
+                    <div className="mt-1 break-all text-amber-800">{artifact.value}</div>
+                    {artifact.sourceTaskTitle ? <div className="mt-1 text-[11px] text-amber-700">From {artifact.sourceTaskTitle}</div> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : canRequestReview ? (
+        <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
+          <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Request review</summary>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">{hasDerivedArtifacts ? "We already found reviewable deliverables from the completed task output and will attach them to the approval handoff automatically. Add links below only if you want extra external context. " : "Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. "}Code-heavy phases require a real GitHub repo link before review can start.{missingReviewRequestRecord ? " This will repair the stuck pending-review state and create the actual approvals record." : ""}</p>
+          {hasDerivedArtifacts ? (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-700">Auto-attached review target</div>
+              <div className="mt-2 space-y-2">
+                {reviewArtifacts.map((artifact) => (
+                  <div key={`${artifact.kind}-${artifact.value}`} className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-950">
+                    <div className="font-medium">{artifact.label}</div>
+                    <div className="mt-1 break-all text-xs text-emerald-800">{artifact.value}</div>
+                    {artifact.sourceTaskTitle ? <div className="mt-1 text-[11px] text-emerald-700">From {artifact.sourceTaskTitle}</div> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {PROJECT_LINK_FIELDS.map((key) => (
+              <label key={key} className="block">
+                <span className="mb-1.5 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+                <input
+                  type="url"
+                  value={draftLinks[key] || ""}
+                  onChange={(e) => setDraftLinks((current) => {
+                    const next = { ...current };
+                    if (e.target.value.trim()) next[key] = e.target.value;
+                    else delete next[key];
+                    return next;
+                  })}
+                  className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+                  placeholder={`https://${key === "github" ? "github.com/org/repo" : "example.com"}`}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="mt-3">
+            <label className="block text-sm font-medium text-zinc-700">Review note</label>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="What's ready for review?" className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
+          </div>
+          <div className="mt-4 flex items-center justify-between gap-3">
+            {message ? <p className={cn("text-xs", message === "Review requested" ? "text-emerald-600" : "text-zinc-500")}>{message}</p> : <span />}
+            <Button onClick={requestReview} disabled={saving} variant="warm" className="rounded-xl px-4">{saving ? "Requesting..." : "Request review"}</Button>
+          </div>
+        </details>
+      ) : milestone.approvalGateRequired ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+          Finish milestone tasks to unlock a real review request for this phase.
+        </div>
+      ) : null}
+    </div>
   );
 }
 

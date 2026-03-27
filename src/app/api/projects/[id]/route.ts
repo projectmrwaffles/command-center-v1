@@ -3,6 +3,7 @@ import { getTaskExecutionBlocker } from "@/lib/project-execution";
 import { reconcileProjectPhaseProgression } from "@/lib/project-handoff";
 import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
+import { deriveReviewArtifacts } from "@/lib/review-requests";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -120,7 +121,7 @@ export async function GET(
     };
 
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
-    const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }] = await Promise.all([
+    const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }, { data: completionEvents }] = await Promise.all([
       db.from("sprint_items").select("*").eq("project_id", projectId).order("position", { ascending: true }),
       db.from("sprints").select("*").eq("project_id", projectId).order("phase_order", { ascending: true }).order("created_at", { ascending: true }),
       includeActivity
@@ -149,8 +150,21 @@ export async function GET(
         .from("agents")
         .select("id, status, current_job_id")
         .not("name", "like", "_archived_%"),
+      db
+        .from("agent_events")
+        .select("event_type, payload")
+        .eq("project_id", projectId)
+        .eq("event_type", "task_completed")
+        .order("timestamp", { ascending: false })
+        .limit(100),
     ]);
     const events = eventsResult?.data || [];
+
+    const completionEventsByTaskId = new Map(
+      (completionEvents || [])
+        .map((event: any) => [typeof event.payload?.task_id === "string" ? event.payload.task_id : null, event] as const)
+        .filter((entry): entry is [string, any] => Boolean(entry[0]))
+    );
 
     const assignedAgentIds = Array.from(
       new Set((tasks || []).map((task) => task.assignee_agent_id).filter(Boolean))
@@ -252,11 +266,21 @@ export async function GET(
       const sprintTasks = (tasks || []).filter((task: any) => task.sprint_id === sprint.id);
       const sprintTruth = deriveSprintTruth({ sprint, tasks: sprintTasks });
       const pendingReview = (approvals || []).find((approval: any) => approval.sprint_id === sprint.id && approval.status === "pending");
+<<<<<<< HEAD
       const sprintSubmissions = submissionRows.filter((submission: any) => submission.sprint_id === sprint.id);
       const latestSubmission = sprintSubmissions[0] || null;
       const latestBundle = latestSubmission ? proofBundleRows.find((bundle: any) => bundle.submission_id === latestSubmission.id) || null : null;
       const latestProofItems = latestBundle ? proofItemRows.filter((item: any) => item.proof_bundle_id === latestBundle.id) : [];
       const latestFeedbackItems = latestSubmission ? feedbackRows.filter((item: any) => item.submission_id === latestSubmission.id) : [];
+=======
+      const reviewTasks = sprintTasks.filter((task: any) => task.review_required);
+      const derivedArtifacts = deriveReviewArtifacts({
+        reviewTasks,
+        completionEvents: reviewTasks
+          .map((task: any) => completionEventsByTaskId.get(task.id))
+          .filter(Boolean),
+      });
+>>>>>>> a89055b (Auto-attach derived review artifacts)
       return {
         id: sprint.id,
         name: sprint.name,
@@ -268,6 +292,7 @@ export async function GET(
         category: sprintTruth.category,
         approvalGateRequired: sprint.approval_gate_required ?? false,
         approvalGateStatus: sprint.approval_gate_status ?? "not_requested",
+<<<<<<< HEAD
         totalTasks: sprintTruth.totalTasks,
         doneTasks: sprintTruth.doneTasks,
         queuedTasks: sprintTruth.queuedTasks,
@@ -275,6 +300,12 @@ export async function GET(
         blockedTasks: sprintTruth.blockedTasks,
         hiddenBootstrapTasks: sprintTruth.hiddenBootstrapTasks,
         progressPct: sprintTruth.progressPct,
+=======
+        totalTasks: total,
+        doneTasks: done,
+        progressPct: total > 0 ? Math.round((done / total) * 100) : 0,
+        reviewArtifacts: pendingReview?.context?.artifacts ?? derivedArtifacts,
+>>>>>>> a89055b (Auto-attach derived review artifacts)
         reviewRequest: pendingReview
           ? {
               id: pendingReview.id,

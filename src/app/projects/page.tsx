@@ -24,6 +24,15 @@ type Project = {
   progress_pct?: number | null;
   created_at?: string | null;
   updated_at?: string | null;
+  truth?: {
+    headline?: string;
+    summary?: string;
+    execution?: { label?: string };
+    counts?: {
+      delivery?: { total?: number; queued?: number; running?: number; done?: number; blocked?: number };
+      bootstrap?: { total?: number };
+    };
+  } | null;
 };
 
 function formatRelativeDate(value?: string | null) {
@@ -185,7 +194,7 @@ function ProjectsContent() {
             const progress = Math.max(0, Math.min(100, project.progress_pct || 0));
             const statusTone = getProjectStatusTone(project.status);
             const executionTone = getExecutionTone({ status: project.status, blocked: project.status === "blocked" });
-            const summary = project.intake_summary || project.description || "Open the project to see its current scope, active tasks, and delivery details.";
+            const summary = project.truth?.headline || project.intake_summary || project.description || "Open the project to see its current scope, active tasks, and delivery details.";
 
             return (
               <Link key={project.id} href={`/projects/${project.id}`} className="group block min-w-0">
@@ -202,7 +211,7 @@ function ProjectsContent() {
 
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <ProjectStatusBadge status={project.status} className="shrink-0" />
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${executionTone.badgeClassName}`}>{executionTone.label}</span>
+                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${executionTone.badgeClassName}`}>{project.truth?.execution?.label || executionTone.label}</span>
                       </div>
                     </div>
 
@@ -214,10 +223,12 @@ function ProjectsContent() {
                             <p className="text-lg font-semibold tracking-tight text-zinc-950">{progress}% complete</p>
                             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone.pill}`}>{statusTone.label}</span>
                           </div>
+                          {project.truth?.summary ? <p className="mt-2 max-w-sm text-xs leading-5 text-zinc-600">{project.truth.summary}</p> : null}
                         </div>
                         <div className="text-right text-xs text-zinc-500">
                           <div>{formatRelativeDate(project.updated_at || project.created_at)}</div>
                           <div className="mt-1">{formatRelativeTimestamp(project.updated_at || project.created_at)}</div>
+                          {project.truth?.counts ? <div className="mt-1">{project.truth.counts.delivery?.queued || 0} queued · {project.truth.counts.delivery?.running || 0} running · {project.truth.counts.bootstrap?.total || 0} bootstrap</div> : null}
                         </div>
                       </div>
                       <div className={`mt-3 h-2 overflow-hidden rounded-full ${statusTone.progressTrack}`}>

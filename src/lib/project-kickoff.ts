@@ -44,7 +44,7 @@ function isMissingColumnError(error: { code?: string; message?: string } | null 
   return error.code === "PGRST204" && columns.some((column) => message.includes(`'${column}' column`));
 }
 
-function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string, string>): KickoffPhaseTemplate["tasks"][number] {
+function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string, string>, options?: { reviewRequired?: boolean }): KickoffPhaseTemplate["tasks"][number] {
   const config = TASK_TYPE_CONFIG[taskType];
   const templateKeyField = config.metadataFields[0]?.key;
   const titlePrefix = templateKeyField ? metadata[templateKeyField] : config.goalVerb;
@@ -61,7 +61,7 @@ function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string
     taskType,
     taskGoal,
     ownerTeam: config.ownerTeam,
-    reviewRequired: config.reviewRequired,
+    reviewRequired: options?.reviewRequired ?? config.reviewRequired,
     taskTemplateKey: templateKeyField ? metadata[templateKeyField] ?? null : null,
     taskMetadata: metadata,
   };
@@ -72,6 +72,7 @@ export function buildProjectKickoffPlan(input: {
   type: string;
   intake?: ProjectIntake;
 }): KickoffPhaseTemplate[] {
+  const bootstrapPhaseOptions = { reviewRequired: false };
   const intake = input.intake;
   const readiness = intake ? inferIntakeReadiness(intake) : { stage: "planning", confidence: "somewhat-clear" };
   const phaseTemplates: KickoffPhaseTemplate[] = [];
@@ -89,13 +90,13 @@ export function buildProjectKickoffPlan(input: {
       goal: "Clarify scope, success criteria, and the immediate execution path.",
       order: phaseTemplates.length + 1,
       status: "active",
-      gateRequired: true,
+      gateRequired: false,
       gateStatus: "not_requested",
       tasks: [
         phaseTask("discovery_plan", `${input.projectName} scope, plan, and next-step recommendation`, {
           planning_mode: "define_scope",
           target_area: needsBuild ? "engineering" : needsContent ? "marketing" : needsDesign ? "design" : "hybrid",
-        }),
+        }, bootstrapPhaseOptions),
       ],
     });
   }
@@ -107,13 +108,13 @@ export function buildProjectKickoffPlan(input: {
       goal: "Create the core UX, flows, and visual direction needed for execution.",
       order: phaseTemplates.length + 1,
       status: phaseTemplates.length === 0 ? "active" : "draft",
-      gateRequired: true,
+      gateRequired: false,
       gateStatus: "not_requested",
       tasks: [
         phaseTask("design", `${input.projectName} core user flow and interface direction`, {
           design_output_type: "wireframes",
           surface: intake?.shape === "native-app" ? "mobile" : intake?.shape === "website" ? "web" : "dashboard",
-        }),
+        }, bootstrapPhaseOptions),
       ],
     });
   }
@@ -125,13 +126,13 @@ export function buildProjectKickoffPlan(input: {
       goal: "Implement the first working delivery slice from the approved plan.",
       order: phaseTemplates.length + 1,
       status: phaseTemplates.length === 0 ? "active" : "draft",
-      gateRequired: true,
+      gateRequired: false,
       gateStatus: "not_requested",
       tasks: [
         phaseTask("build_implementation", `${input.projectName} initial delivery slice`, {
           implementation_kind: hasCapability(intake, "backend-data") ? "backend_or_api" : intake?.shape === "website" ? "website_page" : "frontend_feature",
           target_environment: intake?.shape === "website" ? "marketing_site" : intake?.shape === "ops-system" ? "internal_ops" : intake?.shape === "native-app" ? "mobile_app" : "web_app",
-        }),
+        }, bootstrapPhaseOptions),
       ],
     });
   }
@@ -143,13 +144,13 @@ export function buildProjectKickoffPlan(input: {
       goal: "Create the supporting messaging and content needed to launch or explain the work.",
       order: phaseTemplates.length + 1,
       status: phaseTemplates.length === 0 ? "active" : "draft",
-      gateRequired: true,
+      gateRequired: false,
       gateStatus: "not_requested",
       tasks: [
         phaseTask("content_messaging", `${input.projectName} launch-ready messaging`, {
           content_type: "launch_messaging",
           channel_or_surface: intake?.shape === "launch-campaign" ? "ads" : "site",
-        }),
+        }, bootstrapPhaseOptions),
       ],
     });
   }
@@ -167,7 +168,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("qa_validation", `${input.projectName} kickoff deliverables`, {
           qa_mode: "acceptance_review",
           subject_ref: needsBuild ? "new_feature" : needsContent ? "landing_page" : "other",
-        }),
+        }, bootstrapPhaseOptions),
       ],
     });
   }

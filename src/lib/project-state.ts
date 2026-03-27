@@ -1,3 +1,4 @@
+import { getProgressTaskSlice } from "./project-bootstrap.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 import { selectProjectWithArtifactCompat } from "./project-db-compat";
 
@@ -104,15 +105,16 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
 }> {
   const { data: tasks, error: tasksError } = await db
     .from("sprint_items")
-    .select("status")
+    .select("status, task_metadata")
     .eq("project_id", projectId);
 
   if (tasksError) {
     throw new Error(tasksError.message);
   }
 
-  const totalTasks = tasks?.length ?? 0;
-  const doneTasks = tasks?.filter((task: { status: string }) => task.status === "done").length ?? 0;
+  const progressTasks = getProgressTaskSlice((tasks || []) as Array<{ status: string; task_metadata?: Record<string, unknown> | null }>);
+  const totalTasks = progressTasks.length;
+  const doneTasks = progressTasks.filter((task: { status: string }) => task.status === "done").length;
   const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   const { data: project, error: projectError } = await selectProjectWithArtifactCompat(

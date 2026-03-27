@@ -1,6 +1,6 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { sanitizeProjectLinks } from "@/lib/project-links";
-import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
+import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
@@ -30,6 +30,30 @@ type RecentSignal = {
   timestamp: string;
   actorName?: string | null;
 };
+
+function deriveCompatGithubBinding(project: {
+  links?: { github?: string | null } | null;
+  intake?: {
+    projectOrigin?: "new" | "existing" | null;
+    links?: { github?: string | null } | null;
+    githubRepoSource?: "linked" | "provisioned" | null;
+  } | null;
+  github_repo_binding?: GitHubRepoBinding | null;
+}) {
+  if (project.github_repo_binding?.url) return project.github_repo_binding;
+
+  const githubUrl = project.links?.github || project.intake?.links?.github;
+  if (!githubUrl) return null;
+
+  const storedCompatSource = project.intake?.githubRepoSource;
+  const shouldAssumeProvisioned = storedCompatSource === "provisioned"
+    || (project.intake?.projectOrigin === "new" && !project.links?.github && Boolean(project.intake?.links?.github));
+
+  return createGitHubRepoBinding({
+    url: githubUrl,
+    source: shouldAssumeProvisioned ? "provisioned" : "linked",
+  });
+}
 
 function formatEventType(eventType: string) {
   return eventType
@@ -85,16 +109,7 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const derivedGithubBinding = project.github_repo_binding || createGitHubRepoBinding({
-      url: project.links?.github || project.intake?.links?.github,
-      source: project.intake?.projectOrigin === "new" ? "provisioned" : "linked",
-      provisioning: project.intake?.projectOrigin === "new"
-        ? {
-            status: "ready",
-            reason: "GitHub repository was provisioned and persisted via intake fallback because artifact columns are unavailable in this database.",
-          }
-        : undefined,
-    });
+    const derivedGithubBinding = deriveCompatGithubBinding(project);
     const projectWithDerivedArtifacts = {
       ...project,
       github_repo_binding: derivedGithubBinding,
@@ -280,6 +295,10 @@ export async function GET(
     return NextResponse.json({
       project: {
         ...projectWithDerivedArtifacts,
+        github_repo_provenance: getGitHubRepoProvenance({
+          binding: projectWithDerivedArtifacts.github_repo_binding,
+          projectOrigin: projectWithDerivedArtifacts.intake?.projectOrigin,
+        }),
         progress_pct: overallProgress,
       },
       deliveryIntegrity: artifactIntegrity,
@@ -315,11 +334,12 @@ export async function PATCH(
     const params = await ctx.params;
     const projectId = params.id;
     const body = await req.json();
-    const { status, links, githubRepo, provisionGithubRepo } = body as {
+    const { status, links, githubRepo, provisionGithubRepo, confirmLinkedRepoForNetNew } = body as {
       status?: string;
       links?: Record<string, string>;
       githubRepo?: GitHubRepoBindingInput | null;
       provisionGithubRepo?: boolean;
+      confirmLinkedRepoForNetNew?: boolean;
     };
 
     if (!projectId) {
@@ -337,7 +357,7 @@ export async function PATCH(
       update.status = status;
     }
 
-    const githubRepoUrl = githubRepo === null ? null : githubRepo?.url || links?.github;
+    const githubRepoUrl = githubRepo === null ? null : getGitHubRepoUrlFromProjectArtifacts({ githubRepo, links });
     const githubRepoError = getGitHubRepoValidationError(githubRepoUrl);
     if (githubRepoError) {
       return NextResponse.json({ error: githubRepoError }, { status: 400 });
@@ -356,11 +376,20 @@ export async function PATCH(
       const { data: currentProject, error: currentProjectError } = await selectProjectWithArtifactCompat(
         db,
         projectId,
-        "id"
+        "id, intake"
       );
 
       if (currentProjectError || !currentProject) {
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
+      }
+
+      const netNewGitHubRepoGuardError = getNetNewGitHubRepoGuardError({
+        projectOrigin: currentProject.intake?.projectOrigin,
+        githubRepoUrl,
+        confirmLinkedRepo: confirmLinkedRepoForNetNew,
+      });
+      if (netNewGitHubRepoGuardError) {
+        return NextResponse.json({ error: netNewGitHubRepoGuardError }, { status: 400 });
       }
 
       const existingBinding = (currentProject.github_repo_binding || null) as GitHubRepoBinding | null;

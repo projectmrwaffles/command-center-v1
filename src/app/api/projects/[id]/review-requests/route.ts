@@ -1,6 +1,6 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { getSprintReviewEligibility } from "@/lib/review-request-guards";
-import { mergeProjectLinks, buildReviewRequestContext, buildReviewRequestSummary } from "@/lib/review-requests";
+import { mergeProjectLinks, buildReviewRequestContext, buildReviewRequestSummary, deriveReviewArtifacts } from "@/lib/review-requests";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -90,11 +90,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }, { data: pendingApproval, error: pendingApprovalError }] = await Promise.all([
+    const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }, { data: pendingApproval, error: pendingApprovalError }, { data: sprintReviewTasks }, { data: completionEvents }] = await Promise.all([
       selectProjectWithArtifactCompat(db, projectId, "id, name, type, intake, links, github_repo_binding"),
       db.from("sprints").select("id, project_id, name, approval_gate_required, approval_gate_status").eq("id", sprintId).eq("project_id", projectId).single(),
       selectSprintTasksForReviewCompat(db, projectId, sprintId),
       db.from("approvals").select("id").eq("project_id", projectId).eq("sprint_id", sprintId).eq("status", "pending").maybeSingle(),
+      db.from("sprint_items").select("id, title").eq("project_id", projectId).eq("sprint_id", sprintId).eq("review_required", true),
+      db.from("agent_events").select("payload").eq("project_id", projectId).eq("event_type", "task_completed").order("timestamp", { ascending: false }).limit(100),
     ]);
 
     if (projectError || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -153,6 +155,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: "No agent available to own this review request" }, { status: 400 });
     }
 
+    const derivedArtifacts = deriveReviewArtifacts({
+      reviewTasks: (sprintReviewTasks || []) as Array<{ id: string; title?: string | null }>,
+      completionEvents: (completionEvents || []) as Array<{ payload?: Record<string, unknown> | null }>,
+    });
+
     const summary = buildReviewRequestSummary({ projectName: project.name, sprintName: sprint.name });
     const context = buildReviewRequestContext({
       sprintId: sprint.id,
@@ -161,6 +168,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       projectName: project.name,
       links: mergedLinks,
       note,
+      artifacts: derivedArtifacts,
     });
 
     const { data: rpcResult, error: rpcError } = await db.rpc("create_project_review_request", {

@@ -24,6 +24,14 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+type ApprovalArtifact = {
+  kind: "workspace_file" | "git_commit";
+  label: string;
+  value: string;
+  sourceTaskId?: string;
+  sourceTaskTitle?: string;
+};
+
 type ApprovalRow = {
   id: string;
   status: string;
@@ -39,7 +47,7 @@ type ApprovalRow = {
   agents?: { name: string; title: string | null } | { name: string; title: string | null }[] | null;
   jobs?: { title: string | null; status: string | null } | { title: string | null; status: string | null }[] | null;
   sprint_id: string | null;
-  context?: { links?: ProjectLinks | null; sprint_name?: string | null; note?: string | null } | null;
+  context?: { links?: ProjectLinks | null; sprint_name?: string | null; note?: string | null; artifacts?: ApprovalArtifact[] | null } | null;
   projects?: { name: string | null; links?: ProjectLinks | null } | { name: string | null; links?: ProjectLinks | null }[] | null;
   sprints?: { name: string | null } | { name: string | null }[] | null;
 };
@@ -409,9 +417,23 @@ export default async function ApprovalsPage({
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-1 text-sm text-zinc-500">No artifact links attached yet.</p>
+                          <p className="mt-1 text-sm text-zinc-500">No external artifact links attached.</p>
                         )}
                       </div>
+                      {Array.isArray(a.context?.artifacts) && a.context.artifacts.length > 0 ? (
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Attached review artifacts</div>
+                          <div className="mt-2 space-y-2">
+                            {a.context.artifacts.map((artifact: any) => (
+                              <div key={`${artifact.kind}-${artifact.value}`} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                                <div className="font-medium text-zinc-900">{artifact.label}</div>
+                                <div className="mt-1 break-all">{artifact.value}</div>
+                                {artifact.sourceTaskTitle ? <div className="mt-1 text-[11px] text-zinc-500">From {artifact.sourceTaskTitle}</div> : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
 
                     <form action={handleApproval} id={`form-${a.id}`} className="mt-auto space-y-4">

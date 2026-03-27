@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Clock3,
+  FileText,
   FolderKanban,
   PauseCircle,
   PlayCircle,
@@ -21,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
 import { ProjectStatusBadge, ProjectTypeBadge } from "@/components/ui/project-badges";
 import { formatRelativeTimestamp, getExecutionTone, ProgressRing } from "@/components/ui/execution-visibility";
 import {
@@ -180,6 +182,128 @@ function formatUpdatedDate(value?: string | null) {
   })}`;
 }
 
+type MilestoneReviewState = {
+  tone: "neutral" | "purple" | "amber" | "emerald";
+  eyebrow: string;
+  title: string;
+  description: string;
+  helper?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+};
+
+function EmptySectionState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
+  return <BrandedEmptyState icon={icon} title={title} description={description} action={action} className="border-zinc-200 bg-zinc-50 py-12" />;
+}
+
+function getMilestoneReviewState(input: {
+  milestone: Milestone;
+  reviewTasks: Array<{ id: string; title: string; status: string; review_status?: string | null }>;
+}) : MilestoneReviewState {
+  const { milestone, reviewTasks } = input;
+  const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
+  const missingReviewRequestRecord = milestone.approvalGateRequired && milestone.approvalGateStatus === "pending" && !milestone.reviewRequest;
+  const milestoneApproved = milestone.approvalGateRequired && milestone.approvalGateStatus === "approved";
+
+  if (milestone.reviewRequest) {
+    return {
+      tone: "amber",
+      eyebrow: "Review request live",
+      title: milestone.reviewRequest.summary || "Approval requested",
+      description: "A live approval request is open for this milestone. Use the exact linked approval to review and record the decision.",
+      helper: reviewTasks.length > 0
+        ? `${reviewTasks.length} review task${reviewTasks.length === 1 ? " is" : "s are"} attached to this request.`
+        : "This review request is ready in approvals even if the related review-task row is sparse.",
+      ctaLabel: "Open linked approval →",
+      ctaHref: `/approvals?approval=${milestone.reviewRequest.id}#approval-${milestone.reviewRequest.id}`,
+    };
+  }
+
+  if (!milestone.approvalGateRequired) {
+    return {
+      tone: "neutral",
+      eyebrow: "Execution milestone",
+      title: "Review gate not required",
+      description: "This milestone tracks delivery progress without creating an approval handoff.",
+      helper: milestone.totalTasks > 0
+        ? `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} completed.`
+        : "Add tasks when this phase has concrete work to track.",
+    };
+  }
+
+  if (milestone.totalTasks === 0) {
+    return {
+      tone: "neutral",
+      eyebrow: "Review gated",
+      title: "No milestone tasks yet",
+      description: "This milestone is configured for review, but it needs at least one task before a review request can exist.",
+      helper: "Add the deliverables for this phase, then finish them to unlock review.",
+    };
+  }
+
+  if (missingReviewRequestRecord) {
+    return {
+      tone: "amber",
+      eyebrow: "Review handoff needs attention",
+      title: "Pending review is missing its approval row",
+      description: "This milestone says review is pending, but there is no live approval record yet. Request review again to repair the stuck handoff.",
+      helper: reviewTasks.length > 0
+        ? `${reviewTasks.length} review task${reviewTasks.length === 1 ? " is" : "s are"} already marked for review.`
+        : "The milestone is stuck between completion and approvals.",
+    };
+  }
+
+  if (milestoneApproved) {
+    return {
+      tone: "emerald",
+      eyebrow: "Review approved",
+      title: "Milestone review is finalized",
+      description: "This milestone has already been approved, so no new review request is needed.",
+      helper: reviewTasks.length > 0
+        ? `${reviewTasks.length} review task${reviewTasks.length === 1 ? " was" : "s were"} part of the approved handoff.`
+        : reviewTasksReady
+          ? "All milestone work is complete and the approval gate is already cleared."
+          : `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} are marked complete while the approval gate remains approved.`,
+    };
+  }
+
+  if (reviewTasks.length > 0 && !milestone.reviewRequest) {
+    return reviewTasksReady
+      ? {
+          tone: "purple",
+          eyebrow: "Review deliverables ready",
+          title: "Review tasks exist, but no request has been sent",
+          description: "The deliverables for review are ready. Capture the key links below and send the review request to create the approval handoff.",
+          helper: `${reviewTasks.length} review task${reviewTasks.length === 1 ? " is" : "s are"} waiting for a real review request.`,
+        }
+      : {
+          tone: "neutral",
+          eyebrow: "Review deliverables identified",
+          title: "Review is not unlocked yet",
+          description: "This milestone already has review tasks, but the milestone still has open delivery work before a request can be sent.",
+          helper: `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} completed before review can start.`,
+        };
+  }
+
+  if (!reviewTasksReady) {
+    return {
+      tone: "neutral",
+      eyebrow: "Review gated",
+      title: "Review is not unlocked yet",
+      description: "Finish this milestone's tasks before creating a review request.",
+      helper: `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} completed.`,
+    };
+  }
+
+  return {
+    tone: "purple",
+    eyebrow: "Ready for review",
+    title: "Milestone complete and ready to request review",
+    description: "All milestone work is done. Add the supporting links below and send the review request to create the approval handoff.",
+    helper: "Requesting review will preserve the exact approval deep link for this milestone.",
+  };
+}
+
 function Section({ title, description, children, className, action }: { title: string; description?: string; children: ReactNode; className?: string; action?: ReactNode }) {
   return (
     <Card variant="soft" className={cn("overflow-hidden rounded-[24px] border-zinc-200/90", className)}>
@@ -216,8 +340,45 @@ function MilestoneReviewCard({
   const [message, setMessage] = useState<string | null>(null);
   const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
   const missingReviewRequestRecord = milestone.approvalGateRequired && milestone.approvalGateStatus === "pending" && !milestone.reviewRequest;
-  const canRequestReview = Boolean(milestone.approvalGateRequired && !milestone.reviewRequest && reviewTasksReady);
+  const milestoneApproved = milestone.approvalGateRequired && milestone.approvalGateStatus === "approved";
+  const canRequestReview = Boolean(milestone.approvalGateRequired && !milestone.reviewRequest && !milestoneApproved && reviewTasksReady);
   const reviewLinks = getProjectLinkEntries(milestone.reviewRequest?.links || projectLinks || null);
+  const reviewState = getMilestoneReviewState({ milestone, reviewTasks });
+  const reviewStateStyles = reviewState.tone === "amber"
+    ? {
+        shell: "border-amber-200 bg-amber-50",
+        eyebrow: "text-amber-700",
+        title: "text-amber-950",
+        body: "text-amber-900",
+        helper: "text-amber-800",
+        chip: "border-amber-200 bg-white text-amber-800",
+      }
+    : reviewState.tone === "purple"
+      ? {
+          shell: "border-purple-100 bg-purple-50/70",
+          eyebrow: "text-purple-700",
+          title: "text-purple-950",
+          body: "text-purple-900",
+          helper: "text-purple-800",
+          chip: "border-purple-200 bg-white text-purple-800",
+        }
+      : reviewState.tone === "emerald"
+        ? {
+            shell: "border-emerald-200 bg-emerald-50/80",
+            eyebrow: "text-emerald-700",
+            title: "text-emerald-950",
+            body: "text-emerald-900",
+            helper: "text-emerald-800",
+            chip: "border-emerald-200 bg-white text-emerald-800",
+          }
+        : {
+            shell: "border-zinc-200 bg-zinc-50",
+            eyebrow: "text-zinc-500",
+            title: "text-zinc-900",
+            body: "text-zinc-600",
+            helper: "text-zinc-500",
+            chip: "border-zinc-200 bg-white text-zinc-700",
+          };
 
   useEffect(() => {
     setDraftLinks(projectLinks || milestone.reviewRequest?.links || {});
@@ -257,57 +418,49 @@ function MilestoneReviewCard({
         <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
       </div>
 
-      {reviewTasks.length > 0 ? (
-        <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-purple-700">
-            {missingReviewRequestRecord ? "Review handoff needs attention" : milestone.reviewRequest ? "Awaiting review on" : "What will be reviewed"}
+      <div className={cn("mt-4 rounded-2xl border p-4", reviewStateStyles.shell)}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className={cn("text-[11px] font-medium uppercase tracking-[0.14em]", reviewStateStyles.eyebrow)}>{reviewState.eyebrow}</div>
+            <p className={cn("mt-1 text-sm font-medium", reviewStateStyles.title)}>{reviewState.title}</p>
+            <p className={cn("mt-2 text-sm leading-6", reviewStateStyles.body)}>{reviewState.description}</p>
           </div>
-          <p className="mt-1 text-sm text-purple-950">
-            {reviewTasks.length} deliverable{reviewTasks.length === 1 ? " is" : "s are"} awaiting review for this milestone.
-            {missingReviewRequestRecord ? " The milestone is marked pending review, but there is no live review request record yet." : ""}
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-purple-900">
+          {reviewState.ctaHref && reviewState.ctaLabel ? (
+            <Link href={reviewState.ctaHref} className="text-sm font-medium text-red-700 hover:text-red-800">{reviewState.ctaLabel}</Link>
+          ) : null}
+        </div>
+
+        {reviewTasks.length > 0 ? (
+          <ul className={cn("mt-3 space-y-2 text-sm", reviewStateStyles.body)}>
             {reviewTasks.map((task) => (
               <li key={task.id} className="flex items-start gap-2">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
                   {task.title}
-                  <span className="ml-2 text-xs text-purple-700">({formatReviewStatus(task.review_status)})</span>
+                  <span className="ml-2 text-xs opacity-80">({formatReviewStatus(task.review_status)})</span>
                 </span>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs leading-5 text-purple-800">
-            {milestone.reviewRequest
-              ? "Use Open approvals to review this milestone and record the decision."
-              : "Add the key artifact links below, then request review to create the approvals handoff for this milestone."}
-          </p>
-        </div>
-      ) : null}
+        ) : null}
 
-      {milestone.reviewRequest ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Review request live</div>
-              <p className="mt-1 text-sm font-medium text-amber-950">{milestone.reviewRequest.summary || "Approval requested"}</p>
-            </div>
-            <Link href={`/approvals?approval=${milestone.reviewRequest.id}#approval-${milestone.reviewRequest.id}`} className="text-sm font-medium text-red-700 hover:text-red-800">Open linked approval →</Link>
+        {reviewLinks.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {reviewLinks.map((link) => (
+              <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium", reviewStateStyles.chip)}>
+                {link.label}
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+            ))}
           </div>
-          {reviewLinks.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {reviewLinks.map((link) => (
-                <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-medium text-amber-800">
-                  {link.label}
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                </a>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : canRequestReview ? (
+        ) : null}
+
+        {reviewState.helper ? <p className={cn("mt-3 text-xs leading-5", reviewStateStyles.helper)}>{reviewState.helper}</p> : null}
+      </div>
+
+      {canRequestReview ? (
         <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
-          <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Request review</summary>
+          <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">{missingReviewRequestRecord ? "Repair and request review" : "Request review"}</summary>
           <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. Code-heavy phases require a real GitHub repo link before review can start.{missingReviewRequestRecord ? " This will repair the stuck pending-review state and create the actual approvals record." : ""}</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {PROJECT_LINK_FIELDS.map((key) => (
@@ -334,13 +487,9 @@ function MilestoneReviewCard({
           </div>
           <div className="mt-4 flex items-center justify-between gap-3">
             {message ? <p className={cn("text-xs", message === "Review requested" ? "text-emerald-600" : "text-zinc-500")}>{message}</p> : <span />}
-            <Button onClick={requestReview} disabled={saving} variant="warm" className="rounded-xl px-4">{saving ? "Requesting..." : "Request review"}</Button>
+            <Button onClick={requestReview} disabled={saving} variant="warm" className="rounded-xl px-4">{saving ? "Requesting..." : missingReviewRequestRecord ? "Repair & request review" : "Request review"}</Button>
           </div>
         </details>
-      ) : milestone.approvalGateRequired ? (
-        <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-          Finish milestone tasks to unlock a real review request for this phase.
-        </div>
       ) : null}
     </div>
   );
@@ -846,8 +995,8 @@ export default function ProjectDetailPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <div className="space-y-4">
-          {hasBrief ? (
-            <Section title="Project brief" description="Scope, readiness, and routing context for everyone touching the work.">
+          <Section title="Project brief" description="Scope, readiness, and routing context for everyone touching the work.">
+            {hasBrief ? (
               <div className="space-y-5">
                 {routing ? (
                   <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
@@ -913,11 +1062,23 @@ export default function ProjectDetailPage() {
                   </div>
                 ) : null}
               </div>
-            </Section>
-          ) : null}
+            ) : (
+              <EmptySectionState
+                icon={<FileText className="h-7 w-7" />}
+                title="Project brief still needs context"
+                description="Add intake details, a short summary, or routing context so everyone has a shared brief before execution ramps up."
+              />
+            )}
+          </Section>
 
-          {milestones.length > 0 ? (
-            <Section title="Milestones & review" description="Phases move from execution into a concrete review handoff instead of a placeholder state.">
+          <Section title="Milestones & review" description="Phases move from execution into a concrete review handoff instead of a placeholder state.">
+            {milestones.length === 0 ? (
+              <EmptySectionState
+                icon={<ShieldCheck className="h-7 w-7" />}
+                title="No milestones yet"
+                description="Create the first milestone to define phases, unlock review guidance, and make approval handoffs visible on this page."
+              />
+            ) : (
               <div className="space-y-3">
                 {milestones.map((milestone) => (
                   <MilestoneReviewCard
@@ -939,14 +1100,17 @@ export default function ProjectDetailPage() {
                   />
                 ))}
               </div>
-            </Section>
-          ) : null}
+            )}
+          </Section>
 
           <Section title="Task board" description="Keep work moving without opening every task.">
             {tasks.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-sm text-zinc-500">
-                No delivery tasks yet. Add the first task to kick off execution.
-              </div>
+              <EmptySectionState
+                icon={<FolderKanban className="h-7 w-7" />}
+                title="No delivery tasks yet"
+                description="Add the first task to turn this project from plan into active execution. The board will keep rendering as work moves across lanes."
+                action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Create first task</Button>}
+              />
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {[
@@ -1014,7 +1178,11 @@ export default function ProjectDetailPage() {
           <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
             <div className="space-y-4">
               {projectLinks.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-sm text-zinc-500">{artifactEmptyState(project.type, intake)}</div>
+                <EmptySectionState
+                  icon={<ArrowUpRight className="h-7 w-7" />}
+                  title="No links or artifacts yet"
+                  description={artifactEmptyState(project.type, intake)}
+                />
               ) : (
                 <div className="space-y-2">
                   {projectLinks.map((link) => (
@@ -1049,8 +1217,14 @@ export default function ProjectDetailPage() {
             </div>
           </Section>
 
-          {displayedRecentUpdates.length > 0 ? (
-            <Section title="Recent updates" description="Important recent project activity and decisions.">
+          <Section title="Recent updates" description="Important recent project activity and decisions.">
+            {displayedRecentUpdates.length === 0 ? (
+              <EmptySectionState
+                icon={<Activity className="h-7 w-7" />}
+                title="No recent updates yet"
+                description="Once work starts moving, key approvals, delivery signals, and activity will appear here instead of leaving the section blank."
+              />
+            ) : (
               <div className="space-y-2">
                 {displayedRecentUpdates.map((signal) => (
                   <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
@@ -1072,8 +1246,8 @@ export default function ProjectDetailPage() {
                   </div>
                 ))}
               </div>
-            </Section>
-          ) : null}
+            )}
+          </Section>
 
           {documents.length > 0 ? (
             <Section title="Supporting docs & uploads" description="Uploaded references, files, and source material tied to this project.">

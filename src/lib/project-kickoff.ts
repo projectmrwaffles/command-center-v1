@@ -13,7 +13,7 @@ export type KickoffPhaseTemplate = {
   order: number;
   status: "active" | "draft";
   gateRequired: boolean;
-  gateStatus: "pending" | "not_requested";
+  gateStatus: "not_requested";
   tasks: Array<{
     title: string;
     description: string;
@@ -90,7 +90,7 @@ export function buildProjectKickoffPlan(input: {
       order: phaseTemplates.length + 1,
       status: "active",
       gateRequired: true,
-      gateStatus: "pending",
+      gateStatus: "not_requested",
       tasks: [
         phaseTask("discovery_plan", `${input.projectName} scope, plan, and next-step recommendation`, {
           planning_mode: "define_scope",
@@ -108,7 +108,7 @@ export function buildProjectKickoffPlan(input: {
       order: phaseTemplates.length + 1,
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: true,
-      gateStatus: phaseTemplates.length === 0 ? "pending" : "not_requested",
+      gateStatus: "not_requested",
       tasks: [
         phaseTask("design", `${input.projectName} core user flow and interface direction`, {
           design_output_type: "wireframes",
@@ -126,7 +126,7 @@ export function buildProjectKickoffPlan(input: {
       order: phaseTemplates.length + 1,
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: true,
-      gateStatus: phaseTemplates.length === 0 ? "pending" : "not_requested",
+      gateStatus: "not_requested",
       tasks: [
         phaseTask("build_implementation", `${input.projectName} initial delivery slice`, {
           implementation_kind: hasCapability(intake, "backend-data") ? "backend_or_api" : intake?.shape === "website" ? "website_page" : "frontend_feature",
@@ -144,7 +144,7 @@ export function buildProjectKickoffPlan(input: {
       order: phaseTemplates.length + 1,
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: true,
-      gateStatus: phaseTemplates.length === 0 ? "pending" : "not_requested",
+      gateStatus: "not_requested",
       tasks: [
         phaseTask("content_messaging", `${input.projectName} launch-ready messaging`, {
           content_type: "launch_messaging",
@@ -177,7 +177,7 @@ export function buildProjectKickoffPlan(input: {
     order: index + 1,
     name: phase.name.replace(/^Phase \d+/, `Phase ${index + 1}`),
     status: index === 0 ? "active" : "draft",
-    gateStatus: phase.gateRequired ? (index === 0 ? "pending" : "not_requested") : "not_requested",
+    gateStatus: "not_requested",
   }));
 }
 

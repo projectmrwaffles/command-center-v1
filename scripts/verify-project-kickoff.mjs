@@ -124,7 +124,7 @@ const plan = buildProjectKickoffPlan({
 
 assert.equal(plan[0].key, "discover");
 assert.equal(plan[0].status, "active");
-assert.equal(plan[0].gateStatus, "pending");
+assert.equal(plan[0].gateStatus, "not_requested");
 assert.ok(plan.some((phase) => phase.key === "design"));
 assert.ok(plan.some((phase) => phase.key === "build"));
 assert.ok(plan.some((phase) => phase.key === "validate"));
@@ -143,7 +143,7 @@ assert.equal(seeded.phases.length, plan.length);
 assert.equal(db.tables.sprints.length, plan.length);
 assert.equal(db.tables.sprint_items.length, plan.reduce((count, phase) => count + phase.tasks.length, 0));
 assert.equal(db.tables.sprints[0].status, "active");
-assert.equal(db.tables.sprints[0].approval_gate_status, "pending");
+assert.equal(db.tables.sprints[0].approval_gate_status, "not_requested");
 assert.ok(db.tables.sprints.slice(1).every((phase) => phase.status === "draft"));
 assert.ok(db.tables.sprint_items.every((task) => task.sprint_id));
 assert.ok(db.tables.sprint_items.every((task) => task.task_type));

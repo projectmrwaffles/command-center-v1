@@ -1,3 +1,4 @@
+import { getProgressTaskSlice } from "./project-bootstrap";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements";
 
 type ProjectRow = {
@@ -16,6 +17,7 @@ type TaskRow = {
   sprint_id?: string | null;
   status?: string | null;
   task_type?: string | null;
+  task_metadata?: Record<string, unknown> | null;
 };
 
 type SprintRow = {
@@ -37,9 +39,10 @@ function deriveProjectSummaryTruth(input: {
   jobs?: JobRow[];
 }) {
   const tasks = input.tasks ?? [];
-  const totalTasks = tasks.length;
-  const doneTasks = tasks.filter((task) => task.status === "done").length;
-  const rawProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : input.project.progress_pct ?? 0;
+  const progressTasks = getProgressTaskSlice(tasks as Array<TaskRow & { status?: string | null }>);
+  const totalTasks = progressTasks.length;
+  const doneTasks = progressTasks.filter((task) => task.status === "done").length;
+  const rawProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   const artifactIntegrity = getProjectArtifactIntegrity(input.project, tasks);
   const progressPct = artifactIntegrity.completionCapPct != null && doneTasks === totalTasks && totalTasks > 0
     ? Math.min(rawProgress, artifactIntegrity.completionCapPct)

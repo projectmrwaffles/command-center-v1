@@ -1,3 +1,4 @@
+import { getProgressTaskSlice } from "@/lib/project-bootstrap";
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -207,9 +208,10 @@ export async function GET(
     });
 
     const artifactIntegrity = getProjectArtifactIntegrity(projectWithDerivedArtifacts, tasks || []);
-    const totalTasks = tasks?.length || 0;
-    const doneTasks = tasks?.filter((task) => task.status === "done").length || 0;
-    const rawProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : project.progress_pct || 0;
+    const progressTasks = getProgressTaskSlice((tasks || []) as Array<{ status?: string | null; task_metadata?: Record<string, unknown> | null }>);
+    const totalTasks = progressTasks.length;
+    const doneTasks = progressTasks.filter((task: any) => task.status === "done").length;
+    const rawProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
     const overallProgress = artifactIntegrity.completionCapPct != null && doneTasks === totalTasks && totalTasks > 0
       ? Math.min(rawProgress, artifactIntegrity.completionCapPct)
       : rawProgress;

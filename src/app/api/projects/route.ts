@@ -4,7 +4,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
 import { sanitizeProjectLinks } from "@/lib/project-links";
-import { createGitHubRepoBinding, getGitHubRepoValidationError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
+import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
     if (!auth.ok) return auth.response;
     const body = await req.json();
-    const { name, type, teamId, description, intake, links, githubRepo, provisionGithubRepo } = body as {
+    const { name, type, teamId, description, intake, links, githubRepo, provisionGithubRepo, confirmLinkedRepoForNetNew } = body as {
       name?: string;
       type?: string;
       teamId?: string;
@@ -149,6 +149,7 @@ export async function POST(req: NextRequest) {
       links?: Record<string, string>;
       githubRepo?: GitHubRepoBindingInput;
       provisionGithubRepo?: boolean;
+      confirmLinkedRepoForNetNew?: boolean;
     };
 
     if (!name || !type) {
@@ -160,10 +161,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const githubRepoUrl = githubRepo?.url || links?.github || intake?.links?.github;
+    const githubRepoUrl = getGitHubRepoUrlFromProjectArtifacts({ githubRepo, links, intakeLinks: intake?.links });
     const githubRepoError = getGitHubRepoValidationError(githubRepoUrl);
     if (githubRepoError) {
       return NextResponse.json({ error: githubRepoError }, { status: 400 });
+    }
+
+    const netNewGitHubRepoGuardError = getNetNewGitHubRepoGuardError({
+      projectOrigin: intake?.projectOrigin,
+      githubRepoUrl,
+      confirmLinkedRepo: confirmLinkedRepoForNetNew,
+    });
+    if (netNewGitHubRepoGuardError) {
+      return NextResponse.json({ error: netNewGitHubRepoGuardError }, { status: 400 });
     }
 
     const shouldProvisionGithubRepo = shouldAutoProvisionGitHubRepo({
@@ -259,6 +269,7 @@ export async function POST(req: NextRequest) {
         if (updateError && (isMissingGithubRepoBindingColumnError(updateError) || isMissingLinksColumnError(updateError))) {
           const fallbackIntake = {
             ...(project.intake || intake || {}),
+            githubRepoSource: "provisioned",
             links: {
               ...((project.intake || intake || {}).links || {}),
               github: provisionedBinding.url,

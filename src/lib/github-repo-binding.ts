@@ -1,4 +1,4 @@
-import { normalizeUrl } from "./project-links.ts";
+import { normalizeUrl, type ProjectLinks } from "./project-links.ts";
 
 export type GitHubRepoBinding = {
   provider: "github";
@@ -23,6 +23,14 @@ export type GitHubRepoBindingInput = {
   defaultBranch?: string | null;
   installationId?: number | null;
   provisioning?: GitHubRepoBinding["provisioning"];
+};
+
+export type GitHubRepoProvenance = {
+  state: "none" | "linked" | "provisioned";
+  label: "no repo yet" | "linked existing repo" | "auto-provisioned repo";
+  description: string;
+  mismatch: boolean;
+  mismatchReason: string | null;
 };
 
 const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
@@ -126,6 +134,43 @@ export function githubProvisioningAvailable() {
   return true;
 }
 
+export function getGitHubRepoProvenance(input: {
+  binding?: GitHubRepoBinding | null;
+  projectOrigin?: "new" | "existing" | null;
+}) : GitHubRepoProvenance {
+  const { binding, projectOrigin } = input;
+
+  if (!binding?.url) {
+    return {
+      state: "none",
+      label: "no repo yet",
+      description: projectOrigin === "new"
+        ? "No GitHub repo is linked yet. Net-new code-heavy projects can still be provisioned automatically when needed."
+        : "No GitHub repo is linked yet.",
+      mismatch: false,
+      mismatchReason: null,
+    };
+  }
+
+  const mismatch = projectOrigin === "new" && binding.source === "linked";
+  if (binding.source === "provisioned") {
+    return {
+      state: "provisioned",
+      label: "auto-provisioned repo",
+      description: "This repository was created for this project during provisioning.",
+      mismatch,
+      mismatchReason: mismatch ? "This project is marked net-new but is linked to an existing repo instead of a provisioned workspace." : null,
+    };
+  }
+
+  return {
+    state: "linked",
+    label: "linked existing repo",
+    description: "This project is attached to a pre-existing GitHub repository.",
+    mismatch,
+    mismatchReason: mismatch ? "This project is marked net-new but currently points at an existing linked repo. Verify that the repo is intentional and not carried over from another project." : null,
+  };
+}
 
 export function mergeProjectLinksForGitHubUpdate(
   existingLinks: Record<string, string> | null | undefined,
@@ -136,4 +181,23 @@ export function mergeProjectLinksForGitHubUpdate(
   const base = options?.replaceAll ? {} : { ...(existingLinks || {}) };
   const merged = incomingLinks ? { ...base, ...incomingLinks } : base;
   return syncProjectLinksWithGitHubBinding(merged, binding);
+}
+
+export function getGitHubRepoUrlFromProjectArtifacts(input: {
+  githubRepo?: GitHubRepoBindingInput | null;
+  links?: ProjectLinks | null;
+  intakeLinks?: ProjectLinks | null;
+}) {
+  return input.githubRepo?.url || input.links?.github || input.intakeLinks?.github || null;
+}
+
+export function getNetNewGitHubRepoGuardError(input: {
+  projectOrigin?: "new" | "existing" | null;
+  githubRepoUrl?: string | null;
+  confirmLinkedRepo?: boolean;
+}) {
+  if (input.projectOrigin !== "new") return null;
+  if (!input.githubRepoUrl) return null;
+  if (input.confirmLinkedRepo) return null;
+  return "Net-new projects cannot silently inherit an existing GitHub repo. Remove the repo link, switch the project origin to existing, or explicitly confirm that the linked repo is intentional.";
 }

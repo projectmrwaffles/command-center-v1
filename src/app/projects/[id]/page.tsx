@@ -33,7 +33,7 @@ import {
 import { getProjectStatusTone } from "@/lib/project-ui";
 import { resolveProjectDetailRecentUpdates } from "@/lib/project-detail-truth";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
-import { parseGitHubRepoUrl, type GitHubRepoBinding } from "@/lib/github-repo-binding";
+import { parseGitHubRepoUrl, type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
 import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { useRealtimeStore } from "@/lib/realtime-store";
@@ -93,6 +93,7 @@ type ProjectDetail = {
     intake?: any;
     links?: ProjectLinks | null;
     github_repo_binding?: GitHubRepoBinding | null;
+    github_repo_provenance?: GitHubRepoProvenance | null;
     [key: string]: any;
   };
   teams: any[];
@@ -1177,6 +1178,24 @@ export default function ProjectDetailPage() {
         <div className="space-y-4">
           <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
             <div className="space-y-4">
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">GitHub repo provenance</div>
+                    <div className="mt-1 text-sm font-medium text-zinc-900">{project.github_repo_provenance?.label || "no repo yet"}</div>
+                    <p className="mt-1 text-sm leading-6 text-zinc-600">{project.github_repo_provenance?.description || "No GitHub repo provenance is available yet."}</p>
+                  </div>
+                  {project.github_repo_binding?.fullName ? (
+                    <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700">{project.github_repo_binding.fullName}</span>
+                  ) : null}
+                </div>
+                {project.github_repo_provenance?.mismatch ? (
+                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <div className="font-medium">Repo provenance mismatch</div>
+                    <div className="mt-1 leading-6">{project.github_repo_provenance.mismatchReason}</div>
+                  </div>
+                ) : null}
+              </div>
               {projectLinks.length === 0 ? (
                 <EmptySectionState
                   icon={<ArrowUpRight className="h-7 w-7" />}

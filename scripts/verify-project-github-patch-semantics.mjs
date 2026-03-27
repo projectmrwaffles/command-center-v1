@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {
   createGitHubRepoBinding,
+  getGitHubRepoProvenance,
   getGitHubRepoValidationError,
+  getNetNewGitHubRepoGuardError,
   mergeProjectLinksForGitHubUpdate,
 } from "../src/lib/github-repo-binding.ts";
 import { sanitizeProjectLinks } from "../src/lib/project-links.ts";
@@ -57,5 +59,41 @@ assert.equal(
   "GitHub repo must be a real github.com/<owner>/<repo> URL. Placeholder or non-repo links are not allowed.",
   "placeholder/fake GitHub repos must stay rejected"
 );
+
+assert.match(
+  getNetNewGitHubRepoGuardError({
+    projectOrigin: "new",
+    githubRepoUrl: "https://github.com/acme/platform",
+    confirmLinkedRepo: false,
+  }) || "",
+  /cannot silently inherit/i,
+  "net-new projects with linked repos must hard-fail unless explicitly confirmed"
+);
+
+assert.equal(
+  getNetNewGitHubRepoGuardError({
+    projectOrigin: "existing",
+    githubRepoUrl: "https://github.com/acme/platform",
+    confirmLinkedRepo: false,
+  }),
+  null,
+  "existing-project flows should still allow linking an existing repo"
+);
+
+const linkedProvenance = getGitHubRepoProvenance({ binding: existingBinding, projectOrigin: "new" });
+assert.equal(linkedProvenance.label, "linked existing repo");
+assert.equal(linkedProvenance.mismatch, true, "net-new + linked repo should surface mismatch state");
+
+const provisionedBinding = createGitHubRepoBinding({
+  url: "https://github.com/acme/workspace",
+  source: "provisioned",
+  provisioning: { status: "ready", reason: "Provisioned." },
+});
+assert(provisionedBinding, "expected provisioned binding");
+const provisionedProvenance = getGitHubRepoProvenance({ binding: provisionedBinding, projectOrigin: "new" });
+assert.equal(provisionedProvenance.label, "auto-provisioned repo");
+assert.equal(provisionedProvenance.mismatch, false);
+
+assert.equal(getGitHubRepoProvenance({ binding: null, projectOrigin: "new" }).label, "no repo yet");
 
 console.log("verify-project-github-patch-semantics: ok");

@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
   if (projectIds.length === 0) return NextResponse.json({ projects });
 
   const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
-    db.from("sprint_items").select("project_id, sprint_id, status, task_type").in("project_id", projectIds),
-    db.from("sprints").select("id, project_id, approval_gate_required, approval_gate_status").in("project_id", projectIds),
+    db.from("sprint_items").select("project_id, sprint_id, status, task_type, task_metadata").in("project_id", projectIds),
+    db.from("sprints").select("id, project_id, auto_generated, approval_gate_required, approval_gate_status").in("project_id", projectIds),
     db.from("jobs").select("project_id, status").in("project_id", projectIds).in("status", ["queued", "in_progress", "blocked"]),
   ]);
 
@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
     projects: projects.map((project) => ({
       ...project,
       progress_pct: projectTruthById.get(project.id)?.progressPct ?? project.progress_pct ?? 0,
+      truth: projectTruthById.get(project.id) ?? null,
     })),
   });
 }

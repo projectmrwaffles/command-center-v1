@@ -1,5 +1,5 @@
-import { getProgressTaskSlice } from "./project-bootstrap";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements";
+import { deriveProjectTruth } from "./project-truth";
 
 type ProjectRow = {
   id: string;
@@ -39,19 +39,29 @@ function deriveProjectSummaryTruth(input: {
   jobs?: JobRow[];
 }) {
   const tasks = input.tasks ?? [];
-  const progressTasks = getProgressTaskSlice(tasks as Array<TaskRow & { status?: string | null }>);
-  const totalTasks = progressTasks.length;
-  const doneTasks = progressTasks.filter((task) => task.status === "done").length;
-  const rawProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  const truth = deriveProjectTruth({
+    tasks,
+    sprints: input.sprints,
+    jobs: input.jobs,
+  });
   const artifactIntegrity = getProjectArtifactIntegrity(input.project, tasks);
-  const progressPct = artifactIntegrity.completionCapPct != null && doneTasks === totalTasks && totalTasks > 0
-    ? Math.min(rawProgress, artifactIntegrity.completionCapPct)
-    : rawProgress;
+  const progressPct = artifactIntegrity.completionCapPct != null
+    && truth.counts.delivery.done === truth.counts.delivery.total
+    && truth.counts.delivery.total > 0
+    ? Math.min(truth.progressPct, artifactIntegrity.completionCapPct)
+    : truth.progressPct;
 
   return {
     progressPct,
-    totalTasks,
-    doneTasks,
+    totalTasks: truth.counts.delivery.total,
+    doneTasks: truth.counts.delivery.done,
+    inFlightTasks: truth.counts.delivery.running,
+    blockedTasks: truth.counts.delivery.blocked,
+    queuedTasks: truth.counts.delivery.queued,
+    bootstrapTasks: truth.counts.bootstrap.total,
+    execution: truth.execution,
+    headline: truth.headline,
+    summary: truth.summary,
     blockedJobs: (input.jobs ?? []).filter((job) => job.status === "blocked").length,
     gatedSprintCount: (input.sprints ?? []).filter((sprint) => sprint.approval_gate_required).length,
   };

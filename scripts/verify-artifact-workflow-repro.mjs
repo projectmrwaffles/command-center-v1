@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { maybeAdvanceProjectAfterTaskDone } from "../src/lib/project-handoff.ts";
+import { maybeAdvanceProjectAfterTaskDone, reconcileProjectPhaseProgression } from "../src/lib/project-handoff.ts";
 import { syncProjectState } from "../src/lib/project-state.ts";
 
 function clone(value) {
@@ -159,5 +159,36 @@ const approvedAdvance = await maybeAdvanceProjectAfterTaskDone(db, { projectId: 
 assert.equal(approvedAdvance.advanced, true);
 assert.equal(db.tables.sprints[0].status, "completed");
 assert.equal(db.tables.sprints[1].status, "active");
+
+// Reconcile a stale project where the finished phase never advanced after artifacts became available later.
+const staleDb = createDb({
+  projects: [{
+    id: "p2",
+    name: "Stale kickoff progression",
+    status: "active",
+    type: "product_build",
+    intake: { shape: "web-app", capabilities: ["strategy"], githubRepoProvisioning: { status: "ready" } },
+    links: { github: "https://github.com/vercel/next.js" },
+    github_repo_binding: { url: "https://github.com/vercel/next.js" },
+    progress_pct: 0,
+    updated_at: now,
+  }],
+  sprints: [
+    { id: "p2-s1", project_id: "p2", name: "Phase 1 · Discover", status: "active", phase_key: "discover", phase_order: 1, approval_gate_required: false, approval_gate_status: "not_requested", created_at: now },
+    { id: "p2-s2", project_id: "p2", name: "Phase 2 · Build", status: "draft", phase_key: "build", phase_order: 2, approval_gate_required: false, approval_gate_status: "not_requested", created_at: now },
+    { id: "p2-s3", project_id: "p2", name: "Phase 3 · Validate", status: "draft", phase_key: "validate", phase_order: 3, approval_gate_required: false, approval_gate_status: "not_requested", created_at: now },
+  ],
+  sprint_items: [
+    { id: "p2-t1", project_id: "p2", sprint_id: "p2-s1", title: "Discover", status: "done", task_type: "discovery_plan", assignee_agent_id: "a1", position: 1 },
+    { id: "p2-t2", project_id: "p2", sprint_id: "p2-s2", title: "Build", status: "todo", task_type: "build_implementation", assignee_agent_id: "a2", position: 2 },
+    { id: "p2-t3", project_id: "p2", sprint_id: "p2-s3", title: "Validate", status: "todo", task_type: "qa_validation", assignee_agent_id: "a3", position: 3 },
+  ],
+  agent_events: [],
+});
+const reconciled = await reconcileProjectPhaseProgression(staleDb, { projectId: "p2" });
+assert.equal(reconciled.advanced, true);
+assert.equal(staleDb.tables.sprints[0].status, "completed");
+assert.equal(staleDb.tables.sprints[1].status, "active");
+assert.deepEqual(reconciled.dispatchedTaskIds, ["p2-t2"]);
 
 console.log("verify-artifact-workflow-repro: ok");

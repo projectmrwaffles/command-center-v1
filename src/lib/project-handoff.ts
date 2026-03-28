@@ -1,6 +1,6 @@
 import { triggerAgentWork } from "./agent-dispatch.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
-import { selectProjectWithArtifactCompat } from "./project-db-compat";
+import { selectProjectWithArtifactCompat } from "./project-db-compat.ts";
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
 
@@ -24,6 +24,14 @@ type TaskRow = {
   task_type?: string | null;
 };
 
+type ProjectRow = {
+  name?: string | null;
+  type?: string | null;
+  intake?: any;
+  links?: Record<string, string> | null;
+  github_repo_binding?: any;
+};
+
 const DONE_LIKE = new Set(["done", "cancelled"]);
 const ACTIVE_LIKE = new Set(["todo", "in_progress", "blocked"]);
 
@@ -34,94 +42,144 @@ function sortSprints(a: SprintRow, b: SprintRow) {
   return +new Date(a.created_at || 0) - +new Date(b.created_at || 0);
 }
 
-export async function maybeAdvanceProjectAfterTaskDone(db: DbClient, input: {
-  projectId: string;
-  completedTaskId: string;
-  projectName?: string | null;
-}) {
+async function loadProjectProgressionContext(db: DbClient, projectId: string) {
   const [{ data: sprints, error: sprintsError }, { data: tasks, error: tasksError }, { data: project, error: projectError }] = await Promise.all([
-    db.from("sprints").select("*").eq("project_id", input.projectId),
-    db.from("sprint_items").select("*").eq("project_id", input.projectId),
-    selectProjectWithArtifactCompat(db, input.projectId, "name, type, intake"),
+    db.from("sprints").select("*").eq("project_id", projectId),
+    db.from("sprint_items").select("*").eq("project_id", projectId),
+    selectProjectWithArtifactCompat(db, projectId, "name, type, intake, links, github_repo_binding"),
   ]);
 
   if (sprintsError) throw new Error(sprintsError.message);
   if (tasksError) throw new Error(tasksError.message);
   if (projectError) throw new Error(projectError.message);
 
-  const sprintRows = ((sprints || []) as SprintRow[]).slice().sort(sortSprints);
-  const taskRows = ((tasks || []) as TaskRow[]).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-  const completedTask = taskRows.find((task) => task.id === input.completedTaskId);
-  if (!completedTask?.sprint_id) {
-    return { advanced: false, reason: "completed_task_has_no_sprint" };
-  }
+  return {
+    project: (project || {}) as ProjectRow,
+    sprintRows: ((sprints || []) as SprintRow[]).slice().sort(sortSprints),
+    taskRows: ((tasks || []) as TaskRow[]).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
+  };
+}
 
-  const currentSprint = sprintRows.find((sprint) => sprint.id === completedTask.sprint_id);
-  if (!currentSprint) {
-    return { advanced: false, reason: "current_sprint_not_found" };
-  }
+function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRows: TaskRow[]) {
+  const sprintTasks = taskRows.filter((task) => task.sprint_id === sprint.id);
+  const sprintStillActive = sprintTasks.some((task) => ACTIVE_LIKE.has(task.status));
+  const sprintComplete = sprintTasks.length > 0 && sprintTasks.every((task) => DONE_LIKE.has(task.status));
+  const artifactIntegrity = getProjectArtifactIntegrity(project || {}, sprintTasks);
+  const gateBlocked = Boolean(sprint.approval_gate_required && sprint.approval_gate_status !== "approved");
 
-  const currentSprintTasks = taskRows.filter((task) => task.sprint_id === currentSprint.id);
-  const currentSprintStillActive = currentSprintTasks.some((task) => ACTIVE_LIKE.has(task.status));
-  if (currentSprintStillActive) {
-    return { advanced: false, reason: "current_sprint_still_has_active_tasks" };
-  }
+  return {
+    sprintTasks,
+    sprintStillActive,
+    sprintComplete,
+    artifactIntegrity,
+    gateBlocked,
+  };
+}
 
-  const currentSprintComplete = currentSprintTasks.length > 0 && currentSprintTasks.every((task) => DONE_LIKE.has(task.status));
-  if (!currentSprintComplete) {
-    return { advanced: false, reason: "current_sprint_not_complete" };
-  }
-
-  const artifactIntegrity = getProjectArtifactIntegrity(project || {}, currentSprintTasks);
-  if (artifactIntegrity.blockingReason) {
-    return { advanced: false, reason: "required_artifacts_missing" };
-  }
-
-  if (currentSprint.approval_gate_required && currentSprint.approval_gate_status !== "approved") {
-    return { advanced: false, reason: "review_gate_not_approved" };
-  }
-
-  const currentIndex = sprintRows.findIndex((sprint) => sprint.id === currentSprint.id);
-  const nextSprint = sprintRows.slice(currentIndex + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
-  if (!nextSprint) {
-    return { advanced: false, reason: "no_next_sprint" };
-  }
-
-  if (currentSprint.status !== "completed") {
-    const currentUpdate = await db.from("sprints").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", currentSprint.id);
-    if (currentUpdate.error) throw new Error(currentUpdate.error.message);
-  }
-
-  if (nextSprint.status !== "active") {
-    const nextUpdate = await db.from("sprints").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", nextSprint.id);
-    if (nextUpdate.error) throw new Error(nextUpdate.error.message);
-  }
-
-  const nextTasks = taskRows.filter((task) => task.sprint_id === nextSprint.id && task.status === "todo" && task.assignee_agent_id);
-  const projectName = input.projectName || project?.name || "Unknown Project";
+async function dispatchSprintTodoTasks(db: DbClient, sprint: SprintRow, taskRows: TaskRow[], projectName: string) {
+  const nextTasks = taskRows.filter((task) => task.sprint_id === sprint.id && task.status === "todo" && task.assignee_agent_id);
 
   for (const task of nextTasks) {
     await triggerAgentWork(db as any, task.assignee_agent_id as string, projectName, task.title, task.id);
   }
 
-  await db.from("agent_events").insert({
-    agent_id: null,
-    project_id: input.projectId,
-    event_type: "project_phase_advanced",
-    payload: {
-      completed_task_id: input.completedTaskId,
-      previous_sprint_id: currentSprint.id,
-      previous_sprint_name: currentSprint.name,
-      next_sprint_id: nextSprint.id,
-      next_sprint_name: nextSprint.name,
-      dispatched_task_ids: nextTasks.map((task) => task.id),
-    },
-  });
+  return nextTasks.map((task) => task.id);
+}
 
+export async function reconcileProjectPhaseProgression(db: DbClient, input: {
+  projectId: string;
+  projectName?: string | null;
+  completedTaskId?: string;
+}) {
+  const { project, sprintRows, taskRows } = await loadProjectProgressionContext(db, input.projectId);
+  const projectName = input.projectName || project?.name || "Unknown Project";
+  const advancedTransitions: Array<{ previousSprintId: string; nextSprintId: string; dispatchedTaskIds: string[] }> = [];
+
+  for (let index = 0; index < sprintRows.length - 1; index += 1) {
+    const currentSprint = sprintRows[index];
+    if (currentSprint.status === "completed" || currentSprint.status === "archived") continue;
+
+    const state = getSprintCompletionState(project, currentSprint, taskRows);
+    if (state.sprintStillActive || !state.sprintComplete) break;
+    if (state.artifactIntegrity.blockingReason) {
+      return { advanced: false, reason: "required_artifacts_missing", advancedTransitions };
+    }
+    if (state.gateBlocked) {
+      return { advanced: false, reason: "review_gate_not_approved", advancedTransitions };
+    }
+
+    const nextSprint = sprintRows.slice(index + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
+    if (!nextSprint) {
+      if (currentSprint.status !== "completed") {
+        const currentUpdate = await db.from("sprints").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", currentSprint.id);
+        if (currentUpdate.error) throw new Error(currentUpdate.error.message);
+        currentSprint.status = "completed";
+      }
+      break;
+    }
+
+    if (currentSprint.status !== "completed") {
+      const currentUpdate = await db.from("sprints").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", currentSprint.id);
+      if (currentUpdate.error) throw new Error(currentUpdate.error.message);
+      currentSprint.status = "completed";
+    }
+
+    if (nextSprint.status !== "active") {
+      const nextUpdate = await db.from("sprints").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", nextSprint.id);
+      if (nextUpdate.error) throw new Error(nextUpdate.error.message);
+      nextSprint.status = "active";
+    }
+
+    const dispatchedTaskIds = await dispatchSprintTodoTasks(db, nextSprint, taskRows, projectName);
+    advancedTransitions.push({ previousSprintId: currentSprint.id, nextSprintId: nextSprint.id, dispatchedTaskIds });
+
+    await db.from("agent_events").insert({
+      agent_id: null,
+      project_id: input.projectId,
+      event_type: "project_phase_advanced",
+      payload: {
+        completed_task_id: input.completedTaskId ?? null,
+        previous_sprint_id: currentSprint.id,
+        previous_sprint_name: currentSprint.name,
+        next_sprint_id: nextSprint.id,
+        next_sprint_name: nextSprint.name,
+        dispatched_task_ids: dispatchedTaskIds,
+        reconciliation: input.completedTaskId ? "task_completion" : "project_state_reconcile",
+      },
+    });
+
+    break;
+  }
+
+  if (advancedTransitions.length === 0) {
+    if (input.completedTaskId) {
+      const completedTask = taskRows.find((task) => task.id === input.completedTaskId);
+      if (!completedTask?.sprint_id) return { advanced: false, reason: "completed_task_has_no_sprint", advancedTransitions };
+      const currentSprint = sprintRows.find((sprint) => sprint.id === completedTask.sprint_id);
+      if (!currentSprint) return { advanced: false, reason: "current_sprint_not_found", advancedTransitions };
+      const state = getSprintCompletionState(project, currentSprint, taskRows);
+      if (state.sprintStillActive) return { advanced: false, reason: "current_sprint_still_has_active_tasks", advancedTransitions };
+      if (!state.sprintComplete) return { advanced: false, reason: "current_sprint_not_complete", advancedTransitions };
+      const nextSprint = sprintRows.slice(sprintRows.findIndex((sprint) => sprint.id === currentSprint.id) + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
+      if (!nextSprint) return { advanced: false, reason: "no_next_sprint", advancedTransitions };
+    }
+    return { advanced: false, reason: "no_phase_change_needed", advancedTransitions };
+  }
+
+  const latestTransition = advancedTransitions[advancedTransitions.length - 1];
   return {
     advanced: true,
-    previousSprintId: currentSprint.id,
-    nextSprintId: nextSprint.id,
-    dispatchedTaskIds: nextTasks.map((task) => task.id),
+    previousSprintId: latestTransition.previousSprintId,
+    nextSprintId: latestTransition.nextSprintId,
+    dispatchedTaskIds: latestTransition.dispatchedTaskIds,
+    advancedTransitions,
   };
+}
+
+export async function maybeAdvanceProjectAfterTaskDone(db: DbClient, input: {
+  projectId: string;
+  completedTaskId: string;
+  projectName?: string | null;
+}) {
+  return reconcileProjectPhaseProgression(db, input);
 }

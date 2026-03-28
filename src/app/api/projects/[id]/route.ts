@@ -1,5 +1,6 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { getTaskExecutionBlocker } from "@/lib/project-execution";
+import { reconcileProjectPhaseProgression } from "@/lib/project-handoff";
 import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -504,6 +505,13 @@ export async function PATCH(
     if (error) {
       console.error("[API /projects/:id] update error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (links !== undefined || githubRepo !== undefined || provisionGithubRepo) {
+      await reconcileProjectPhaseProgression(db as any, {
+        projectId,
+        projectName: data?.name || null,
+      });
     }
 
     return NextResponse.json({ project: data });

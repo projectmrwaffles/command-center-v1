@@ -1,7 +1,7 @@
 import { triggerAgentWork } from "@/lib/agent-dispatch";
 import { getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
+import { getAutoRouteTeamIdsFromIntake, type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -136,6 +136,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
+function stripCallerProvisioningState(intake?: ProjectIntake) {
+  if (!intake) return intake;
+
+  const sanitizedIntake = { ...intake };
+  delete sanitizedIntake.githubRepoProvisioning;
+  return sanitizedIntake;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
@@ -152,6 +160,7 @@ export async function POST(req: NextRequest) {
       provisionGithubRepo?: boolean;
       confirmLinkedRepoForNetNew?: boolean;
     };
+    const sanitizedIntake = stripCallerProvisioningState(intake);
 
     if (!name || !type) {
       return NextResponse.json({ error: "Name and type are required" }, { status: 400 });
@@ -162,14 +171,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const githubRepoUrl = getGitHubRepoUrlFromProjectArtifacts({ githubRepo, links, intakeLinks: intake?.links });
+    const githubRepoUrl = getGitHubRepoUrlFromProjectArtifacts({ githubRepo, links, intakeLinks: sanitizedIntake?.links });
     const githubRepoError = getGitHubRepoValidationError(githubRepoUrl);
     if (githubRepoError) {
       return NextResponse.json({ error: githubRepoError }, { status: 400 });
     }
 
     const netNewGitHubRepoGuardError = getNetNewGitHubRepoGuardError({
-      projectOrigin: intake?.projectOrigin,
+      projectOrigin: sanitizedIntake?.projectOrigin,
       githubRepoUrl,
       confirmLinkedRepo: confirmLinkedRepoForNetNew,
     });
@@ -179,7 +188,7 @@ export async function POST(req: NextRequest) {
 
     const shouldProvisionGithubRepo = shouldAutoProvisionGitHubRepo({
       type,
-      intake,
+      intake: sanitizedIntake,
       existingGitHubUrl: githubRepoUrl,
       provisionGithubRepo,
     });
@@ -193,11 +202,19 @@ export async function POST(req: NextRequest) {
       source: shouldProvisionGithubRepo ? "provisioned" : "linked",
       ...githubRepo,
     });
-    let sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || intake?.links), githubBinding);
+    let provisioningState: GitHubRepoProvisioningState | undefined = shouldProvisionGithubRepo
+      ? {
+          status: "pending" as const,
+          reason: "GitHub repo auto-provisioning has been queued for this net-new code-heavy project.",
+          attemptedAt: new Date().toISOString(),
+          nextAction: undefined,
+        }
+      : undefined;
+    let sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || sanitizedIntake?.links), githubBinding);
     const autoTeamIds = teamId
       ? [teamId]
-      : intake
-        ? getAutoRouteTeamIdsFromIntake(intake, TEAMS)
+      : sanitizedIntake
+        ? getAutoRouteTeamIdsFromIntake(sanitizedIntake, TEAMS)
         : getAutoRouteTeamIds(type);
     const primaryTeamId = autoTeamIds[0];
 
@@ -209,8 +226,8 @@ export async function POST(req: NextRequest) {
       type,
       team_id: primaryTeamId,
       description: description || null,
-      intake: intake || null,
-      intake_summary: intake?.summary || null,
+      intake: sanitizedIntake ? { ...sanitizedIntake, ...(provisioningState ? { githubRepoProvisioning: provisioningState } : {}) } : (provisioningState ? { githubRepoProvisioning: provisioningState } : null),
+      intake_summary: sanitizedIntake?.summary || null,
       status: "active",
       progress_pct: 0,
       github_repo_binding: githubBinding,
@@ -245,13 +262,24 @@ export async function POST(req: NextRequest) {
         const provisionedBinding = await provisionGitHubRepoForProject({
           projectId: project.id,
           projectName: name,
-          description: description || intake?.summary || null,
+          description: description || sanitizedIntake?.summary || null,
         });
-        sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || intake?.links), provisionedBinding);
+        sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || sanitizedIntake?.links), provisionedBinding);
+        provisioningState = {
+          status: "ready",
+          reason: `GitHub repo ${provisionedBinding.fullName} was provisioned automatically and attached to this project.`,
+          attemptedAt: new Date().toISOString(),
+          nextAction: undefined,
+        };
 
         const provisioningUpdate = {
           github_repo_binding: provisionedBinding,
           links: sanitizedLinks,
+          intake: {
+            ...(project.intake || sanitizedIntake || {}),
+            githubRepoSource: "provisioned",
+            githubRepoProvisioning: provisioningState,
+          },
           updated_at: new Date().toISOString(),
         };
 
@@ -269,10 +297,11 @@ export async function POST(req: NextRequest) {
 
         if (updateError && (isMissingGithubRepoBindingColumnError(updateError) || isMissingLinksColumnError(updateError))) {
           const fallbackIntake = {
-            ...(project.intake || intake || {}),
+            ...(project.intake || sanitizedIntake || {}),
             githubRepoSource: "provisioned",
+            githubRepoProvisioning: provisioningState,
             links: {
-              ...((project.intake || intake || {}).links || {}),
+              ...((project.intake || sanitizedIntake || {}).links || {}),
               github: provisionedBinding.url,
             },
           };
@@ -297,9 +326,41 @@ export async function POST(req: NextRequest) {
           throw new Error(updateError.message);
         }
 
-        project = updatedProject ?? { ...project, github_repo_binding: provisionedBinding, links: sanitizedLinks };
+        project = updatedProject ?? {
+          ...project,
+          github_repo_binding: provisionedBinding,
+          links: sanitizedLinks,
+          intake: {
+            ...(project.intake || sanitizedIntake || {}),
+            githubRepoSource: "provisioned",
+            githubRepoProvisioning: provisioningState,
+          },
+        };
       } catch (provisionError) {
         console.error("[API /projects] GitHub provisioning failed:", provisionError);
+        provisioningState = {
+          status: "failed",
+          reason: provisionError instanceof Error ? provisionError.message : "GitHub repo auto-provisioning failed.",
+          attemptedAt: new Date().toISOString(),
+          nextAction: "Verify gh is installed/authenticated for repo creation or attach an existing GitHub repo manually.",
+        };
+
+        const failedIntake = {
+          ...(project.intake || sanitizedIntake || {}),
+          githubRepoProvisioning: provisioningState,
+        };
+
+        const { data: failedProject } = await db
+          .from("projects")
+          .update({
+            intake: failedIntake,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", project.id)
+          .select()
+          .single();
+
+        project = failedProject ?? { ...project, intake: failedIntake };
       }
     }
 
@@ -311,7 +372,7 @@ export async function POST(req: NextRequest) {
         projectId: project.id,
         projectName: name,
         type,
-        intake,
+        intake: sanitizedIntake,
         startPosition: nextTaskPosition,
       });
 
@@ -392,7 +453,7 @@ export async function POST(req: NextRequest) {
     }
 
     await syncProjectState(db, project.id);
-    return NextResponse.json({ project: { ...project, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null }, workload }, { status: 201 });
+    return NextResponse.json({ project: { ...project, intake: project.intake || sanitizedIntake || null, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null }, workload }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

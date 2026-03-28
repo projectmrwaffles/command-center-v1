@@ -1,4 +1,5 @@
 import { normalizeUrl, type ProjectLinks } from "./project-links.ts";
+import type { GitHubRepoProvisioningState } from "./project-intake.ts";
 
 export type GitHubRepoBinding = {
   provider: "github";
@@ -26,8 +27,8 @@ export type GitHubRepoBindingInput = {
 };
 
 export type GitHubRepoProvenance = {
-  state: "none" | "linked" | "provisioned";
-  label: "no repo yet" | "linked existing repo" | "auto-provisioned repo";
+  state: "none" | "linked" | "provisioned" | "failed";
+  label: "no repo yet" | "linked existing repo" | "auto-provisioned repo" | "provisioning failed";
   description: string;
   mismatch: boolean;
   mismatchReason: string | null;
@@ -137,15 +138,36 @@ export function githubProvisioningAvailable() {
 export function getGitHubRepoProvenance(input: {
   binding?: GitHubRepoBinding | null;
   projectOrigin?: "new" | "existing" | null;
+  provisioningState?: GitHubRepoProvisioningState | null;
 }) : GitHubRepoProvenance {
-  const { binding, projectOrigin } = input;
+  const { binding, projectOrigin, provisioningState } = input;
 
   if (!binding?.url) {
+    if (provisioningState?.status === "failed") {
+      return {
+        state: "failed",
+        label: "provisioning failed",
+        description: [provisioningState.reason, provisioningState.nextAction].filter(Boolean).join(" "),
+        mismatch: false,
+        mismatchReason: null,
+      };
+    }
+
+    if (provisioningState?.status === "pending") {
+      return {
+        state: "none",
+        label: "no repo yet",
+        description: provisioningState.reason || "GitHub repo provisioning is in progress.",
+        mismatch: false,
+        mismatchReason: null,
+      };
+    }
+
     return {
       state: "none",
       label: "no repo yet",
       description: projectOrigin === "new"
-        ? "No GitHub repo is linked yet. Net-new code-heavy projects can still be provisioned automatically when needed."
+        ? "No GitHub repo is linked yet. Auto-provisioning is not currently in progress, so delivery will stay blocked until a repo is attached or provisioning is retried."
         : "No GitHub repo is linked yet.",
       mismatch: false,
       mismatchReason: null,

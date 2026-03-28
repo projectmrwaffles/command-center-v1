@@ -542,30 +542,55 @@ export async function DELETE(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const [sprintsRes, jobsRes, approvalsRes] = await Promise.all([
+    const [sprintsRes, jobsRes] = await Promise.all([
       db.from("sprints").select("id").eq("project_id", projectId),
       db.from("jobs").select("id").eq("project_id", projectId),
-      db.from("approvals").select("id").eq("project_id", projectId),
     ]);
+
+    if (sprintsRes.error) {
+      console.error("[API /projects/:id] failed to load sprints for delete:", sprintsRes.error);
+      return NextResponse.json({ error: sprintsRes.error.message }, { status: 500 });
+    }
+
+    if (jobsRes.error) {
+      console.error("[API /projects/:id] failed to load jobs for delete:", jobsRes.error);
+      return NextResponse.json({ error: jobsRes.error.message }, { status: 500 });
+    }
 
     const sprintIds = sprintsRes.data?.map((s) => s.id) ?? [];
     const jobIds = jobsRes.data?.map((j) => j.id) ?? [];
-    const approvalIds = approvalsRes.data?.map((a) => a.id) ?? [];
 
-    if (approvalIds.length > 0) {
-      await db.from("approvals").delete().in("id", approvalIds);
-    }
-    // Delete all project tasks first, including project-level tasks with null sprint_id.
-    await db.from("sprint_items").delete().eq("project_id", projectId);
+    const deleteStep = async (label: string, operation: any) => {
+      const { error } = await Promise.resolve(operation);
+      if (error) {
+        console.error(`[API /projects/:id] ${label} delete error:`, error);
+        throw new Error(error.message);
+      }
+    };
+
+    await deleteStep("approvals(project)", Promise.resolve(db.from("approvals").delete().eq("project_id", projectId)));
+
     if (sprintIds.length > 0) {
-      await db.from("sprints").delete().in("id", sprintIds);
+      await deleteStep("approvals(sprint)", Promise.resolve(db.from("approvals").delete().in("sprint_id", sprintIds)));
     }
+
+    await deleteStep("sprint_items", Promise.resolve(db.from("sprint_items").delete().eq("project_id", projectId)));
+
+    if (sprintIds.length > 0) {
+      await deleteStep("sprints", Promise.resolve(db.from("sprints").delete().in("id", sprintIds)));
+    }
+
     if (jobIds.length > 0) {
-      await db.from("ai_usage").delete().in("job_id", jobIds);
-      await db.from("jobs").delete().in("id", jobIds);
+      await deleteStep("approvals(job)", Promise.resolve(db.from("approvals").delete().in("job_id", jobIds)));
+      await deleteStep("ai_usage(job)", Promise.resolve(db.from("ai_usage").delete().in("job_id", jobIds)));
+      await deleteStep("agent_events(job)", Promise.resolve(db.from("agent_events").delete().in("job_id", jobIds)));
+      await deleteStep("artifacts(job)", Promise.resolve(db.from("artifacts").delete().in("job_id", jobIds)));
+      await deleteStep("jobs", Promise.resolve(db.from("jobs").delete().in("id", jobIds)));
     }
-    await db.from("ai_usage").delete().eq("project_id", projectId);
-    await db.from("agent_events").delete().eq("project_id", projectId);
+
+    await deleteStep("ai_usage(project)", Promise.resolve(db.from("ai_usage").delete().eq("project_id", projectId)));
+    await deleteStep("agent_events(project)", Promise.resolve(db.from("agent_events").delete().eq("project_id", projectId)));
+    await deleteStep("artifacts(project)", Promise.resolve(db.from("artifacts").delete().eq("project_id", projectId)));
 
     const { data, error } = await db
       .from("projects")

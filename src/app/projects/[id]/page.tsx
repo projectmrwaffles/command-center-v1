@@ -749,7 +749,8 @@ export default function ProjectDetailPage() {
     setActionLoading("delete");
     try {
       const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to delete");
       window.location.href = "/projects";
     } catch (e: any) {
       setError(e.message);

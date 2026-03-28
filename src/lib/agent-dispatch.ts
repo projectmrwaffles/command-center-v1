@@ -28,8 +28,8 @@ export async function triggerAgentWork(
   taskTitle: string,
   taskId: string,
   projectId?: string | null,
-): Promise<void> {
-  if (!db) return;
+): Promise<{ dispatched: boolean; jobId?: string | null; error?: string | null }> {
+  if (!db) return { dispatched: false, error: "db_unavailable" };
 
   try {
     const agentName = getAgentNameFromId(agentId);
@@ -136,7 +136,26 @@ export async function triggerAgentWork(
     });
 
     console.log(`[Trigger] Dispatched agent ${agentName} (${agentId}) for task: ${taskTitle}`);
+    return { dispatched: true, jobId };
   } catch (e) {
     console.error(`[Trigger] Failed to trigger agent ${agentId}:`, e);
+    const errorMessage = e instanceof Error ? e.message : "dispatch_failed";
+
+    try {
+      await db.from("agent_events").insert({
+        agent_id: agentId,
+        project_id: projectId ?? null,
+        event_type: "task_dispatch_failed",
+        payload: {
+          task_id: taskId,
+          title: taskTitle,
+          error: errorMessage,
+        },
+      });
+    } catch {
+      // Ignore secondary logging failures.
+    }
+
+    return { dispatched: false, error: errorMessage };
   }
 }

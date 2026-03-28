@@ -1,4 +1,5 @@
 import { ensureDefaultSprint, getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
+import { dispatchEligibleProjectTasks, getLeadAgentForTeam } from "@/lib/project-execution";
 import { buildTaskMetadata, generateTaskDescription, generateTaskTitle, getRoutingPreview, getTaskTemplateKey, isTaskType, type TaskType } from "@/lib/task-model";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -65,10 +66,13 @@ export async function POST(
       const effectiveTitle = typeof title_override === "string" && title_override.trim() ? title_override.trim() : generatedTitle;
       const effectiveReviewRequired = typeof review_required === "boolean" ? review_required : routing.reviewRequired;
 
+      const resolvedAssigneeAgentId = assignee_agent_id ?? await getLeadAgentForTeam(db, ownerTeam?.id ?? null);
+
       insertPayload = {
         ...insertPayload,
         title: effectiveTitle,
         description: generateTaskDescription({ taskType: task_type as TaskType, taskGoal: task_goal, metadata, contextNote: typeof context_note === "string" ? context_note : null }),
+        assignee_agent_id: resolvedAssigneeAgentId ?? null,
         task_type,
         task_goal: task_goal.trim(),
         owner_team_id: ownerTeam?.id ?? null,
@@ -114,6 +118,21 @@ export async function POST(
     }
 
     await syncProjectState(db, projectId);
+
+    const [{ data: project }, { data: sprints }, { data: jobs }] = await Promise.all([
+      db.from("projects").select("id, name, type, intake, links, github_repo_binding").eq("id", projectId).single(),
+      db.from("sprints").select("id, name, status, phase_order, created_at, approval_gate_required, approval_gate_status").eq("project_id", projectId),
+      db.from("jobs").select("id, owner_agent_id, project_id, status, summary, updated_at").eq("project_id", projectId).in("status", ["queued", "in_progress", "blocked"]),
+    ]);
+
+    if (project) {
+      await dispatchEligibleProjectTasks(db as any, {
+        project,
+        tasks: [data as any],
+        sprints: (sprints ?? []) as any,
+        jobs: (jobs ?? []) as any,
+      });
+    }
 
     await db.from("agent_events").insert({
       project_id: projectId,

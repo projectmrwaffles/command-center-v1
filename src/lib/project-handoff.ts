@@ -86,6 +86,14 @@ async function dispatchSprintTodoTasks(db: DbClient, sprint: SprintRow, taskRows
   return nextTasks.map((task) => task.id);
 }
 
+async function completeSprint(db: DbClient, sprint: SprintRow) {
+  if (sprint.status === "completed") return;
+
+  const currentUpdate = await db.from("sprints").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", sprint.id);
+  if (currentUpdate.error) throw new Error(currentUpdate.error.message);
+  sprint.status = "completed";
+}
+
 export async function reconcileProjectPhaseProgression(db: DbClient, input: {
   projectId: string;
   projectName?: string | null;
@@ -95,7 +103,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
   const projectName = input.projectName || project?.name || "Unknown Project";
   const advancedTransitions: Array<{ previousSprintId: string; nextSprintId: string; dispatchedTaskIds: string[] }> = [];
 
-  for (let index = 0; index < sprintRows.length - 1; index += 1) {
+  for (let index = 0; index < sprintRows.length; index += 1) {
     const currentSprint = sprintRows[index];
     if (currentSprint.status === "completed" || currentSprint.status === "archived") continue;
 
@@ -110,19 +118,11 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
 
     const nextSprint = sprintRows.slice(index + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
     if (!nextSprint) {
-      if (currentSprint.status !== "completed") {
-        const currentUpdate = await db.from("sprints").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", currentSprint.id);
-        if (currentUpdate.error) throw new Error(currentUpdate.error.message);
-        currentSprint.status = "completed";
-      }
+      await completeSprint(db, currentSprint);
       break;
     }
 
-    if (currentSprint.status !== "completed") {
-      const currentUpdate = await db.from("sprints").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", currentSprint.id);
-      if (currentUpdate.error) throw new Error(currentUpdate.error.message);
-      currentSprint.status = "completed";
-    }
+    await completeSprint(db, currentSprint);
 
     if (nextSprint.status !== "active") {
       const nextUpdate = await db.from("sprints").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", nextSprint.id);
@@ -161,7 +161,10 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
       if (state.sprintStillActive) return { advanced: false, reason: "current_sprint_still_has_active_tasks", advancedTransitions };
       if (!state.sprintComplete) return { advanced: false, reason: "current_sprint_not_complete", advancedTransitions };
       const nextSprint = sprintRows.slice(sprintRows.findIndex((sprint) => sprint.id === currentSprint.id) + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
-      if (!nextSprint) return { advanced: false, reason: "no_next_sprint", advancedTransitions };
+      if (!nextSprint) {
+        await completeSprint(db, currentSprint);
+        return { advanced: false, reason: "final_sprint_completed", advancedTransitions };
+      }
     }
     return { advanced: false, reason: "no_phase_change_needed", advancedTransitions };
   }

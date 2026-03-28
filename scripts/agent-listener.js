@@ -207,6 +207,30 @@ function resolveGithubRepoUrl(project) {
   return project?.github_repo_binding?.url || project?.links?.github || project?.intake?.links?.github || null;
 }
 
+function getRepoSlugFromUrl(url) {
+  const normalized = String(url || "").trim().replace(/\.git$/i, "");
+  const match = normalized.match(/github\.com[/:]([^/]+)\/([^/]+)$/i);
+  return match?.[2] || null;
+}
+
+function resolveRepoWorkspacePath(project) {
+  const repoSlug = getRepoSlugFromUrl(resolveGithubRepoUrl(project));
+  if (!repoSlug) return null;
+
+  const openClawRoot = path.join(process.env.HOME || "", ".openclaw");
+  const candidates = [
+    path.join(openClawRoot, "workspace-product-lead", "projects", repoSlug),
+    path.join(openClawRoot, "workspace-tech-lead-architect", "projects", repoSlug),
+    path.join(openClawRoot, "workspace", "projects", repoSlug),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  return null;
+}
+
 function isCodeHeavyProject(project) {
   const shape = String(project?.intake?.shape || project?.type || "").toLowerCase();
   return ["saas-product", "web-app", "native-app", "ops-system", "saas", "web_app", "native_app", "ops_system"].includes(shape);
@@ -215,6 +239,7 @@ function isCodeHeavyProject(project) {
 function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, taskMetadata }) {
   const projectName = project?.name || "Unknown Project";
   const githubRepoUrl = resolveGithubRepoUrl(project);
+  const repoWorkspacePath = resolveRepoWorkspacePath(project);
   const codeHeavy = isCodeHeavyProject(project) || Boolean(githubRepoUrl);
   const qaMode = String(taskMetadata?.qa_mode || "").toLowerCase();
   const isQaValidation = taskType === "qa_validation";
@@ -227,7 +252,8 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     taskType ? `Task type: ${taskType}.` : null,
     qaMode ? `QA mode: ${qaMode}.` : null,
     githubRepoUrl ? `GitHub repo: ${githubRepoUrl}` : null,
-    codeHeavy ? "This project is repo-backed. Use the project's repo-backed workspace/path when you inspect or change implementation files." : null,
+    repoWorkspacePath ? `Repo workspace path: ${repoWorkspacePath}` : null,
+    codeHeavy ? "This project is repo-backed. Use the exact repo workspace path above when you inspect or change implementation files; do not work in a separate scratch workspace." : null,
     isAcceptanceReview ? "This is a validation/sign-off task, not a greenfield implementation task. Validate the existing deliverables, repo state, and runtime evidence that already exist for this project." : null,
     isAcceptanceReview ? "Return STATUS: done when the acceptance review passes and the Validate task should close. Return STATUS: blocked only when you found a real failure or a concrete missing prerequisite that prevents sign-off." : null,
     isAcceptanceReview ? "Do not block just because you did not need to change code. If no repo change is required, say so explicitly in DETAILS and still finish with STATUS: done when validation passes." : null,

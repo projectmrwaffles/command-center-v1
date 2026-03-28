@@ -21,7 +21,15 @@ assert.match(blockedCodeHeavy.blockingReason || "", /GitHub repo/i);
 const pendingProvisioning = getProjectArtifactIntegrity(
   {
     type: "product_build",
-    intake: { shape: "web-app", capabilities: ["frontend"], projectOrigin: "new" },
+    intake: {
+      shape: "web-app",
+      capabilities: ["frontend"],
+      projectOrigin: "new",
+      githubRepoProvisioning: {
+        status: "pending",
+        reason: "GitHub repo auto-provisioning has been queued.",
+      },
+    },
     links: { docs: "https://docs.acme.com/spec" },
     github_repo_binding: null,
   },
@@ -34,7 +42,43 @@ assert.equal(pendingProvisioning.pendingProvisioning, true);
 assert.equal(pendingProvisioning.completionBlocked, false);
 assert.equal(pendingProvisioning.completionCapPct, null);
 assert.equal(pendingProvisioning.blockingReason, null);
-assert.match(pendingProvisioning.pendingProvisioningReason || "", /provisioning/i);
+assert.match(pendingProvisioning.pendingProvisioningReason || "", /queued|provisioning/i);
+
+const failedProvisioning = getProjectArtifactIntegrity(
+  {
+    type: "product_build",
+    intake: {
+      shape: "web-app",
+      capabilities: ["frontend"],
+      projectOrigin: "new",
+      githubRepoProvisioning: {
+        status: "failed",
+        reason: "gh auth token is missing",
+        nextAction: "Run gh auth login or link an existing repo.",
+      },
+    },
+    links: { docs: "https://docs.acme.com/spec" },
+    github_repo_binding: null,
+  },
+  [{ task_type: "build_implementation" }],
+);
+
+assert.equal(failedProvisioning.pendingProvisioning, false);
+assert.equal(failedProvisioning.completionBlocked, true);
+assert.match(failedProvisioning.blockingReason || "", /gh auth token is missing/i);
+
+const netNewWithoutProvisioningState = getProjectArtifactIntegrity(
+  {
+    type: "product_build",
+    intake: { shape: "web-app", capabilities: ["frontend"], projectOrigin: "new" },
+    links: { docs: "https://docs.acme.com/spec" },
+    github_repo_binding: null,
+  },
+  [{ task_type: "build_implementation" }],
+);
+
+assert.equal(netNewWithoutProvisioningState.pendingProvisioning, false);
+assert.equal(netNewWithoutProvisioningState.completionBlocked, true);
 
 const readyCodeHeavy = getProjectArtifactIntegrity(
   {

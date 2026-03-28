@@ -8,6 +8,13 @@ export type IntakeOption = {
 
 import type { ProjectLinks } from "@/lib/project-links";
 
+export type GitHubRepoProvisioningState = {
+  status: "pending" | "failed" | "ready";
+  reason: string;
+  attemptedAt?: string;
+  nextAction?: string;
+};
+
 export type ProjectIntake = {
   shape: string;
   context: string[];
@@ -19,6 +26,8 @@ export type ProjectIntake = {
   goals?: string;
   projectOrigin?: "new" | "existing";
   links?: ProjectLinks;
+  githubRepoProvisioning?: GitHubRepoProvisioningState;
+  githubRepoSource?: "linked" | "provisioned" | null;
 };
 
 export type ReadinessOption = IntakeOption & {

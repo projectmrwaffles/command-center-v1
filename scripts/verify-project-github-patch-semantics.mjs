@@ -96,4 +96,16 @@ assert.equal(provisionedProvenance.mismatch, false);
 
 assert.equal(getGitHubRepoProvenance({ binding: null, projectOrigin: "new" }).label, "no repo yet");
 
+const failedProvenance = getGitHubRepoProvenance({
+  binding: null,
+  projectOrigin: "new",
+  provisioningState: {
+    status: "failed",
+    reason: "gh auth token is missing",
+    nextAction: "Run gh auth login or attach an existing repo.",
+  },
+});
+assert.equal(failedProvenance.label, "provisioning failed");
+assert.match(failedProvenance.description, /gh auth token is missing/i);
+
 console.log("verify-project-github-patch-semantics: ok");

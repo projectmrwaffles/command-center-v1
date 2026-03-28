@@ -333,6 +333,7 @@ export async function GET(
         github_repo_provenance: getGitHubRepoProvenance({
           binding: projectWithDerivedArtifacts.github_repo_binding,
           projectOrigin: projectWithDerivedArtifacts.intake?.projectOrigin,
+          provisioningState: projectWithDerivedArtifacts.intake?.githubRepoProvisioning,
         }),
         progress_pct: overallProgress,
       },

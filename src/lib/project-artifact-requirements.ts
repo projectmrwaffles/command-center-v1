@@ -17,6 +17,12 @@ export type ArtifactIntegrityProjectLike = {
     capabilities?: string[] | null;
     projectOrigin?: "new" | "existing" | null;
     links?: ProjectLinks | null;
+    githubRepoProvisioning?: {
+      status?: "pending" | "failed" | "ready" | null;
+      reason?: string | null;
+      attemptedAt?: string | null;
+      nextAction?: string | null;
+    } | null;
   } | null;
   links?: ProjectLinks | null;
   github_repo_binding?: GitHubRepoBinding | null;
@@ -58,10 +64,10 @@ function resolveGitHubRepoUrl(project: ArtifactIntegrityProjectLike) {
 function shouldTreatRepoAsPendingProvisioning(project: ArtifactIntegrityProjectLike, isCodeHeavy: boolean, hasGitHubRepo: boolean) {
   if (!isCodeHeavy || hasGitHubRepo) return false;
 
-  const projectOrigin = project.intake?.projectOrigin;
-  const provisioningStatus = project.github_repo_binding?.provisioning?.status;
+  const bindingProvisioningStatus = project.github_repo_binding?.provisioning?.status;
+  const intakeProvisioningStatus = project.intake?.githubRepoProvisioning?.status;
 
-  return projectOrigin === "new" || provisioningStatus === "pending";
+  return bindingProvisioningStatus === "pending" || intakeProvisioningStatus === "pending";
 }
 
 export function getProjectArtifactIntegrity(project: ArtifactIntegrityProjectLike, tasks?: ArtifactIntegrityTaskLike[] | null): ProjectArtifactIntegrity {
@@ -77,11 +83,19 @@ export function getProjectArtifactIntegrity(project: ArtifactIntegrityProjectLik
   const hasGitHubRepo = Boolean(githubRepoUrl);
   const pendingProvisioning = shouldTreatRepoAsPendingProvisioning(project, isCodeHeavy, hasGitHubRepo);
   const pendingProvisioningReason = pendingProvisioning
-    ? "GitHub repo provisioning is still expected for this net-new code-heavy project, so delivery is not on hold yet. A real repo will still be required before review or completion."
+    ? project.intake?.githubRepoProvisioning?.reason || project.github_repo_binding?.provisioning?.reason || "GitHub repo provisioning is in progress for this code-heavy project. A real repo will still be required before review or completion."
     : null;
-  const blockingReason = requiresGitHubRepo && !hasGitHubRepo && !pendingProvisioning
+
+  const failedProvisioningReason = !hasGitHubRepo && project.intake?.githubRepoProvisioning?.status === "failed"
+    ? [
+        project.intake.githubRepoProvisioning.reason || "GitHub repo auto-provisioning failed.",
+        project.intake.githubRepoProvisioning.nextAction || "Reconnect GitHub/gh auth or link an existing repository, then retry provisioning.",
+      ].filter(Boolean).join(" ")
+    : null;
+
+  const blockingReason = failedProvisioningReason || (requiresGitHubRepo && !hasGitHubRepo && !pendingProvisioning
     ? "Code-heavy delivery cannot advance to review or completion without a real GitHub repo linked to the project."
-    : null;
+    : null);
 
   return {
     isCodeHeavy,

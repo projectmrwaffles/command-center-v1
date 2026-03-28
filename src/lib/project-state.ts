@@ -1,6 +1,7 @@
 import { getProgressTaskSlice } from "./project-bootstrap.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 import { selectProjectWithArtifactCompat } from "./project-db-compat.ts";
+import { reconcileProjectPhaseProgression } from "./project-handoff.ts";
 
 type DbClient = {
   from: (table: string) => any;
@@ -163,6 +164,8 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
   if (updateError) {
     throw new Error(updateError.message);
   }
+
+  await reconcileProjectPhaseProgression(db as any, { projectId });
 
   return {
     totalTasks,

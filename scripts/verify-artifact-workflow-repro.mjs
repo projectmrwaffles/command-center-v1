@@ -12,6 +12,13 @@ function createDb(tables) {
     from(table) {
       return createQuery(this.tables, table);
     },
+    channel() {
+      return {
+        async send() {
+          return { error: null };
+        },
+      };
+    },
   };
 }
 
@@ -131,6 +138,7 @@ const db = createDb({
     { id: "t2", project_id: "p1", sprint_id: "s2", title: "Validate feature", status: "todo", task_type: "qa_validation", assignee_agent_id: null, position: 2 },
   ],
   agent_events: [],
+  jobs: [],
 });
 
 const stateBeforeRepo = await syncProjectState(db, "p1");
@@ -184,11 +192,43 @@ const staleDb = createDb({
     { id: "p2-t3", project_id: "p2", sprint_id: "p2-s3", title: "Validate", status: "todo", task_type: "qa_validation", assignee_agent_id: "a3", position: 3 },
   ],
   agent_events: [],
+  jobs: [],
 });
 const reconciled = await reconcileProjectPhaseProgression(staleDb, { projectId: "p2" });
 assert.equal(reconciled.advanced, true);
 assert.equal(staleDb.tables.sprints[0].status, "completed");
 assert.equal(staleDb.tables.sprints[1].status, "active");
 assert.deepEqual(reconciled.dispatchedTaskIds, ["p2-t2"]);
+
+// Heal a later-phase stale project where Build is done but Validate never activated.
+const laterPhaseStaleDb = createDb({
+  projects: [{
+    id: "p3",
+    name: "Later phase stale progression",
+    status: "active",
+    type: "product_build",
+    intake: { shape: "web-app", capabilities: ["frontend"], githubRepoProvisioning: { status: "ready" } },
+    links: { github: "https://github.com/vercel/next.js" },
+    github_repo_binding: { url: "https://github.com/vercel/next.js" },
+    progress_pct: 0,
+    updated_at: now,
+  }],
+  sprints: [
+    { id: "p3-s1", project_id: "p3", name: "Phase 1 · Discover", status: "completed", phase_key: "discover", phase_order: 1, approval_gate_required: false, approval_gate_status: "not_requested", created_at: now },
+    { id: "p3-s2", project_id: "p3", name: "Phase 2 · Build", status: "active", phase_key: "build", phase_order: 2, approval_gate_required: false, approval_gate_status: "not_requested", created_at: now },
+    { id: "p3-s3", project_id: "p3", name: "Phase 3 · Validate", status: "draft", phase_key: "validate", phase_order: 3, approval_gate_required: false, approval_gate_status: "not_requested", created_at: now },
+  ],
+  sprint_items: [
+    { id: "p3-t1", project_id: "p3", sprint_id: "p3-s1", title: "Discover", status: "done", task_type: "discovery_plan", assignee_agent_id: "a1", position: 1, task_metadata: { phase_key: "discover", auto_generated: true } },
+    { id: "p3-t2", project_id: "p3", sprint_id: "p3-s2", title: "Build", status: "done", task_type: "build_implementation", assignee_agent_id: "a2", position: 2, task_metadata: { phase_key: "build", auto_generated: true } },
+    { id: "p3-t3", project_id: "p3", sprint_id: "p3-s3", title: "Validate", status: "todo", task_type: "qa_validation", assignee_agent_id: "a3", position: 3, task_metadata: { phase_key: "validate", auto_generated: true } },
+  ],
+  agent_events: [],
+  jobs: [],
+});
+const laterPhaseHeal = await syncProjectState(laterPhaseStaleDb, "p3");
+assert.equal(laterPhaseHeal.progressPct, 50);
+assert.equal(laterPhaseStaleDb.tables.sprints[1].status, "completed");
+assert.equal(laterPhaseStaleDb.tables.sprints[2].status, "active");
 
 console.log("verify-artifact-workflow-repro: ok");

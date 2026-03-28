@@ -393,18 +393,17 @@ async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTi
 
   if (projectId) {
     try {
-      const [{ runPostTaskCompletionHandoff }, { syncProjectState }] = await Promise.all([
-        import(path.join(REPO_ROOT, 'src/lib/task-completion-handoff.ts')),
+      const [{ maybeAdvanceProjectAfterTaskDone }, { syncProjectState }] = await Promise.all([
+        import(path.join(REPO_ROOT, 'src/lib/project-handoff.ts')),
         import(path.join(REPO_ROOT, 'src/lib/project-state.ts')),
       ]);
       if (taskStatus === 'done') {
+        await syncProjectState(adminSupabase, projectId);
         const { data: projectRow } = await adminSupabase.from('projects').select('name').eq('id', projectId).maybeSingle();
-        await runPostTaskCompletionHandoff(adminSupabase, {
+        await maybeAdvanceProjectAfterTaskDone(adminSupabase, {
           projectId,
-          taskId,
+          completedTaskId: taskId,
           projectName: projectRow?.name || null,
-          retryDelayMs: 750,
-          logLabel: '[Listener legacy fallback]',
         });
       } else {
         await syncProjectState(adminSupabase, projectId);

@@ -342,7 +342,7 @@ export async function POST(req: NextRequest) {
           status: "failed",
           reason: provisionError instanceof Error ? provisionError.message : "GitHub repo auto-provisioning failed.",
           attemptedAt: new Date().toISOString(),
-          nextAction: "Verify gh is installed/authenticated for repo creation or attach an existing GitHub repo manually.",
+          nextAction: "Verify GITHUB_TOKEN/GH_TOKEN is configured with repo creation access for the server runtime, then retry provisioning or attach an existing GitHub repo manually.",
         };
 
         const failedIntake = {

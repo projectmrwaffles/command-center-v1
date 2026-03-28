@@ -1,33 +1,20 @@
-import { access } from "node:fs/promises";
-import { constants as fsConstants } from "node:fs";
-import { promisify } from "node:util";
-import { delimiter } from "node:path";
-import { execFile as execFileCb } from "node:child_process";
 import { createGitHubRepoBinding, type GitHubRepoBinding } from "./github-repo-binding.ts";
 import type { ProjectIntake } from "./project-intake.ts";
-
-const execFile = promisify(execFileCb);
 
 const CODE_HEAVY_PROJECT_TYPES = new Set(["product_build", "ops_enablement", "saas", "web_app", "native_app"]);
 const CODE_HEAVY_SHAPES = new Set(["saas-product", "web-app", "native-app", "ops-system"]);
 const CODE_HEAVY_CAPABILITIES = new Set(["frontend", "backend-data"]);
-const FALLBACK_GH_PATHS = [
-  "/opt/homebrew/bin/gh",
-  "/usr/local/bin/gh",
-  "/usr/bin/gh",
-  "/bin/gh",
-];
-const DEFAULT_PATH_SEGMENTS = [
-  "/opt/homebrew/bin",
-  "/usr/local/bin",
-  "/usr/bin",
-  "/bin",
-];
+const GITHUB_API_BASE = "https://api.github.com";
+const GITHUB_API_VERSION = "2022-11-28";
 
-type ExecFileError = NodeJS.ErrnoException & {
-  stderr?: string;
-  stdout?: string;
-  code?: string | number;
+type GitHubApiRepo = {
+  html_url: string;
+  default_branch?: string | null;
+};
+
+type GitHubApiUser = {
+  login: string;
+  type?: string;
 };
 
 function slugifyRepoName(value: string) {
@@ -58,130 +45,89 @@ export function shouldAutoProvisionGitHubRepo(input: {
   return isCodeHeavyProject(input.type, input.intake);
 }
 
-function getProvisioningEnv() {
-  const defaultPathSegments = process.env.OPENCLAW_DISABLE_GH_PATH_AUGMENTATION === "1" ? [] : DEFAULT_PATH_SEGMENTS;
-  const pathSegments = new Set(
-    [
-      ...(process.env.PATH ? process.env.PATH.split(delimiter) : []),
-      ...defaultPathSegments,
-    ].filter(Boolean)
-  );
+function getGitHubToken() {
+  return process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim() || null;
+}
+
+function getGitHubHeaders() {
+  const token = getGitHubToken();
+  if (!token) {
+    throw new Error(
+      "GitHub repo auto-provisioning is configured, but GitHub API authentication is missing for this runtime. Set GITHUB_TOKEN (preferred) or GH_TOKEN for the server runtime, then retry provisioning or attach an existing GitHub repo manually."
+    );
+  }
 
   return {
-    ...process.env,
-    GH_PAGER: "cat",
-    PATH: Array.from(pathSegments).join(delimiter),
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": GITHUB_API_VERSION,
+    "User-Agent": "command-center-v1-github-provisioning",
+    "Content-Type": "application/json",
   };
 }
 
-async function canExecute(path: string) {
-  try {
-    await access(path, fsConstants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
+async function githubRequest<T>(path: string, init?: RequestInit & { allow404?: boolean }): Promise<T | null> {
+  const { allow404, ...requestInit } = init || {};
+  const response = await fetch(`${GITHUB_API_BASE}${path}`, {
+    ...requestInit,
+    headers: {
+      ...getGitHubHeaders(),
+      ...(requestInit.headers || {}),
+    },
+    cache: "no-store",
+  });
 
-async function resolveGhExecutable() {
-  const configured = [process.env.GITHUB_CLI_PATH, process.env.GH_PATH].map((value) => value?.trim()).filter(Boolean) as string[];
-  const fallbackPaths = process.env.OPENCLAW_DISABLE_GH_FALLBACK === "1" ? [] : FALLBACK_GH_PATHS;
-  for (const candidate of [...configured, ...fallbackPaths]) {
-    if (await canExecute(candidate)) return candidate;
-  }
-  return "gh";
-}
+  if (allow404 && response.status === 404) return null;
 
-function extractGitHubCliErrorText(error: unknown) {
-  if (!error || typeof error !== "object") return null;
-  const execError = error as ExecFileError;
-  const pieces = [execError.stderr, execError.stdout]
-    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    .map((value) => value.trim());
-  return pieces.length > 0 ? pieces.join(" ") : null;
-}
+  if (!response.ok) {
+    let details = `${response.status} ${response.statusText}`.trim();
+    try {
+      const body = await response.json() as { message?: string; errors?: Array<{ message?: string }> };
+      const errorMessages = (body.errors || []).map((item) => item?.message).filter(Boolean);
+      details = [body.message, ...errorMessages].filter(Boolean).join(" ") || details;
+    } catch {
+      const text = await response.text().catch(() => "");
+      details = text.trim() || details;
+    }
 
-function classifyGitHubProvisioningError(error: unknown) {
-  const execError = error as ExecFileError | undefined;
-  const code = typeof execError?.code === "string" ? execError.code : undefined;
-  const details = extractGitHubCliErrorText(error);
-  const lowerDetails = details?.toLowerCase() || "";
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(
+        `GitHub repo auto-provisioning is configured, but GitHub API authentication failed for this runtime. Verify GITHUB_TOKEN/GH_TOKEN has repo creation access for the target owner. GitHub said: ${details}`
+      );
+    }
 
-  if (code === "ENOENT") {
-    return new Error(
-      "GitHub repo auto-provisioning is unavailable in this runtime because the GitHub CLI could not be found. Install gh for the app runtime or set GITHUB_CLI_PATH, or attach an existing GitHub repo manually."
-    );
+    throw new Error(`GitHub repo auto-provisioning failed: ${details}`);
   }
 
-  if (
-    lowerDetails.includes("not logged into any github hosts") ||
-    lowerDetails.includes("authentication failed") ||
-    lowerDetails.includes("gh auth login") ||
-    lowerDetails.includes("could not resolve to a user")
-  ) {
-    return new Error(
-      "GitHub repo auto-provisioning is configured, but GitHub CLI authentication is missing for this runtime. Run `gh auth login` (or provide a valid GH_TOKEN/GITHUB_TOKEN) for the server runtime, then retry provisioning or attach an existing repo manually."
-    );
-  }
-
-  if (details) {
-    return new Error(`GitHub repo auto-provisioning failed: ${details}`);
-  }
-
-  if (error instanceof Error && error.message) {
-    return new Error(`GitHub repo auto-provisioning failed: ${error.message}`);
-  }
-
-  return new Error("GitHub repo auto-provisioning failed for an unknown runtime reason.");
-}
-
-async function execGh(args: string[]) {
-  const ghExecutable = await resolveGhExecutable();
-
-  try {
-    return await execFile(ghExecutable, args, {
-      env: getProvisioningEnv(),
-      maxBuffer: 1024 * 1024,
-    });
-  } catch (error) {
-    throw classifyGitHubProvisioningError(error);
-  }
+  if (response.status === 204) return null;
+  return await response.json() as T;
 }
 
 export async function verifyGitHubCliRuntime() {
-  const ghExecutable = await resolveGhExecutable();
-  const version = await execGh(["--version"]);
+  const viewer = await githubRequest<GitHubApiUser>("/user");
   return {
-    executable: ghExecutable,
-    version: version.stdout.trim(),
+    executable: "github-rest-api",
+    version: `authenticated as ${viewer?.login || "unknown"}`,
   };
-}
-
-async function ghJson<T>(args: string[]): Promise<T> {
-  const { stdout } = await execGh(args);
-  return JSON.parse(stdout) as T;
-}
-
-async function gh(args: string[]) {
-  return execGh(args);
 }
 
 async function resolveProvisioningOwner() {
   const configuredOwner = process.env.GITHUB_PROVISIONING_OWNER?.trim();
   if (configuredOwner) return configuredOwner;
 
-  const viewer = await ghJson<{ login: string }>(["api", "user"]);
-  if (!viewer.login) throw new Error("Unable to resolve GitHub login for repo provisioning.");
+  const viewer = await githubRequest<GitHubApiUser>("/user");
+  if (!viewer?.login) throw new Error("Unable to resolve GitHub login for repo provisioning.");
   return viewer.login;
 }
 
+async function resolveOwnerType(owner: string) {
+  const ownerRecord = await githubRequest<GitHubApiUser>(`/users/${encodeURIComponent(owner)}`);
+  return ownerRecord?.type === "Organization" ? "org" : "user";
+}
+
 async function repoExists(fullName: string) {
-  try {
-    await gh(["repo", "view", fullName, "--json", "nameWithOwner"]);
-    return true;
-  } catch {
-    return false;
-  }
+  const repo = await githubRequest<GitHubApiRepo>(`/repos/${fullName}`, { allow404: true });
+  return Boolean(repo?.html_url);
 }
 
 async function chooseRepoName(owner: string, projectName: string, projectId: string) {
@@ -204,30 +150,29 @@ export async function provisionGitHubRepoForProject(input: {
   description?: string | null;
 }) : Promise<GitHubRepoBinding> {
   const owner = await resolveProvisioningOwner();
+  const ownerType = await resolveOwnerType(owner);
   const repo = await chooseRepoName(owner, input.projectName, input.projectId);
   const fullName = `${owner}/${repo}`;
-
   const description = (input.description || `Auto-provisioned project workspace for ${input.projectName}`).slice(0, 200);
 
-  await gh([
-    "repo",
-    "create",
-    fullName,
-    "--private",
-    "--add-readme",
-    "--description",
-    description,
-  ]);
+  const createPath = ownerType === "org"
+    ? `/orgs/${encodeURIComponent(owner)}/repos`
+    : "/user/repos";
 
-  const repoData = await ghJson<{ html_url: string; default_branch?: string | null }>([
-    "api",
-    `repos/${fullName}`,
-  ]);
+  const createdRepo = await githubRequest<GitHubApiRepo>(createPath, {
+    method: "POST",
+    body: JSON.stringify({
+      name: repo,
+      private: true,
+      auto_init: true,
+      description,
+    }),
+  });
 
   const binding = createGitHubRepoBinding({
-    url: repoData.html_url,
+    url: createdRepo?.html_url,
     source: "provisioned",
-    defaultBranch: repoData.default_branch || "main",
+    defaultBranch: createdRepo?.default_branch || "main",
     provisioning: {
       status: "ready",
       reason: "GitHub repository provisioned automatically during project submission.",
@@ -235,7 +180,7 @@ export async function provisionGitHubRepoForProject(input: {
   });
 
   if (!binding) {
-    throw new Error(`Provisioned GitHub repo could not be parsed: ${repoData.html_url}`);
+    throw new Error(`Provisioned GitHub repo could not be parsed: ${createdRepo?.html_url || fullName}`);
   }
 
   return binding;

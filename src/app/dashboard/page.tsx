@@ -93,8 +93,8 @@ async function loadDashboardData(): Promise<DashboardData> {
     // Fetch projects with their active sprint + sprint items for progress
     const projectsRes = await db.from("projects").select("id, name, type, team_id, progress_pct, intake, links, github_repo_binding").eq("status", "active");
     const teamsRes = await db.from("teams").select("id, name");
-    const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status, auto_generated").eq("status", "active");
-    const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status, review_status");
+    const sprintsRes = await db.from("sprints").select("id, project_id, name, goal, status, auto_generated, phase_key").eq("status", "active");
+    const sprintItemsRes = await db.from("sprint_items").select("id, project_id, sprint_id, status, review_status, task_type, task_metadata");
     const agentsRes = await db
       .from("agents")
       .select("id, name, status, last_seen, current_job_id")

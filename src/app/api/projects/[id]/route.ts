@@ -1,4 +1,5 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
+import { getTaskExecutionBlocker } from "@/lib/project-execution";
 import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -253,6 +254,31 @@ export async function GET(
       };
     });
 
+    const queuedExecutionReasons = (tasks || [])
+      .filter((task: any) => task.status === "todo")
+      .map((task: any) => {
+        const blocker = getTaskExecutionBlocker({
+          project: projectWithDerivedArtifacts,
+          task,
+          sprint: (sprints || []).find((sprint: any) => sprint.id === task.sprint_id) ?? null,
+          sprints: (sprints || []) as any,
+          jobs: (jobs || []) as any,
+        });
+
+        return blocker
+          ? {
+              taskId: task.id,
+              taskTitle: task.title,
+              sprintId: task.sprint_id ?? null,
+              status: blocker.key,
+              label: blocker.label,
+              detail: blocker.detail,
+            }
+          : null;
+      })
+      .filter(Boolean)
+      .slice(0, 8);
+
     const recentSignals: RecentSignal[] = [
       ...(approvals || []).map((approval) => ({
         id: `approval-${approval.id}`,
@@ -320,6 +346,9 @@ export async function GET(
       truth: {
         ...truth,
         progressPct: overallProgress,
+      },
+      executionVisibility: {
+        queuedReasons: queuedExecutionReasons,
       },
       stats: {
         totalTasks: truth.counts.delivery.total,

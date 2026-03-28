@@ -228,7 +228,7 @@ function ProjectsContent() {
                         <div className="text-right text-xs text-zinc-500">
                           <div>{formatRelativeDate(project.updated_at || project.created_at)}</div>
                           <div className="mt-1">{formatRelativeTimestamp(project.updated_at || project.created_at)}</div>
-                          {project.truth?.counts ? <div className="mt-1">{project.truth.counts.delivery?.queued || 0} queued · {project.truth.counts.delivery?.running || 0} running · {project.truth.counts.bootstrap?.total || 0} bootstrap</div> : null}
+                          {project.truth?.counts ? <div className="mt-1">{project.truth.counts.delivery?.queued || 0} queued · {project.truth.counts.delivery?.running || 0} in progress · {project.truth.counts.bootstrap?.total || 0} kickoff</div> : null}
                         </div>
                       </div>
                       <div className={`mt-3 h-2 overflow-hidden rounded-full ${statusTone.progressTrack}`}>

@@ -10,6 +10,7 @@ export type TruthTaskLike = {
 export type TruthSprintLike = {
   id: string;
   auto_generated?: boolean | null;
+  phase_key?: string | null;
   status?: string | null;
 };
 
@@ -82,31 +83,31 @@ export function deriveExecutionState(input: {
   if (input.totalDeliveryTasks === 0 && input.totalBootstrapTasks > 0) {
     if (input.runningBootstrapTasks > 0) {
       return {
-        key: "bootstrap_running",
-        label: "Bootstrap running",
-        description: "Scaffolding work is moving, but real delivery has not started yet.",
+        key: "planning_running",
+        label: "Planning in progress",
+        description: "The team is finishing project setup before the main work starts.",
       } as const;
     }
 
     if (input.queuedBootstrapTasks > 0) {
       return {
-        key: "bootstrap_seeded",
-        label: "Bootstrap seeded",
-        description: "Scaffolding tasks are seeded, but real delivery work has not started yet.",
+        key: "planning_queued",
+        label: "Kickoff queued",
+        description: "Kickoff work is queued, but the main delivery work has not started yet.",
       } as const;
     }
 
     return {
-      key: "bootstrap_complete",
-      label: "Bootstrap ready",
-      description: "Bootstrap scaffolding is complete. Real delivery work has not started yet.",
+      key: "planning_ready",
+      label: "Ready for delivery",
+      description: "Kickoff setup is complete. The next delivery phase has not started yet.",
     } as const;
   }
 
   return {
     key: "idle",
     label: "Not started",
-    description: "No active delivery execution is visible yet.",
+    description: "No project work is visible yet.",
   } as const;
 }
 
@@ -155,23 +156,23 @@ export function deriveProjectTruth(input: {
 
   const headline = deliveryTasks.length > 0
     ? execution.key === "running"
-      ? "Delivery is underway"
+      ? "Work is underway"
       : execution.key === "queued"
-        ? "Delivery is queued"
+        ? "Work is lined up"
         : execution.key === "completed"
-          ? "Delivery is complete"
+          ? "Work is complete"
           : execution.key === "blocked"
-            ? "Delivery is blocked"
-            : "Delivery has started"
+            ? "Work is blocked"
+            : "Work has started"
     : bootstrapTasks.length > 0
-      ? "Delivery has not started"
-      : "No work seeded yet";
+      ? "Kickoff is still in setup"
+      : "No work added yet";
 
   const summary = deliveryTasks.length > 0
-    ? `${doneDeliveryTasks} of ${deliveryTasks.length} delivery tasks complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} running, ${blockedDeliveryTasks} blocked.`
+    ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
     : bootstrapTasks.length > 0
-      ? `${bootstrapTasks.length} bootstrap task${bootstrapTasks.length === 1 ? " is" : "s are"} visible (${queuedBootstrapTasks} queued, ${runningBootstrapTasks} running, ${doneBootstrapTasks} done). Real delivery work has not started yet.`
-      : "No bootstrap or delivery tasks are visible yet.";
+      ? `${bootstrapTasks.length} kickoff task${bootstrapTasks.length === 1 ? " is" : "s are"} visible (${queuedBootstrapTasks} queued, ${runningBootstrapTasks} in progress, ${doneBootstrapTasks} done). The project is still getting set up before the main work starts.`
+      : "No kickoff tasks or delivery work are visible yet.";
 
   return {
     counts: {
@@ -211,7 +212,9 @@ export function deriveSprintTruth(input: {
 }) {
   const sprint = input.sprint;
   const tasks = Array.isArray(input.tasks) ? input.tasks : [];
-  const bootstrap = Boolean(sprint?.auto_generated) || (tasks.length > 0 && tasks.every((task) => isBootstrapTask(task)));
+  const bootstrap = sprint?.phase_key
+    ? sprint.phase_key === "discover"
+    : Boolean(sprint?.auto_generated) || (tasks.length > 0 && tasks.every((task) => isBootstrapTask(task)));
   const relevantTasks = bootstrap ? tasks : tasks.filter((task) => !isBootstrapTask(task));
   const queued = relevantTasks.filter((task) => isQueuedStatus(task.status)).length;
   const running = relevantTasks.filter((task) => isRunningStatus(task.status)).length;

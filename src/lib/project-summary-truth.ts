@@ -23,6 +23,8 @@ type TaskRow = {
 type SprintRow = {
   id: string;
   project_id?: string | null;
+  auto_generated?: boolean | null;
+  phase_key?: string | null;
   approval_gate_required?: boolean | null;
   approval_gate_status?: string | null;
 };

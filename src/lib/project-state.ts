@@ -1,6 +1,6 @@
 import { getProgressTaskSlice } from "./project-bootstrap.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
-import { selectProjectWithArtifactCompat } from "./project-db-compat";
+import { selectProjectWithArtifactCompat } from "./project-db-compat.ts";
 
 type DbClient = {
   from: (table: string) => any;

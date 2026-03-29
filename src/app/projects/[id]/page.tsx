@@ -7,7 +7,6 @@ import {
   Activity,
   ArrowLeft,
   ArrowUpRight,
-  CheckCircle2,
   Clock3,
   FileText,
   FolderKanban,
@@ -20,7 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
+import { PageHero } from "@/components/ui/page-hero";
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
 import { ProjectTypeBadge } from "@/components/ui/project-badges";
 import { formatRelativeTimestamp, getExecutionTone, ProgressRing } from "@/components/ui/execution-visibility";
@@ -934,18 +933,11 @@ export default function ProjectDetailPage() {
               ? "border-zinc-200 bg-zinc-50 text-zinc-700"
               : "border-amber-200 bg-amber-50 text-amber-700";
   const operationalDetails = [
-    { label: "Pending approvals", value: String(stats.pendingApprovals || 0) },
-    { label: "Queued jobs", value: String(truth?.counts.jobs.queued ?? truth?.counts.delivery.queued ?? 0) },
-    { label: "Running now", value: String(truth?.counts.jobs.running ?? truth?.counts.delivery.running ?? 0) },
-    { label: "Updated", value: formatUpdatedDate(project.updated_at) },
+    { label: "approvals", value: String(stats.pendingApprovals || 0) },
+    { label: "queued", value: String(truth?.counts.jobs.queued ?? truth?.counts.delivery.queued ?? 0) },
+    { label: "running", value: String(truth?.counts.jobs.running ?? truth?.counts.delivery.running ?? 0) },
   ];
-
-  const workSummary = [
-    `${truth?.counts.delivery.done ?? stats.doneTasks} done`,
-    `${truth?.counts.delivery.blocked ?? stats.blockedTasks} blocked`,
-    `${truth?.counts.delivery.total ?? stats.totalTasks} total items`,
-    `${truth?.counts.bootstrap.total ?? (stats.bootstrapTasks || 0)} kickoff tasks`,
-  ].join(" • ");
+  const updatedLabel = formatUpdatedDate(project.updated_at).replace(/^Updated\s+/i, "");
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden pb-10 md:space-y-8">
@@ -984,61 +976,47 @@ export default function ProjectDetailPage() {
               </div>
               <div>
                 <h1 className="break-words text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">{project.name}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-                  {summaryText || "Use this page to track project context, active tasks, links, signals, and the teams keeping delivery on course."}
+                <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block sm:text-base">
+                  {summaryText || "Track project context, active tasks, links, signals, and delivery health from one page."}
                 </p>
               </div>
             </div>
 
-            <div className={cn("rounded-2xl border p-4", statusTone.surface)}>
+            <div className={cn("rounded-2xl border p-3 sm:p-4", statusTone.surface)}>
               {deliveryIntegrity?.blockingReason ? (
-                <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  <div className="font-medium">Delivery integrity hold</div>
-                  <div className="mt-1 leading-6">{deliveryIntegrity.blockingReason}</div>
+                <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-medium text-amber-900">
+                  Delivery hold: {deliveryIntegrity.blockingReason}
                 </div>
               ) : deliveryIntegrity?.pendingProvisioningReason ? (
-                <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                  <div className="font-medium">GitHub repo provisioning pending</div>
-                  <div className="mt-1 leading-6">{deliveryIntegrity.pendingProvisioningReason}</div>
+                <div className="mb-3 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm font-medium text-sky-900">
+                  Repo provisioning pending: {deliveryIntegrity.pendingProvisioningReason}
                 </div>
               ) : null}
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
-                      {executionSummary.label}
-                    </span>
-                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Authoritative delivery status</span>
-                  </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Delivery progress</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-3">
-                        <p className="text-2xl font-semibold tracking-tight text-zinc-950">{progress}% complete</p>
-                        <p className="text-sm text-zinc-600">{truth ? `${truth.headline}. ${executionSummary.description}` : executionSummary.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                  {truth ? <p className="max-w-2xl text-sm leading-6 text-zinc-600">{truth.summary}</p> : null}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
+                  <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
+                    {executionSummary.label}
+                  </span>
+                  <span className="font-medium text-zinc-900">{progress}% complete</span>
+                  <span className="text-zinc-500">•</span>
+                  <span className="min-w-0 flex-1 text-zinc-600">{truth?.headline || executionSummary.description}</span>
                 </div>
 
-                <div className="rounded-2xl border border-zinc-200 bg-white/80 px-3 py-2.5">
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-600">
-                    {operationalDetails.map((item, index) => (
-                      <div key={item.label} className="flex items-center gap-2">
-                        {index > 0 ? <span className="hidden text-zinc-300 sm:inline">•</span> : null}
-                        <span className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">{item.label}</span>
-                        <span className="font-medium text-zinc-900">{item.value}</span>
-                      </div>
-                    ))}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-600">
+                  {operationalDetails.map((item, index) => (
+                    <div key={item.label} className="flex items-center gap-1.5">
+                      {index > 0 ? <span className="text-zinc-300">•</span> : null}
+                      <span className="font-semibold text-zinc-900">{item.value}</span>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-1.5 text-zinc-500 sm:ml-auto">
+                    <span className="hidden sm:inline text-zinc-300">•</span>
+                    <span>{updatedLabel}</span>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white/70 px-3 py-3 text-sm text-zinc-600">
-                  <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Work snapshot</div>
-                  <div className="mt-2 font-medium text-zinc-900">{workSummary}</div>
-                </div>
               </div>
-              <div className={cn("mt-4 h-2.5 overflow-hidden rounded-full", statusTone.progressTrack)}>
+              <div className={cn("mt-3 h-2.5 overflow-hidden rounded-full", statusTone.progressTrack)}>
                 <div className={cn("h-full rounded-full transition-all duration-500", statusTone.progress)} style={{ width: `${progress}%` }} />
               </div>
             </div>

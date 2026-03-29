@@ -179,6 +179,11 @@ function formatReviewStatus(value?: string | null) {
   return value.replace(/_/g, " ");
 }
 
+function formatTaskStatusLabel(value?: string | null) {
+  if (!value) return "Unknown";
+  return value.replace(/_/g, " ");
+}
+
 function taskProgressValue(task: any) {
   return typeof task?.progress_pct === "number" && Number.isFinite(task.progress_pct) ? task.progress_pct : 0;
 }
@@ -916,6 +921,13 @@ export default function ProjectDetailPage() {
   const displayedRecentUpdates = resolveProjectDetailRecentUpdates({ recentSignals, events });
   const boardRecentUpdates = displayedRecentUpdates.slice(0, 4);
   const selectedTaskSnapshot = selectedTask ? tasks.find((task: any) => task.id === selectedTask.id) || selectedTask : null;
+  const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
+  const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
+  const selectedTaskMetadataEntries = selectedTaskTypeConfig
+    ? selectedTaskTypeConfig.metadataFields
+        .map((field) => ({ key: field.key, label: field.label, value: selectedTask?.task_metadata?.[field.key] }))
+        .filter((entry) => typeof entry.value === "string" && entry.value.trim().length > 0)
+    : [];
   const briefFacts = [
     intake?.shape ? { label: "Shape", value: formatIntakeValue(intake.shape) } : null,
     intake ? { label: "Readiness", value: getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage) } : null,
@@ -1304,46 +1316,113 @@ export default function ProjectDetailPage() {
       </div>
 
       {showTaskModal && selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }}>
-          <div className="w-full max-w-2xl rounded-[24px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:items-center sm:p-4"
+          onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }}
+        >
+          <div
+            className="max-h-[calc(100dvh-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-3xl overflow-y-auto rounded-[24px] bg-white p-4 shadow-xl sm:max-h-[90vh] sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-zinc-900">Task details</h3>
-                <p className="mt-1 text-sm text-zinc-500">Open tasks in context first, then edit only when needed.</p>
+                <p className="mt-1 text-sm text-zinc-500">Read the work clearly first, then edit only when needed.</p>
               </div>
               <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{taskModalMode === "edit" ? "Editing" : "Viewing"}</span>
             </div>
             <div className="mt-4 space-y-4">
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <label className="block text-sm font-medium text-zinc-700">Task</label>
-                    <p className="text-sm font-medium text-zinc-900">{selectedTask.title}</p>
-                    <p className="mt-1 text-xs text-zinc-500">Status: {selectedTask.status?.replace("_", " ")} • Assigned to: {selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name : "Unassigned"}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
+              <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <TaskStatusBadge status={selectedTask.status || "todo"} />
                       <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status }).badgeClassName)}>
                         {getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status }).label}
                       </span>
                       {isBootstrapTask(selectedTask, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                       {selectedTask.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(selectedTask.review_status)}</span> : null}
-                      {selectedTask.updated_at ? <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">{formatRelativeTimestamp(selectedTask.updated_at)}</span> : null}
                     </div>
-                    {selectedTask.task_type && TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] ? (
-                      <p className="mt-2 text-xs text-red-600">Structured type: {TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG].label}</p>
-                    ) : null}
+                    <h4 className="mt-3 text-xl font-semibold tracking-tight text-zinc-950 sm:text-2xl">{selectedTask.title}</h4>
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">
+                      {taskModalMode === "edit"
+                        ? "Editing task details. Save when you want to update status or directions."
+                        : "This is the current read-only view of the task. Use Edit task if anything needs to change."}
+                    </p>
                   </div>
-                  <ProgressRing value={taskProgressValue(selectedTask)} size={60} strokeWidth={5} />
+                  <div className="flex items-center gap-3 self-start rounded-2xl border border-white/80 bg-white px-3 py-2 shadow-sm">
+                    <ProgressRing value={taskProgressValue(selectedTask)} size={56} strokeWidth={5} />
+                    <div>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Progress</p>
+                      <p className="text-sm font-medium text-zinc-700">{Math.round(taskProgressValue(selectedTask))}% complete</p>
+                    </div>
+                  </div>
                 </div>
+
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Status</p>
+                    <p className="mt-1 text-sm font-medium text-zinc-900">{formatTaskStatusLabel(selectedTask.status)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Milestone</p>
+                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTaskMilestone?.name || "Unassigned"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Type</p>
+                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTaskTypeConfig?.label || "General task"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Owner</p>
+                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name || "Assigned" : "Unassigned"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Updated</p>
+                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTask.updated_at ? formatRelativeTimestamp(selectedTask.updated_at) : "Recently updated"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review</p>
+                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTask.review_required ? formatReviewStatus(selectedTask.review_status) : "Review not required"}</p>
+                  </div>
+                </div>
+
+                {selectedTaskMetadataEntries.length > 0 ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {selectedTaskMetadataEntries.map((entry) => (
+                      <span key={entry.key} className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600">
+                        <span className="font-medium text-zinc-900">{entry.label}:</span> {String(entry.value).replace(/_/g, " ")}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.7fr)]">
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)] lg:items-start">
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700">Status</label>
+                  <section className="rounded-3xl border border-zinc-200 bg-white p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Description</p>
+                        <h5 className="mt-1 text-base font-semibold text-zinc-950">Directions and notes</h5>
+                      </div>
+                    </div>
                     {taskModalMode === "edit" ? (
+                      <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={8} className="mt-4 w-full rounded-2xl border border-zinc-300 px-4 py-3 text-sm leading-6 text-zinc-700" />
+                    ) : (
+                      <div className="mt-4 rounded-2xl bg-zinc-50 px-4 py-4 text-sm leading-7 text-zinc-700 whitespace-pre-wrap">
+                        {taskDesc?.trim() ? taskDesc : "No task directions added yet."}
+                      </div>
+                    )}
+                  </section>
+
+                  {taskModalMode === "edit" ? (
+                    <section className="rounded-3xl border border-zinc-200 bg-white p-4 sm:p-5">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Status</p>
+                      <h5 className="mt-1 text-base font-semibold text-zinc-950">Update workflow state</h5>
                       <select
                         value={selectedTask.status}
                         onChange={(e) => setSelectedTask((prev: any) => (prev ? { ...prev, status: e.target.value } : prev))}
-                        className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
+                        className="mt-4 w-full rounded-2xl border border-zinc-300 px-4 py-3 text-sm text-zinc-700"
                       >
                         <option value="todo">To do</option>
                         <option value="in_progress">In progress</option>
@@ -1351,25 +1430,14 @@ export default function ProjectDetailPage() {
                         <option value="blocked">Blocked</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
-                    ) : (
-                      <div className="mt-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">{selectedTask.status?.replace("_", " ") || "Unknown"}</div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700">Description / directions</label>
-                    {taskModalMode === "edit" ? (
-                      <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={6} className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" />
-                    ) : (
-                      <div className="mt-1 min-h-32 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-600">
-                        {taskDesc?.trim() ? taskDesc : "No task directions added yet."}
-                      </div>
-                    )}
-                  </div>
+                    </section>
+                  ) : null}
                 </div>
-                <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+
+                <aside className="space-y-3 rounded-3xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
                   <div>
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Recent context</div>
-                    <p className="mt-1 text-sm text-zinc-600">Useful project updates stay visible alongside task details.</p>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Recent context</p>
+                    <p className="mt-1 text-sm leading-6 text-zinc-500">Project activity stays visible here as secondary context while you review this task.</p>
                   </div>
                   {displayedRecentUpdates.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No recent project updates yet.</div>
@@ -1388,10 +1456,10 @@ export default function ProjectDetailPage() {
                       </div>
                     ))
                   )}
-                </div>
+                </aside>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap">
               <Button onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }} variant="outline" className="flex-1 rounded-xl">Close</Button>
               <Button onClick={handleDeleteTask} variant="outline" className="rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">Delete</Button>
               {taskModalMode === "edit" ? (

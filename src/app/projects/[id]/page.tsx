@@ -902,7 +902,8 @@ export default function ProjectDetailPage() {
   const intake = project.intake || null;
   const routing = intake ? getRoutingSummary(intake) : null;
   const projectLinks = getProjectLinkEntries(project.links);
-  const hasBrief = Boolean(routing || intake || project.intake_summary || project.description);
+  const summaryText = project.intake_summary || project.description || intake?.summary || null;
+  const hasBrief = Boolean(routing || intake || summaryText);
   const actionTargetStatus = project.status === "active" ? "paused" : project.status === "paused" ? "active" : null;
   const actionLabel = actionTargetStatus === "paused" ? "Pause" : actionTargetStatus === "active" ? "Resume" : null;
   const isStatusActionLoading = actionTargetStatus ? actionLoading === actionTargetStatus : false;
@@ -915,6 +916,15 @@ export default function ProjectDetailPage() {
     approvalCount: (stats.pendingApprovals || 0) + reviewLoopCount,
   });
   const displayedRecentUpdates = resolveProjectDetailRecentUpdates({ recentSignals, events });
+  const briefFacts = [
+    intake?.shape ? { label: "Shape", value: formatIntakeValue(intake.shape) } : null,
+    intake ? { label: "Readiness", value: getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage) } : null,
+    intake?.confidence ? { label: "Confidence", value: formatIntakeValue(intake.confidence) } : null,
+    routing?.ownerTeam ? { label: "Primary route", value: routing.ownerTeam } : null,
+    routing?.qcTeam ? { label: "QC", value: routing.qcTeam } : null,
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
+  const contextChips = (intake?.context || []) as string[];
+  const capabilityChips = (intake?.capabilities || []) as string[];
 
   const statsCards = [
     {
@@ -986,7 +996,7 @@ export default function ProjectDetailPage() {
               <div>
                 <h1 className="break-words text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">{project.name}</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-                  {project.intake_summary || project.description || "Use this page to track project context, active tasks, links, signals, and the teams keeping delivery on course."}
+                  {summaryText || "Use this page to track project context, active tasks, links, signals, and the teams keeping delivery on course."}
                 </p>
               </div>
             </div>
@@ -1038,64 +1048,85 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:max-w-sm">
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[320px] lg:max-w-sm">
             <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="text-sm font-medium text-zinc-900">Project actions</div>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Create tasks, shift delivery state, or remove the project without leaving this workspace.</p>
-              <div className="mt-4 grid gap-2">
-                {actionTargetStatus && actionLabel ? (
-                  <Button
-                    onClick={() => handleStatusChange(actionTargetStatus)}
-                    disabled={isStatusActionLoading}
-                    variant={actionTargetStatus === "paused" ? "outline" : "secondary"}
-                    className="w-full justify-center rounded-xl"
-                  >
-                    {actionTargetStatus === "paused" ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
-                    {isStatusActionLoading ? "Updating..." : actionLabel}
-                  </Button>
-                ) : null}
-                <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" variant="warm" className="w-full rounded-xl">
-                  <Plus className="h-4 w-4" />
-                  New task
-                </Button>
-                <Button onClick={() => setShowDeleteConfirm(true)} variant="outline" className="w-full justify-center rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">
-                  <Trash2 className="h-4 w-4" />
-                  Delete project
-                </Button>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500">
-              <div className="flex items-center gap-2 font-medium text-zinc-900">
+              <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
                 <Clock3 className="h-4 w-4 text-red-500" />
-                Snapshot
+                Workspace overview
               </div>
-              {truth ? (
-                <div className="mt-2 space-y-2 leading-6">
-                  <p>
-                    {truth.counts.delivery.total} active work item{truth.counts.delivery.total === 1 ? "" : "s"} and {truth.counts.bootstrap.total} kickoff task{truth.counts.bootstrap.total === 1 ? "" : "s"} are visible.
-                    {teams.length > 0 ? ` ${teams.length} team${teams.length === 1 ? " is" : "s are"} attached to the project.` : ""}
-                  </p>
-                  <p>
-                    Right now: {truth.counts.delivery.queued} queued, {truth.counts.delivery.running} in progress, {truth.counts.delivery.done} done, {truth.counts.delivery.blocked} blocked.
-                  </p>
-                  {executionVisibility?.queuedReasons?.length ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
-                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Why queued work is not running yet</div>
-                      <ul className="mt-2 space-y-2 text-xs leading-5">
-                        {executionVisibility.queuedReasons.map((reason) => (
-                          <li key={reason.taskId}>
-                            <span className="font-medium">{reason.taskTitle}</span>: {reason.detail}
-                          </li>
-                        ))}
-                      </ul>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">A tighter summary of delivery state, ownership, and the next actions available from this page.</p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Snapshot</div>
+                  {truth ? (
+                    <div className="mt-2 space-y-2 leading-6">
+                      <p>
+                        {truth.counts.delivery.total} active work item{truth.counts.delivery.total === 1 ? "" : "s"} and {truth.counts.bootstrap.total} kickoff task{truth.counts.bootstrap.total === 1 ? "" : "s"}.
+                        {teams.length > 0 ? ` ${teams.length} team${teams.length === 1 ? " is" : "s are"} attached.` : ""}
+                      </p>
+                      <p>
+                        {truth.counts.delivery.queued} queued · {truth.counts.delivery.running} in progress · {truth.counts.delivery.done} done · {truth.counts.delivery.blocked} blocked
+                      </p>
                     </div>
-                  ) : null}
+                  ) : (
+                    <p className="mt-2 leading-6">{tasks.length} task{tasks.length === 1 ? "" : "s"} across planning, execution, and completion lanes.</p>
+                  )}
                 </div>
-              ) : (
-                <p className="mt-2 leading-6">
-                  {tasks.length} task{tasks.length === 1 ? "" : "s"} across planning, execution, and completion lanes.
-                </p>
-              )}
+
+                {briefFacts.length > 0 ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Quick facts</div>
+                    <dl className="mt-2 space-y-2 text-sm">
+                      {briefFacts.map((fact) => (
+                        <div key={fact.label} className="flex items-start justify-between gap-3">
+                          <dt className="text-zinc-500">{fact.label}</dt>
+                          <dd className="text-right font-medium text-zinc-900">{fact.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ) : null}
+              </div>
+
+              {executionVisibility?.queuedReasons?.length ? (
+                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Why queued work is not running yet</div>
+                  <ul className="mt-2 space-y-2 text-xs leading-5">
+                    {executionVisibility.queuedReasons.map((reason) => (
+                      <li key={reason.taskId}>
+                        <span className="font-medium">{reason.taskTitle}</span>: {reason.detail}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <div className="mt-4 border-t border-zinc-200 pt-4">
+                <div className="text-sm font-medium text-zinc-900">Project actions</div>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Create tasks, shift delivery state, or remove the project without leaving this workspace.</p>
+                <div className="mt-4 grid gap-2">
+                  {actionTargetStatus && actionLabel ? (
+                    <Button
+                      onClick={() => handleStatusChange(actionTargetStatus)}
+                      disabled={isStatusActionLoading}
+                      variant={actionTargetStatus === "paused" ? "outline" : "secondary"}
+                      className="w-full justify-center rounded-xl"
+                    >
+                      {actionTargetStatus === "paused" ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
+                      {isStatusActionLoading ? "Updating..." : actionLabel}
+                    </Button>
+                  ) : null}
+                  <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" variant="warm" className="w-full rounded-xl">
+                    <Plus className="h-4 w-4" />
+                    New task
+                  </Button>
+                  <Button onClick={() => setShowDeleteConfirm(true)} variant="outline" className="w-full justify-center rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">
+                    <Trash2 className="h-4 w-4" />
+                    Delete project
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1105,62 +1136,60 @@ export default function ProjectDetailPage() {
         <div className="space-y-4">
           <Section title="Project brief" description="Scope, readiness, and routing context for everyone touching the work.">
             {hasBrief ? (
-              <div className="space-y-5">
-                {routing ? (
+              <div className="space-y-4">
+                {summaryText ? (
                   <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
-                      <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-zinc-600">{routing.rationale}</p>
+                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">{summaryText}</p>
                   </div>
                 ) : null}
 
-                {intake ? (
+                {(routing || briefFacts.length > 0) ? (
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(240px,0.9fr)]">
+                    {routing ? (
+                      <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Primary route: {routing.ownerTeam}</span>
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-700">QC: {routing.qcTeam}</span>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-zinc-600">{routing.rationale}</p>
+                      </div>
+                    ) : null}
+                    {briefFacts.length > 0 ? (
+                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Quick facts</div>
+                        <dl className="mt-3 space-y-2 text-sm">
+                          {briefFacts.map((fact) => (
+                            <div key={fact.label} className="flex items-start justify-between gap-3">
+                              <dt className="text-zinc-500">{fact.label}</dt>
+                              <dd className="text-right font-medium text-zinc-900">{fact.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {(contextChips.length > 0 || capabilityChips.length > 0) ? (
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Shape</div>
-                      <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.shape)}</div>
-                    </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Readiness</div>
-                      <div className="mt-1 text-sm text-zinc-900">{getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage)}</div>
-                    </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Context</div>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {(intake.context || []).length > 0 ? (
-                          intake.context.map((value: string) => (
-                            <span key={value} className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
-                          ))
-                        ) : (
-                          <span className="text-sm text-zinc-500">None selected</span>
-                        )}
+                        {contextChips.length > 0 ? contextChips.map((value) => (
+                          <span key={value} className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
+                        )) : <span className="text-sm text-zinc-500">None selected</span>}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
                       <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Capabilities</div>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {(intake.capabilities || []).length > 0 ? (
-                          intake.capabilities.map((value: string) => (
-                            <span key={value} className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
-                          ))
-                        ) : (
-                          <span className="text-sm text-zinc-500">None selected</span>
-                        )}
+                        {capabilityChips.length > 0 ? capabilityChips.map((value) => (
+                          <span key={value} className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">{formatIntakeValue(value)}</span>
+                        )) : <span className="text-sm text-zinc-500">None selected</span>}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Confidence</div>
-                      <div className="mt-1 text-sm text-zinc-900">{formatIntakeValue(intake.confidence)}</div>
-                    </div>
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
-                      <div className="mt-1 text-sm text-zinc-900">{project.intake_summary || intake.summary || "Not set"}</div>
-                    </div>
                   </div>
-                ) : project.intake_summary ? (
-                  <p className="text-sm leading-6 text-zinc-600">{project.intake_summary}</p>
                 ) : null}
 
                 {intake?.goals ? (

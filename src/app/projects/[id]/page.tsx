@@ -4,11 +4,9 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  Activity,
   ArrowLeft,
   ArrowUpRight,
   Clock3,
-  FileText,
   FolderKanban,
   PauseCircle,
   PlayCircle,
@@ -662,6 +660,7 @@ export default function ProjectDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [taskModalMode, setTaskModalMode] = useState<"view" | "edit">("view");
   const [creatingTask, setCreatingTask] = useState(false);
   const [taskDesc, setTaskDesc] = useState("");
 
@@ -806,7 +805,9 @@ export default function ProjectDetailPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Failed to create task");
+      setSelectedTask(null);
       setShowTaskModal(false);
+      setTaskModalMode("view");
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
@@ -825,6 +826,7 @@ export default function ProjectDetailPage() {
       });
       if (!res.ok) throw new Error("Failed to save task");
       setShowTaskModal(false);
+      setTaskModalMode("view");
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
@@ -838,7 +840,9 @@ export default function ProjectDetailPage() {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete task");
+      setSelectedTask(null);
       setShowTaskModal(false);
+      setTaskModalMode("view");
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
@@ -848,6 +852,7 @@ export default function ProjectDetailPage() {
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
     setTaskDesc(task.description || "");
+    setTaskModalMode("view");
     setShowTaskModal(true);
   };
 
@@ -909,6 +914,8 @@ export default function ProjectDetailPage() {
   const statusTone = getProjectStatusTone(project.status);
   const progress = Math.max(0, Math.min(100, truth?.progressPct ?? project.progress_pct ?? 0));
   const displayedRecentUpdates = resolveProjectDetailRecentUpdates({ recentSignals, events });
+  const boardRecentUpdates = displayedRecentUpdates.slice(0, 4);
+  const selectedTaskSnapshot = selectedTask ? tasks.find((task: any) => task.id === selectedTask.id) || selectedTask : null;
   const briefFacts = [
     intake?.shape ? { label: "Shape", value: formatIntakeValue(intake.shape) } : null,
     intake ? { label: "Readiness", value: getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage) } : null,
@@ -1108,11 +1115,44 @@ export default function ProjectDetailPage() {
           </Section>
 
           <Section title="Task board" description="Keep work moving without opening every task.">
-            {truth ? (
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                This board shows what is queued, in progress, blocked, and done. Kickoff setup stays visible, but the headline progress only counts active delivery work.
-              </div>
-            ) : null}
+            <div className="space-y-3">
+              {truth ? (
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+                  This board shows what is queued, in progress, blocked, and done. Kickoff setup stays visible, but the headline progress only counts active delivery work.
+                </div>
+              ) : null}
+              {boardRecentUpdates.length > 0 ? (
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Latest project signals</div>
+                      <p className="mt-1 text-sm text-zinc-600">Recent delivery and approval context stays with the board instead of living in a separate section.</p>
+                    </div>
+                    <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{boardRecentUpdates.length} updates</span>
+                  </div>
+                  <div className="mt-3 grid gap-2 xl:grid-cols-2">
+                    {boardRecentUpdates.map((signal) => (
+                      <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <SignalBadge kind={signal.kind} />
+                              <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-zinc-500">{signal.detail}</p>
+                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                              {signal.actorName ? <p>Updated by {signal.actorName}</p> : null}
+                              <p>{signal.sourceLabel}</p>
+                            </div>
+                          </div>
+                          <span className="whitespace-nowrap text-[11px] text-zinc-400">{formatRelativeTimestamp(signal.timestamp)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             {tasks.length === 0 ? (
               <EmptySectionState
                 icon={<FolderKanban className="h-7 w-7" />}
@@ -1245,38 +1285,6 @@ export default function ProjectDetailPage() {
             </div>
           </Section>
 
-          <Section title="Recent updates" description="Important recent project activity and decisions.">
-            {displayedRecentUpdates.length === 0 ? (
-              <EmptySectionState
-                icon={<Activity className="h-7 w-7" />}
-                title="No recent updates yet"
-                description="Once work starts moving, key approvals, delivery signals, and activity will appear here instead of leaving the section blank."
-              />
-            ) : (
-              <div className="space-y-2">
-                {displayedRecentUpdates.map((signal) => (
-                  <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <SignalBadge kind={signal.kind} />
-                          <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-zinc-500">{signal.detail}</p>
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
-                          {signal.actorName ? <p>Updated by {signal.actorName}</p> : null}
-                          <p>{signal.sourceLabel}</p>
-                        </div>
-                        {signal.sourceDetail ? <p className="mt-1 text-[11px] leading-5 text-zinc-400">{signal.sourceDetail}</p> : null}
-                      </div>
-                      <span className="whitespace-nowrap text-[11px] text-zinc-400">{new Date(signal.timestamp).toLocaleString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
           {documents.length > 0 ? (
             <Section title="Supporting docs & uploads" description="Uploaded references, files, and source material tied to this project.">
               <div className="space-y-2">
@@ -1330,9 +1338,15 @@ export default function ProjectDetailPage() {
       </div>
 
       {showTaskModal && selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTaskModal(false)}>
-          <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-zinc-900">Task Details</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }}>
+          <div className="w-full max-w-2xl rounded-[24px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-zinc-900">Task details</h3>
+                <p className="mt-1 text-sm text-zinc-500">Open tasks in context first, then edit only when needed.</p>
+              </div>
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{taskModalMode === "edit" ? "Editing" : "Viewing"}</span>
+            </div>
             <div className="mt-4 space-y-4">
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -1355,29 +1369,77 @@ export default function ProjectDetailPage() {
                   <ProgressRing value={taskProgressValue(selectedTask)} size={60} strokeWidth={5} />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700">Status</label>
-                <select
-                  value={selectedTask.status}
-                  onChange={(e) => setSelectedTask((prev: any) => (prev ? { ...prev, status: e.target.value } : prev))}
-                  className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
-                >
-                  <option value="todo">To do</option>
-                  <option value="in_progress">In progress</option>
-                  <option value="done">Done</option>
-                  <option value="blocked">Blocked</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700">Description / directions</label>
-                <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={5} className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" />
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.7fr)]">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700">Status</label>
+                    {taskModalMode === "edit" ? (
+                      <select
+                        value={selectedTask.status}
+                        onChange={(e) => setSelectedTask((prev: any) => (prev ? { ...prev, status: e.target.value } : prev))}
+                        className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
+                      >
+                        <option value="todo">To do</option>
+                        <option value="in_progress">In progress</option>
+                        <option value="done">Done</option>
+                        <option value="blocked">Blocked</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    ) : (
+                      <div className="mt-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">{selectedTask.status?.replace("_", " ") || "Unknown"}</div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700">Description / directions</label>
+                    {taskModalMode === "edit" ? (
+                      <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={6} className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" />
+                    ) : (
+                      <div className="mt-1 min-h-32 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-600">
+                        {taskDesc?.trim() ? taskDesc : "No task directions added yet."}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Recent context</div>
+                    <p className="mt-1 text-sm text-zinc-600">Useful project updates stay visible alongside task details.</p>
+                  </div>
+                  {displayedRecentUpdates.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No recent project updates yet.</div>
+                  ) : (
+                    displayedRecentUpdates.slice(0, 3).map((signal) => (
+                      <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <SignalBadge kind={signal.kind} />
+                          <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-zinc-500">{signal.detail}</p>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                          <p>{formatRelativeTimestamp(signal.timestamp)}</p>
+                          {signal.actorName ? <p>{signal.actorName}</p> : null}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-            <div className="mt-4 flex gap-2">
-              <Button onClick={() => setShowTaskModal(false)} variant="outline" className="flex-1 rounded-xl">Cancel</Button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }} variant="outline" className="flex-1 rounded-xl">Close</Button>
               <Button onClick={handleDeleteTask} variant="outline" className="rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">Delete</Button>
-              <Button onClick={handleUpdateTask} variant="warm" className="flex-1 rounded-xl">Save</Button>
+              {taskModalMode === "edit" ? (
+                <>
+                  <Button onClick={() => {
+                    setSelectedTask(selectedTaskSnapshot);
+                    setTaskDesc(selectedTaskSnapshot?.description || "");
+                    setTaskModalMode("view");
+                  }} variant="outline" className="rounded-xl">Cancel edit</Button>
+                  <Button onClick={handleUpdateTask} variant="warm" className="flex-1 rounded-xl">Save changes</Button>
+                </>
+              ) : (
+                <Button onClick={() => setTaskModalMode("edit")} variant="warm" className="flex-1 rounded-xl">Edit task</Button>
+              )}
             </div>
           </div>
         </div>

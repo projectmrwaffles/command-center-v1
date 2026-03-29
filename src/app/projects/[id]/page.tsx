@@ -1121,37 +1121,6 @@ export default function ProjectDetailPage() {
                   This board shows what is queued, in progress, blocked, and done. Kickoff setup stays visible, but the headline progress only counts active delivery work.
                 </div>
               ) : null}
-              {boardRecentUpdates.length > 0 ? (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Latest project signals</div>
-                      <p className="mt-1 text-sm text-zinc-600">Recent delivery and approval context stays with the board instead of living in a separate section.</p>
-                    </div>
-                    <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{boardRecentUpdates.length} updates</span>
-                  </div>
-                  <div className="mt-3 grid gap-2 xl:grid-cols-2">
-                    {boardRecentUpdates.map((signal) => (
-                      <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <SignalBadge kind={signal.kind} />
-                              <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
-                            </div>
-                            <p className="mt-1 text-xs leading-5 text-zinc-500">{signal.detail}</p>
-                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
-                              {signal.actorName ? <p>Updated by {signal.actorName}</p> : null}
-                              <p>{signal.sourceLabel}</p>
-                            </div>
-                          </div>
-                          <span className="whitespace-nowrap text-[11px] text-zinc-400">{formatRelativeTimestamp(signal.timestamp)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </div>
             {tasks.length === 0 ? (
               <EmptySectionState

@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
-import { ProjectStatusBadge, ProjectTypeBadge } from "@/components/ui/project-badges";
+import { ProjectTypeBadge } from "@/components/ui/project-badges";
 import { formatRelativeTimestamp, getExecutionTone, ProgressRing } from "@/components/ui/execution-visibility";
 import {
   formatIntakeValue,
@@ -909,12 +909,6 @@ export default function ProjectDetailPage() {
   const isStatusActionLoading = actionTargetStatus ? actionLoading === actionTargetStatus : false;
   const statusTone = getProjectStatusTone(project.status);
   const progress = Math.max(0, Math.min(100, truth?.progressPct ?? project.progress_pct ?? 0));
-  const reviewLoopCount = tasks.filter((task: any) => task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved").length;
-  const projectExecutionTone = getExecutionTone({
-    status: project.status,
-    blocked: stats.blockedTasks > 0,
-    approvalCount: (stats.pendingApprovals || 0) + reviewLoopCount,
-  });
   const displayedRecentUpdates = resolveProjectDetailRecentUpdates({ recentSignals, events });
   const briefFacts = [
     intake?.shape ? { label: "Shape", value: formatIntakeValue(intake.shape) } : null,
@@ -926,36 +920,32 @@ export default function ProjectDetailPage() {
   const contextChips = (intake?.context || []) as string[];
   const capabilityChips = (intake?.capabilities || []) as string[];
 
-  const statsCards = [
-    {
-      label: "Delivery tasks",
-      value: stats.totalTasks,
-      icon: FolderKanban,
-      accent: "text-red-700",
-      shell: "border-red-100",
-    },
-    {
-      label: "Queued / running",
-      value: `${stats.queuedTasks || 0} / ${stats.inProgressTasks}`,
-      icon: Activity,
-      accent: "text-blue-700",
-      shell: "border-blue-100",
-    },
-    {
-      label: "Done",
-      value: stats.doneTasks,
-      icon: CheckCircle2,
-      accent: "text-emerald-700",
-      shell: "border-emerald-100",
-    },
-    {
-      label: "Kickoff",
-      value: stats.bootstrapTasks || 0,
-      icon: Sparkles,
-      accent: "text-amber-700",
-      shell: "border-amber-100",
-    },
+  const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
+  const executionBadgeTone =
+    executionSummary.key === "blocked"
+      ? "border-red-200 bg-red-50 text-red-700"
+      : executionSummary.key === "running"
+        ? "border-blue-200 bg-blue-50 text-blue-700"
+        : executionSummary.key === "completed"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : executionSummary.key === "planning_running"
+            ? "border-sky-200 bg-sky-50 text-sky-700"
+            : executionSummary.key === "planning_queued" || executionSummary.key === "queued"
+              ? "border-zinc-200 bg-zinc-50 text-zinc-700"
+              : "border-amber-200 bg-amber-50 text-amber-700";
+  const operationalDetails = [
+    { label: "Pending approvals", value: String(stats.pendingApprovals || 0) },
+    { label: "Queued jobs", value: String(truth?.counts.jobs.queued ?? truth?.counts.delivery.queued ?? 0) },
+    { label: "Running now", value: String(truth?.counts.jobs.running ?? truth?.counts.delivery.running ?? 0) },
+    { label: "Updated", value: formatUpdatedDate(project.updated_at) },
   ];
+
+  const workSummary = [
+    `${truth?.counts.delivery.done ?? stats.doneTasks} done`,
+    `${truth?.counts.delivery.blocked ?? stats.blockedTasks} blocked`,
+    `${truth?.counts.delivery.total ?? stats.totalTasks} total items`,
+    `${truth?.counts.bootstrap.total ?? (stats.bootstrapTasks || 0)} kickoff tasks`,
+  ].join(" • ");
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden pb-10 md:space-y-8">
@@ -991,7 +981,6 @@ export default function ProjectDetailPage() {
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 {project.type ? <ProjectTypeBadge type={project.type} status={project.status} className="normal-case tracking-normal" /> : null}
-                <ProjectStatusBadge status={project.status} className="shadow-sm" />
               </div>
               <div>
                 <h1 className="break-words text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">{project.name}</h1>
@@ -1013,38 +1002,45 @@ export default function ProjectDetailPage() {
                   <div className="mt-1 leading-6">{deliveryIntegrity.pendingProvisioningReason}</div>
                 </div>
               ) : null}
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Delivery progress</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <p className="text-2xl font-semibold tracking-tight text-zinc-950">{progress}% complete</p>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone.pill)}>{statusTone.label}</span>
-                    <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", projectExecutionTone.badgeClassName)}>{projectExecutionTone.label}</span>
-                    {truth ? <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-700">{truth.execution.label}</span> : null}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
+                      {executionSummary.label}
+                    </span>
+                    <span className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Authoritative delivery status</span>
                   </div>
-                  {truth ? <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">{truth.headline}. {truth.summary}</p> : null}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Delivery progress</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-3">
+                        <p className="text-2xl font-semibold tracking-tight text-zinc-950">{progress}% complete</p>
+                        <p className="text-sm text-zinc-600">{truth ? `${truth.headline}. ${executionSummary.description}` : executionSummary.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {truth ? <p className="max-w-2xl text-sm leading-6 text-zinc-600">{truth.summary}</p> : null}
                 </div>
-                <div className="space-y-1 text-sm text-zinc-500 sm:text-right">
-                  <div>{formatUpdatedDate(project.updated_at)}</div>
-                  <div>{stats.pendingApprovals || 0} pending approval{(stats.pendingApprovals || 0) === 1 ? "" : "s"}</div>
-                  {truth ? <div>{truth.counts.jobs.queued} queued agent job{truth.counts.jobs.queued === 1 ? "" : "s"} · {truth.counts.jobs.running} running agent job{truth.counts.jobs.running === 1 ? "" : "s"}</div> : null}
+
+                <div className="rounded-2xl border border-zinc-200 bg-white/80 px-3 py-2.5">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-600">
+                    {operationalDetails.map((item, index) => (
+                      <div key={item.label} className="flex items-center gap-2">
+                        {index > 0 ? <span className="hidden text-zinc-300 sm:inline">•</span> : null}
+                        <span className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">{item.label}</span>
+                        <span className="font-medium text-zinc-900">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white/70 px-3 py-3 text-sm text-zinc-600">
+                  <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">Work snapshot</div>
+                  <div className="mt-2 font-medium text-zinc-900">{workSummary}</div>
                 </div>
               </div>
               <div className={cn("mt-4 h-2.5 overflow-hidden rounded-full", statusTone.progressTrack)}>
                 <div className={cn("h-full rounded-full transition-all duration-500", statusTone.progress)} style={{ width: `${progress}%` }} />
               </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {statsCards.map(({ label, value, icon: Icon, accent, shell }) => (
-                <PageHeroStat key={label} className={shell}>
-                  <div className={cn("flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em]", accent)}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </div>
-                  <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{value}</div>
-                </PageHeroStat>
-              ))}
             </div>
           </div>
 
@@ -1054,44 +1050,11 @@ export default function ProjectDetailPage() {
                 <Clock3 className="h-4 w-4 text-red-500" />
                 Workspace overview
               </div>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">A tighter summary of delivery state, ownership, and the next actions available from this page.</p>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Snapshot</div>
-                  {truth ? (
-                    <div className="mt-2 space-y-2 leading-6">
-                      <p>
-                        {truth.counts.delivery.total} active work item{truth.counts.delivery.total === 1 ? "" : "s"} and {truth.counts.bootstrap.total} kickoff task{truth.counts.bootstrap.total === 1 ? "" : "s"}.
-                        {teams.length > 0 ? ` ${teams.length} team${teams.length === 1 ? " is" : "s are"} attached.` : ""}
-                      </p>
-                      <p>
-                        {truth.counts.delivery.queued} queued · {truth.counts.delivery.running} in progress · {truth.counts.delivery.done} done · {truth.counts.delivery.blocked} blocked
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="mt-2 leading-6">{tasks.length} task{tasks.length === 1 ? "" : "s"} across planning, execution, and completion lanes.</p>
-                  )}
-                </div>
-
-                {briefFacts.length > 0 ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Quick facts</div>
-                    <dl className="mt-2 space-y-2 text-sm">
-                      {briefFacts.map((fact) => (
-                        <div key={fact.label} className="flex items-start justify-between gap-3">
-                          <dt className="text-zinc-500">{fact.label}</dt>
-                          <dd className="text-right font-medium text-zinc-900">{fact.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                ) : null}
-              </div>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Key context and actions, without repeating the delivery status you already see on the left.</p>
 
               {executionVisibility?.queuedReasons?.length ? (
                 <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Why queued work is not running yet</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">What is holding queued work</div>
                   <ul className="mt-2 space-y-2 text-xs leading-5">
                     {executionVisibility.queuedReasons.map((reason) => (
                       <li key={reason.taskId}>
@@ -1443,7 +1406,9 @@ export default function ProjectDetailPage() {
                   <div key={team.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-zinc-900">{team.name}</p>
-                      <ProjectStatusBadge status={team.status === "on_track" ? "active" : team.status === "waiting" ? "archived" : team.status} />
+                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-700">
+                        {team.status === "on_track" ? "On track" : team.status === "waiting" ? "Waiting" : formatIntakeValue(team.status)}
+                      </span>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500">
                       <span>{team.memberCount} members</span>

@@ -1002,11 +1002,8 @@ export default function ProjectDetailPage() {
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
                   <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
-                    {executionSummary.label}
-                  </span>
-                  <span className="font-medium text-zinc-900">{progress}% complete</span>
-                  <span className="text-zinc-500">•</span>
-                  <span className="min-w-0 flex-1 text-zinc-600">{truth?.headline || executionSummary.description}</span>
+                    {progress}% complete</span>
+                  <span className="min-w-0 flex-1 text-zinc-600">{executionSummary.key === "completed" ? null : (truth?.headline || executionSummary.description)}</span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-600">

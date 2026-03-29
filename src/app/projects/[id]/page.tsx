@@ -650,6 +650,10 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
   const agentsById = useRealtimeStore((s) => s.agentsById);
+  const projectsById = useRealtimeStore((s) => s.projectsById);
+  const approvalsById = useRealtimeStore((s) => s.approvalsById);
+  const jobsById = useRealtimeStore((s) => s.jobsById);
+  const storeEvents = useRealtimeStore((s) => s.events);
 
   const [data, setData] = useState<ProjectDetail | null>(null);
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
@@ -722,6 +726,39 @@ export default function ProjectDetailPage() {
       window.removeEventListener("online", onVisible);
     };
   }, [projectId, fetchProject]);
+
+  const realtimeRefreshKey = useMemo(() => {
+    const realtimeProject = projectsById.get(projectId);
+    const realtimeEvents = storeEvents.filter((event) => event.project_id === projectId);
+    const realtimeApprovals = Array.from(approvalsById.values()).filter((approval) => approval.project_id === projectId);
+    const realtimeJobs = Array.from(jobsById.values()).filter((job) => job.project_id === projectId);
+
+    const projectUpdatedAt = realtimeProject?.updated_at || "";
+    const latestEventTs = realtimeEvents[0]?.timestamp || "";
+    const approvalsKey = realtimeApprovals
+      .map((approval) => `${approval.id}:${approval.status}:${approval.created_at}`)
+      .sort()
+      .join("|");
+    const jobsKey = realtimeJobs
+      .map((job) => `${job.id}:${job.status}`)
+      .sort()
+      .join("|");
+
+    return [projectUpdatedAt, latestEventTs, approvalsKey, jobsKey].join("::");
+  }, [approvalsById, jobsById, projectId, projectsById, storeEvents]);
+
+  useEffect(() => {
+    if (!projectId || loading || !data) return;
+    if (!realtimeRefreshKey) return;
+
+    const timeout = window.setTimeout(() => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        void fetchProject(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [projectId, loading, data, realtimeRefreshKey, fetchProject]);
 
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(newStatus);

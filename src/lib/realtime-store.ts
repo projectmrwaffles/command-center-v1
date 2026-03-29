@@ -19,6 +19,8 @@ export interface Project {
   type?: string;
   team_id?: string;
   progress_pct: number;
+  updated_at?: string;
+  status?: string;
   teamName?: string;
 }
 

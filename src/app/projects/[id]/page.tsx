@@ -243,6 +243,22 @@ type MilestoneReviewState = {
   ctaHref?: string;
 };
 
+function getMilestoneProgressLabel(milestone: Milestone) {
+  if (milestone.totalTasks === 0) return "No tasks yet";
+  if (milestone.doneTasks === milestone.totalTasks) return "Complete";
+  return `${milestone.doneTasks}/${milestone.totalTasks} done`;
+}
+
+function getMilestoneReviewSummary(reviewState: MilestoneReviewState, milestone: Milestone) {
+  if (!milestone.approvalGateRequired) return null;
+  if (milestone.reviewRequest) return "Review requested";
+  if (milestone.approvalGateStatus === "approved") return "Approved";
+  if (milestone.totalTasks === 0) return "Needs tasks before review";
+  if (milestone.doneTasks < milestone.totalTasks) return "Review locked";
+  if (reviewState.tone === "amber") return "Needs review attention";
+  return "Ready for review";
+}
+
 function EmptySectionState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
   return <BrandedEmptyState icon={icon} title={title} description={description} action={action} className="border-zinc-200 bg-zinc-50 py-12" />;
 }
@@ -455,99 +471,110 @@ function MilestoneReviewCard({
     }
   };
 
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
-            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
-            <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", milestone.category === "bootstrap" ? "border-sky-200 bg-sky-50 text-sky-700" : "border-red-200 bg-red-50 text-red-700")}>{milestone.category === "bootstrap" ? "Kickoff setup" : "Active work"}</span>
-            {milestone.approvalGateRequired ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-purple-700">Review gate</span> : null}
-          </div>
-          {milestone.goal ? <p className="mt-2 text-sm leading-6 text-zinc-600">{milestone.goal}</p> : null}
-          <p className="mt-2 text-xs leading-5 text-zinc-500">
-            {milestone.doneTasks} of {milestone.totalTasks} {milestone.category === "bootstrap" ? "kickoff" : "active"} task{milestone.totalTasks === 1 ? "" : "s"} complete · {milestone.queuedTasks || 0} queued · {milestone.runningTasks || 0} in progress · {milestone.blockedTasks || 0} blocked
-            {milestone.hiddenBootstrapTasks ? ` · ${milestone.hiddenBootstrapTasks} kickoff task${milestone.hiddenBootstrapTasks === 1 ? "" : "s"} hidden from active-work totals` : ""}
-          </p>
-        </div>
-        <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
-      </div>
+  const progressLabel = getMilestoneProgressLabel(milestone);
+  const reviewSummary = getMilestoneReviewSummary(reviewState, milestone);
+  const showDetails = Boolean(milestone.goal || reviewTasks.length > 0 || reviewLinks.length > 0 || reviewState.helper || reviewState.ctaHref || canRequestReview || message);
 
-      <div className={cn("mt-4 rounded-2xl border p-4", reviewStateStyles.shell)}>
+  return (
+    <details className="rounded-2xl border border-zinc-200 bg-white shadow-sm group" open={canRequestReview}>
+      <summary className="list-none cursor-pointer p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className={cn("text-[11px] font-medium uppercase tracking-[0.14em]", reviewStateStyles.eyebrow)}>{reviewState.eyebrow}</div>
-            <p className={cn("mt-1 text-sm font-medium", reviewStateStyles.title)}>{reviewState.title}</p>
-            <p className={cn("mt-2 text-sm leading-6", reviewStateStyles.body)}>{reviewState.description}</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{progressLabel}</span>
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}%</span>
+              {reviewSummary ? (
+                <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", reviewStateStyles.chip)}>{reviewSummary}</span>
+              ) : null}
+            </div>
+            {milestone.goal ? <p className="mt-2 line-clamp-1 text-sm leading-6 text-zinc-500">{milestone.goal}</p> : null}
           </div>
-          {reviewState.ctaHref && reviewState.ctaLabel ? (
-            <Link href={reviewState.ctaHref} className="text-sm font-medium text-red-700 hover:text-red-800">{reviewState.ctaLabel}</Link>
+          <div className="flex items-center gap-2">
+            <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
+            {showDetails ? <span className="text-xs text-zinc-400 transition group-open:rotate-90">›</span> : null}
+          </div>
+        </div>
+      </summary>
+
+      {showDetails ? (
+        <div className="border-t border-zinc-100 px-4 pb-4 pt-3">
+          <div className={cn("rounded-2xl border p-4", reviewStateStyles.shell)}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className={cn("text-[11px] font-medium uppercase tracking-[0.14em]", reviewStateStyles.eyebrow)}>{reviewState.eyebrow}</div>
+                <p className={cn("mt-1 text-sm font-medium", reviewStateStyles.title)}>{reviewState.title}</p>
+                <p className={cn("mt-2 text-sm leading-6", reviewStateStyles.body)}>{reviewState.description}</p>
+              </div>
+              {reviewState.ctaHref && reviewState.ctaLabel ? (
+                <Link href={reviewState.ctaHref} className="text-sm font-medium text-red-700 hover:text-red-800">{reviewState.ctaLabel}</Link>
+              ) : null}
+            </div>
+
+            {reviewTasks.length > 0 ? (
+              <ul className={cn("mt-3 space-y-2 text-sm", reviewStateStyles.body)}>
+                {reviewTasks.map((task) => (
+                  <li key={task.id} className="flex items-start gap-2">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {task.title}
+                      <span className="ml-2 text-xs opacity-80">({formatReviewStatus(task.review_status)})</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {reviewLinks.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {reviewLinks.map((link) => (
+                  <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium", reviewStateStyles.chip)}>
+                    {link.label}
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                ))}
+              </div>
+            ) : null}
+
+            {reviewState.helper ? <p className={cn("mt-3 text-xs leading-5", reviewStateStyles.helper)}>{reviewState.helper}</p> : null}
+          </div>
+
+          {canRequestReview ? (
+            <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
+              <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">{missingReviewRequestRecord ? "Repair and request review" : "Request review"}</summary>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. Code-heavy phases require a real GitHub repo link before review can start.{missingReviewRequestRecord ? " This will repair the stuck pending-review state and create the actual approvals record." : ""}</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {PROJECT_LINK_FIELDS.map((key) => (
+                  <label key={key} className="block">
+                    <span className="mb-1.5 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+                    <input
+                      type="url"
+                      value={draftLinks[key] || ""}
+                      onChange={(e) => setDraftLinks((current) => {
+                        const next = { ...current };
+                        if (e.target.value.trim()) next[key] = e.target.value;
+                        else delete next[key];
+                        return next;
+                      })}
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+                      placeholder={`https://${key === "github" ? "github.com/org/repo" : "example.com"}`}
+                    />
+                  </label>
+                ))}
+              </div>
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-zinc-700">Review note</label>
+                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="What's ready for review?" className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                {message ? <p className={cn("text-xs", message === "Review requested" ? "text-emerald-600" : "text-zinc-500")}>{message}</p> : <span />}
+                <Button onClick={requestReview} disabled={saving} variant="warm" className="rounded-xl px-4">{saving ? "Requesting..." : missingReviewRequestRecord ? "Repair & request review" : "Request review"}</Button>
+              </div>
+            </details>
           ) : null}
         </div>
-
-        {reviewTasks.length > 0 ? (
-          <ul className={cn("mt-3 space-y-2 text-sm", reviewStateStyles.body)}>
-            {reviewTasks.map((task) => (
-              <li key={task.id} className="flex items-start gap-2">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  {task.title}
-                  <span className="ml-2 text-xs opacity-80">({formatReviewStatus(task.review_status)})</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {reviewLinks.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {reviewLinks.map((link) => (
-              <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium", reviewStateStyles.chip)}>
-                {link.label}
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
-            ))}
-          </div>
-        ) : null}
-
-        {reviewState.helper ? <p className={cn("mt-3 text-xs leading-5", reviewStateStyles.helper)}>{reviewState.helper}</p> : null}
-      </div>
-
-      {canRequestReview ? (
-        <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
-          <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">{missingReviewRequestRecord ? "Repair and request review" : "Request review"}</summary>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. Code-heavy phases require a real GitHub repo link before review can start.{missingReviewRequestRecord ? " This will repair the stuck pending-review state and create the actual approvals record." : ""}</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {PROJECT_LINK_FIELDS.map((key) => (
-              <label key={key} className="block">
-                <span className="mb-1.5 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-                <input
-                  type="url"
-                  value={draftLinks[key] || ""}
-                  onChange={(e) => setDraftLinks((current) => {
-                    const next = { ...current };
-                    if (e.target.value.trim()) next[key] = e.target.value;
-                    else delete next[key];
-                    return next;
-                  })}
-                  className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
-                  placeholder={`https://${key === "github" ? "github.com/org/repo" : "example.com"}`}
-                />
-              </label>
-            ))}
-          </div>
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-zinc-700">Review note</label>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="What's ready for review?" className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
-          </div>
-          <div className="mt-4 flex items-center justify-between gap-3">
-            {message ? <p className={cn("text-xs", message === "Review requested" ? "text-emerald-600" : "text-zinc-500")}>{message}</p> : <span />}
-            <Button onClick={requestReview} disabled={saving} variant="warm" className="rounded-xl px-4">{saving ? "Requesting..." : missingReviewRequestRecord ? "Repair & request review" : "Request review"}</Button>
-          </div>
-        </details>
       ) : null}
-    </div>
+    </details>
   );
 }
 

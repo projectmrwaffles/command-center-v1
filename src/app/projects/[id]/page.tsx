@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -185,7 +186,17 @@ function formatTaskStatusLabel(value?: string | null) {
 }
 
 function taskProgressValue(task: any) {
-  return typeof task?.progress_pct === "number" && Number.isFinite(task.progress_pct) ? task.progress_pct : 0;
+  if (!task) return null;
+
+  if (task.status === "done" || task.status === "completed") {
+    return 100;
+  }
+
+  if (typeof task?.progress_pct === "number" && Number.isFinite(task.progress_pct)) {
+    return Math.max(0, Math.min(100, task.progress_pct));
+  }
+
+  return null;
 }
 
 function isBootstrapTask(task: any, bootstrapSprintIds?: ReadonlySet<string>) {
@@ -871,6 +882,20 @@ export default function ProjectDetailPage() {
     };
   }, [data?.tasks]);
 
+  useEffect(() => {
+    if (!showTaskModal) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setSelectedTask(null);
+      setShowTaskModal(false);
+      setTaskModalMode("view");
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showTaskModal]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12">
@@ -921,6 +946,7 @@ export default function ProjectDetailPage() {
   const displayedRecentUpdates = resolveProjectDetailRecentUpdates({ recentSignals, events });
   const boardRecentUpdates = displayedRecentUpdates.slice(0, 4);
   const selectedTaskSnapshot = selectedTask ? tasks.find((task: any) => task.id === selectedTask.id) || selectedTask : null;
+  const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
   const selectedTaskMetadataEntries = selectedTaskTypeConfig
@@ -1321,15 +1347,29 @@ export default function ProjectDetailPage() {
           onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="task-details-title"
             className="max-h-[calc(100dvh-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-3xl overflow-y-auto rounded-[24px] bg-white p-4 shadow-xl sm:max-h-[90vh] sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-4">
               <div>
-                <h3 className="text-lg font-semibold text-zinc-900">Task details</h3>
+                <h3 id="task-details-title" className="text-lg font-semibold text-zinc-900">Task details</h3>
                 <p className="mt-1 text-sm text-zinc-500">Read the work clearly first, then edit only when needed.</p>
               </div>
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{taskModalMode === "edit" ? "Editing" : "Viewing"}</span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{taskModalMode === "edit" ? "Editing" : "Viewing"}</span>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }}
+                  className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+                  aria-label="Close task details"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sm:hidden">Close</span>
+                </button>
+              </div>
             </div>
             <div className="mt-4 space-y-4">
               <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
@@ -1351,11 +1391,30 @@ export default function ProjectDetailPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3 self-start rounded-2xl border border-white/80 bg-white px-3 py-2 shadow-sm">
-                    <ProgressRing value={taskProgressValue(selectedTask)} size={56} strokeWidth={5} />
-                    <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Progress</p>
-                      <p className="text-sm font-medium text-zinc-700">{Math.round(taskProgressValue(selectedTask))}% complete</p>
-                    </div>
+                    {selectedTaskProgress != null ? (
+                      <>
+                        <ProgressRing value={selectedTaskProgress} size={56} strokeWidth={5} />
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Progress</p>
+                          <p className="text-sm font-medium text-zinc-700">{Math.round(selectedTaskProgress)}% complete</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Task state</p>
+                        <p className="text-sm font-medium text-zinc-700">
+                          {selectedTask.status === "blocked"
+                            ? "Blocked"
+                            : selectedTask.status === "in_progress"
+                              ? "In progress"
+                              : selectedTask.status === "todo"
+                                ? "Ready to start"
+                                : selectedTask.status === "cancelled"
+                                  ? "Cancelled"
+                                  : formatTaskStatusLabel(selectedTask.status)}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -1162,9 +1162,9 @@ export default function ProjectDetailPage() {
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {[
-                  ["Up next", taskGroups.todo, "border-zinc-200 bg-zinc-50"],
+                  ["Queued", taskGroups.todo, "border-zinc-200 bg-zinc-50"],
                   ["In flight", taskGroups.inProgress, "border-blue-100 bg-blue-50/60"],
-                  ["Needs attention", taskGroups.blocked, "border-amber-100 bg-amber-50/70"],
+                  ["Stalled", taskGroups.blocked, "border-amber-100 bg-amber-50/70"],
                   ["Done", taskGroups.done, "border-emerald-100 bg-emerald-50/70"],
                 ].map(([label, bucket, bucketClass]) => (
                   <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>

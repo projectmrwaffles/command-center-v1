@@ -11,9 +11,11 @@ import {
   Layers3,
   Plus,
   Radio,
+  RotateCcw,
   Sparkles,
   Users2,
   Workflow,
+  X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -144,7 +146,37 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
   const [selectedNeedsYou, setSelectedNeedsYou] = useState<NeedsYouItem | null>(null);
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [dismissedRecentUpdateIds, setDismissedRecentUpdateIds] = useState<string[]>([]);
+  const [clearedRecentUpdatesAt, setClearedRecentUpdatesAt] = useState<string | null>(null);
   const connectionStatus = "connected" as const;
+
+  const recentUpdatesStorageKey = "dashboard-recent-updates";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(recentUpdatesStorageKey);
+      if (!raw) {
+        setDismissedRecentUpdateIds([]);
+        setClearedRecentUpdatesAt(null);
+        return;
+      }
+      const parsed = JSON.parse(raw) as { dismissedIds?: string[]; clearedAt?: string | null };
+      setDismissedRecentUpdateIds(Array.isArray(parsed.dismissedIds) ? parsed.dismissedIds : []);
+      setClearedRecentUpdatesAt(typeof parsed.clearedAt === "string" ? parsed.clearedAt : null);
+    } catch {
+      setDismissedRecentUpdateIds([]);
+      setClearedRecentUpdatesAt(null);
+    }
+  }, [recentUpdatesStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      recentUpdatesStorageKey,
+      JSON.stringify({ dismissedIds: dismissedRecentUpdateIds, clearedAt: clearedRecentUpdatesAt }),
+    );
+  }, [clearedRecentUpdatesAt, dismissedRecentUpdateIds, recentUpdatesStorageKey]);
 
   const agents = useMemo(() => Array.from(agentsById.values()), [agentsById]);
   const jobs = useMemo(() => Array.from(jobsById.values()), [jobsById]);
@@ -273,6 +305,30 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
       .slice(0, 8);
   }, [events, jobs, pendingApprovals, projectsById]);
 
+  const visibleRecentSignals = recentSignals.filter((signal) => {
+    if (dismissedRecentUpdateIds.includes(signal.id)) return false;
+    if (clearedRecentUpdatesAt && +new Date(signal.timestamp) < +new Date(clearedRecentUpdatesAt)) return false;
+    return true;
+  });
+  const hiddenRecentSignalCount = Math.max(0, recentSignals.length - visibleRecentSignals.length);
+  const handleDismissRecentSignal = (signalId: string) => {
+    setDismissedRecentUpdateIds((prev) => (prev.includes(signalId) ? prev : [...prev, signalId]));
+  };
+  const handleClearOlderRecentSignals = () => {
+    const newestVisibleSignal = visibleRecentSignals[0];
+    if (!newestVisibleSignal) return;
+
+    const olderVisibleSignalIds = visibleRecentSignals.slice(1).map((signal) => signal.id);
+    if (olderVisibleSignalIds.length > 0) {
+      setDismissedRecentUpdateIds((prev) => Array.from(new Set([...prev, ...olderVisibleSignalIds])));
+    }
+    setClearedRecentUpdatesAt(newestVisibleSignal.timestamp);
+  };
+  const handleResetRecentSignals = () => {
+    setDismissedRecentUpdateIds([]);
+    setClearedRecentUpdatesAt(null);
+  };
+
   return (
     <div className="space-y-6 md:space-y-8">
       <PageHero>
@@ -381,31 +437,66 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           </section>
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <SectionTitle meta="Recent approvals and key project changes.">Recent Updates</SectionTitle>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                {hiddenRecentSignalCount > 0 ? <span className="text-xs font-medium text-zinc-400">{hiddenRecentSignalCount} hidden</span> : null}
+                {visibleRecentSignals.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={handleClearOlderRecentSignals}
+                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-red-200 hover:text-red-700"
+                  >
+                    Clear older
+                  </button>
+                ) : null}
+                {hiddenRecentSignalCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handleResetRecentSignals}
+                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-red-200 hover:text-red-700"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Show hidden
+                  </button>
+                ) : null}
+              </div>
             </div>
-            {recentSignals.length === 0 ? (
+            {visibleRecentSignals.length === 0 ? (
               <BrandedEmptyState
                 className="items-start px-6 py-10 text-left"
                 icon={<Activity className="h-7 w-7 text-red-600" />}
-                title="No recent updates"
-                description="Once approvals, jobs, and events start flowing, the latest signal feed will collect them here."
+                title={hiddenRecentSignalCount > 0 ? "Updates hidden" : "No recent updates"}
+                description={hiddenRecentSignalCount > 0 ? "You cleared or dismissed the current dashboard feed. Use Show hidden to bring it back." : "Once approvals, jobs, and events start flowing, the latest signal feed will collect them here."}
+                action={hiddenRecentSignalCount > 0 ? <Button onClick={handleResetRecentSignals} variant="outline" className="rounded-xl px-4">Show hidden updates</Button> : undefined}
               />
             ) : (
               <div className="grid gap-3 lg:grid-cols-2">
-                {recentSignals.map((signal) => (
-                  <div key={signal.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-red-200">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", signal.kind === "approval" ? "bg-amber-100 text-amber-700" : signal.kind === "blocked" ? "bg-red-100 text-zinc-700" : signal.kind === "project" ? "bg-sky-100 text-sky-700" : "bg-emerald-100 text-zinc-700")}>
-                            {signal.kind}
-                          </span>
-                          <p className="truncate text-sm font-semibold text-zinc-950">{signal.title}</p>
+                {visibleRecentSignals.map((signal) => (
+                  <div key={signal.id} className="min-w-0 overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-red-200">
+                    <div className="flex min-w-0 flex-col gap-3">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 flex-wrap items-start gap-2">
+                            <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", signal.kind === "approval" ? "bg-amber-100 text-amber-700" : signal.kind === "blocked" ? "bg-red-100 text-zinc-700" : signal.kind === "project" ? "bg-sky-100 text-sky-700" : "bg-emerald-100 text-zinc-700")}>
+                              {signal.kind}
+                            </span>
+                            <p className="min-w-0 flex-1 break-words text-sm font-semibold text-zinc-950">{signal.title}</p>
+                          </div>
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">{signal.detail}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleDismissRecentSignal(signal.id)}
+                          aria-label={`Hide ${signal.title}`}
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full border border-zinc-200 bg-white p-0 text-zinc-400 transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700 sm:h-auto sm:w-auto sm:border-transparent sm:bg-transparent sm:p-1.5"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      <span className="whitespace-nowrap text-xs text-zinc-400">{timeAgo(signal.timestamp)}</span>
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                        <p className="min-w-0 text-sm leading-6 break-words text-zinc-500">{signal.detail}</p>
+                        <span className="shrink-0 text-xs text-zinc-400 sm:pt-1">{timeAgo(signal.timestamp)}</span>
+                      </div>
                     </div>
                   </div>
                 ))}

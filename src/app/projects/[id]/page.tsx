@@ -1144,38 +1144,6 @@ export default function ProjectDetailPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <div className="space-y-4">
-          <Section title="Milestones & review" description="Phases move from execution into a concrete review handoff instead of a placeholder state.">
-            {milestones.length === 0 ? (
-              <EmptySectionState
-                icon={<ShieldCheck className="h-7 w-7" />}
-                title="No milestones yet"
-                description="Create the first milestone to define phases, unlock review guidance, and make approval handoffs visible on this page."
-              />
-            ) : (
-              <div className="space-y-3">
-                {milestones.map((milestone) => (
-                  <MilestoneReviewCard
-                    key={milestone.id}
-                    projectId={projectId}
-                    milestone={milestone}
-                    reviewTasks={tasks.filter((task: any) => task.sprint_id === milestone.id && task.review_required)}
-                    projectLinks={project.links}
-                    onSaved={({ links }) => {
-                      setData((prev) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          project: { ...prev.project, links },
-                        };
-                      });
-                      void fetchProject(false);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </Section>
-
           <Section title="Task board" description="Keep work moving without opening every task.">
             <div className="space-y-3">
               {truth ? (

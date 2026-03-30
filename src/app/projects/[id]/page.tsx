@@ -1481,7 +1481,7 @@ export default function ProjectDetailPage() {
                         <option value="todo">To do</option>
                         <option value="in_progress">In progress</option>
                         <option value="done">Done</option>
-                        <option value="blocked">Blocked</option>
+                        <option value="blocked">Needs attention</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
                     </section>

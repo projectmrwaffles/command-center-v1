@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   Bot,
@@ -11,11 +10,8 @@ import {
   Layers3,
   Plus,
   Radio,
-  RotateCcw,
-  Sparkles,
-  Users2,
+    Users2,
   Workflow,
-  X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,22 +28,6 @@ function cn(...classes: Array<string | undefined | false | null>) {
 function StatusDot({ status }: { status: string }) {
   const color = status === "active" ? "bg-emerald-500" : status === "idle" ? "bg-zinc-400" : "bg-zinc-400";
   return <span className={cn("h-2.5 w-2.5 rounded-full", color)} />;
-}
-
-function SeverityBadge({ severity }: { severity?: string }) {
-  if (!severity) return null;
-  const classes: Record<string, string> = {
-    low: "border-zinc-200 bg-zinc-100 text-zinc-600",
-    medium: "border-amber-200 bg-amber-50 text-amber-700",
-    high: "border-orange-200 bg-orange-50 text-orange-700",
-    critical: "border-red-200 bg-red-50 text-zinc-700",
-  };
-
-  return (
-    <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em]", classes[severity] ?? classes.medium)}>
-      {severity}
-    </span>
-  );
 }
 
 function BentoBadge({ children, color }: { children: React.ReactNode; color: "red" | "amber" | "blue" | "green" }) {
@@ -69,17 +49,6 @@ function SectionTitle({ children, meta }: { children: React.ReactNode; meta?: st
   );
 }
 
-type NeedsYouItem = {
-  id: string;
-  type: "approval" | "blocked" | "error";
-  title: string;
-  severity?: string;
-  projectId?: string;
-  agentId?: string;
-  jobId?: string;
-  createdAt: string;
-};
-
 type ProjectCardModel = {
   id: string;
   name: string;
@@ -96,23 +65,10 @@ type UsageModel = {
   topModels: { model: string; provider: string; tokens: number; cost: number }[];
 };
 
-type SignalItem = {
-  id: string;
-  kind: "approval" | "blocked" | "active" | "project";
-  title: string;
-  detail: string;
-  timestamp: string;
-};
-
-function eventTitle(eventType: string) {
-  return eventType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-}
-
 export function OverviewClient({ initialData }: { initialData: DashboardData }) {
   const replaceAgents = useRealtimeStore((s) => s.replaceAgents);
   const upsertProject = useRealtimeStore((s) => s.upsertProject);
   const upsertApproval = useRealtimeStore((s) => s.upsertApproval);
-  const prependEvent = useRealtimeStore((s) => s.prependEvent);
   const upsertTeam = useRealtimeStore((s) => s.upsertTeam);
 
   useEffect(() => {
@@ -132,9 +88,8 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
         });
       }
     });
-    initialData.events?.forEach((e: any) => prependEvent(e));
     initialData.teams?.forEach((t: any) => upsertTeam(t));
-  }, [initialData, prependEvent, replaceAgents, upsertApproval, upsertProject, upsertTeam]);
+  }, [initialData, replaceAgents, upsertApproval, upsertProject, upsertTeam]);
 
   const agentsById = useRealtimeStore((s) => s.agentsById);
   const projectsById = useRealtimeStore((s) => s.projectsById);
@@ -142,49 +97,17 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   const jobsById = useRealtimeStore((s) => s.jobsById);
   const usageRollup = useRealtimeStore((s) => s.usageRollup);
   const teamsById = useRealtimeStore((s) => s.teamsById);
-  const storeEvents = useRealtimeStore((s) => s.events);
 
-  const [selectedNeedsYou, setSelectedNeedsYou] = useState<NeedsYouItem | null>(null);
   const [showCreateProject, setShowCreateProject] = useState(false);
-  const [dismissedRecentUpdateIds, setDismissedRecentUpdateIds] = useState<string[]>([]);
-  const [clearedRecentUpdatesAt, setClearedRecentUpdatesAt] = useState<string | null>(null);
   const connectionStatus = "connected" as const;
-
-  const recentUpdatesStorageKey = "dashboard-recent-updates";
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(recentUpdatesStorageKey);
-      if (!raw) {
-        setDismissedRecentUpdateIds([]);
-        setClearedRecentUpdatesAt(null);
-        return;
-      }
-      const parsed = JSON.parse(raw) as { dismissedIds?: string[]; clearedAt?: string | null };
-      setDismissedRecentUpdateIds(Array.isArray(parsed.dismissedIds) ? parsed.dismissedIds : []);
-      setClearedRecentUpdatesAt(typeof parsed.clearedAt === "string" ? parsed.clearedAt : null);
-    } catch {
-      setDismissedRecentUpdateIds([]);
-      setClearedRecentUpdatesAt(null);
-    }
-  }, [recentUpdatesStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      recentUpdatesStorageKey,
-      JSON.stringify({ dismissedIds: dismissedRecentUpdateIds, clearedAt: clearedRecentUpdatesAt }),
-    );
-  }, [clearedRecentUpdatesAt, dismissedRecentUpdateIds, recentUpdatesStorageKey]);
 
   const agents = useMemo(() => Array.from(agentsById.values()), [agentsById]);
   const jobs = useMemo(() => Array.from(jobsById.values()), [jobsById]);
   const teams = useMemo(() => (initialData.teams && initialData.teams.length > 0 ? initialData.teams : Array.from(teamsById.values())), [initialData.teams, teamsById]);
-  const events = useMemo(() => (storeEvents.length > 0 ? storeEvents : initialData.events || []), [initialData.events, storeEvents]);
   const pendingApprovals = useMemo(() => Array.from(approvalsById.values()).filter((a) => a.status === "pending"), [approvalsById]);
   const blockedJobs = useMemo(() => jobs.filter((j) => j.status === "blocked"), [jobs]);
   const activeAgents = useMemo(() => agents.filter((agent) => agent.status === "active").length, [agents]);
+  const needsAttentionCount = pendingApprovals.length + blockedJobs.length;
 
   const usage24h = useMemo(() => {
     if (initialData.usage && initialData.usage.totalTokens24h > 0) {
@@ -214,29 +137,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     return { totalTokens, totalCost, topModels: Array.from(byModel.values()).sort((a, b) => b.tokens - a.tokens).slice(0, 5) };
   }, [initialData.usage, usageRollup]);
 
-  const needsYou: NeedsYouItem[] = useMemo(() => {
-    const approvals = pendingApprovals.map((ap) => ({
-      id: ap.id,
-      type: "approval" as const,
-      title: ap.summary || "Approval requested",
-      severity: ap.severity,
-      projectId: ap.project_id,
-      agentId: ap.agent_id,
-      jobId: ap.job_id,
-      createdAt: ap.created_at,
-    }));
-    const blocked = blockedJobs.map((job) => ({
-      id: job.id,
-      type: "blocked" as const,
-      title: job.title || "Blocked job",
-      projectId: job.project_id,
-      agentId: job.owner_agent_id,
-      jobId: job.id,
-      createdAt: new Date().toISOString(),
-    }));
-    return [...approvals, ...blocked].slice(0, 20);
-  }, [blockedJobs, pendingApprovals]);
-
   const projectCards: ProjectCardModel[] = useMemo(() => {
     const approvalsByProject = new Map<string, number>();
     pendingApprovals.forEach((approval) => {
@@ -262,72 +162,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
     }));
   }, [blockedJobs, pendingApprovals, projectsById]);
 
-  const recentSignals: SignalItem[] = useMemo(() => {
-    const projectNameFor = (projectId?: string) => {
-      if (!projectId) return null;
-      return projectsById.get(projectId)?.name || null;
-    };
 
-    const fromApprovals = pendingApprovals.slice(0, 4).map((approval) => ({
-      id: `approval-${approval.id}`,
-      kind: "approval" as const,
-      title: approval.summary || "Approval requested",
-      detail: projectNameFor(approval.project_id)
-        ? `${projectNameFor(approval.project_id)} needs a decision.`
-        : "A decision is waiting.",
-      timestamp: approval.created_at,
-    }));
-
-    const fromJobs = jobs.slice(0, 4).map((job) => ({
-      id: `job-${job.id}`,
-      kind: job.status === "blocked" ? ("blocked" as const) : ("active" as const),
-      title: job.title || eventTitle(job.status),
-      detail: [
-        projectNameFor(job.project_id),
-        job.status === "blocked" ? "delivery is blocked right now" : `status: ${job.status.replace(/_/g, " ")}`,
-      ]
-        .filter(Boolean)
-        .join(" • "),
-      timestamp: new Date().toISOString(),
-    }));
-
-    const fromEvents = events.slice(0, 8).map((event: any) => ({
-      id: `event-${event.id}`,
-      kind: event.type?.includes("project") ? ("project" as const) : ("active" as const),
-      title: event.label || eventTitle(event.event_type || event.type || "activity"),
-      detail: [event.projectName, event.actorName].filter(Boolean).join(" • ") || "Recent system activity",
-      timestamp: event.timestamp,
-    }));
-
-    return [...fromApprovals, ...fromJobs, ...fromEvents]
-      .filter((signal) => signal.detail)
-      .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
-      .slice(0, 8);
-  }, [events, jobs, pendingApprovals, projectsById]);
-
-  const visibleRecentSignals = recentSignals.filter((signal) => {
-    if (dismissedRecentUpdateIds.includes(signal.id)) return false;
-    if (clearedRecentUpdatesAt && +new Date(signal.timestamp) < +new Date(clearedRecentUpdatesAt)) return false;
-    return true;
-  });
-  const hiddenRecentSignalCount = Math.max(0, recentSignals.length - visibleRecentSignals.length);
-  const handleDismissRecentSignal = (signalId: string) => {
-    setDismissedRecentUpdateIds((prev) => (prev.includes(signalId) ? prev : [...prev, signalId]));
-  };
-  const handleClearOlderRecentSignals = () => {
-    const newestVisibleSignal = visibleRecentSignals[0];
-    if (!newestVisibleSignal) return;
-
-    const olderVisibleSignalIds = visibleRecentSignals.slice(1).map((signal) => signal.id);
-    if (olderVisibleSignalIds.length > 0) {
-      setDismissedRecentUpdateIds((prev) => Array.from(new Set([...prev, ...olderVisibleSignalIds])));
-    }
-    setClearedRecentUpdatesAt(newestVisibleSignal.timestamp);
-  };
-  const handleResetRecentSignals = () => {
-    setDismissedRecentUpdateIds([]);
-    setClearedRecentUpdatesAt(null);
-  };
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -347,7 +182,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                   <AlertTriangle className="h-4 w-4 text-zinc-500" />
                   Needs attention
                 </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{needsYou.length}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{needsAttentionCount}</div>
               </PageHeroStat>
               <PageHeroStat className="border-zinc-200 bg-zinc-50/70 shadow-none">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">
@@ -398,112 +233,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="space-y-6">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <SectionTitle meta="Approvals and blocked work that need operator attention right now.">Needs You ({needsYou.length})</SectionTitle>
-              {needsYou.length > 0 ? <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-zinc-700">Attention queue</span> : null}
-            </div>
-
-            {needsYou.length === 0 ? (
-              <BrandedEmptyState
-                className="items-start px-6 py-10 text-left"
-                icon={<AlertTriangle className="h-7 w-7 text-red-600" />}
-                title="Nothing is waiting on you"
-                description="There are no pending approvals or blocked jobs at the moment, so the queue is clear for now."
-              />
-            ) : (
-              <div className="space-y-3">
-                {needsYou.slice(0, 5).map((item) => (
-                  <Card key={item.id} variant="featured" className="cursor-pointer rounded-[24px]" onClick={() => setSelectedNeedsYou(item)}>
-                    <CardContent className="flex items-start justify-between gap-3 p-5">
-                      <div className="min-w-0 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", item.type === "approval" ? "bg-amber-100 text-amber-700" : item.type === "blocked" ? "bg-red-100 text-zinc-700" : "bg-zinc-100 text-zinc-700")}>
-                            {item.type}
-                          </span>
-                          {item.severity && <SeverityBadge severity={item.severity} />}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-950">{item.title}</p>
-                          <p className="mt-1 text-sm text-zinc-500">Open the detail drawer for ids, routing context, and next operator action.</p>
-                        </div>
-                      </div>
-                      <span className="whitespace-nowrap text-xs text-zinc-400">{timeAgo(item.createdAt)}</span>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="space-y-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <SectionTitle meta="Recent approvals and key project changes.">Recent Updates</SectionTitle>
-              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                {hiddenRecentSignalCount > 0 ? <span className="text-xs font-medium text-zinc-400">{hiddenRecentSignalCount} hidden</span> : null}
-                {visibleRecentSignals.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={handleClearOlderRecentSignals}
-                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-red-200 hover:text-red-700"
-                  >
-                    Clear older
-                  </button>
-                ) : null}
-                {hiddenRecentSignalCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={handleResetRecentSignals}
-                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-red-200 hover:text-red-700"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Show hidden
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            {visibleRecentSignals.length === 0 ? (
-              <BrandedEmptyState
-                className="items-start px-6 py-10 text-left"
-                icon={<Activity className="h-7 w-7 text-red-600" />}
-                title={hiddenRecentSignalCount > 0 ? "Updates hidden" : "No recent updates"}
-                description={hiddenRecentSignalCount > 0 ? "You cleared or dismissed the current dashboard feed. Use Show hidden to bring it back." : "Once approvals, jobs, and events start flowing, the latest signal feed will collect them here."}
-                action={hiddenRecentSignalCount > 0 ? <Button onClick={handleResetRecentSignals} variant="outline" className="rounded-xl px-4">Show hidden updates</Button> : undefined}
-              />
-            ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {visibleRecentSignals.map((signal) => (
-                  <div key={signal.id} className="min-w-0 overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-red-200">
-                    <div className="flex min-w-0 flex-col gap-3">
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 flex-wrap items-start gap-2">
-                            <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", signal.kind === "approval" ? "bg-amber-100 text-amber-700" : signal.kind === "blocked" ? "bg-red-100 text-zinc-700" : signal.kind === "project" ? "bg-sky-100 text-sky-700" : "bg-emerald-100 text-zinc-700")}>
-                              {signal.kind}
-                            </span>
-                            <p className="min-w-0 flex-1 break-words text-sm font-semibold text-zinc-950">{signal.title}</p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDismissRecentSignal(signal.id)}
-                          aria-label={`Hide ${signal.title}`}
-                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full border border-zinc-200 bg-white p-0 text-zinc-400 transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700 sm:h-auto sm:w-auto sm:border-transparent sm:bg-transparent sm:p-1.5"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                        <p className="min-w-0 text-sm leading-6 break-words text-zinc-500">{signal.detail}</p>
-                        <span className="shrink-0 text-xs text-zinc-400 sm:pt-1">{timeAgo(signal.timestamp)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <SectionTitle meta="Active work, current state, and open flags.">Active Work ({projectCards.length})</SectionTitle>
@@ -592,20 +321,6 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
         </div>
       </div>
 
-      {selectedNeedsYou && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setSelectedNeedsYou(null)}>
-          <div className="w-full max-w-md bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Details</h3>
-              <button onClick={() => setSelectedNeedsYou(null)} className="rounded p-1 hover:bg-zinc-100">✕</button>
-            </div>
-            <pre className="mt-4 max-h-full overflow-auto rounded border bg-zinc-50 p-3 text-xs text-zinc-700">{JSON.stringify(selectedNeedsYou, null, 2)}</pre>
-            <div className="mt-4 flex items-center gap-2">
-              <Link href="/approvals" className="flex-1 rounded-md bg-red-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-red-700">Go to Approvals</Link>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -718,16 +433,3 @@ function UsageCard({ usage }: { usage: UsageModel }) {
   );
 }
 
-function timeAgo(ts?: string) {
-  if (!ts) return "Not available";
-  const then = new Date(ts).getTime();
-  const now = Date.now();
-  const diff = now - then;
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h`;
-  const d = Math.floor(h / 24);
-  return `${d}d`;
-}

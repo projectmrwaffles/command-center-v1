@@ -4,16 +4,13 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  Activity,
   ArrowLeft,
   ArrowUpRight,
-  BellOff,
   Clock3,
   FolderKanban,
   PauseCircle,
   PlayCircle,
   Plus,
-  RotateCcw,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -27,11 +24,8 @@ import { ProjectTypeBadge } from "@/components/ui/project-badges";
 import { formatRelativeTimestamp, getExecutionTone, ProgressRing } from "@/components/ui/execution-visibility";
 import {
   formatIntakeValue,
-  getReadinessOption,
-  getRoutingSummary,
 } from "@/lib/project-intake";
 import { getProjectStatusTone } from "@/lib/project-ui";
-import { resolveProjectDetailRecentUpdates } from "@/lib/project-detail-truth";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 import { parseGitHubRepoUrl, type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
@@ -167,17 +161,6 @@ function TaskStatusBadge({ status }: { status: string }) {
   );
 }
 
-function SignalBadge({ kind }: { kind: string }) {
-  const styles: Record<string, string> = {
-    blocked: "border-red-200 bg-red-100 text-red-700",
-    approval: "border-amber-200 bg-amber-100 text-amber-700",
-    completed: "border-emerald-200 bg-emerald-100 text-emerald-700",
-    progress: "border-blue-200 bg-blue-100 text-blue-700",
-    activity: "border-zinc-200 bg-zinc-100 text-zinc-700",
-  };
-  return <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", styles[kind] || styles.activity)}>{kind}</span>;
-}
-
 function formatReviewStatus(value?: string | null) {
   if (!value || value === "not_requested") return "No review started";
   return value.replace(/_/g, " ");
@@ -236,142 +219,8 @@ function formatUpdatedDate(value?: string | null) {
   })}`;
 }
 
-type MilestoneReviewState = {
-  tone: "neutral" | "purple" | "amber" | "emerald";
-  eyebrow: string;
-  title: string;
-  description: string;
-  helper?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-};
-
-function getMilestoneProgressLabel(milestone: Milestone) {
-  if (milestone.totalTasks === 0) return "No tasks yet";
-  if (milestone.doneTasks === milestone.totalTasks) return "Complete";
-  return `${milestone.doneTasks}/${milestone.totalTasks} done`;
-}
-
-function getMilestoneReviewSummary(reviewState: MilestoneReviewState, milestone: Milestone) {
-  if (!milestone.approvalGateRequired) return null;
-  if (milestone.reviewRequest) return "Review requested";
-  if (milestone.approvalGateStatus === "approved") return "Approved";
-  if (milestone.totalTasks === 0) return "Needs tasks before review";
-  if (milestone.doneTasks < milestone.totalTasks) return "Review locked";
-  if (reviewState.tone === "amber") return "Needs review attention";
-  return "Ready for review";
-}
-
 function EmptySectionState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
   return <BrandedEmptyState icon={icon} title={title} description={description} action={action} className="border-zinc-200 bg-zinc-50 py-12" />;
-}
-
-function getMilestoneReviewState(input: {
-  milestone: Milestone;
-  reviewTasks: Array<{ id: string; title: string; status: string; review_status?: string | null }>;
-}) : MilestoneReviewState {
-  const { milestone, reviewTasks } = input;
-  const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
-  const missingReviewRequestRecord = milestone.approvalGateRequired && milestone.approvalGateStatus === "pending" && !milestone.reviewRequest;
-  const milestoneApproved = milestone.approvalGateRequired && milestone.approvalGateStatus === "approved";
-
-  if (milestone.reviewRequest) {
-    return {
-      tone: "amber",
-      eyebrow: "Review request live",
-      title: milestone.reviewRequest.summary || "Approval requested",
-      description: "A live approval request is open for this milestone. Use the exact linked approval to review and record the decision.",
-      helper: reviewTasks.length > 0
-        ? `${reviewTasks.length} review task${reviewTasks.length === 1 ? " is" : "s are"} attached to this request.`
-        : "This review request is ready in approvals even if the related review-task row is sparse.",
-      ctaLabel: "Open linked approval →",
-      ctaHref: `/approvals?approval=${milestone.reviewRequest.id}#approval-${milestone.reviewRequest.id}`,
-    };
-  }
-
-  if (!milestone.approvalGateRequired) {
-    return {
-      tone: "neutral",
-      eyebrow: "Execution milestone",
-      title: "Review gate not required",
-      description: "This milestone tracks delivery progress without creating an approval handoff.",
-      helper: milestone.totalTasks > 0
-        ? `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} completed.`
-        : "Add tasks when this phase has concrete work to track.",
-    };
-  }
-
-  if (milestone.totalTasks === 0) {
-    return {
-      tone: "neutral",
-      eyebrow: "Review gated",
-      title: "No milestone tasks yet",
-      description: "This milestone is configured for review, but it needs at least one task before a review request can exist.",
-      helper: "Add the deliverables for this phase, then finish them to unlock review.",
-    };
-  }
-
-  if (missingReviewRequestRecord) {
-    return {
-      tone: "amber",
-      eyebrow: "Review handoff needs attention",
-      title: "Pending review is missing its approval row",
-      description: "This milestone says review is pending, but there is no live approval record yet. Request review again to repair the stuck handoff.",
-      helper: reviewTasks.length > 0
-        ? `${reviewTasks.length} review task${reviewTasks.length === 1 ? " is" : "s are"} already marked for review.`
-        : "The milestone is stuck between completion and approvals.",
-    };
-  }
-
-  if (milestoneApproved) {
-    return {
-      tone: "emerald",
-      eyebrow: "Review approved",
-      title: "Milestone review is finalized",
-      description: "This milestone has already been approved, so no new review request is needed.",
-      helper: reviewTasks.length > 0
-        ? `${reviewTasks.length} review task${reviewTasks.length === 1 ? " was" : "s were"} part of the approved handoff.`
-        : reviewTasksReady
-          ? "All milestone work is complete and the approval gate is already cleared."
-          : `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} are marked complete while the approval gate remains approved.`,
-    };
-  }
-
-  if (reviewTasks.length > 0 && !milestone.reviewRequest) {
-    return reviewTasksReady
-      ? {
-          tone: "purple",
-          eyebrow: "Review deliverables ready",
-          title: "Review tasks exist, but no request has been sent",
-          description: "The deliverables for review are ready. Capture the key links below and send the review request to create the approval handoff.",
-          helper: `${reviewTasks.length} review task${reviewTasks.length === 1 ? " is" : "s are"} waiting for a real review request.`,
-        }
-      : {
-          tone: "neutral",
-          eyebrow: "Review deliverables identified",
-          title: "Review is not unlocked yet",
-          description: "This milestone already has review tasks, but the milestone still has open delivery work before a request can be sent.",
-          helper: `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} completed before review can start.`,
-        };
-  }
-
-  if (!reviewTasksReady) {
-    return {
-      tone: "neutral",
-      eyebrow: "Review gated",
-      title: "Review is not unlocked yet",
-      description: "Finish this milestone's tasks before creating a review request.",
-      helper: `${milestone.doneTasks} of ${milestone.totalTasks} task${milestone.totalTasks === 1 ? "" : "s"} completed.`,
-    };
-  }
-
-  return {
-    tone: "purple",
-    eyebrow: "Ready for review",
-    title: "Milestone complete and ready to request review",
-    description: "All milestone work is done. Add the supporting links below and send the review request to create the approval handoff.",
-    helper: "Requesting review will preserve the exact approval deep link for this milestone.",
-  };
 }
 
 function Section({ title, description, children, className, action }: { title: string; description?: string; children: ReactNode; className?: string; action?: ReactNode }) {
@@ -388,196 +237,6 @@ function Section({ title, description, children, className, action }: { title: s
         {children}
       </CardContent>
     </Card>
-  );
-}
-
-function MilestoneReviewCard({
-  projectId,
-  milestone,
-  projectLinks,
-  reviewTasks,
-  onSaved,
-}: {
-  projectId: string;
-  milestone: Milestone;
-  projectLinks?: ProjectLinks | null;
-  reviewTasks: Array<{ id: string; title: string; status: string; review_status?: string | null }>;
-  onSaved: (payload: { links: ProjectLinks | null }) => void;
-}) {
-  const [draftLinks, setDraftLinks] = useState<ProjectLinks>(projectLinks || milestone.reviewRequest?.links || {});
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
-  const missingReviewRequestRecord = milestone.approvalGateRequired && milestone.approvalGateStatus === "pending" && !milestone.reviewRequest;
-  const milestoneApproved = milestone.approvalGateRequired && milestone.approvalGateStatus === "approved";
-  const canRequestReview = Boolean(milestone.approvalGateRequired && !milestone.reviewRequest && !milestoneApproved && reviewTasksReady);
-  const reviewLinks = getProjectLinkEntries(milestone.reviewRequest?.links || projectLinks || null);
-  const reviewState = getMilestoneReviewState({ milestone, reviewTasks });
-  const reviewStateStyles = reviewState.tone === "amber"
-    ? {
-        shell: "border-amber-200 bg-amber-50",
-        eyebrow: "text-amber-700",
-        title: "text-amber-950",
-        body: "text-amber-900",
-        helper: "text-amber-800",
-        chip: "border-amber-200 bg-white text-amber-800",
-      }
-    : reviewState.tone === "purple"
-      ? {
-          shell: "border-purple-100 bg-purple-50/70",
-          eyebrow: "text-purple-700",
-          title: "text-purple-950",
-          body: "text-purple-900",
-          helper: "text-purple-800",
-          chip: "border-purple-200 bg-white text-purple-800",
-        }
-      : reviewState.tone === "emerald"
-        ? {
-            shell: "border-emerald-200 bg-emerald-50/80",
-            eyebrow: "text-emerald-700",
-            title: "text-emerald-950",
-            body: "text-emerald-900",
-            helper: "text-emerald-800",
-            chip: "border-emerald-200 bg-white text-emerald-800",
-          }
-        : {
-            shell: "border-zinc-200 bg-zinc-50",
-            eyebrow: "text-zinc-500",
-            title: "text-zinc-900",
-            body: "text-zinc-600",
-            helper: "text-zinc-500",
-            chip: "border-zinc-200 bg-white text-zinc-700",
-          };
-
-  useEffect(() => {
-    setDraftLinks(projectLinks || milestone.reviewRequest?.links || {});
-  }, [projectLinks, milestone.reviewRequest?.links]);
-
-  const requestReview = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/review-requests`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sprintId: milestone.id, note, links: draftLinks }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || "Failed to request review");
-      onSaved({ links: payload.links || null });
-      setMessage("Review requested");
-    } catch (e: any) {
-      setMessage(e.message || "Failed to request review");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const progressLabel = getMilestoneProgressLabel(milestone);
-  const reviewSummary = getMilestoneReviewSummary(reviewState, milestone);
-  const showDetails = Boolean(milestone.goal || reviewTasks.length > 0 || reviewLinks.length > 0 || reviewState.helper || reviewState.ctaHref || canRequestReview || message);
-
-  return (
-    <details className="rounded-2xl border border-zinc-200 bg-white shadow-sm group" open={canRequestReview}>
-      <summary className="list-none cursor-pointer p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{progressLabel}</span>
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}%</span>
-              {reviewSummary ? (
-                <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", reviewStateStyles.chip)}>{reviewSummary}</span>
-              ) : null}
-            </div>
-            {milestone.goal ? <p className="mt-2 line-clamp-1 text-sm leading-6 text-zinc-500">{milestone.goal}</p> : null}
-          </div>
-          <div className="flex items-center gap-2">
-            <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
-            {showDetails ? <span className="text-xs text-zinc-400 transition group-open:rotate-90">›</span> : null}
-          </div>
-        </div>
-      </summary>
-
-      {showDetails ? (
-        <div className="border-t border-zinc-100 px-4 pb-4 pt-3">
-          <div className={cn("rounded-2xl border p-4", reviewStateStyles.shell)}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className={cn("text-[11px] font-medium uppercase tracking-[0.14em]", reviewStateStyles.eyebrow)}>{reviewState.eyebrow}</div>
-                <p className={cn("mt-1 text-sm font-medium", reviewStateStyles.title)}>{reviewState.title}</p>
-                <p className={cn("mt-2 text-sm leading-6", reviewStateStyles.body)}>{reviewState.description}</p>
-              </div>
-              {reviewState.ctaHref && reviewState.ctaLabel ? (
-                <Link href={reviewState.ctaHref} className="text-sm font-medium text-red-700 hover:text-red-800">{reviewState.ctaLabel}</Link>
-              ) : null}
-            </div>
-
-            {reviewTasks.length > 0 ? (
-              <ul className={cn("mt-3 space-y-2 text-sm", reviewStateStyles.body)}>
-                {reviewTasks.map((task) => (
-                  <li key={task.id} className="flex items-start gap-2">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>
-                      {task.title}
-                      <span className="ml-2 text-xs opacity-80">({formatReviewStatus(task.review_status)})</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {reviewLinks.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {reviewLinks.map((link) => (
-                  <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium", reviewStateStyles.chip)}>
-                    {link.label}
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </a>
-                ))}
-              </div>
-            ) : null}
-
-            {reviewState.helper ? <p className={cn("mt-3 text-xs leading-5", reviewStateStyles.helper)}>{reviewState.helper}</p> : null}
-          </div>
-
-          {canRequestReview ? (
-            <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
-              <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">{missingReviewRequestRecord ? "Repair and request review" : "Request review"}</summary>
-              <p className="mt-2 text-sm leading-6 text-zinc-500">Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. Code-heavy phases require a real GitHub repo link before review can start.{missingReviewRequestRecord ? " This will repair the stuck pending-review state and create the actual approvals record." : ""}</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {PROJECT_LINK_FIELDS.map((key) => (
-                  <label key={key} className="block">
-                    <span className="mb-1.5 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-                    <input
-                      type="url"
-                      value={draftLinks[key] || ""}
-                      onChange={(e) => setDraftLinks((current) => {
-                        const next = { ...current };
-                        if (e.target.value.trim()) next[key] = e.target.value;
-                        else delete next[key];
-                        return next;
-                      })}
-                      className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
-                      placeholder={`https://${key === "github" ? "github.com/org/repo" : "example.com"}`}
-                    />
-                  </label>
-                ))}
-              </div>
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-zinc-700">Review note</label>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="What's ready for review?" className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                {message ? <p className={cn("text-xs", message === "Review requested" ? "text-emerald-600" : "text-zinc-500")}>{message}</p> : <span />}
-                <Button onClick={requestReview} disabled={saving} variant="warm" className="rounded-xl px-4">{saving ? "Requesting..." : missingReviewRequestRecord ? "Repair & request review" : "Request review"}</Button>
-              </div>
-            </details>
-          ) : null}
-        </div>
-      ) : null}
-    </details>
   );
 }
 
@@ -988,8 +647,6 @@ export default function ProjectDetailPage() {
   const teams = data?.teams ?? [];
   const milestones = data?.milestones ?? [];
   const tasks = data?.tasks ?? [];
-  const recentSignals = data?.recentSignals ?? [];
-  const events = data?.events ?? [];
   const stats = data?.stats ?? { totalTasks: 0, doneTasks: 0, blockedTasks: 0, inProgressTasks: 0 };
   const deliveryIntegrity = data?.deliveryIntegrity;
   const truth = data?.truth;
@@ -1001,35 +658,13 @@ export default function ProjectDetailPage() {
 
   const bootstrapSprintIds = getBootstrapSprintIds(milestones.map((milestone) => ({ id: milestone.id, auto_generated: milestone.autoGenerated, phase_key: milestone.phaseKey })));
   const intake = project.intake || null;
-  const routing = intake ? getRoutingSummary(intake) : null;
   const projectLinks = getProjectLinkEntries(project.links);
   const summaryText = project.intake_summary || project.description || intake?.summary || null;
-  const hasBrief = Boolean(routing || intake || summaryText);
   const actionTargetStatus = project.status === "active" ? "paused" : project.status === "paused" ? "active" : null;
   const actionLabel = actionTargetStatus === "paused" ? "Pause" : actionTargetStatus === "active" ? "Resume" : null;
   const isStatusActionLoading = actionTargetStatus ? actionLoading === actionTargetStatus : false;
   const statusTone = getProjectStatusTone(project.status);
   const progress = Math.max(0, Math.min(100, truth?.progressPct ?? project.progress_pct ?? 0));
-  const resolvedRecentUpdates = resolveProjectDetailRecentUpdates({ recentSignals, events });
-  const visibleRecentUpdates = resolvedRecentUpdates.filter((update) => {
-    if (dismissedUpdateIds.includes(update.id)) return false;
-    if (clearedFeedAt && +new Date(update.timestamp) <= +new Date(clearedFeedAt)) return false;
-    return true;
-  });
-  const boardRecentUpdates = visibleRecentUpdates.slice(0, 4);
-  const hiddenActivityCount = Math.max(0, resolvedRecentUpdates.length - visibleRecentUpdates.length);
-  const handleDismissActivityItem = (updateId: string) => {
-    setDismissedUpdateIds((prev) => (prev.includes(updateId) ? prev : [...prev, updateId]));
-  };
-  const handleClearOlderActivity = () => {
-    const latestVisibleTimestamp = visibleRecentUpdates[0]?.timestamp;
-    if (!latestVisibleTimestamp) return;
-    setClearedFeedAt(latestVisibleTimestamp);
-  };
-  const handleResetActivityFeed = () => {
-    setDismissedUpdateIds([]);
-    setClearedFeedAt(null);
-  };
   const selectedTaskSnapshot = selectedTask ? tasks.find((task: any) => task.id === selectedTask.id) || selectedTask : null;
   const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
@@ -1039,15 +674,6 @@ export default function ProjectDetailPage() {
         .map((field) => ({ key: field.key, label: field.label, value: selectedTask?.task_metadata?.[field.key] }))
         .filter((entry) => typeof entry.value === "string" && entry.value.trim().length > 0)
     : [];
-  const briefFacts = [
-    intake?.shape ? { label: "Shape", value: formatIntakeValue(intake.shape) } : null,
-    intake ? { label: "Readiness", value: getReadinessOption(intake.stage, intake.confidence)?.label || formatIntakeValue(intake.stage) } : null,
-    intake?.confidence ? { label: "Confidence", value: formatIntakeValue(intake.confidence) } : null,
-    routing?.ownerTeam ? { label: "Primary route", value: routing.ownerTeam } : null,
-    routing?.qcTeam ? { label: "QC", value: routing.qcTeam } : null,
-  ].filter(Boolean) as Array<{ label: string; value: string }>;
-  const contextChips = (intake?.context || []) as string[];
-  const capabilityChips = (intake?.capabilities || []) as string[];
 
   const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
   const executionBadgeTone =
@@ -1282,71 +908,6 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <Section title="Activity" description="Only the latest useful signals for this project.">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-red-500" />
-                  <span>{boardRecentUpdates.length > 0 ? `${boardRecentUpdates.length} visible update${boardRecentUpdates.length === 1 ? "" : "s"}` : "No visible updates"}</span>
-                  {hiddenActivityCount > 0 ? <span className="text-zinc-400">• {hiddenActivityCount} hidden</span> : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {visibleRecentUpdates.length > 1 ? (
-                    <button type="button" onClick={handleClearOlderActivity} className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-red-200 hover:text-red-700">
-                      <BellOff className="h-3.5 w-3.5" />
-                      Clear older
-                    </button>
-                  ) : null}
-                  {hiddenActivityCount > 0 ? (
-                    <button type="button" onClick={handleResetActivityFeed} className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-red-200 hover:text-red-700">
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Show hidden
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              {boardRecentUpdates.length === 0 ? (
-                <EmptySectionState
-                  icon={<Activity className="h-7 w-7" />}
-                  title={hiddenActivityCount > 0 ? "Activity hidden" : "No recent activity yet"}
-                  description={hiddenActivityCount > 0 ? "You cleared or dismissed the current feed. Use Show hidden to bring it back." : "Useful project signals will appear here once work, approvals, or delivery changes start landing."}
-                  action={hiddenActivityCount > 0 ? <Button onClick={handleResetActivityFeed} variant="outline" className="rounded-xl px-4">Show hidden activity</Button> : undefined}
-                />
-              ) : (
-                <div className="space-y-2">
-                  {boardRecentUpdates.map((signal, index) => (
-                    <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <SignalBadge kind={signal.kind} />
-                            {index === 0 ? <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700">Latest</span> : null}
-                            <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
-                          </div>
-                          <p className="mt-1 text-sm leading-6 text-zinc-600">{signal.detail}</p>
-                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
-                            <p>{formatRelativeTimestamp(signal.timestamp)}</p>
-                            {signal.actorName ? <p>{signal.actorName}</p> : null}
-                            {signal.sourceLabel !== "Project activity" ? <p>{signal.sourceLabel}</p> : null}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDismissActivityItem(signal.id)}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-zinc-500 transition hover:border-red-200 hover:text-red-700"
-                          aria-label={`Dismiss ${signal.title}`}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Dismiss
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Section>
 
           <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
             <div className="space-y-4">
@@ -1612,29 +1173,6 @@ export default function ProjectDetailPage() {
                   ) : null}
                 </div>
 
-                <aside className="space-y-3 rounded-3xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Activity</p>
-                    <p className="mt-1 text-sm leading-6 text-zinc-500">The same cleaned project feed stays visible here while you review this task.</p>
-                  </div>
-                  {visibleRecentUpdates.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No visible project activity right now.</div>
-                  ) : (
-                    visibleRecentUpdates.slice(0, 3).map((signal) => (
-                      <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-3 py-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <SignalBadge kind={signal.kind} />
-                          <p className="text-sm font-medium text-zinc-900">{signal.title}</p>
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-zinc-500">{signal.detail}</p>
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
-                          <p>{formatRelativeTimestamp(signal.timestamp)}</p>
-                          {signal.actorName ? <p>{signal.actorName}</p> : null}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </aside>
               </div>
             </div>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap">

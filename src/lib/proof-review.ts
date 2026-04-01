@@ -1,3 +1,5 @@
+import type { ProjectLinks } from "@/lib/project-links";
+
 export type ProofStatus = "pending" | "approved" | "rejected";
 export type ProofKind = "owner" | "artifact" | "handoff";
 
@@ -11,51 +13,105 @@ export type ProofRecord = {
   updatedAt: string;
   summary: string;
   detail: string;
+  projectName: string;
+  sprintName: string | null;
+  jobTitle: string | null;
+  requesterName: string | null;
+  sourceTable: "approvals";
+  sourceId: string;
+  sourceUrl: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  reviewerName: string | null;
 };
 
-export const sampleProofRecords: ProofRecord[] = [
-  {
-    id: "proof-1",
-    title: "Owner serialization readiness",
-    owner: "platform-ops",
-    repository: "projectmrwaffles/command-center-v1",
-    kind: "owner",
-    status: "pending",
-    updatedAt: "2026-03-23T19:21:00Z",
-    summary: "Awaiting final owner serialization confirmation before release handoff.",
-    detail: "The proof payload includes owner routing metadata, but the final serialized view still needs operator review before the project leaves triage.",
-  },
-  {
-    id: "proof-2",
-    title: "Artifact bundle confirmation",
-    owner: "release-eng",
-    repository: "projectmrwaffles/command-center-v1",
-    kind: "artifact",
-    status: "approved",
-    updatedAt: "2026-03-23T18:54:00Z",
-    summary: "Artifact bundle was attached and verified against the final review request.",
-    detail: "Checks passed for artifact links, release note pairing, and audit metadata. No operator follow-up is currently required.",
-  },
-  {
-    id: "proof-3",
-    title: "Handoff ack trace",
-    owner: "qa-systems",
-    repository: "projectmrwaffles/command-center-v1",
-    kind: "handoff",
-    status: "rejected",
-    updatedAt: "2026-03-23T18:17:00Z",
-    summary: "The expected handoff acknowledgement was not present in the serialized operator thread.",
-    detail: "Reviewers saw the task move forward, but the final ownership handoff comment did not land in the target channel, so the proof must be rerun.",
-  },
-  {
-    id: "proof-4",
-    title: "Owner follow-up payload",
-    owner: "build-pm",
-    repository: "projectmrwaffles/command-center-v1",
-    kind: "owner",
-    status: "pending",
-    updatedAt: "2026-03-23T17:43:00Z",
-    summary: "Follow-up payload is queued for owner serialization review.",
-    detail: "The owner-facing summary is complete, but the compact serialization needs one more pass to make sure escalation notes are preserved.",
-  },
-];
+export type ApprovalProofRow = {
+  id: string;
+  status: string;
+  summary: string | null;
+  note: string | null;
+  created_at: string;
+  decided_at: string | null;
+  requester_name: string | null;
+  context?: { kind?: string | null; note?: string | null; links?: ProjectLinks | null } | null;
+  agents?: { name: string | null; title: string | null } | { name: string | null; title: string | null }[] | null;
+  jobs?: { title: string | null; status: string | null } | { title: string | null; status: string | null }[] | null;
+  projects?: {
+    name: string | null;
+    links?: ProjectLinks | null;
+    github_repo_binding?: { url?: string | null; fullName?: string | null } | null;
+  } | {
+    name: string | null;
+    links?: ProjectLinks | null;
+    github_repo_binding?: { url?: string | null; fullName?: string | null } | null;
+  }[] | null;
+  sprints?: { name: string | null } | { name: string | null }[] | null;
+};
+
+function getJoinedRow<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function mapStatus(status: string): ProofStatus {
+  if (status === "approved") return "approved";
+  if (status === "changes_requested") return "rejected";
+  return "pending";
+}
+
+function mapKind(kind?: string | null): ProofKind {
+  if (kind === "artifact_gate_review" || kind === "artifact") return "artifact";
+  if (kind === "project_review_handoff" || kind === "handoff") return "handoff";
+  return "owner";
+}
+
+function getRepositoryLabel(input: { sourceUrl: string | null; binding?: { fullName?: string | null } | null }) {
+  if (input.binding?.fullName) return input.binding.fullName;
+  if (!input.sourceUrl) return "No linked repository";
+
+  try {
+    const url = new URL(input.sourceUrl);
+    if (url.hostname === "github.com" || url.hostname === "www.github.com") {
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) return `${parts[0]}/${parts[1].replace(/\.git$/i, "")}`;
+    }
+    return url.hostname;
+  } catch {
+    return input.sourceUrl;
+  }
+}
+
+export function mapApprovalToProofRecord(row: ApprovalProofRow): ProofRecord {
+  const agent = getJoinedRow(row.agents);
+  const job = getJoinedRow(row.jobs);
+  const project = getJoinedRow(row.projects);
+  const sprint = getJoinedRow(row.sprints);
+  const sourceUrl = project?.github_repo_binding?.url || project?.links?.github || row.context?.links?.github || null;
+  const status = mapStatus(row.status);
+  const kind = mapKind(row.context?.kind);
+
+  return {
+    id: row.id,
+    title: row.summary || job?.title || "Approval evidence",
+    owner: agent?.name || row.requester_name || "Unknown owner",
+    repository: getRepositoryLabel({ sourceUrl, binding: project?.github_repo_binding || null }),
+    kind,
+    status,
+    updatedAt: row.decided_at || row.created_at,
+    summary: row.note || row.context?.note || "Review evidence captured from the persisted approval request.",
+    detail:
+      row.note ||
+      row.context?.note ||
+      `Approval ${row.id} is stored in Supabase and linked to ${project?.name || "an unknown project"}${sprint?.name ? ` / ${sprint.name}` : ""}.`,
+    projectName: project?.name || "Unknown project",
+    sprintName: sprint?.name || null,
+    jobTitle: job?.title || null,
+    requesterName: row.requester_name || null,
+    sourceTable: "approvals",
+    sourceId: row.id,
+    sourceUrl,
+    createdAt: row.created_at,
+    decidedAt: row.decided_at,
+    reviewerName: status === "pending" ? null : "Operator decision recorded",
+  };
+}

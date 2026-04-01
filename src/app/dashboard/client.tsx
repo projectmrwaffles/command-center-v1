@@ -333,7 +333,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
     <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-red-200">
       <Card variant="featured" className="relative h-full rounded-[24px] overflow-hidden">
         <CardContent className="flex h-full flex-col gap-4 p-5">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
             <div className="min-w-0">
               <p className="truncate text-base font-semibold tracking-tight text-zinc-950 transition-colors group-hover:text-zinc-700">{project.name}</p>
               <p className="mt-1 text-sm text-zinc-500">
@@ -342,7 +342,6 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
                 {project.teamName ? <span>{project.teamName}</span> : null}
               </p>
             </div>
-            <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-700">{progress}%</span>
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">

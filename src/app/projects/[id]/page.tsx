@@ -416,7 +416,7 @@ export default function ProjectDetailPage() {
   const [taskModalMode, setTaskModalMode] = useState<"view" | "edit">("view");
   const [creatingTask, setCreatingTask] = useState(false);
   const [checkpointActionLoading, setCheckpointActionLoading] = useState<string | null>(null);
-  const [checkpointDrafts, setCheckpointDrafts] = useState<Record<string, { note: string; requestedChanges: string }>>({});
+  const [checkpointDrafts, setCheckpointDrafts] = useState<Record<string, { note: string; requestedChanges: string; resubmitSummary: string; resubmitWhatChanged: string; proofLink: string }>>({});
   const [taskDesc, setTaskDesc] = useState("");
   const [dismissedUpdateIds, setDismissedUpdateIds] = useState<string[]>([]);
   const [clearedFeedAt, setClearedFeedAt] = useState<string | null>(null);
@@ -644,7 +644,7 @@ export default function ProjectDetailPage() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.error || "Failed to approve checkpoint");
-      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "" } }));
+      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "", resubmitSummary: "", resubmitWhatChanged: "", proofLink: "" } }));
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message || "Failed to approve checkpoint");
@@ -679,10 +679,55 @@ export default function ProjectDetailPage() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.error || "Failed to request changes");
-      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "" } }));
+      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "", resubmitSummary: "", resubmitWhatChanged: "", proofLink: "" } }));
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message || "Failed to request changes");
+    } finally {
+      setCheckpointActionLoading(null);
+    }
+  };
+
+  const handleCheckpointResubmit = async (milestone: Milestone) => {
+    const priorSubmissionId = milestone.reviewSummary?.latestSubmissionId;
+    const draft = checkpointDrafts[milestone.id];
+    const summary = draft?.resubmitSummary?.trim() || "";
+    const whatChanged = draft?.resubmitWhatChanged?.trim() || "";
+    const proofLink = draft?.proofLink?.trim() || "";
+
+    if (!priorSubmissionId || !summary || !whatChanged || !proofLink) {
+      setError("Add a resubmission summary, what changed, and one proof link before resubmitting.");
+      return;
+    }
+
+    setCheckpointActionLoading(`${milestone.id}:resubmit`);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/milestones/${milestone.id}/resubmit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          priorSubmissionId,
+          summary,
+          whatChanged,
+          proofBundle: {
+            title: `${milestone.name} resubmission`,
+            summary: whatChanged,
+            items: [
+              {
+                kind: "doc",
+                label: "Updated proof link",
+                url: proofLink,
+              },
+            ],
+          },
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || "Failed to resubmit checkpoint");
+      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "", resubmitSummary: "", resubmitWhatChanged: "", proofLink: "" } }));
+      await fetchProject(false);
+    } catch (e: any) {
+      setError(e.message || "Failed to resubmit checkpoint");
     } finally {
       setCheckpointActionLoading(null);
     }
@@ -1118,6 +1163,9 @@ export default function ProjectDetailPage() {
                                         [milestone.id]: {
                                           note: current[milestone.id]?.note || "",
                                           requestedChanges: event.target.value,
+                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                          proofLink: current[milestone.id]?.proofLink || "",
                                         },
                                       }))
                                     }
@@ -1137,10 +1185,79 @@ export default function ProjectDetailPage() {
                                         [milestone.id]: {
                                           note: event.target.value,
                                           requestedChanges: current[milestone.id]?.requestedChanges || "",
+                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                          proofLink: current[milestone.id]?.proofLink || "",
                                         },
                                       }))
                                     }
                                     placeholder="Optional note if you approve this checkpoint"
+                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
+                                  />
+                                </label>
+                              </div>
+                            ) : milestone.approvalGateStatus === "rejected" ? (
+                              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                                <label className="block">
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Resubmission summary</span>
+                                  <input
+                                    type="text"
+                                    value={checkpointDrafts[milestone.id]?.resubmitSummary || ""}
+                                    onChange={(event) =>
+                                      setCheckpointDrafts((current) => ({
+                                        ...current,
+                                        [milestone.id]: {
+                                          note: current[milestone.id]?.note || "",
+                                          requestedChanges: current[milestone.id]?.requestedChanges || "",
+                                          resubmitSummary: event.target.value,
+                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                          proofLink: current[milestone.id]?.proofLink || "",
+                                        },
+                                      }))
+                                    }
+                                    placeholder="Short summary of the revised checkpoint"
+                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
+                                  />
+                                </label>
+                                <label className="mt-3 block">
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">What changed</span>
+                                  <textarea
+                                    value={checkpointDrafts[milestone.id]?.resubmitWhatChanged || ""}
+                                    onChange={(event) =>
+                                      setCheckpointDrafts((current) => ({
+                                        ...current,
+                                        [milestone.id]: {
+                                          note: current[milestone.id]?.note || "",
+                                          requestedChanges: current[milestone.id]?.requestedChanges || "",
+                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                          resubmitWhatChanged: event.target.value,
+                                          proofLink: current[milestone.id]?.proofLink || "",
+                                        },
+                                      }))
+                                    }
+                                    rows={4}
+                                    placeholder="Describe the fixes made before re-review"
+                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
+                                  />
+                                </label>
+                                <label className="mt-3 block">
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Updated proof link</span>
+                                  <input
+                                    type="url"
+                                    value={checkpointDrafts[milestone.id]?.proofLink || ""}
+                                    onChange={(event) =>
+                                      setCheckpointDrafts((current) => ({
+                                        ...current,
+                                        [milestone.id]: {
+                                          note: current[milestone.id]?.note || "",
+                                          requestedChanges: current[milestone.id]?.requestedChanges || "",
+                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                          proofLink: event.target.value,
+                                        },
+                                      }))
+                                    }
+                                    placeholder="https://..."
                                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
                                   />
                                 </label>
@@ -1169,6 +1286,16 @@ export default function ProjectDetailPage() {
                                   className="rounded-xl"
                                 >
                                   {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve checkpoint"}
+                                </Button>
+                              ) : null}
+                              {milestone.approvalGateStatus === "rejected" ? (
+                                <Button
+                                  onClick={() => handleCheckpointResubmit(milestone)}
+                                  disabled={checkpointActionLoading === `${milestone.id}:resubmit`}
+                                  variant="warm"
+                                  className="rounded-xl"
+                                >
+                                  {checkpointActionLoading === `${milestone.id}:resubmit` ? "Resubmitting..." : "Resubmit checkpoint"}
                                 </Button>
                               ) : null}
                             </div>

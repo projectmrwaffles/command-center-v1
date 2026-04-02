@@ -17,7 +17,7 @@ export type ProofRecord = {
   sprintName: string | null;
   jobTitle: string | null;
   requesterName: string | null;
-  sourceTable: "approvals";
+  sourceTable: "approvals" | "proof_bundles";
   sourceId: string;
   sourceUrl: string | null;
   createdAt: string;
@@ -48,6 +48,39 @@ export type ApprovalProofRow = {
   sprints?: { name: string | null } | { name: string | null }[] | null;
 };
 
+export type ProofBundleProofRow = {
+  id: string;
+  title: string | null;
+  summary: string | null;
+  completeness_status: string | null;
+  created_at: string;
+  updated_at: string;
+  milestone_submissions?: {
+    id: string;
+    summary: string | null;
+    what_changed: string | null;
+    decision: string | null;
+    decision_notes: string | null;
+    submitted_at: string | null;
+    decided_at: string | null;
+    sprints?: {
+      name: string | null;
+      project_id: string | null;
+      projects?: {
+        name: string | null;
+        links?: ProjectLinks | null;
+        github_repo_binding?: { url?: string | null; fullName?: string | null } | null;
+      } | null;
+    } | null;
+  } | null;
+  proof_items?: Array<{
+    id: string;
+    kind: string | null;
+    label: string | null;
+    url: string | null;
+  }> | null;
+};
+
 function getJoinedRow<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -55,7 +88,7 @@ function getJoinedRow<T>(value: T | T[] | null | undefined): T | null {
 
 function mapStatus(status: string): ProofStatus {
   if (status === "approved") return "approved";
-  if (status === "changes_requested") return "rejected";
+  if (status === "changes_requested" || status === "rejected") return "rejected";
   return "pending";
 }
 
@@ -112,6 +145,41 @@ export function mapApprovalToProofRecord(row: ApprovalProofRow): ProofRecord {
     sourceUrl,
     createdAt: row.created_at,
     decidedAt: row.decided_at,
+    reviewerName: status === "pending" ? null : "Operator decision recorded",
+  };
+}
+
+export function mapProofBundleToProofRecord(row: ProofBundleProofRow): ProofRecord {
+  const submission = getJoinedRow(row.milestone_submissions as any);
+  const sprint = getJoinedRow(submission?.sprints as any);
+  const project = getJoinedRow(sprint?.projects as any);
+  const proofItem = row.proof_items?.[0] || null;
+  const sourceUrl = proofItem?.url || project?.github_repo_binding?.url || project?.links?.github || null;
+  const status = mapStatus(submission?.decision || "pending");
+  const kind = mapKind(proofItem?.kind);
+
+  return {
+    id: row.id,
+    title: row.title || submission?.summary || sprint?.name || "Proof bundle",
+    owner: "Workflow submission",
+    repository: getRepositoryLabel({ sourceUrl, binding: project?.github_repo_binding || null }),
+    kind,
+    status,
+    updatedAt: submission?.decided_at || row.updated_at || row.created_at,
+    summary: row.summary || submission?.what_changed || "Proof bundle attached to a milestone review submission.",
+    detail:
+      submission?.decision_notes ||
+      submission?.what_changed ||
+      `Proof bundle ${row.id} is attached to ${project?.name || "an unknown project"}${sprint?.name ? ` / ${sprint.name}` : ""}.`,
+    projectName: project?.name || "Unknown project",
+    sprintName: sprint?.name || null,
+    jobTitle: null,
+    requesterName: null,
+    sourceTable: "proof_bundles",
+    sourceId: row.id,
+    sourceUrl,
+    createdAt: row.created_at,
+    decidedAt: submission?.decided_at || null,
     reviewerName: status === "pending" ? null : "Operator decision recorded",
   };
 }

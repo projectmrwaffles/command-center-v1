@@ -1058,7 +1058,7 @@ export default function ProjectDetailPage() {
 
         <div className="space-y-4">
 
-          <Section title="Review checkpoints" description="Approval gates and revision state stay embedded in the current project workflow.">
+          <Section title="Review checkpoints" description="Stage approvals and revision loops for the current project.">
             {milestones.length === 0 ? (
               <EmptySectionState
                 icon={<ShieldCheck className="h-7 w-7" />}
@@ -1078,7 +1078,7 @@ export default function ProjectDetailPage() {
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoint</div>
                               <h3 className="mt-1 text-base font-semibold text-zinc-950">{milestone.name}</h3>
                               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                                {summary?.latestSubmissionSummary || (milestone.approvalGateStatus === "pending" ? "This stage is waiting for operator review." : "No review packet submitted yet. This stage is still visible so approvals stay obvious before the first submission.")}
+                                {summary?.latestSubmissionSummary || (milestone.approvalGateStatus === "pending" ? "This stage is waiting for review." : "No review packet submitted yet.")}
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -1092,22 +1092,22 @@ export default function ProjectDetailPage() {
 
                           <div className="grid gap-2 sm:grid-cols-3">
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Tasks in stage</div>
+                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Stage progress</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{milestone.doneTasks}/{milestone.totalTasks} done</div>
                             </div>
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Proof packet</div>
+                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || 0} item{(summary?.proofItemCount || 0) === 1 ? "" : "s"}</div>
                             </div>
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Feedback</div>
+                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Revision notes</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.feedbackItemCount || 0} open/requested</div>
                             </div>
                           </div>
 
                           {summary?.latestDecisionNotes ? (
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
-                              <span className="font-medium">Latest review note:</span> {summary.latestDecisionNotes}
+                              <span className="font-medium">Latest decision note:</span> {summary.latestDecisionNotes}
                             </div>
                           ) : null}
 
@@ -1115,7 +1115,7 @@ export default function ProjectDetailPage() {
                             {milestone.approvalGateStatus === "pending" ? (
                               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                                 <label className="block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Requested changes</span>
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Change request</span>
                                   <textarea
                                     value={checkpointDrafts[milestone.id]?.requestedChanges || ""}
                                     onChange={(event) =>
@@ -1131,12 +1131,12 @@ export default function ProjectDetailPage() {
                                       }))
                                     }
                                     rows={4}
-                                    placeholder="What needs to change before this checkpoint can be approved?"
+                                    placeholder="Describe what needs to change before you can approve this stage"
                                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
                                   />
                                 </label>
                                 <label className="mt-3 block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Optional approval note</span>
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Approval note</span>
                                   <input
                                     type="text"
                                     value={checkpointDrafts[milestone.id]?.note || ""}
@@ -1152,7 +1152,7 @@ export default function ProjectDetailPage() {
                                         },
                                       }))
                                     }
-                                    placeholder="Optional note if you approve this checkpoint"
+                                    placeholder="Optional note to store with the approval"
                                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
                                   />
                                 </label>
@@ -1160,7 +1160,7 @@ export default function ProjectDetailPage() {
                             ) : milestone.approvalGateStatus === "rejected" ? (
                               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                                 <label className="block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Resubmission summary</span>
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Revision summary</span>
                                   <input
                                     type="text"
                                     value={checkpointDrafts[milestone.id]?.resubmitSummary || ""}
@@ -1176,7 +1176,7 @@ export default function ProjectDetailPage() {
                                         },
                                       }))
                                     }
-                                    placeholder="Short summary of the revised checkpoint"
+                                    placeholder="Short summary of this revision"
                                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
                                   />
                                 </label>
@@ -1197,7 +1197,7 @@ export default function ProjectDetailPage() {
                                       }))
                                     }
                                     rows={4}
-                                    placeholder="Describe the fixes made before re-review"
+                                    placeholder="Describe what changed since the last review"
                                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
                                   />
                                 </label>
@@ -1227,7 +1227,7 @@ export default function ProjectDetailPage() {
 
                             <div className="flex flex-wrap gap-2">
                               <Button asChild variant="outline" className="rounded-xl">
-                                <Link href={`/proofs`}>View proof inbox</Link>
+                                <Link href={`/proofs`}>Open evidence inbox</Link>
                               </Button>
                               {milestone.approvalGateStatus === "pending" ? (
                                 <Button
@@ -1236,7 +1236,7 @@ export default function ProjectDetailPage() {
                                   variant="outline"
                                   className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
                                 >
-                                  {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Request changes"}
+                                  {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Send back for changes"}
                                 </Button>
                               ) : null}
                               {canApprove ? (
@@ -1246,7 +1246,7 @@ export default function ProjectDetailPage() {
                                   variant="warm"
                                   className="rounded-xl"
                                 >
-                                  {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve checkpoint"}
+                                  {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve stage"}
                                 </Button>
                               ) : null}
                               {milestone.approvalGateStatus === "rejected" ? (
@@ -1256,7 +1256,7 @@ export default function ProjectDetailPage() {
                                   variant="warm"
                                   className="rounded-xl"
                                 >
-                                  {checkpointActionLoading === `${milestone.id}:resubmit` ? "Resubmitting..." : "Resubmit checkpoint"}
+                                  {checkpointActionLoading === `${milestone.id}:resubmit` ? "Resubmitting..." : "Resubmit for review"}
                                 </Button>
                               ) : null}
                             </div>

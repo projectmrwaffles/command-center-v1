@@ -209,6 +209,22 @@ export async function GET(
       };
     });
 
+    const sprintIds = (sprints || []).map((s: any) => s.id).filter(Boolean);
+    const submissionRows = sprintIds.length > 0
+      ? ((await db.from("milestone_submissions").select("*").in("sprint_id", sprintIds).order("revision_number", { ascending: false })).data || [])
+      : [];
+    const submissionIds = submissionRows.map((row: any) => row.id).filter(Boolean);
+    const proofBundleRows = submissionIds.length > 0
+      ? ((await db.from("proof_bundles").select("*").in("submission_id", submissionIds)).data || [])
+      : [];
+    const proofBundleIds = proofBundleRows.map((row: any) => row.id).filter(Boolean);
+    const proofItemRows = proofBundleIds.length > 0
+      ? ((await db.from("proof_items").select("*").in("proof_bundle_id", proofBundleIds)).data || [])
+      : [];
+    const feedbackRows = submissionIds.length > 0
+      ? ((await db.from("submission_feedback_items").select("*").in("submission_id", submissionIds)).data || [])
+      : [];
+
     const artifactIntegrity = getProjectArtifactIntegrity(projectWithDerivedArtifacts, tasks || []);
     const truth = deriveProjectTruth({
       tasks: tasks || [],
@@ -225,6 +241,11 @@ export async function GET(
       const sprintTasks = (tasks || []).filter((task: any) => task.sprint_id === sprint.id);
       const sprintTruth = deriveSprintTruth({ sprint, tasks: sprintTasks });
       const pendingReview = (approvals || []).find((approval: any) => approval.sprint_id === sprint.id && approval.status === "pending");
+      const sprintSubmissions = submissionRows.filter((submission: any) => submission.sprint_id === sprint.id);
+      const latestSubmission = sprintSubmissions[0] || null;
+      const latestBundle = latestSubmission ? proofBundleRows.find((bundle: any) => bundle.submission_id === latestSubmission.id) || null : null;
+      const latestProofItems = latestBundle ? proofItemRows.filter((item: any) => item.proof_bundle_id === latestBundle.id) : [];
+      const latestFeedbackItems = latestSubmission ? feedbackRows.filter((item: any) => item.submission_id === latestSubmission.id) : [];
       return {
         id: sprint.id,
         name: sprint.name,
@@ -250,6 +271,22 @@ export async function GET(
               summary: pendingReview.summary,
               createdAt: pendingReview.created_at,
               links: pendingReview.context?.links ?? null,
+            }
+          : null,
+        reviewSummary: latestSubmission
+          ? {
+              latestSubmissionId: latestSubmission.id,
+              latestSubmissionStatus: latestSubmission.status ?? null,
+              latestRevisionNumber: latestSubmission.revision_number ?? null,
+              latestSubmissionSummary: latestSubmission.summary ?? null,
+              latestDecision: latestSubmission.decision ?? null,
+              latestDecisionNotes: latestSubmission.decision_notes ?? null,
+              latestSubmittedAt: latestSubmission.submitted_at ?? null,
+              proofBundleId: latestBundle?.id ?? null,
+              proofBundleTitle: latestBundle?.title ?? null,
+              proofCompletenessStatus: latestBundle?.completeness_status ?? null,
+              proofItemCount: latestProofItems.length,
+              feedbackItemCount: latestFeedbackItems.length,
             }
           : null,
       };

@@ -15,6 +15,7 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  asChild?: boolean;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -24,6 +25,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = "default",
       size = "default",
       type = "button",
+      asChild = false,
       ...props
     },
     ref,
@@ -47,6 +49,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       lg: "h-11 px-6",
       icon: "h-10 w-10",
     };
+
+    if (asChild && React.isValidElement(props.children)) {
+      const child = props.children as React.ReactElement<any>;
+      return React.cloneElement(child, {
+        className: cn(base, variants[variant], sizes[size], className, child.props.className),
+      });
+    }
 
     return (
       <button

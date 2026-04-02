@@ -417,6 +417,7 @@ export default function ProjectDetailPage() {
   const [creatingTask, setCreatingTask] = useState(false);
   const [checkpointActionLoading, setCheckpointActionLoading] = useState<string | null>(null);
   const [checkpointDrafts, setCheckpointDrafts] = useState<Record<string, { note: string; requestedChanges: string; resubmitSummary: string; resubmitWhatChanged: string; proofLink: string }>>({});
+  const [reviewingCheckpointId, setReviewingCheckpointId] = useState<string | null>(null);
   const [taskDesc, setTaskDesc] = useState("");
   const [dismissedUpdateIds, setDismissedUpdateIds] = useState<string[]>([]);
   const [clearedFeedAt, setClearedFeedAt] = useState<string | null>(null);
@@ -821,6 +822,8 @@ export default function ProjectDetailPage() {
   const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
+  const reviewingCheckpoint = reviewingCheckpointId ? milestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
+
   const selectedTaskMetadataEntries = selectedTaskTypeConfig
     ? selectedTaskTypeConfig.metadataFields
         .map((field) => ({ key: field.key, label: field.label, value: selectedTask?.task_metadata?.[field.key] }))
@@ -1226,8 +1229,12 @@ export default function ProjectDetailPage() {
                             ) : null}
 
                             <div className="flex flex-wrap gap-2">
-                              <Button asChild variant="outline" className="rounded-xl">
-                                <Link href={`/proofs`}>Open evidence inbox</Link>
+                              <Button
+                                onClick={() => setReviewingCheckpointId(milestone.id)}
+                                variant="outline"
+                                className="rounded-xl"
+                              >
+                                Review
                               </Button>
                               {milestone.approvalGateStatus === "pending" ? (
                                 <Button
@@ -1380,6 +1387,64 @@ export default function ProjectDetailPage() {
           ) : null}
         </div>
       </div>
+
+      {reviewingCheckpoint ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:items-center sm:p-4" onClick={() => setReviewingCheckpointId(null)}>
+          <div className="max-h-[calc(100dvh-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-[24px] bg-white p-4 shadow-xl sm:max-h-[90vh] sm:p-6" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 border-b border-zinc-200 pb-4">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review</p>
+                <h3 className="mt-1 text-lg font-semibold text-zinc-950">{reviewingCheckpoint.name}</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Review this checkpoint without leaving the project detail page.</p>
+              </div>
+              <Button onClick={() => setReviewingCheckpointId(null)} variant="outline" className="rounded-xl">Close</Button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(reviewingCheckpoint.approvalGateStatus))}>
+                  {formatMilestoneGateLabel(reviewingCheckpoint.approvalGateStatus)}
+                </span>
+                {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? (
+                  <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(reviewingCheckpoint.reviewSummary.proofCompletenessStatus))}>
+                    Evidence {reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ")}
+                  </span>
+                ) : null}
+                {reviewingCheckpoint.reviewSummary?.latestRevisionNumber ? (
+                  <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">
+                    Revision {reviewingCheckpoint.reviewSummary.latestRevisionNumber}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "No submission summary yet."}</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Stage progress</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.doneTasks}/{reviewingCheckpoint.totalTasks} tasks complete in this stage.</p>
+                </div>
+              </div>
+
+              {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+                  <span className="font-medium">Latest decision note:</span> {reviewingCheckpoint.reviewSummary.latestDecisionNotes}
+                </div>
+              ) : null}
+
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence status</div>
+                <p className="mt-2 text-sm leading-6 text-zinc-700">
+                  {reviewingCheckpoint.reviewSummary?.proofItemCount || 0} evidence item{(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) === 1 ? "" : "s"} attached.
+                  {reviewingCheckpoint.reviewSummary?.proofBundleTitle ? ` Bundle: ${reviewingCheckpoint.reviewSummary.proofBundleTitle}.` : ""}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showTaskModal && selectedTask && (
         <div

@@ -981,45 +981,7 @@ export default function ProjectDetailPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <div className="space-y-4">
           <Section title="Task board" description="Keep work moving without opening every task.">
-            <div className="space-y-3">
-              {truth ? (
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                  This board shows what is queued, in progress, blocked, and done. Kickoff setup stays visible, but the headline progress only counts active delivery work.
-                </div>
-              ) : null}
-
-              <div className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoints</p>
-                      <h3 className="mt-1 text-base font-semibold text-zinc-950">Review stages inside the task flow</h3>
-                      <p className="mt-1 text-sm leading-6 text-zinc-500">Keep the board primary, but surface checkpoint review state where delivery decisions actually happen.</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {milestones.length > 0 ? milestones.map((milestone) => (
-                      <div key={milestone.id} className="min-w-[170px] rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                        <div className="text-xs font-semibold text-zinc-900">{milestone.name}</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(milestone.approvalGateStatus))}>
-                            {formatMilestoneGateLabel(milestone.approvalGateStatus)}
-                          </span>
-                          {milestone.reviewSummary?.latestRevisionNumber ? (
-                            <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">
-                              Rev {milestone.reviewSummary.latestRevisionNumber}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    )) : null}
-                  </div>
-                  {milestones.length === 0 ? (
-                    <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">
-                      No checkpoints yet. As task stages form, review checkpoints will appear here for approval and revision handling.
-                    </div>
-                  ) : null}
-                </div>
-            </div>
+            <div className="space-y-3" />
             {tasks.length === 0 ? (
               <EmptySectionState
                 icon={<FolderKanban className="h-7 w-7" />}

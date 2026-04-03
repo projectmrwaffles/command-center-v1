@@ -110,13 +110,13 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   const needsAttentionCount = pendingApprovals.length + blockedJobs.length;
 
   const usage24h = useMemo(() => {
-    if (initialData.usage && initialData.usage.totalTokens24h > 0) {
+    if (initialData.usage) {
       return {
         totalTokens: initialData.usage.totalTokens24h,
         totalCost: initialData.usage.totalCost24h,
         topModels: (initialData.usage.topModels || []).map((m: any) => ({
           model: m.model,
-          provider: m.model?.split("/")[0] || "openrouter",
+          provider: m.model?.split("/")[0] || "unknown",
           tokens: m.tokens,
           cost: m.cost,
         })),

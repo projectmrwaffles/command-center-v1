@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await db
     .from("agents")
-    .select("id, name, type, status, last_seen")
+    .select("id, name, type, status, last_seen, primary_team_id, current_job_id")
     .not("name", "like", "_archived_%")
     .order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

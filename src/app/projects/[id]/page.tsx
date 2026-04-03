@@ -1084,7 +1084,7 @@ export default function ProjectDetailPage() {
                                 {summary?.latestSubmissionSummary || (milestone.approvalGateStatus === "pending" ? "This stage is waiting for review." : "No review packet submitted yet.")}
                               </p>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-4">
                               <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(milestone.approvalGateStatus))}>
                                 {formatMilestoneGateLabel(milestone.approvalGateStatus)}
                               </span>
@@ -1231,7 +1231,7 @@ export default function ProjectDetailPage() {
                             <div className="flex flex-wrap gap-2">
                               <Button
                                 onClick={() => setReviewingCheckpointId(milestone.id)}
-                                variant="outline"
+                                variant="warm"
                                 className="rounded-xl"
                               >
                                 Review
@@ -1400,7 +1400,7 @@ export default function ProjectDetailPage() {
               <Button onClick={() => setReviewingCheckpointId(null)} variant="outline" className="rounded-xl">Close</Button>
             </div>
 
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 space-y-5">
               <div className="flex flex-wrap gap-2">
                 <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(reviewingCheckpoint.approvalGateStatus))}>
                   {formatMilestoneGateLabel(reviewingCheckpoint.approvalGateStatus)}
@@ -1489,15 +1489,15 @@ export default function ProjectDetailPage() {
               ) : null}
 
               {reviewingCheckpoint.approvalGateStatus === "pending" ? (
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review decision</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">Approve this stage or send it back with a concise change request.</p>
+                <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-red-700">Review decision</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">Approve this stage or send it back with a concise change request.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       onClick={() => handleCheckpointRequestChanges(reviewingCheckpoint)}
                       disabled={checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes`}
                       variant="outline"
-                      className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
+                      className="rounded-xl min-w-[170px] border-amber-200 text-amber-800 hover:bg-amber-50"
                     >
                       {checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes` ? "Sending..." : "Send back for changes"}
                     </Button>
@@ -1505,7 +1505,7 @@ export default function ProjectDetailPage() {
                       onClick={() => handleCheckpointApprove(reviewingCheckpoint)}
                       disabled={checkpointActionLoading === `${reviewingCheckpoint.id}:approve`}
                       variant="warm"
-                      className="rounded-xl"
+                      className="rounded-xl min-w-[140px]"
                     >
                       {checkpointActionLoading === `${reviewingCheckpoint.id}:approve` ? "Approving..." : "Approve stage"}
                     </Button>

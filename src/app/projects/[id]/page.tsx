@@ -1099,18 +1099,18 @@ export default function ProjectDetailPage() {
                               <div className="mt-1 text-sm font-medium text-zinc-900">{milestone.doneTasks}/{milestone.totalTasks} done</div>
                             </div>
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence</div>
+                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || 0} item{(summary?.proofItemCount || 0) === 1 ? "" : "s"}</div>
                             </div>
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Revision notes</div>
+                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requested changes</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.feedbackItemCount || 0} open/requested</div>
                             </div>
                           </div>
 
                           {summary?.latestDecisionNotes ? (
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
-                              <span className="font-medium">Latest decision note:</span> {summary.latestDecisionNotes}
+                              <span className="font-medium">Latest note:</span> {summary.latestDecisionNotes}
                             </div>
                           ) : null}
 
@@ -1243,7 +1243,7 @@ export default function ProjectDetailPage() {
                                   variant="outline"
                                   className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
                                 >
-                                  {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Send back for changes"}
+                                  {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Request changes"}
                                 </Button>
                               ) : null}
                               {canApprove ? (
@@ -1253,7 +1253,7 @@ export default function ProjectDetailPage() {
                                   variant="warm"
                                   className="rounded-xl"
                                 >
-                                  {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve stage"}
+                                  {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve"}
                                 </Button>
                               ) : null}
                               {milestone.approvalGateStatus === "rejected" ? (
@@ -1263,7 +1263,7 @@ export default function ProjectDetailPage() {
                                   variant="warm"
                                   className="rounded-xl"
                                 >
-                                  {checkpointActionLoading === `${milestone.id}:resubmit` ? "Resubmitting..." : "Resubmit for review"}
+                                  {checkpointActionLoading === `${milestone.id}:resubmit` ? "Resubmitting..." : "Submit updated version"}
                                 </Button>
                               ) : null}
                             </div>
@@ -1395,7 +1395,7 @@ export default function ProjectDetailPage() {
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review</p>
                 <h3 className="mt-1 text-lg font-semibold text-zinc-950">{reviewingCheckpoint.name}</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Review this checkpoint without leaving the project detail page.</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Review this submitted work without leaving the project page.</p>
               </div>
               <Button onClick={() => setReviewingCheckpointId(null)} variant="outline" className="rounded-xl">Close</Button>
             </div>
@@ -1423,11 +1423,11 @@ export default function ProjectDetailPage() {
                   <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.doneTasks}/{reviewingCheckpoint.totalTasks} tasks complete.</p>
                 </div>
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence</div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
                   <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.proofItemCount || 0} item{(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) === 1 ? "" : "s"}</p>
                 </div>
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Revision notes</div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requested changes</div>
                   <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.feedbackItemCount || 0} open/requested</p>
                 </div>
               </div>
@@ -1435,16 +1435,16 @@ export default function ProjectDetailPage() {
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence package</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.proofBundleTitle || "No named evidence bundle yet."}</p>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submitted materials</div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.proofBundleTitle || "No submitted materials yet."}</p>
                   </div>
                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(reviewingCheckpoint.reviewSummary?.proofCompletenessStatus || null))}>
-                    {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "no evidence"}
+                    {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "no materials"}
                   </span>
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Attached items</div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Files & links</div>
                     <div className="mt-1 font-medium text-zinc-900">{reviewingCheckpoint.reviewSummary?.proofItemCount || 0}</div>
                   </div>
                   <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
@@ -1456,7 +1456,7 @@ export default function ProjectDetailPage() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review record</div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submission details</div>
                   <div className="mt-2 space-y-2 text-sm text-zinc-700">
                     <p><span className="font-medium text-zinc-900">Submission ID:</span> {reviewingCheckpoint.reviewSummary?.latestSubmissionId || "—"}</p>
                     <p><span className="font-medium text-zinc-900">Summary:</span> {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "—"}</p>
@@ -1464,34 +1464,34 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoint health</div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review status</div>
                   <div className="mt-2 space-y-2 text-sm text-zinc-700">
                     <p><span className="font-medium text-zinc-900">Gate state:</span> {formatMilestoneGateLabel(reviewingCheckpoint.approvalGateStatus)}</p>
-                    <p><span className="font-medium text-zinc-900">Evidence state:</span> {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "No evidence yet"}</p>
+                    <p><span className="font-medium text-zinc-900">Materials status:</span> {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "No materials yet"}</p>
                     <p><span className="font-medium text-zinc-900">Latest decision:</span> {reviewingCheckpoint.reviewSummary?.latestDecision ? reviewingCheckpoint.reviewSummary.latestDecision.replace(/_/g, " ") : "Not decided"}</p>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence checklist</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submission checklist</div>
                 <ul className="mt-3 space-y-2 text-sm text-zinc-700">
                   <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Summary captured: {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary ? "Yes" : "No"}</li>
-                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Evidence attached: {(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) > 0 ? "Yes" : "No"}</li>
+                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Materials attached: {(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) > 0 ? "Yes" : "No"}</li>
                   <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Decision note present: {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? "Yes" : "No"}</li>
                 </ul>
               </div>
 
               {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-                  <span className="font-medium">Latest decision note:</span> {reviewingCheckpoint.reviewSummary.latestDecisionNotes}
+                  <span className="font-medium">Latest note:</span> {reviewingCheckpoint.reviewSummary.latestDecisionNotes}
                 </div>
               ) : null}
 
               {reviewingCheckpoint.approvalGateStatus === "pending" ? (
                 <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-red-700">Review decision</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-600">Approve this stage or send it back with a concise change request.</p>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-red-700">Decision</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">Approve this work or request changes with clear feedback.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       onClick={() => handleCheckpointRequestChanges(reviewingCheckpoint)}
@@ -1499,7 +1499,7 @@ export default function ProjectDetailPage() {
                       variant="outline"
                       className="rounded-xl min-w-[170px] border-amber-200 text-amber-800 hover:bg-amber-50"
                     >
-                      {checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes` ? "Sending..." : "Send back for changes"}
+                      {checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes` ? "Sending..." : "Request changes"}
                     </Button>
                     <Button
                       onClick={() => handleCheckpointApprove(reviewingCheckpoint)}
@@ -1507,7 +1507,7 @@ export default function ProjectDetailPage() {
                       variant="warm"
                       className="rounded-xl min-w-[140px]"
                     >
-                      {checkpointActionLoading === `${reviewingCheckpoint.id}:approve` ? "Approving..." : "Approve stage"}
+                      {checkpointActionLoading === `${reviewingCheckpoint.id}:approve` ? "Approving..." : "Approve"}
                     </Button>
                   </div>
                 </div>
@@ -1515,8 +1515,8 @@ export default function ProjectDetailPage() {
 
               {reviewingCheckpoint.approvalGateStatus === "rejected" ? (
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Revision status</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">This stage has requested changes. Resubmit from the checkpoint panel once updated evidence is ready.</p>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Update status</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">Changes were requested. Submit an updated version from the review panel when revisions are ready.</p>
                 </div>
               ) : null}
             </div>

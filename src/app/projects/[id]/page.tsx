@@ -1433,8 +1433,53 @@ export default function ProjectDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submission summary</div>
-                <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "No submission summary yet."}</p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence package</div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.proofBundleTitle || "No named evidence bundle yet."}</p>
+                  </div>
+                  <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(reviewingCheckpoint.reviewSummary?.proofCompletenessStatus || null))}>
+                    {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "no evidence"}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Attached items</div>
+                    <div className="mt-1 font-medium text-zinc-900">{reviewingCheckpoint.reviewSummary?.proofItemCount || 0}</div>
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Latest submission</div>
+                    <div className="mt-1 font-medium text-zinc-900">{reviewingCheckpoint.reviewSummary?.latestSubmittedAt ? new Date(reviewingCheckpoint.reviewSummary.latestSubmittedAt).toLocaleString() : "Not submitted"}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review record</div>
+                  <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                    <p><span className="font-medium text-zinc-900">Submission ID:</span> {reviewingCheckpoint.reviewSummary?.latestSubmissionId || "—"}</p>
+                    <p><span className="font-medium text-zinc-900">Summary:</span> {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "—"}</p>
+                    <p><span className="font-medium text-zinc-900">Revision:</span> {reviewingCheckpoint.reviewSummary?.latestRevisionNumber || "—"}</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoint health</div>
+                  <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                    <p><span className="font-medium text-zinc-900">Gate state:</span> {formatMilestoneGateLabel(reviewingCheckpoint.approvalGateStatus)}</p>
+                    <p><span className="font-medium text-zinc-900">Evidence state:</span> {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "No evidence yet"}</p>
+                    <p><span className="font-medium text-zinc-900">Latest decision:</span> {reviewingCheckpoint.reviewSummary?.latestDecision ? reviewingCheckpoint.reviewSummary.latestDecision.replace(/_/g, " ") : "Not decided"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence checklist</div>
+                <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Summary captured: {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary ? "Yes" : "No"}</li>
+                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Evidence attached: {(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) > 0 ? "Yes" : "No"}</li>
+                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Decision note present: {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? "Yes" : "No"}</li>
+                </ul>
               </div>
 
               {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (

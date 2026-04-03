@@ -282,7 +282,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
               />
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                {teams.slice(0, 6).map((team, index) => {
+                {teams.slice(0, 6).map((team) => {
                   const teamAgents = agents.filter((agent: any) => agent.primary_team_id === team.id);
                   const onlineCount = teamAgents.filter((agent) => agent.status === "active").length;
                   const teamProjects = Array.from(projectsById.values()).filter((project: any) => project.team_id === team.id);
@@ -292,16 +292,15 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                     return proj?.team_id === team.id;
                   });
                   const teamStatus = onlineCount > 0 ? "active" : teamAgents.some((agent) => agent.status === "idle") ? "idle" : "offline";
-                  const isFeatured = index === 0;
 
                   return (
                     <Link key={team.id} href={`/teams/${team.id}`} className="block">
-                      <Card variant={isFeatured ? "featured" : "soft"} className={cn("rounded-[24px]", isFeatured && "overflow-hidden")}>
-                                                <CardContent className={cn("flex flex-col justify-between", isFeatured ? "gap-4 p-5" : "gap-3 p-4")}>
+                      <Card variant="soft" className="rounded-[24px]">
+                        <CardContent className="flex flex-col justify-between gap-3 p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                               <StatusDot status={teamStatus} />
-                              <p className={cn("font-semibold tracking-tight text-zinc-950", isFeatured ? "text-base" : "text-sm")}>{team.name}</p>
+                              <p className="text-sm font-semibold tracking-tight text-zinc-950">{team.name}</p>
                             </div>
                             <span className="text-xs text-zinc-400">{teamStatus}</span>
                           </div>

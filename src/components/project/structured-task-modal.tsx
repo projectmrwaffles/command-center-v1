@@ -82,10 +82,10 @@ export function StructuredTaskModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[calc(100dvh-env(safe-area-inset-bottom)-6rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-xl sm:max-h-[90vh] sm:p-6"
+        className="flex max-h-[min(75dvh,42rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-xl sm:max-h-[90vh] sm:rounded-2xl sm:p-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-200/80 px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Create task</h3>
             <p className="mt-1 text-sm text-zinc-500">Pick a type, then describe the outcome.</p>
@@ -97,7 +97,7 @@ export function StructuredTaskModal({
           </button>
         </div>
 
-        <div className="mt-5 space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5">
           <section>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium text-zinc-900">Task type</p>
@@ -210,7 +210,7 @@ export function StructuredTaskModal({
           ) : null}
         </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-200/80 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:flex-row sm:px-6 sm:py-5">
           <button onClick={onClose} className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancel</button>
           <button
             onClick={() => {

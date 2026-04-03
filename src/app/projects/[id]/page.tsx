@@ -1417,15 +1417,24 @@ export default function ProjectDetailPage() {
                 ) : null}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Summary</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "No submission summary yet."}</p>
-                </div>
+              <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Stage progress</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.doneTasks}/{reviewingCheckpoint.totalTasks} tasks complete in this stage.</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.doneTasks}/{reviewingCheckpoint.totalTasks} tasks complete.</p>
                 </div>
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.proofItemCount || 0} item{(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) === 1 ? "" : "s"}</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Revision notes</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.feedbackItemCount || 0} open/requested</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submission summary</div>
+                <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "No submission summary yet."}</p>
               </div>
 
               {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
@@ -1434,13 +1443,37 @@ export default function ProjectDetailPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Evidence status</div>
-                <p className="mt-2 text-sm leading-6 text-zinc-700">
-                  {reviewingCheckpoint.reviewSummary?.proofItemCount || 0} evidence item{(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) === 1 ? "" : "s"} attached.
-                  {reviewingCheckpoint.reviewSummary?.proofBundleTitle ? ` Bundle: ${reviewingCheckpoint.reviewSummary.proofBundleTitle}.` : ""}
-                </p>
-              </div>
+              {reviewingCheckpoint.approvalGateStatus === "pending" ? (
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review decision</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">Approve this stage or send it back with a concise change request.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => handleCheckpointRequestChanges(reviewingCheckpoint)}
+                      disabled={checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes`}
+                      variant="outline"
+                      className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
+                    >
+                      {checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes` ? "Sending..." : "Send back for changes"}
+                    </Button>
+                    <Button
+                      onClick={() => handleCheckpointApprove(reviewingCheckpoint)}
+                      disabled={checkpointActionLoading === `${reviewingCheckpoint.id}:approve`}
+                      variant="warm"
+                      className="rounded-xl"
+                    >
+                      {checkpointActionLoading === `${reviewingCheckpoint.id}:approve` ? "Approving..." : "Approve stage"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {reviewingCheckpoint.approvalGateStatus === "rejected" ? (
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Revision status</div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">This stage has requested changes. Resubmit from the checkpoint panel once updated evidence is ready.</p>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

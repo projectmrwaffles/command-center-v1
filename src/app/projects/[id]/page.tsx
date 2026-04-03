@@ -1389,8 +1389,8 @@ export default function ProjectDetailPage() {
       </div>
 
       {reviewingCheckpoint ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:items-center sm:p-4" onClick={() => setReviewingCheckpointId(null)}>
-          <div className="max-h-[calc(100dvh-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-t-[24px] bg-white p-4 shadow-xl sm:max-h-[90vh] sm:rounded-[24px] sm:p-6" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReviewingCheckpointId(null)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[24px] bg-white p-4 shadow-xl sm:p-6" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 border-b border-zinc-200 pb-4">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review</p>

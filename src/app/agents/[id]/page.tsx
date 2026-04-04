@@ -12,6 +12,7 @@ import {
   formatLastSeen,
   getAgentDisplayName,
   getAgentEmoji,
+  getAgentStatusLabel,
   statusClasses,
 } from "../agent-utils";
 
@@ -124,7 +125,7 @@ export default async function AgentDetailPage({
                   </p>
                 </div>
                 <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status)}`}>
-                  {agent.status}
+                  {getAgentStatusLabel(agent.status)}
                 </span>
               </div>
             </div>

@@ -11,6 +11,7 @@ import {
   formatLastSeen,
   getAgentDisplayName,
   getAgentEmoji,
+  getAgentStatusLabel,
   statusClasses,
 } from "./agent-utils";
 
@@ -147,7 +148,7 @@ export default async function AgentsPage() {
                         </div>
                       </div>
                       <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status)}`}>
-                        {agent.status}
+                        {getAgentStatusLabel(agent.status)}
                       </span>
                     </div>
                     <div className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-500 shadow-sm transition-colors group-hover:border-red-200 group-hover:text-red-600">

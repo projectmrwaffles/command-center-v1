@@ -403,8 +403,8 @@ async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTi
     if (jobUpdate.error) console.error(`[Listener] Failed to update job ${jobId}:`, jobUpdate.error);
   }
 
-  const agentStatus = taskStatus === "done" ? "idle" : taskStatus === "blocked" ? "error" : "active";
-  const agentUpdate = await adminSupabase.from("agents").update({ status: agentStatus, last_seen: timestamp, current_job_id: taskStatus === "done" ? null : jobId }).eq("id", agentId);
+  const agentStatus = taskStatus === "in_progress" ? "active" : "idle";
+  const agentUpdate = await adminSupabase.from("agents").update({ status: agentStatus, last_seen: timestamp, current_job_id: taskStatus === "in_progress" ? jobId : null }).eq("id", agentId);
   if (agentUpdate.error) console.error(`[Listener] Failed to update agent ${agentId} after task ${taskId}:`, agentUpdate.error);
 
   const eventType = taskStatus === "done" ? "task_completed" : taskStatus === "blocked" ? "task_blocked" : "task_status_changed";

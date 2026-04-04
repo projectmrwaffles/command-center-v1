@@ -162,7 +162,7 @@ export function deriveProjectTruth(input: {
   const freshestRunningMs = [latestRunningTaskUpdateMs, latestRunningJobUpdateMs]
     .filter((value): value is number => typeof value === "number")
     .sort((a, b) => b - a)[0] ?? null;
-  const staleRunning = Boolean((runningDeliveryTasks > 0 || runningJobs > 0) && freshestRunningMs && Date.now() - freshestRunningMs > 10 * 60 * 1000);
+  const staleRunning = Boolean((runningDeliveryTasks > 0 || runningJobs > 0) && freshestRunningMs && Date.now() - freshestRunningMs > 1 * 60 * 1000);
   const execution = deriveExecutionState({
     totalDeliveryTasks: deliveryTasks.length,
     doneDeliveryTasks,

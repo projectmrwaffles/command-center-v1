@@ -31,14 +31,28 @@ export function formatLastSeen(lastSeen: string | null) {
   return lastSeen ? new Date(lastSeen).toLocaleString() : "Never";
 }
 
-export function getAgentStatusLabel(status?: string | null) {
-  if (status === "error") return "offline";
-  return status || "offline";
+function isFreshHeartbeat(lastSeen?: string | null, thresholdMinutes = 15) {
+  if (!lastSeen) return false;
+  const timestamp = new Date(lastSeen).getTime();
+  if (Number.isNaN(timestamp)) return false;
+  return Date.now() - timestamp <= thresholdMinutes * 60 * 1000;
 }
 
-export function statusClasses(status?: string | null) {
-  if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "idle") return "border-amber-200 bg-amber-50 text-amber-700";
+export function getAgentPresenceStatus(status?: string | null, lastSeen?: string | null) {
+  if (status === "active") return "active";
+  if (status === "idle") return "idle";
+  if (status === "error" && isFreshHeartbeat(lastSeen)) return "idle";
+  return "offline";
+}
+
+export function getAgentStatusLabel(status?: string | null, lastSeen?: string | null) {
+  return getAgentPresenceStatus(status, lastSeen);
+}
+
+export function statusClasses(status?: string | null, lastSeen?: string | null) {
+  const presence = getAgentPresenceStatus(status, lastSeen);
+  if (presence === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (presence === "idle") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-zinc-200 bg-zinc-100 text-zinc-700";
 }
 

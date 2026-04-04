@@ -291,7 +291,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                     const proj = projectsById.get(approval.project_id);
                     return proj?.team_id === team.id;
                   });
-                  const teamStatus = onlineCount > 0 ? "active" : teamAgents.some((agent) => agent.status === "idle") ? "idle" : "offline";
+                  const teamStatus = onlineCount > 0 ? "active" : teamAgents.some((agent) => agent.status === "idle" || agent.status === "error") ? "idle" : "offline";
 
                   return (
                     <Link key={team.id} href={`/teams/${team.id}`} className="block">

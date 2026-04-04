@@ -878,6 +878,11 @@ export default function ProjectDetailPage() {
     { label: "running", value: String(truth?.counts.jobs.running ?? truth?.counts.delivery.running ?? 0) },
   ];
   const updatedLabel = formatUpdatedDate(project.updated_at).replace(/^Updated\s+/i, "");
+  const queuedPhaseHoldReasons = executionVisibility?.queuedReasons?.filter((reason) => reason.status === "waiting_for_kickoff_completion") || [];
+  const exceptionalQueuedHoldReasons = executionVisibility?.queuedReasons?.filter((reason) => reason.status !== "waiting_for_kickoff_completion") || [];
+  const queuedPhaseHoldSummary = queuedPhaseHoldReasons.length
+    ? `${queuedPhaseHoldReasons.map((reason) => reason.taskTitle).join(" and ")} unlock after earlier phase work finishes.`
+    : null;
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden pb-10 md:space-y-8">
@@ -967,20 +972,18 @@ export default function ProjectDetailPage() {
               </div>
               <p className="mt-1 text-sm leading-6 text-zinc-500">Key context and actions, without repeating the delivery status you already see on the left.</p>
 
-              {executionVisibility?.queuedReasons?.length ? (
+              {exceptionalQueuedHoldReasons.length ? (
                 <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">What is on hold</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</div>
                   <ul className="mt-2 space-y-2 text-xs leading-5">
-                    {executionVisibility.queuedReasons.map((reason) => {
-                      const shortDetail = reason.status === "waiting_for_kickoff_completion"
-                        ? `${reason.label}. This phase starts after earlier work finishes.`
-                        : reason.status === "waiting_for_approval"
-                          ? `${reason.label}. This phase cannot start until approval is complete.`
-                          : reason.status === "waiting_for_repo"
-                            ? `${reason.label}. Required repo setup is still incomplete.`
-                            : reason.status === "waiting_for_worker_capacity"
-                              ? `${reason.label}. The assigned owner is still busy with active work.`
-                              : reason.detail;
+                    {exceptionalQueuedHoldReasons.map((reason) => {
+                      const shortDetail = reason.status === "waiting_for_approval"
+                        ? `${reason.label}. This phase cannot start until approval is complete.`
+                        : reason.status === "waiting_for_repo"
+                          ? `${reason.label}. Required repo setup is still incomplete.`
+                          : reason.status === "waiting_for_worker_capacity"
+                            ? `${reason.label}. The assigned owner is still busy with active work.`
+                            : reason.detail;
 
                       return (
                         <li key={reason.taskId}>
@@ -1025,7 +1028,11 @@ export default function ProjectDetailPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <div className="space-y-4">
           <Section title="Task board" description="Keep work moving without opening every task.">
-            <div className="space-y-3" />
+            {queuedPhaseHoldSummary ? (
+              <div className="mb-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+                <span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}
+              </div>
+            ) : null}
             {tasks.length === 0 ? (
               <EmptySectionState
                 icon={<FolderKanban className="h-7 w-7" />}

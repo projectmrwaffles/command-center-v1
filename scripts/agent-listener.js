@@ -272,6 +272,35 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
   ].filter(Boolean).join("\n");
 }
 
+function looksLikeRealBlocker(text) {
+  const value = String(text || "").toLowerCase();
+  if (!value.trim()) return false;
+  const blockerSignals = [
+    /\bblocked\b/,
+    /\bcannot\b/,
+    /\bcan't\b/,
+    /\bunable\b/,
+    /\bfailed\b/,
+    /\berror\b/,
+    /\bmissing\b/,
+    /\bwaiting for\b/,
+    /\bneeds approval\b/,
+    /\bneed approval\b/,
+    /\bawaiting approval\b/,
+    /\bawaiting confirmation\b/,
+    /\brequires approval\b/,
+    /\bprerequisite\b/,
+    /\bdependency\b/,
+    /\bpermission\b/,
+    /\baccess\b/,
+    /\bnot configured\b/,
+    /\bnot available\b/,
+    /\bno repo\b/,
+    /\bno token\b/,
+  ];
+  return blockerSignals.some((pattern) => pattern.test(value));
+}
+
 function parseAgentResult(text) {
   const trimmed = String(text || "").trim();
   const statusMatch = trimmed.match(/^STATUS:\s*(.+)$/im);
@@ -281,10 +310,12 @@ function parseAgentResult(text) {
     .replace(/[.`*]+$/g, "")
     .replace(/[\s-]+/g, "_");
   const summary = (summaryMatch?.[1] || trimmed.split(/\n+/)[0] || "No summary provided").trim();
-  const isTerminal = ["done", "blocked", "awaiting_approval", "awaiting_confirmation"].includes(status);
+  const hasRealBlockerSignal = looksLikeRealBlocker(`${summary}\n${trimmed}`);
+  const isBlockedTerminal = status === "blocked" && hasRealBlockerSignal;
+  const isTerminal = ["done", "awaiting_approval", "awaiting_confirmation"].includes(status) || isBlockedTerminal;
   const taskStatus = status === "done" || status === "awaiting_approval"
     ? "done"
-    : status === "blocked" || status === "awaiting_confirmation"
+    : status === "awaiting_confirmation" || isBlockedTerminal
       ? "blocked"
       : "in_progress";
   return {
@@ -293,6 +324,7 @@ function parseAgentResult(text) {
     summary,
     isTerminal,
     taskStatus,
+    hasRealBlockerSignal,
   };
 }
 
@@ -315,6 +347,8 @@ async function runAgentUntilStopCondition(agentName, initialMessage) {
       "You have not reached a valid stop condition yet.",
       "Continue the same task now. Actually perform the work before replying.",
       "Do not acknowledge, narrate intent, or say you are starting.",
+      "Do not use STATUS: blocked unless you are naming a concrete blocker, failure, missing prerequisite, approval hold, or access/config issue that truly prevents continuation right now.",
+      "A progress update, intent statement, or implementation plan is NOT a blocker.",
       "Only stop when you can return the required final format with STATUS set to done, blocked, awaiting_approval, or awaiting_confirmation.",
     ].join("\n");
 
@@ -332,11 +366,14 @@ async function runAgentUntilStopCondition(agentName, initialMessage) {
   }
 
   return {
-    status: "blocked",
+    status: latestResult?.status === "blocked" && !latestResult?.hasRealBlockerSignal ? "in_progress" : "blocked",
     isTerminal: true,
-    taskStatus: "blocked",
-    summary: latestResult?.summary || "Agent never reached a terminal stop condition",
+    taskStatus: latestResult?.status === "blocked" && !latestResult?.hasRealBlockerSignal ? "in_progress" : "blocked",
+    summary: latestResult?.status === "blocked" && !latestResult?.hasRealBlockerSignal
+      ? "Agent returned a non-blocking progress update without a real blocker; execution should continue."
+      : latestResult?.summary || "Agent never reached a terminal stop condition",
     raw: latestResult?.raw || "No agent output captured",
+    hasRealBlockerSignal: Boolean(latestResult?.hasRealBlockerSignal),
   };
 }
 

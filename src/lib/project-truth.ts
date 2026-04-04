@@ -4,6 +4,7 @@ export type TruthTaskLike = {
   id?: string | null;
   sprint_id?: string | null;
   status?: string | null;
+  updated_at?: string | null;
   task_metadata?: Record<string, unknown> | null;
 };
 
@@ -43,6 +44,7 @@ export function deriveExecutionState(input: {
   queuedJobs?: number;
   runningJobs?: number;
   blockedJobs?: number;
+  staleRunning?: boolean;
 }) {
   const queuedJobs = input.queuedJobs ?? 0;
   const runningJobs = input.runningJobs ?? 0;
@@ -57,6 +59,14 @@ export function deriveExecutionState(input: {
   }
 
   if (input.runningDeliveryTasks > 0 || runningJobs > 0) {
+    if (input.staleRunning) {
+      return {
+        key: "stale_running",
+        label: "Needs update",
+        description: "Work is marked in progress, but there has not been a recent execution update.",
+      } as const;
+    }
+
     return {
       key: "running",
       label: "Running",
@@ -114,7 +124,7 @@ export function deriveExecutionState(input: {
 export function deriveProjectTruth(input: {
   tasks?: TruthTaskLike[] | null;
   sprints?: TruthSprintLike[] | null;
-  jobs?: Array<{ status?: string | null }> | null;
+  jobs?: Array<{ status?: string | null; updated_at?: string | null }> | null;
 }) {
   const tasks = Array.isArray(input.tasks) ? input.tasks : [];
   const sprints = Array.isArray(input.sprints) ? input.sprints : [];
@@ -139,6 +149,20 @@ export function deriveProjectTruth(input: {
   const blockedBootstrapTasks = bootstrapTasks.filter((task) => isBlockedStatus(task.status)).length;
 
   const progressPct = deliveryTasks.length > 0 ? Math.round((doneDeliveryTasks / deliveryTasks.length) * 100) : 0;
+  const latestRunningTaskUpdateMs = deliveryTasks
+    .filter((task) => isRunningStatus(task.status) && task.updated_at)
+    .map((task) => new Date(task.updated_at as string).getTime())
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => b - a)[0] ?? null;
+  const latestRunningJobUpdateMs = jobs
+    .filter((job) => job.status === "in_progress" && job.updated_at)
+    .map((job) => new Date(job.updated_at as string).getTime())
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => b - a)[0] ?? null;
+  const freshestRunningMs = [latestRunningTaskUpdateMs, latestRunningJobUpdateMs]
+    .filter((value): value is number => typeof value === "number")
+    .sort((a, b) => b - a)[0] ?? null;
+  const staleRunning = Boolean((runningDeliveryTasks > 0 || runningJobs > 0) && freshestRunningMs && Date.now() - freshestRunningMs > 10 * 60 * 1000);
   const execution = deriveExecutionState({
     totalDeliveryTasks: deliveryTasks.length,
     doneDeliveryTasks,
@@ -152,12 +176,15 @@ export function deriveProjectTruth(input: {
     queuedJobs,
     runningJobs,
     blockedJobs,
+    staleRunning,
   });
 
   const headline = deliveryTasks.length > 0
     ? execution.key === "running"
       ? "Work is underway"
-      : execution.key === "queued"
+      : execution.key === "stale_running"
+        ? "Work needs an update"
+        : execution.key === "queued"
         ? "Work is lined up"
         : execution.key === "completed"
           ? "Work is complete"
@@ -169,7 +196,9 @@ export function deriveProjectTruth(input: {
       : "No work added yet";
 
   const summary = deliveryTasks.length > 0
-    ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
+    ? execution.key === "stale_running"
+      ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} marked in progress, but there has been no recent execution update.`
+      : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
     : bootstrapTasks.length > 0
       ? `${bootstrapTasks.length} kickoff task${bootstrapTasks.length === 1 ? " is" : "s are"} visible (${queuedBootstrapTasks} queued, ${runningBootstrapTasks} in progress, ${doneBootstrapTasks} done). The project is still getting set up before the main work starts.`
       : "No kickoff tasks or delivery work are visible yet.";

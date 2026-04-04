@@ -124,8 +124,8 @@ export default async function AgentDetailPage({
                     {formatAgentType(agent.type)} agent surface with recent execution events and presence metadata.
                   </p>
                 </div>
-                <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status, agent.last_seen)}`}>
-                  {getAgentStatusLabel(agent.status, agent.last_seen)}
+                <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status)}`}>
+                  {getAgentStatusLabel(agent.status)}
                 </span>
               </div>
             </div>

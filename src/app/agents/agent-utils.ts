@@ -31,6 +31,11 @@ export function formatLastSeen(lastSeen: string | null) {
   return lastSeen ? new Date(lastSeen).toLocaleString() : "Never";
 }
 
+export function getAgentStatusLabel(status?: string | null) {
+  if (status === "error") return "offline";
+  return status || "offline";
+}
+
 export function statusClasses(status?: string | null) {
   if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "idle") return "border-amber-200 bg-amber-50 text-amber-700";

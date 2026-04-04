@@ -969,13 +969,25 @@ export default function ProjectDetailPage() {
 
               {executionVisibility?.queuedReasons?.length ? (
                 <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">What is holding queued work</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">What is on hold</div>
                   <ul className="mt-2 space-y-2 text-xs leading-5">
-                    {executionVisibility.queuedReasons.map((reason) => (
-                      <li key={reason.taskId}>
-                        <span className="font-medium">{reason.taskTitle}</span>: {reason.detail}
-                      </li>
-                    ))}
+                    {executionVisibility.queuedReasons.map((reason) => {
+                      const shortDetail = reason.status === "waiting_for_kickoff_completion"
+                        ? `${reason.label}. This phase starts after earlier work finishes.`
+                        : reason.status === "waiting_for_approval"
+                          ? `${reason.label}. This phase cannot start until approval is complete.`
+                          : reason.status === "waiting_for_repo"
+                            ? `${reason.label}. Required repo setup is still incomplete.`
+                            : reason.status === "waiting_for_worker_capacity"
+                              ? `${reason.label}. The assigned owner is still busy with active work.`
+                              : reason.detail;
+
+                      return (
+                        <li key={reason.taskId}>
+                          <span className="font-medium">{reason.taskTitle}</span>: {shortDetail}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ) : null}

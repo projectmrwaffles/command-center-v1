@@ -26,6 +26,7 @@ import {
   formatIntakeValue,
 } from "@/lib/project-intake";
 import { getProjectStatusTone } from "@/lib/project-ui";
+import { getTaskExecutionBlocker } from "@/lib/project-execution";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 import { parseGitHubRepoUrl, type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
@@ -741,15 +742,52 @@ export default function ProjectDetailPage() {
     setShowTaskModal(true);
   };
 
+  const project = data?.project ?? null;
+  const teams = useMemo(() => data?.teams ?? [], [data?.teams]);
+  const milestones = useMemo(() => data?.milestones ?? [], [data?.milestones]);
+  const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
+  const stats = data?.stats ?? { totalTasks: 0, doneTasks: 0, blockedTasks: 0, inProgressTasks: 0 };
+  const deliveryIntegrity = data?.deliveryIntegrity;
+  const truth = data?.truth;
+  const executionVisibility = data?.executionVisibility;
+
   const taskGroups = useMemo(() => {
-    const list = data?.tasks || [];
+    const queued: any[] = [];
+    const stalled: any[] = [];
+    const inProgress = tasks.filter((task: any) => task.status === "in_progress" || task.status === "review");
+    const done = tasks.filter((task: any) => task.status === "done");
+    const liveJobs = Array.from(jobsById.values());
+
+    tasks.forEach((task: any) => {
+      if (task.status === "blocked") {
+        stalled.push(task);
+        return;
+      }
+      if (task.status !== "todo") return;
+      if (!project) {
+        queued.push(task);
+        return;
+      }
+
+      const blocker = getTaskExecutionBlocker({
+        project: { id: project.id, type: project.type, intake: project.intake, links: project.links, github_repo_binding: project.github_repo_binding },
+        task,
+        sprint: milestones.find((milestone) => milestone.id === task.sprint_id) ?? null,
+        sprints: milestones,
+        jobs: liveJobs,
+      });
+
+      if (blocker) stalled.push(task);
+      else queued.push(task);
+    });
+
     return {
-      todo: list.filter((task: any) => task.status === "todo"),
-      inProgress: list.filter((task: any) => task.status === "in_progress" || task.status === "review"),
-      done: list.filter((task: any) => task.status === "done"),
-      blocked: list.filter((task: any) => task.status === "blocked"),
+      todo: queued,
+      inProgress,
+      done,
+      blocked: stalled,
     };
-  }, [data?.tasks]);
+  }, [jobsById, milestones, project, tasks]);
 
   useEffect(() => {
     if (!showTaskModal) return;
@@ -795,15 +833,6 @@ export default function ProjectDetailPage() {
       </div>
     );
   }
-
-  const project = data?.project ?? null;
-  const teams = data?.teams ?? [];
-  const milestones = data?.milestones ?? [];
-  const tasks = data?.tasks ?? [];
-  const stats = data?.stats ?? { totalTasks: 0, doneTasks: 0, blockedTasks: 0, inProgressTasks: 0 };
-  const deliveryIntegrity = data?.deliveryIntegrity;
-  const truth = data?.truth;
-  const executionVisibility = data?.executionVisibility;
 
   if (!project) {
     return null;

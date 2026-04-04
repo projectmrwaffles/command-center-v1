@@ -234,6 +234,13 @@ function taskProgressValue(task: any) {
   return null;
 }
 
+function isTaskExecutionStale(task: { status?: string | null; updated_at?: string | null } | null | undefined) {
+  if (!task || task.status !== "in_progress" || !task.updated_at) return false;
+  const updatedAtMs = new Date(task.updated_at).getTime();
+  if (Number.isNaN(updatedAtMs)) return false;
+  return Date.now() - updatedAtMs > 1 * 60 * 1000;
+}
+
 function isBootstrapTask(task: any, bootstrapSprintIds?: ReadonlySet<string>) {
   return matchesBootstrapTruth(task, bootstrapSprintIds);
 }
@@ -1066,6 +1073,7 @@ export default function ProjectDetailPage() {
                             status: task.status,
                             reviewRequired: task.review_required,
                             reviewStatus: task.review_status,
+                            stale: isTaskExecutionStale(task),
                           });
                           const taskProgress = taskProgressValue(task);
                           const taskMilestone = task.sprint_id ? milestones.find((milestone) => milestone.id === task.sprint_id) : null;
@@ -1610,8 +1618,8 @@ export default function ProjectDetailPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <TaskStatusBadge status={selectedTask.status || "todo"} />
-                      <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status }).badgeClassName)}>
-                        {getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status }).label}
+                      <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status, stale: isTaskExecutionStale(selectedTask) }).badgeClassName)}>
+                        {getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status, stale: isTaskExecutionStale(selectedTask) }).label}
                       </span>
                       {isBootstrapTask(selectedTask, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                       {selectedTask.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(selectedTask.review_status)}</span> : null}

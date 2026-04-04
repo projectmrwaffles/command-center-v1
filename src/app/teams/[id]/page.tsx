@@ -125,10 +125,10 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                 <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
                     <Activity className="h-4 w-4 text-emerald-500" />
-                    Active now
+                    Active at load
                   </div>
                   <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeMembers}</div>
-                  <p className="mt-1 text-xs text-zinc-500">Currently marked active.</p>
+                  <p className="mt-1 text-xs text-zinc-500">Marked active when this page was loaded.</p>
                 </PageHeroStat>
                 <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
@@ -214,8 +214,8 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                       Team members
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Who is available right now.</h2>
-                      <p className="mt-1 text-sm text-zinc-500">Presence and last-seen data for everyone assigned to this team.</p>
+                      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Who was available at load time.</h2>
+                      <p className="mt-1 text-sm text-zinc-500">Load-time presence and last-seen data for everyone assigned to this team.</p>
                     </div>
                   </div>
 

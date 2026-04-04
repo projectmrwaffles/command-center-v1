@@ -34,6 +34,7 @@ export function getExecutionTone(input: {
   reviewStatus?: string | null;
   blocked?: boolean | null;
   approvalCount?: number | null;
+  stale?: boolean | null;
 }) {
   if (input.blocked || input.status === "blocked") {
     return {
@@ -76,6 +77,14 @@ export function getExecutionTone(input: {
   }
 
   if (input.status === "in_progress") {
+    if (input.stale) {
+      return {
+        label: "Needs update",
+        badgeClassName: "border-amber-200 bg-amber-50 text-amber-700",
+        description: "Marked in progress, but there has not been a recent execution update.",
+      } satisfies ExecutionTone;
+    }
+
     return {
       label: "Executing now",
       badgeClassName: "border-blue-200 bg-blue-50 text-blue-700",

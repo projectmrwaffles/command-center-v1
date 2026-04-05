@@ -450,19 +450,6 @@ async function emitTaskProgressHeartbeat(adminSupabase, agentId, taskId, project
   const agentUpdate = await adminSupabase.from("agents").update({ status: "active", last_seen: timestamp, current_job_id: jobId }).eq("id", agentId);
   if (agentUpdate.error) console.error(`[Listener] Failed heartbeat agent update for ${agentId}:`, agentUpdate.error);
 
-  const eventInsert = await adminSupabase.from("agent_events").insert({
-    agent_id: agentId,
-    event_type: "task_progress_heartbeat",
-    project_id: projectId || null,
-    job_id: jobId,
-    payload: {
-      task_id: taskId,
-      title: taskTitle || "New task",
-      status: "in_progress",
-      message: `${taskTitle || "Task"} is still running.`,
-    },
-  });
-  if (eventInsert.error) console.error(`[Listener] Failed heartbeat event insert for task ${taskId}:`, eventInsert.error);
 }
 
 async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTitle, result) {

@@ -493,33 +493,7 @@ export default function ProjectDetailPage() {
     window.localStorage.setItem(activityStorageKey, JSON.stringify({ dismissedIds: dismissedUpdateIds, clearedAt: clearedFeedAt }));
   }, [activityStorageKey, clearedFeedAt, dismissedUpdateIds]);
 
-  useEffect(() => {
-    if (!projectId) return;
-
-    let cancelled = false;
-
-    const tick = async () => {
-      if (cancelled || document.visibilityState !== "visible" || !navigator.onLine) return;
-      await fetchProject(false);
-    };
-
-    const interval = window.setInterval(tick, 15000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void tick();
-    };
-
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", onVisible);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", onVisible);
-    };
-  }, [projectId, fetchProject]);
-
-  const realtimeRefreshKey = useMemo(() => {
+  const realtimeRefreshState = useMemo(() => {
     const realtimeProject = projectsById.get(projectId);
     const realtimeEvents = storeEvents.filter((event) => event.project_id === projectId);
     const realtimeApprovals = Array.from(approvalsById.values()).filter((approval) => approval.project_id === projectId);
@@ -536,21 +510,58 @@ export default function ProjectDetailPage() {
       .sort()
       .join("|");
 
-    return [projectUpdatedAt, latestEventTs, approvalsKey, jobsKey].join("::");
+    const freshnessCandidates = [projectUpdatedAt, latestEventTs, ...realtimeApprovals.map((approval) => approval.created_at || "")]
+      .filter(Boolean)
+      .map((value) => new Date(value).getTime())
+      .filter((value) => Number.isFinite(value));
+    const freshestRealtimeMs = freshnessCandidates.sort((a, b) => b - a)[0] ?? null;
+    const isFresh = Boolean(freshestRealtimeMs && Date.now() - freshestRealtimeMs < 60 * 1000);
+
+    return {
+      key: [projectUpdatedAt, latestEventTs, approvalsKey, jobsKey].join("::"),
+      isFresh,
+    };
   }, [approvalsById, jobsById, projectId, projectsById, storeEvents]);
 
   useEffect(() => {
+    if (!projectId) return;
+
+    let cancelled = false;
+
+    const tick = async () => {
+      if (cancelled || document.visibilityState !== "visible" || !navigator.onLine) return;
+      if (realtimeRefreshState.isFresh) return;
+      await fetchProject(false);
+    };
+
+    const interval = window.setInterval(tick, 60000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
+    };
+  }, [projectId, fetchProject, realtimeRefreshState.isFresh]);
+
+  useEffect(() => {
     if (!projectId || loading || !data) return;
-    if (!realtimeRefreshKey) return;
+    if (!realtimeRefreshState.key) return;
 
     const timeout = window.setTimeout(() => {
       if (document.visibilityState === "visible" && navigator.onLine) {
         void fetchProject(false);
       }
-    }, 250);
+    }, 500);
 
     return () => window.clearTimeout(timeout);
-  }, [projectId, loading, data, realtimeRefreshKey, fetchProject]);
+  }, [projectId, loading, data, realtimeRefreshState.key, fetchProject]);
 
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(newStatus);

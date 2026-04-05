@@ -148,7 +148,9 @@ export function deriveProjectTruth(input: {
   const doneBootstrapTasks = bootstrapTasks.filter((task) => isDoneStatus(task.status)).length;
   const blockedBootstrapTasks = bootstrapTasks.filter((task) => isBlockedStatus(task.status)).length;
 
-  const progressPct = deliveryTasks.length > 0 ? Math.round((doneDeliveryTasks / deliveryTasks.length) * 100) : 0;
+  const deliveryProgressPct = deliveryTasks.length > 0 ? Math.round((doneDeliveryTasks / deliveryTasks.length) * 100) : 0;
+  const kickoffProgressPct = bootstrapTasks.length > 0 ? Math.round((doneBootstrapTasks / bootstrapTasks.length) * 100) : 0;
+  const progressPct = deliveryTasks.length > 0 ? deliveryProgressPct : kickoffProgressPct;
   const latestRunningTaskUpdateMs = deliveryTasks
     .filter((task) => isRunningStatus(task.status) && task.updated_at)
     .map((task) => new Date(task.updated_at as string).getTime())
@@ -185,22 +187,30 @@ export function deriveProjectTruth(input: {
       : execution.key === "stale_running"
         ? "Work needs an update"
         : execution.key === "queued"
-        ? "Work is lined up"
-        : execution.key === "completed"
-          ? "Work is complete"
-          : execution.key === "blocked"
-            ? "Work is blocked"
-            : "Work has started"
+          ? doneBootstrapTasks > 0
+            ? "Kickoff is complete"
+            : "Work is lined up"
+          : execution.key === "completed"
+            ? "Work is complete"
+            : execution.key === "blocked"
+              ? "Work is blocked"
+              : "Work has started"
     : bootstrapTasks.length > 0
-      ? "Kickoff is still in setup"
+      ? doneBootstrapTasks === bootstrapTasks.length
+        ? "Kickoff is complete"
+        : "Kickoff is still in setup"
       : "No work added yet";
 
   const summary = deliveryTasks.length > 0
     ? execution.key === "stale_running"
       ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} marked in progress, but there has been no recent execution update.`
-      : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
+      : doneBootstrapTasks > 0
+        ? `Kickoff is complete. ${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
+        : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
     : bootstrapTasks.length > 0
-      ? `${bootstrapTasks.length} kickoff task${bootstrapTasks.length === 1 ? " is" : "s are"} visible (${queuedBootstrapTasks} queued, ${runningBootstrapTasks} in progress, ${doneBootstrapTasks} done). The project is still getting set up before the main work starts.`
+      ? doneBootstrapTasks === bootstrapTasks.length
+        ? "Kickoff is complete. Delivery work is queued to begin next."
+        : `${bootstrapTasks.length} kickoff task${bootstrapTasks.length === 1 ? " is" : "s are"} visible (${queuedBootstrapTasks} queued, ${runningBootstrapTasks} in progress, ${doneBootstrapTasks} done). The project is still getting set up before the main work starts.`
       : "No kickoff tasks or delivery work are visible yet.";
 
   return {

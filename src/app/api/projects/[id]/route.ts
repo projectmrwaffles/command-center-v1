@@ -213,19 +213,20 @@ export async function GET(
       };
     });
 
+    const includeReviewArtifacts = req.nextUrl.searchParams.get("include") === "review";
     const sprintIds = (sprints || []).map((s: any) => s.id).filter(Boolean);
-    const submissionRows = sprintIds.length > 0
+    const submissionRows = includeReviewArtifacts && sprintIds.length > 0
       ? ((await db.from("milestone_submissions").select("*").in("sprint_id", sprintIds).order("revision_number", { ascending: false })).data || [])
       : [];
     const submissionIds = submissionRows.map((row: any) => row.id).filter(Boolean);
-    const proofBundleRows = submissionIds.length > 0
+    const proofBundleRows = includeReviewArtifacts && submissionIds.length > 0
       ? ((await db.from("proof_bundles").select("*").in("submission_id", submissionIds)).data || [])
       : [];
     const proofBundleIds = proofBundleRows.map((row: any) => row.id).filter(Boolean);
-    const proofItemRows = proofBundleIds.length > 0
+    const proofItemRows = includeReviewArtifacts && proofBundleIds.length > 0
       ? ((await db.from("proof_items").select("*").in("proof_bundle_id", proofBundleIds)).data || [])
       : [];
-    const feedbackRows = submissionIds.length > 0
+    const feedbackRows = includeReviewArtifacts && submissionIds.length > 0
       ? ((await db.from("submission_feedback_items").select("*").in("submission_id", submissionIds)).data || [])
       : [];
 

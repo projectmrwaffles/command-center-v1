@@ -18,6 +18,7 @@ const fs = require("fs");
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 const RECONCILE_INTERVAL_MS = 15 * 1000;
+const TASK_PROGRESS_HEARTBEAT_MS = 30 * 1000;
 const REPO_ROOT = path.resolve(__dirname, "..");
 const INTERNAL_BASE_URL = (process.env.AGENT_LOG_BASE_URL || process.env.INTERNAL_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const DEFAULT_OPENCLAW_BIN = path.join(process.env.HOME || "", ".npm-global/bin/openclaw");
@@ -410,6 +411,40 @@ async function postTaskUpdateThroughApi(agentId, taskId, projectId, result) {
   return { ok: response.ok, status: response.status, json };
 }
 
+async function emitTaskProgressHeartbeat(adminSupabase, agentId, taskId, projectId, taskTitle) {
+  if (!adminSupabase || !agentId || !taskId) return;
+
+  const timestamp = new Date().toISOString();
+  const summaryKey = `task:${taskId}`;
+  const existingJob = await adminSupabase.from("jobs").select("id").eq("summary", summaryKey).eq("owner_agent_id", agentId).limit(1).maybeSingle();
+  const jobId = existingJob.data?.id || null;
+
+  if (jobId) {
+    const jobUpdate = await adminSupabase.from("jobs").update({ status: "in_progress", updated_at: timestamp }).eq("id", jobId);
+    if (jobUpdate.error) console.error(`[Listener] Failed heartbeat job update for ${jobId}:`, jobUpdate.error);
+  }
+
+  const taskUpdate = await adminSupabase.from("sprint_items").update({ updated_at: timestamp }).eq("id", taskId).eq("assignee_agent_id", agentId);
+  if (taskUpdate.error) console.error(`[Listener] Failed heartbeat task update for ${taskId}:`, taskUpdate.error);
+
+  const agentUpdate = await adminSupabase.from("agents").update({ status: "active", last_seen: timestamp, current_job_id: jobId }).eq("id", agentId);
+  if (agentUpdate.error) console.error(`[Listener] Failed heartbeat agent update for ${agentId}:`, agentUpdate.error);
+
+  const eventInsert = await adminSupabase.from("agent_events").insert({
+    agent_id: agentId,
+    event_type: "task_progress_heartbeat",
+    project_id: projectId || null,
+    job_id: jobId,
+    payload: {
+      task_id: taskId,
+      title: taskTitle || "New task",
+      status: "in_progress",
+      message: `${taskTitle || "Task"} is still running.`,
+    },
+  });
+  if (eventInsert.error) console.error(`[Listener] Failed heartbeat event insert for task ${taskId}:`, eventInsert.error);
+}
+
 async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTitle, result) {
   if (!adminSupabase || !agentId || !taskId) return;
 
@@ -644,6 +679,7 @@ async function startListener() {
         const nextTask = taskQueue.shift();
         if (!nextTask) continue;
 
+        let progressHeartbeat = null;
         try {
           const { project, taskTitle, taskId, projectId } = nextTask;
           console.log(`[Listener] Running queued task ${taskId} for ${agentName}`);
@@ -656,6 +692,11 @@ async function startListener() {
             taskType: taskContext?.task_type || null,
             taskMetadata: taskContext?.task_metadata || null,
           });
+          progressHeartbeat = setInterval(() => {
+            emitTaskProgressHeartbeat(adminSupabase, agentId, taskId, projectId, taskTitle).catch((error) =>
+              console.error(`[Listener] Progress heartbeat failed for task ${taskId}:`, error?.message || error)
+            );
+          }, TASK_PROGRESS_HEARTBEAT_MS);
           console.log(`[Listener] Triggering agent ${agentName} for task: ${taskTitle}`);
           console.log(`[Listener] Message: ${message}`);
           const result = await runAgentUntilStopCondition(agentName, message);
@@ -666,6 +707,7 @@ async function startListener() {
           console.error(`[Listener] Failed to run agent for task ${nextTask.taskId}:`, message);
           await finalizeTaskRun(adminSupabase, agentId, nextTask.taskId, nextTask.projectId, nextTask.taskTitle, { status: "blocked", taskStatus: "blocked", summary: `Agent execution failed: ${message}`, raw: message });
         } finally {
+          if (progressHeartbeat) clearInterval(progressHeartbeat);
           queuedTasks.delete(nextTask.taskId);
         }
       }

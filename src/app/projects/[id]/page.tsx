@@ -438,10 +438,7 @@ export default function ProjectDetailPage() {
   const fetchProject = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
     try {
-      const [projectRes, docsRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}`, { cache: "no-store" }),
-        fetch(`/api/projects/${projectId}/documents`, { cache: "no-store" }),
-      ]);
+      const projectRes = await fetch(`/api/projects/${projectId}`, { cache: "no-store" });
 
       if (!projectRes.ok) {
         const err = await projectRes.json().catch(() => ({ error: "Failed to load project" }));
@@ -450,14 +447,6 @@ export default function ProjectDetailPage() {
 
       const json = await projectRes.json();
       setData(json);
-
-      if (docsRes.ok) {
-        const docsJson = await docsRes.json();
-        setDocuments(docsJson.documents || []);
-      } else {
-        setDocuments([]);
-      }
-
       setError(null);
     } catch (e: any) {
       setError(e.message || "Failed to load project");
@@ -466,9 +455,26 @@ export default function ProjectDetailPage() {
     }
   }, [projectId]);
 
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const docsRes = await fetch(`/api/projects/${projectId}/documents`, { cache: "no-store" });
+      if (!docsRes.ok) {
+        setDocuments([]);
+        return;
+      }
+      const docsJson = await docsRes.json();
+      setDocuments(docsJson.documents || []);
+    } catch {
+      setDocuments([]);
+    }
+  }, [projectId]);
+
   useEffect(() => {
-    if (projectId) fetchProject(true);
-  }, [projectId, fetchProject]);
+    if (projectId) {
+      fetchProject(true);
+      fetchDocuments();
+    }
+  }, [projectId, fetchProject, fetchDocuments]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

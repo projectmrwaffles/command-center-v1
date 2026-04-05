@@ -130,14 +130,14 @@ async function markTaskInProgress(adminSupabase, agentId, taskId, projectId, tas
   if (!adminSupabase || !agentId || !taskId) return false;
 
   const timestamp = new Date().toISOString();
-  const taskUpdate = await adminSupabase
+  const taskUpdate = await withRetry(`markTaskInProgress(${taskId})`, () => adminSupabase
     .from("sprint_items")
     .update({ status: "in_progress" })
     .eq("id", taskId)
     .eq("assignee_agent_id", agentId)
     .eq("status", "todo")
     .select("id")
-    .maybeSingle();
+    .maybeSingle());
   if (taskUpdate.error) {
     console.error(`[Listener] Failed to mark task ${taskId} in_progress:`, taskUpdate.error);
     return false;
@@ -336,6 +336,26 @@ function runExec(command) {
       resolve();
     });
   });
+}
+
+function isTransientSupabaseError(error) {
+  const details = `${error?.message || ""} ${error?.details || ""}`;
+  return /fetch failed|connecttimeout|connect timeout|getaddrinfo enotfound|und_err_connect_timeout/i.test(details);
+}
+
+async function withRetry(label, fn, maxAttempts = 3, delayMs = 1500) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientSupabaseError(error) || attempt === maxAttempts) break;
+      console.warn(`[Listener] ${label} transient failure (attempt ${attempt}/${maxAttempts}):`, error?.message || error);
+      await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+  throw lastError;
 }
 
 async function runAgentUntilStopCondition(agentName, initialMessage) {
@@ -577,13 +597,13 @@ function acquireListenerLock(agentName) {
 
 async function heartbeatAgent(adminSupabase, agentId) {
   if (!adminSupabase || !agentId) return;
-  const { error } = await adminSupabase.from("agents").update({ last_seen: new Date().toISOString() }).eq("id", agentId);
+  const { error } = await withRetry(`heartbeatAgent(${agentId})`, () => adminSupabase.from("agents").update({ last_seen: new Date().toISOString() }).eq("id", agentId));
   if (error) console.error(`[Listener] Heartbeat update failed for agent ${agentId}:`, error);
 }
 
 async function fetchPendingTasks(adminSupabase, agentId) {
   if (!adminSupabase || !agentId) return [];
-  const { data, error } = await adminSupabase.from("sprint_items").select("id, project_id, sprint_id, title, status, assignee_agent_id, created_at").eq("assignee_agent_id", agentId).eq("status", "todo").order("created_at", { ascending: true }).limit(25);
+  const { data, error } = await withRetry(`fetchPendingTasks(${agentId})`, () => adminSupabase.from("sprint_items").select("id, project_id, sprint_id, title, status, assignee_agent_id, created_at").eq("assignee_agent_id", agentId).eq("status", "todo").order("created_at", { ascending: true }).limit(25));
   if (error) {
     console.error(`[Listener] Failed to fetch pending tasks for agent ${agentId}:`, error);
     return [];

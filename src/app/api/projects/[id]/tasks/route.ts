@@ -119,10 +119,11 @@ export async function POST(
 
     await syncProjectState(db, projectId);
 
-    const [{ data: project }, { data: sprints }, { data: jobs }] = await Promise.all([
+    const [{ data: project }, { data: sprints }, { data: jobs }, { data: agents }] = await Promise.all([
       db.from("projects").select("id, name, type, intake, links, github_repo_binding").eq("id", projectId).single(),
       db.from("sprints").select("id, name, status, phase_order, created_at, approval_gate_required, approval_gate_status").eq("project_id", projectId),
       db.from("jobs").select("id, owner_agent_id, project_id, status, summary, updated_at").eq("project_id", projectId).in("status", ["queued", "in_progress", "blocked"]),
+      db.from("agents").select("id, status, current_job_id").not("name", "like", "_archived_%"),
     ]);
 
     if (project) {
@@ -131,6 +132,7 @@ export async function POST(
         tasks: [data as any],
         sprints: (sprints ?? []) as any,
         jobs: (jobs ?? []) as any,
+        agents: (agents ?? []) as any,
       });
     }
 

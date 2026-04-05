@@ -42,6 +42,12 @@ type JobRow = {
   updated_at?: string | null;
 };
 
+type AgentRow = {
+  id: string;
+  status?: string | null;
+  current_job_id?: string | null;
+};
+
 function sortSprints(a: SprintRow, b: SprintRow) {
   const ao = a.phase_order ?? Number.MAX_SAFE_INTEGER;
   const bo = b.phase_order ?? Number.MAX_SAFE_INTEGER;
@@ -75,10 +81,12 @@ export function getTaskExecutionBlocker(input: {
   sprint?: SprintRow | null;
   sprints?: SprintRow[];
   jobs?: JobRow[];
+  agents?: AgentRow[];
 }) {
   const sprints = (input.sprints || []).slice().sort(sortSprints);
   const sprint = input.sprint ?? sprints.find((candidate) => candidate.id === input.task.sprint_id) ?? null;
   const jobs = input.jobs || [];
+  const agents = input.agents || [];
   const artifactIntegrity = getProjectArtifactIntegrity(input.project, [input.task]);
 
   if (!input.task.assignee_agent_id && !input.task.owner_team_id) {
@@ -158,8 +166,16 @@ export function getTaskExecutionBlocker(input: {
       && job.summary !== `task:${input.task.id}`
       && (job.status === "queued" || job.status === "in_progress")
   );
+  const assignedAgent = agents.find((agent) => agent.id === input.task.assignee_agent_id);
+  const agentActivelyOccupied = Boolean(
+    conflictingJob
+    && assignedAgent
+    && assignedAgent.status === "active"
+    && assignedAgent.current_job_id
+    && assignedAgent.current_job_id === conflictingJob.id
+  );
 
-  if (conflictingJob) {
+  if (conflictingJob && agentActivelyOccupied) {
     return {
       key: "waiting_for_worker_capacity",
       label: "Waiting for worker capacity",
@@ -175,8 +191,10 @@ export async function dispatchEligibleProjectTasks(db: DbClient, input: {
   tasks: TaskRow[];
   sprints: SprintRow[];
   jobs?: JobRow[];
+  agents?: AgentRow[];
 }) {
   const jobs = input.jobs || [];
+  const agents = input.agents || [];
   const results: Array<{ taskId: string; dispatched: boolean; blocker?: ReturnType<typeof getTaskExecutionBlocker> | null; reason?: string | null }> = [];
 
   for (const rawTask of input.tasks) {
@@ -205,6 +223,7 @@ export async function dispatchEligibleProjectTasks(db: DbClient, input: {
       sprint: input.sprints.find((sprint) => sprint.id === task.sprint_id) ?? null,
       sprints: input.sprints,
       jobs,
+      agents,
     });
 
     if (blocker) {

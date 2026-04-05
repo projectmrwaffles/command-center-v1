@@ -1,4 +1,6 @@
 import { getBootstrapSprintIds, isBootstrapTask, matchesBootstrapTruth } from "./project-bootstrap";
+import { getTaskExecutionBlocker } from "./project-execution";
+import { isStaleExecutionTimestamp } from "@/components/ui/execution-visibility";
 
 export type TruthTaskLike = {
   id?: string | null;
@@ -122,13 +124,16 @@ export function deriveExecutionState(input: {
 }
 
 export function deriveProjectTruth(input: {
-  tasks?: TruthTaskLike[] | null;
-  sprints?: TruthSprintLike[] | null;
-  jobs?: Array<{ status?: string | null; updated_at?: string | null }> | null;
+  project?: { id: string; type?: string | null; intake?: any; links?: Record<string, string> | null; github_repo_binding?: any } | null;
+  tasks?: (TruthTaskLike & { title?: string | null; project_id?: string | null; assignee_agent_id?: string | null; owner_team_id?: string | null; review_required?: boolean | null; review_status?: string | null })[] | null;
+  sprints?: (TruthSprintLike & { name?: string | null; approval_gate_required?: boolean | null; approval_gate_status?: string | null })[] | null;
+  jobs?: Array<{ id?: string | null; status?: string | null; updated_at?: string | null; owner_agent_id?: string | null; summary?: string | null }> | null;
+  agents?: Array<{ id?: string | null; status?: string | null; current_job_id?: string | null }> | null;
 }) {
   const tasks = Array.isArray(input.tasks) ? input.tasks : [];
   const sprints = Array.isArray(input.sprints) ? input.sprints : [];
   const jobs = Array.isArray(input.jobs) ? input.jobs : [];
+  const agents = Array.isArray(input.agents) ? input.agents : [];
   const sprintIds = getBootstrapSprintIds(sprints);
 
   const bootstrapTasks = tasks.filter((task) => matchesBootstrapTruth(task, sprintIds));
@@ -164,7 +169,7 @@ export function deriveProjectTruth(input: {
   const freshestRunningMs = [latestRunningTaskUpdateMs, latestRunningJobUpdateMs]
     .filter((value): value is number => typeof value === "number")
     .sort((a, b) => b - a)[0] ?? null;
-  const staleRunning = Boolean((runningDeliveryTasks > 0 || runningJobs > 0) && freshestRunningMs && Date.now() - freshestRunningMs > 1 * 60 * 1000);
+  const staleRunning = Boolean((runningDeliveryTasks > 0 || runningJobs > 0) && freshestRunningMs && isStaleExecutionTimestamp(new Date(freshestRunningMs).toISOString(), 1 * 60 * 1000));
   const execution = deriveExecutionState({
     totalDeliveryTasks: deliveryTasks.length,
     doneDeliveryTasks,
@@ -213,6 +218,41 @@ export function deriveProjectTruth(input: {
         : `${bootstrapTasks.length} kickoff task${bootstrapTasks.length === 1 ? " is" : "s are"} visible (${queuedBootstrapTasks} queued, ${runningBootstrapTasks} in progress, ${doneBootstrapTasks} done). The project is still getting set up before the main work starts.`
       : "No kickoff tasks or delivery work are visible yet.";
 
+  const canonicalProject = input.project ?? null;
+  const taskBoard = canonicalProject
+    ? tasks.reduce(
+        (acc, task) => {
+          if (task.status === "done") {
+            acc.done.push(task.id || "");
+            return acc;
+          }
+          if (task.status === "in_progress" || task.status === "review") {
+            acc.inProgress.push(task.id || "");
+            return acc;
+          }
+          if (task.status === "blocked") {
+            acc.stalled.push(task.id || "");
+            return acc;
+          }
+          if (task.status !== "todo") return acc;
+
+          const blocker = getTaskExecutionBlocker({
+            project: canonicalProject,
+            task: task as any,
+            sprint: (input.sprints || []).find((sprint) => sprint.id === task.sprint_id) as any,
+            sprints: (input.sprints || []) as any,
+            jobs: jobs as any,
+            agents: agents as any,
+          });
+
+          if (blocker) acc.stalled.push(task.id || "");
+          else acc.queued.push(task.id || "");
+          return acc;
+        },
+        { queued: [] as string[], inProgress: [] as string[], stalled: [] as string[], done: [] as string[] }
+      )
+    : { queued: [] as string[], inProgress: [] as string[], stalled: [] as string[], done: [] as string[] };
+
   return {
     counts: {
       delivery: {
@@ -242,6 +282,7 @@ export function deriveProjectTruth(input: {
     execution,
     headline,
     summary,
+    taskBoard,
   };
 }
 

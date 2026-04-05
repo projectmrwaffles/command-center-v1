@@ -231,9 +231,11 @@ export async function GET(
 
     const artifactIntegrity = getProjectArtifactIntegrity(projectWithDerivedArtifacts, tasks || []);
     const truth = deriveProjectTruth({
+      project: projectWithDerivedArtifacts,
       tasks: tasks || [],
       sprints: sprints || [],
       jobs: jobs || [],
+      agents: agents || [],
     });
     const overallProgress = artifactIntegrity.completionCapPct != null
       && truth.counts.delivery.done === truth.counts.delivery.total

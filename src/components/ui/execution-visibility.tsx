@@ -6,6 +6,13 @@ export type ExecutionTone = {
   description: string;
 };
 
+export function isStaleExecutionTimestamp(value?: string | null, thresholdMs = 60 * 1000) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return Date.now() - date.getTime() > thresholdMs;
+}
+
 export function formatRelativeTimestamp(value?: string | null) {
   if (!value) return "No recent update";
 

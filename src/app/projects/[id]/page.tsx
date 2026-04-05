@@ -21,12 +21,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHero } from "@/components/ui/page-hero";
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
 import { ProjectTypeBadge } from "@/components/ui/project-badges";
-import { formatRelativeTimestamp, getExecutionTone, ProgressRing } from "@/components/ui/execution-visibility";
+import { formatRelativeTimestamp, getExecutionTone, isStaleExecutionTimestamp, ProgressRing } from "@/components/ui/execution-visibility";
 import {
   formatIntakeValue,
 } from "@/lib/project-intake";
 import { getProjectStatusTone } from "@/lib/project-ui";
-import { getTaskExecutionBlocker } from "@/lib/project-execution";
 import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 import { parseGitHubRepoUrl, type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
@@ -140,6 +139,12 @@ type ProjectDetail = {
       all: { total: number };
       jobs: { queued: number; running: number; blocked: number };
     };
+    taskBoard?: {
+      queued: string[];
+      inProgress: string[];
+      stalled: string[];
+      done: string[];
+    };
   };
   executionVisibility?: {
     queuedReasons?: Array<{
@@ -235,10 +240,8 @@ function taskProgressValue(task: any) {
 }
 
 function isTaskExecutionStale(task: { status?: string | null; updated_at?: string | null } | null | undefined) {
-  if (!task || task.status !== "in_progress" || !task.updated_at) return false;
-  const updatedAtMs = new Date(task.updated_at).getTime();
-  if (Number.isNaN(updatedAtMs)) return false;
-  return Date.now() - updatedAtMs > 1 * 60 * 1000;
+  if (!task || task.status !== "in_progress") return false;
+  return isStaleExecutionTimestamp(task.updated_at, 1 * 60 * 1000);
 }
 
 function isBootstrapTask(task: any, bootstrapSprintIds?: ReadonlySet<string>) {
@@ -759,42 +762,24 @@ export default function ProjectDetailPage() {
   const executionVisibility = data?.executionVisibility;
 
   const taskGroups = useMemo(() => {
-    const queued: any[] = [];
-    const stalled: any[] = [];
-    const inProgress = tasks.filter((task: any) => task.status === "in_progress" || task.status === "review");
-    const done = tasks.filter((task: any) => task.status === "done");
-    const liveJobs = Array.from(jobsById.values());
+    const truthBoard = truth?.taskBoard;
+    if (!truthBoard) {
+      return {
+        todo: tasks.filter((task: any) => task.status === "todo"),
+        inProgress: tasks.filter((task: any) => task.status === "in_progress" || task.status === "review"),
+        done: tasks.filter((task: any) => task.status === "done"),
+        blocked: tasks.filter((task: any) => task.status === "blocked"),
+      };
+    }
 
-    tasks.forEach((task: any) => {
-      if (task.status === "blocked") {
-        stalled.push(task);
-        return;
-      }
-      if (task.status !== "todo") return;
-      if (!project) {
-        queued.push(task);
-        return;
-      }
-
-      const blocker = getTaskExecutionBlocker({
-        project: { id: project.id, type: project.type, intake: project.intake, links: project.links, github_repo_binding: project.github_repo_binding },
-        task,
-        sprint: milestones.find((milestone) => milestone.id === task.sprint_id) ?? null,
-        sprints: milestones,
-        jobs: liveJobs,
-      });
-
-      if (blocker) stalled.push(task);
-      else queued.push(task);
-    });
-
+    const byId = new Map(tasks.map((task: any) => [task.id, task]));
     return {
-      todo: queued,
-      inProgress,
-      done,
-      blocked: stalled,
+      todo: truthBoard.queued.map((id) => byId.get(id)).filter(Boolean),
+      inProgress: truthBoard.inProgress.map((id) => byId.get(id)).filter(Boolean),
+      done: truthBoard.done.map((id) => byId.get(id)).filter(Boolean),
+      blocked: truthBoard.stalled.map((id) => byId.get(id)).filter(Boolean),
     };
-  }, [jobsById, milestones, project, tasks]);
+  }, [tasks, truth?.taskBoard]);
 
   useEffect(() => {
     if (!showTaskModal) return;

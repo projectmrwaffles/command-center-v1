@@ -119,15 +119,18 @@ export async function GET(
       links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
     };
 
-    const [{ data: tasks }, { data: sprints }, { data: events }, { data: approvals }, { data: jobs }, { data: agents }] = await Promise.all([
+    const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
+    const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }] = await Promise.all([
       db.from("sprint_items").select("*").eq("project_id", projectId).order("position", { ascending: true }),
       db.from("sprints").select("*").eq("project_id", projectId).order("phase_order", { ascending: true }).order("created_at", { ascending: true }),
-      db
-        .from("agent_events")
-        .select("id, event_type, payload, timestamp, agents(name)")
-        .eq("project_id", projectId)
-        .order("timestamp", { ascending: false })
-        .limit(50),
+      includeActivity
+        ? db
+            .from("agent_events")
+            .select("id, event_type, payload, timestamp, agents(name)")
+            .eq("project_id", projectId)
+            .order("timestamp", { ascending: false })
+            .limit(50)
+        : Promise.resolve({ data: [] as any[] }),
       db
         .from("approvals")
         .select("id, summary, severity, status, created_at, sprint_id, context")
@@ -147,6 +150,7 @@ export async function GET(
         .select("id, status, current_job_id")
         .not("name", "like", "_archived_%"),
     ]);
+    const events = eventsResult?.data || [];
 
     const assignedAgentIds = Array.from(
       new Set((tasks || []).map((task) => task.assignee_agent_id).filter(Boolean))

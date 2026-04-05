@@ -119,7 +119,7 @@ export async function GET(
       links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
     };
 
-    const [{ data: tasks }, { data: sprints }, { data: events }, { data: approvals }, { data: jobs }] = await Promise.all([
+    const [{ data: tasks }, { data: sprints }, { data: events }, { data: approvals }, { data: jobs }, { data: agents }] = await Promise.all([
       db.from("sprint_items").select("*").eq("project_id", projectId).order("position", { ascending: true }),
       db.from("sprints").select("*").eq("project_id", projectId).order("phase_order", { ascending: true }).order("created_at", { ascending: true }),
       db
@@ -142,6 +142,10 @@ export async function GET(
         .in("status", ["queued", "blocked", "in_progress"])
         .order("updated_at", { ascending: false })
         .limit(10),
+      db
+        .from("agents")
+        .select("id, status, current_job_id")
+        .not("name", "like", "_archived_%"),
     ]);
 
     const assignedAgentIds = Array.from(
@@ -301,6 +305,7 @@ export async function GET(
           sprint: (sprints || []).find((sprint: any) => sprint.id === task.sprint_id) ?? null,
           sprints: (sprints || []) as any,
           jobs: (jobs || []) as any,
+          agents: (agents || []) as any,
         });
 
         return blocker

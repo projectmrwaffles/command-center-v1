@@ -33,6 +33,7 @@ import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-bootstrap";
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
+import { deriveReviewCheckpointState } from "@/lib/project-truth";
 
 type ProjectDocument = {
   id: string;
@@ -1132,7 +1133,11 @@ export default function ProjectDetailPage() {
               <div className="space-y-3">
                 {milestones.map((milestone) => {
                     const summary = milestone.reviewSummary;
-                    const canApprove = milestone.approvalGateStatus === "pending" && Boolean(summary?.latestSubmissionId) && summary?.proofCompletenessStatus === "ready";
+                    const checkpointState = deriveReviewCheckpointState({
+                      approvalGateStatus: milestone.approvalGateStatus,
+                      reviewSummary: summary,
+                    });
+                    const canApprove = checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready";
                     return (
                       <div key={milestone.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
                         <div className="flex flex-col gap-3">
@@ -1141,7 +1146,7 @@ export default function ProjectDetailPage() {
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoint</div>
                               <h3 className="mt-1 text-base font-semibold text-zinc-950">{milestone.name}</h3>
                               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                                {summary?.latestSubmissionSummary || (milestone.approvalGateStatus === "pending" ? "This stage is waiting for review." : "No review packet submitted yet.")}
+                                {summary?.latestSubmissionSummary || (checkpointState.key === "awaiting_submission" ? "No review packet submitted yet." : checkpointState.key === "awaiting_materials" ? "Submission exists, but review materials are not ready yet." : checkpointState.key === "changes_requested" ? "Changes were requested on the latest submission." : checkpointState.key === "approved" ? "This checkpoint has already been approved." : "This stage is waiting for review.")}
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-4">
@@ -1289,13 +1294,15 @@ export default function ProjectDetailPage() {
                             ) : null}
 
                             <div className="flex flex-wrap gap-2">
-                              <Button
-                                onClick={() => setReviewingCheckpointId(milestone.id)}
-                                variant="warm"
-                                className="rounded-xl"
-                              >
-                                Review
-                              </Button>
+                              {checkpointState.actionable ? (
+                                <Button
+                                  onClick={() => setReviewingCheckpointId(milestone.id)}
+                                  variant="warm"
+                                  className="rounded-xl"
+                                >
+                                  Review
+                                </Button>
+                              ) : null}
                               {milestone.approvalGateStatus === "pending" ? (
                                 <Button
                                   onClick={() => handleCheckpointRequestChanges(milestone)}

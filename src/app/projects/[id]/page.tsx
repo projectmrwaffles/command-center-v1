@@ -145,6 +145,7 @@ type ProjectDetail = {
       inProgress: string[];
       stalled: string[];
       done: string[];
+      blockers?: Record<string, { key: string; label: string; detail: string; resolution?: string | null; actionableBy?: string | null; cta?: string | null }>;
     };
   };
   executionVisibility?: {
@@ -1096,6 +1097,13 @@ export default function ProjectDetailPage() {
                                     {task.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
                                     {checkpointState ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointState.approvalGateStatus))}>{checkpointState.name}: {formatMilestoneGateLabel(checkpointState.approvalGateStatus)}</span> : null}
                                   </div>
+                                  {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
+                                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
+                                      <div className="font-semibold text-amber-800">{truth.taskBoard.blockers[task.id].label}</div>
+                                      <div className="mt-1">{truth.taskBoard.blockers[task.id].detail}</div>
+                                      {truth.taskBoard.blockers[task.id].resolution ? <div className="mt-2 text-amber-700">Next: {truth.taskBoard.blockers[task.id].resolution}</div> : null}
+                                    </div>
+                                  ) : null}
                                 </div>
                                 <ProgressRing value={taskProgress} size={48} strokeWidth={4} />
                               </div>

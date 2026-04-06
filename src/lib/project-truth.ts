@@ -153,8 +153,6 @@ export function deriveProjectTruth(input: {
   const doneBootstrapTasks = bootstrapTasks.filter((task) => isDoneStatus(task.status)).length;
   const blockedBootstrapTasks = bootstrapTasks.filter((task) => isBlockedStatus(task.status)).length;
 
-  const deliveryProgressPct = deliveryTasks.length > 0 ? Math.round((doneDeliveryTasks / deliveryTasks.length) * 100) : 0;
-  const kickoffProgressPct = bootstrapTasks.length > 0 ? Math.round((doneBootstrapTasks / bootstrapTasks.length) * 100) : 0;
   const visibleWorkTotal = deliveryTasks.length + bootstrapTasks.length;
   const visibleWorkDone = doneDeliveryTasks + doneBootstrapTasks;
   const progressPct = visibleWorkTotal > 0 ? Math.round((visibleWorkDone / visibleWorkTotal) * 100) : 0;
@@ -247,13 +245,15 @@ export function deriveProjectTruth(input: {
             agents: agents as any,
           });
 
-          if (blocker) acc.stalled.push(task.id || "");
-          else acc.queued.push(task.id || "");
+          if (blocker) {
+            acc.stalled.push(task.id || "");
+            acc.blockers[task.id || ""] = blocker;
+          } else acc.queued.push(task.id || "");
           return acc;
         },
-        { queued: [] as string[], inProgress: [] as string[], stalled: [] as string[], done: [] as string[] }
+        { queued: [] as string[], inProgress: [] as string[], stalled: [] as string[], done: [] as string[], blockers: {} as Record<string, ReturnType<typeof getTaskExecutionBlocker>> }
       )
-    : { queued: [] as string[], inProgress: [] as string[], stalled: [] as string[], done: [] as string[] };
+    : { queued: [] as string[], inProgress: [] as string[], stalled: [] as string[], done: [] as string[], blockers: {} as Record<string, ReturnType<typeof getTaskExecutionBlocker>> };
 
   return {
     counts: {

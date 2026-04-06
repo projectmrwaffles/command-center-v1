@@ -155,7 +155,9 @@ export function deriveProjectTruth(input: {
 
   const deliveryProgressPct = deliveryTasks.length > 0 ? Math.round((doneDeliveryTasks / deliveryTasks.length) * 100) : 0;
   const kickoffProgressPct = bootstrapTasks.length > 0 ? Math.round((doneBootstrapTasks / bootstrapTasks.length) * 100) : 0;
-  const progressPct = deliveryTasks.length > 0 ? deliveryProgressPct : kickoffProgressPct;
+  const visibleWorkTotal = deliveryTasks.length + bootstrapTasks.length;
+  const visibleWorkDone = doneDeliveryTasks + doneBootstrapTasks;
+  const progressPct = visibleWorkTotal > 0 ? Math.round((visibleWorkDone / visibleWorkTotal) * 100) : 0;
   const latestRunningTaskUpdateMs = deliveryTasks
     .filter((task) => isRunningStatus(task.status) && task.updated_at)
     .map((task) => new Date(task.updated_at as string).getTime())

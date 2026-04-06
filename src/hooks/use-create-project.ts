@@ -36,7 +36,10 @@ export function useCreateProject() {
       }
 
       const result = await res.json();
-      return result.project;
+      return {
+        ...result.project,
+        dispatch: result.dispatch || null,
+      };
     } catch (e: any) {
       setError(e?.message || "Failed to create project");
       throw e;

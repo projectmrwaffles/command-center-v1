@@ -12,6 +12,11 @@ type CreatedProject = {
   id: string;
   name?: string;
   type?: string;
+  dispatch?: {
+    attempted?: number;
+    dispatched?: number;
+    blocked?: number;
+  } | null;
 };
 
 function useIsMobile() {
@@ -45,18 +50,35 @@ function SuccessState({
   docsWarning?: string | null;
   onOpenProject: () => void;
 }) {
+  const dispatch = project.dispatch || null;
+  const dispatchAttempted = dispatch?.attempted || 0;
+  const dispatchStarted = dispatch?.dispatched || 0;
+  const dispatchBlocked = dispatch?.blocked || 0;
   const redirectStateLabel = redirecting ? "Opening workspace…" : "Redirect paused";
+  const workflowSummary = dispatchStarted > 0
+    ? "Kickoff was dispatched successfully. Open the workspace to track live execution."
+    : dispatchAttempted > 0
+      ? dispatchBlocked > 0
+        ? "Project created. Kickoff still needs something before it can start. Open the workspace to review the current hold reason."
+        : "Project created. Execution has not started yet. Open the workspace to confirm dispatch state."
+      : "Project created. Open the workspace to review kickoff and execution state.";
   const statusTone = redirecting
     ? {
         badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
         dot: "bg-emerald-500",
-        summary: "Taking you there in a moment.",
+        summary: workflowSummary,
       }
-    : {
-        badge: "border-amber-200 bg-amber-50 text-amber-700",
-        dot: "bg-amber-500",
-        summary: "Your project is ready to open.",
-      };
+    : dispatchStarted > 0
+      ? {
+          badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+          dot: "bg-emerald-500",
+          summary: workflowSummary,
+        }
+      : {
+          badge: "border-amber-200 bg-amber-50 text-amber-700",
+          dot: "bg-amber-500",
+          summary: workflowSummary,
+        };
 
   return (
     <div className="px-3 py-4 sm:px-6 sm:py-6">
@@ -72,13 +94,21 @@ function SuccessState({
           </div>
 
           <h3 className="mt-5 text-[1.75rem] font-semibold tracking-tight text-zinc-950 sm:text-[2.25rem]">
-            {project.name || "Your project"} is ready.
+            {dispatchStarted > 0 ? `${project.name || "Your project"} kickoff started.` : `${project.name || "Your project"} was created.`}
           </h3>
           <div className="mt-3 flex items-center justify-center gap-2 text-sm text-zinc-600">
             <span className={`inline-flex h-2.5 w-2.5 rounded-full ${statusTone.dot}`} />
             <span>{redirectStateLabel}</span>
           </div>
           <p className="mt-2 text-sm text-zinc-500 sm:text-base">{statusTone.summary}</p>
+
+          {dispatch ? (
+            <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-zinc-700">dispatch attempted: {dispatchAttempted}</span>
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-zinc-700">started: {dispatchStarted}</span>
+              {dispatchBlocked > 0 ? <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">blocked: {dispatchBlocked}</span> : null}
+            </div>
+          ) : null}
 
           <div className="mt-5 overflow-hidden rounded-full bg-zinc-100">
             <div className={`redirect-progress h-1.5 rounded-full bg-zinc-950 ${redirecting ? "is-active" : ""}`} />

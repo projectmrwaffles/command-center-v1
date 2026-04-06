@@ -47,6 +47,7 @@ export function deriveExecutionState(input: {
   runningJobs?: number;
   blockedJobs?: number;
   staleRunning?: boolean;
+  acceptancePending?: boolean;
 }) {
   const queuedJobs = input.queuedJobs ?? 0;
   const runningJobs = input.runningJobs ?? 0;
@@ -57,6 +58,14 @@ export function deriveExecutionState(input: {
       key: "blocked",
       label: "Blocked",
       description: "Some work is blocked and needs attention before delivery can continue.",
+    } as const;
+  }
+
+  if (input.acceptancePending) {
+    return {
+      key: "acceptance_pending",
+      label: "Awaiting acceptance",
+      description: "Implementation is complete, but final validation or acceptance is still pending.",
     } as const;
   }
 
@@ -155,7 +164,7 @@ export function deriveProjectTruth(input: {
 
   const visibleWorkTotal = deliveryTasks.length + bootstrapTasks.length;
   const visibleWorkDone = doneDeliveryTasks + doneBootstrapTasks;
-  const progressPct = visibleWorkTotal > 0 ? Math.round((visibleWorkDone / visibleWorkTotal) * 100) : 0;
+  let progressPct = visibleWorkTotal > 0 ? Math.round((visibleWorkDone / visibleWorkTotal) * 100) : 0;
   const latestRunningTaskUpdateMs = deliveryTasks
     .filter((task) => isRunningStatus(task.status) && task.updated_at)
     .map((task) => new Date(task.updated_at as string).getTime())
@@ -170,6 +179,14 @@ export function deriveProjectTruth(input: {
     .filter((value): value is number => typeof value === "number")
     .sort((a, b) => b - a)[0] ?? null;
   const staleRunning = Boolean((runningDeliveryTasks > 0 || runningJobs > 0) && freshestRunningMs && isStaleExecutionTimestamp(new Date(freshestRunningMs).toISOString(), 1 * 60 * 1000));
+  const acceptancePending = deliveryTasks.some((task) => {
+    const title = String((task as any).title || '').toLowerCase();
+    return (task.status === 'todo' || task.status === 'blocked') && /acceptance|qa|validate|review/.test(title);
+  }) && doneDeliveryTasks > 0 && runningDeliveryTasks === 0;
+  if (acceptancePending && progressPct >= 100) {
+    progressPct = 90;
+  }
+
   const execution = deriveExecutionState({
     totalDeliveryTasks: deliveryTasks.length,
     doneDeliveryTasks,
@@ -184,6 +201,7 @@ export function deriveProjectTruth(input: {
     runningJobs,
     blockedJobs,
     staleRunning,
+    acceptancePending,
   });
 
   const headline = deliveryTasks.length > 0
@@ -191,15 +209,17 @@ export function deriveProjectTruth(input: {
       ? "Work is underway"
       : execution.key === "stale_running"
         ? "Work needs an update"
-        : execution.key === "queued"
-          ? doneBootstrapTasks > 0
-            ? "Kickoff is complete"
-            : "Work is lined up"
-          : execution.key === "completed"
-            ? "Work is complete"
-            : execution.key === "blocked"
-              ? "Work is blocked"
-              : "Work has started"
+        : execution.key === "acceptance_pending"
+          ? "Awaiting acceptance"
+          : execution.key === "queued"
+            ? doneBootstrapTasks > 0
+              ? "Kickoff is complete"
+              : "Work is lined up"
+            : execution.key === "completed"
+              ? "Work is complete"
+              : execution.key === "blocked"
+                ? "Work is blocked"
+                : "Work has started"
     : bootstrapTasks.length > 0
       ? doneBootstrapTasks === bootstrapTasks.length
         ? "Kickoff is complete"
@@ -209,9 +229,11 @@ export function deriveProjectTruth(input: {
   const summary = deliveryTasks.length > 0
     ? execution.key === "stale_running"
       ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} marked in progress, but there has been no recent execution update.`
-      : doneBootstrapTasks > 0
-        ? `Kickoff is complete. ${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
-        : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
+      : execution.key === "acceptance_pending"
+        ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, but final validation or acceptance is still pending.`
+        : doneBootstrapTasks > 0
+          ? `Kickoff is complete. ${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
+          : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
     : bootstrapTasks.length > 0
       ? doneBootstrapTasks === bootstrapTasks.length
         ? "Kickoff is complete. Delivery work is queued to begin next."

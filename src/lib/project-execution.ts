@@ -94,6 +94,9 @@ export function getTaskExecutionBlocker(input: {
       key: "waiting_for_owner_assignment",
       label: "Waiting for owner assignment",
       detail: "This work item has no assigned agent or routed owner team yet, so it cannot be dispatched.",
+      resolution: "Assign an owner before this task can start.",
+      actionableBy: "system",
+      cta: null,
     } as const;
   }
 
@@ -102,6 +105,9 @@ export function getTaskExecutionBlocker(input: {
       key: "waiting_for_owner_assignment",
       label: "Waiting for owner assignment",
       detail: "This work item is routed to a team, but no lead agent is available to dispatch yet.",
+      resolution: "Assign or restore a lead agent for this team.",
+      actionableBy: "system",
+      cta: null,
     } as const;
   }
 
@@ -110,6 +116,9 @@ export function getTaskExecutionBlocker(input: {
       key: "waiting_for_repo",
       label: "Waiting for repo",
       detail: artifactIntegrity.pendingProvisioningReason || "GitHub repo provisioning is still pending for this code-heavy work.",
+      resolution: "Finish repository provisioning before this task can start.",
+      actionableBy: "system",
+      cta: null,
     } as const;
   }
 
@@ -118,6 +127,9 @@ export function getTaskExecutionBlocker(input: {
       key: "waiting_for_repo",
       label: "Waiting for repo",
       detail: artifactIntegrity.blockingReason,
+      resolution: "Complete the required repository setup before this task can start.",
+      actionableBy: "user",
+      cta: "open_project_setup",
     } as const;
   }
 
@@ -126,6 +138,9 @@ export function getTaskExecutionBlocker(input: {
       key: "waiting_for_approval",
       label: "Waiting for approval",
       detail: `${sprint.name} is gated by approval (${sprint.approval_gate_status.replace(/_/g, " ")}), so execution cannot start yet.`,
+      resolution: "Review the submission for this checkpoint and approve it or request changes.",
+      actionableBy: "user",
+      cta: "review_checkpoint",
     } as const;
   }
 
@@ -138,8 +153,11 @@ export function getTaskExecutionBlocker(input: {
     if (earlierBlockingSprint) {
       return {
         key: "waiting_for_kickoff_completion",
-        label: "Waiting for kickoff completion",
+        label: "Waiting for earlier phase work",
         detail: `${input.task.title} is in ${sprint.name}, but ${earlierBlockingSprint.name} must finish before this phase can start.`,
+        resolution: `Finish ${earlierBlockingSprint.name} to unlock this task.`,
+        actionableBy: "system",
+        cta: null,
       } as const;
     }
   }
@@ -147,8 +165,11 @@ export function getTaskExecutionBlocker(input: {
   if (sprint && sprint.status !== "active") {
     return {
       key: "waiting_for_kickoff_completion",
-      label: "Waiting for kickoff completion",
+      label: "Waiting for phase activation",
       detail: `${input.task.title} is queued in ${sprint.name}, but that phase is still ${sprint.status.replace(/_/g, " ")}.`,
+      resolution: `Activate ${sprint.name} before this task can start.`,
+      actionableBy: "system",
+      cta: null,
     } as const;
   }
 
@@ -158,6 +179,9 @@ export function getTaskExecutionBlocker(input: {
       key: "dispatch_failed_retrying",
       label: "Dispatch failed / retrying",
       detail: `${input.task.title} has a blocked job record, so dispatch needs attention before execution can continue.`,
+      resolution: "Retry or repair dispatch before this task can continue.",
+      actionableBy: "system",
+      cta: null,
     } as const;
   }
 
@@ -180,6 +204,9 @@ export function getTaskExecutionBlocker(input: {
       key: "waiting_for_worker_capacity",
       label: "Waiting for worker capacity",
       detail: "The assigned agent already has active queued or running work, so this task is waiting for capacity.",
+      resolution: "This will start automatically when the assigned owner finishes their current work.",
+      actionableBy: "system",
+      cta: null,
     } as const;
   }
 

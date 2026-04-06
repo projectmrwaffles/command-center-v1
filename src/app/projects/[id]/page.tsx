@@ -862,7 +862,8 @@ export default function ProjectDetailPage() {
   const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
-  const reviewingCheckpoint = reviewingCheckpointId ? milestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
+  const reviewableMilestones = milestones.filter((milestone) => milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId));
+  const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
 
   const selectedTaskMetadataEntries = selectedTaskTypeConfig
     ? selectedTaskTypeConfig.metadataFields
@@ -1131,7 +1132,7 @@ export default function ProjectDetailPage() {
         <div className="space-y-4">
 
           <Section title="Review checkpoints" description="Stage approvals and revision loops for the current project.">
-            {milestones.length === 0 ? (
+            {reviewableMilestones.length === 0 ? (
               <EmptySectionState
                 icon={<ShieldCheck className="h-7 w-7" />}
                 title="No review checkpoints yet"
@@ -1139,7 +1140,7 @@ export default function ProjectDetailPage() {
               />
             ) : (
               <div className="space-y-3">
-                {milestones.map((milestone) => {
+                {reviewableMilestones.map((milestone) => {
                     const summary = milestone.reviewSummary;
                     const checkpointState = deriveReviewCheckpointState({
                       approvalGateStatus: milestone.approvalGateStatus,

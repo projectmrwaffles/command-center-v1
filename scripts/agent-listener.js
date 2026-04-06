@@ -498,23 +498,12 @@ async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTi
 
   if (projectId) {
     try {
-      const [{ maybeAdvanceProjectAfterTaskDone }, { syncProjectState }] = await Promise.all([
-        import(path.join(REPO_ROOT, 'src/lib/project-handoff.ts')),
+      const [{ syncProjectState }] = await Promise.all([
         import(path.join(REPO_ROOT, 'src/lib/project-state.ts')),
       ]);
-      if (taskStatus === 'done') {
-        await syncProjectState(adminSupabase, projectId);
-        const { data: projectRow } = await adminSupabase.from('projects').select('name').eq('id', projectId).maybeSingle();
-        await maybeAdvanceProjectAfterTaskDone(adminSupabase, {
-          projectId,
-          completedTaskId: taskId,
-          projectName: projectRow?.name || null,
-        });
-      } else {
-        await syncProjectState(adminSupabase, projectId);
-      }
+      await syncProjectState(adminSupabase, projectId);
     } catch (error) {
-      console.error(`[Listener] Failed downstream project handoff after task ${taskId}:`, error?.message || error);
+      console.error(`[Listener] Failed downstream project sync after task ${taskId}:`, error?.message || error);
     }
   }
 }

@@ -1,5 +1,5 @@
-import { triggerAgentWork } from "@/lib/agent-dispatch";
 import { getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
+import { dispatchEligibleProjectTasks } from "@/lib/project-execution";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { getAutoRouteTeamIdsFromIntake, type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
@@ -376,14 +376,6 @@ export async function POST(req: NextRequest) {
         startPosition: nextTaskPosition,
       });
 
-      await Promise.all(
-        kickoff.tasks
-          .filter((task) => task.phaseStatus === "active" && task.assigneeAgentId)
-          .map((task) =>
-            triggerAgentWork(db, task.assigneeAgentId as string, name, task.title, task.id, project.id)
-          )
-      );
-
       kickoffSeeded = kickoff.tasks.length > 0;
     } catch (kickoffError) {
       console.error("[API /projects] kickoff seeding failed, falling back to legacy team tasks:", kickoffError);
@@ -446,14 +438,39 @@ export async function POST(req: NextRequest) {
           }
 
           if (createdTask?.id) {
-            await triggerAgentWork(db, leadMember.agent_id, name, teamTask, createdTask.id, project.id);
+            // Canonical dispatch happens after state sync so submit, task creation, and phase advancement share the same eligibility path.
           }
         }
       }
     }
 
     await syncProjectState(db, project.id);
-    return NextResponse.json({ project: { ...project, intake: project.intake || sanitizedIntake || null, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null }, workload }, { status: 201 });
+
+    const [{ data: tasks }, { data: sprints }, { data: jobs }, { data: agents }] = await Promise.all([
+      db.from("sprint_items").select("*").eq("project_id", project.id),
+      db.from("sprints").select("id, name, status, phase_order, created_at, approval_gate_required, approval_gate_status").eq("project_id", project.id),
+      db.from("jobs").select("id, owner_agent_id, project_id, status, summary, updated_at").eq("project_id", project.id).in("status", ["queued", "in_progress", "blocked"]),
+      db.from("agents").select("id, status, current_job_id").not("name", "like", "_archived_%"),
+    ]);
+
+    const dispatchResults = await dispatchEligibleProjectTasks(db as any, {
+      project: { ...project, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null },
+      tasks: (tasks ?? []) as any,
+      sprints: (sprints ?? []) as any,
+      jobs: (jobs ?? []) as any,
+      agents: (agents ?? []) as any,
+    });
+
+    return NextResponse.json({
+      project: { ...project, intake: project.intake || sanitizedIntake || null, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null },
+      workload,
+      dispatch: {
+        attempted: dispatchResults.length,
+        dispatched: dispatchResults.filter((result) => result.dispatched).length,
+        blocked: dispatchResults.filter((result) => !result.dispatched && result.blocker).length,
+        results: dispatchResults,
+      },
+    }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

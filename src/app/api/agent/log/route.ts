@@ -1,4 +1,3 @@
-import { maybeAdvanceProjectAfterTaskDone } from "@/lib/project-handoff";
 import { syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { hasBearerToken } from "@/lib/server-auth";
@@ -216,13 +215,13 @@ export async function POST(req: NextRequest) {
         const jobId = await upsertTaskJob(db, existingTask, status);
 
         if (resolvedAgentId) {
-          const nextAgentStatus = status === "done" ? "idle" : status === "blocked" ? "error" : "active";
+          const nextAgentStatus = status === "in_progress" ? "active" : "idle";
           const agentUpdate = await db
             .from("agents")
             .update({
               status: nextAgentStatus,
               last_seen: new Date().toISOString(),
-              current_job_id: status === "done" ? null : jobId,
+              current_job_id: status === "in_progress" ? jobId : null,
             })
             .eq("id", resolvedAgentId);
           if (agentUpdate.error) {
@@ -252,12 +251,6 @@ export async function POST(req: NextRequest) {
         }
 
         const projectState = await syncProjectState(db, existingTask.project_id);
-        if (status === "done") {
-          await maybeAdvanceProjectAfterTaskDone(db as any, {
-            projectId: existingTask.project_id,
-            completedTaskId: taskId,
-          });
-        }
         return NextResponse.json({
           success: true,
           project_id: existingTask.project_id,

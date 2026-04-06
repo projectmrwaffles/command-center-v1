@@ -1,6 +1,7 @@
 import { dispatchEligibleProjectTasks } from "./project-execution.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 import { selectProjectWithArtifactCompat } from "./project-db-compat.ts";
+import { ensureMilestoneReviewSubmission } from './review-submission.ts';
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
 
@@ -130,6 +131,29 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
     if (!nextSprint) {
       await completeSprint(db, currentSprint);
       break;
+    }
+
+    if (currentSprint.approval_gate_required) {
+      const submission = await ensureMilestoneReviewSubmission(db as any, {
+        projectId: input.projectId,
+        sprintId: currentSprint.id,
+        sprintName: currentSprint.name,
+        tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, updated_at: null })),
+      });
+      if (submission?.id) {
+        await db.from("agent_events").insert({
+          agent_id: null,
+          project_id: input.projectId,
+          event_type: "project_review_ready",
+          payload: {
+            sprint_id: currentSprint.id,
+            sprint_name: currentSprint.name,
+            submission_id: submission.id,
+            reconciliation: input.completedTaskId ? "task_completion" : "project_state_reconcile",
+          },
+        });
+      }
+      return { advanced: false, reason: "review_submission_created", advancedTransitions };
     }
 
     await completeSprint(db, currentSprint);

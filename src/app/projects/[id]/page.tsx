@@ -1054,11 +1054,11 @@ export default function ProjectDetailPage() {
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {[
-                  ["Queued", taskGroups.todo, "border-zinc-200 bg-zinc-50"],
-                  ["In flight", taskGroups.inProgress, "border-blue-100 bg-blue-50/60"],
-                  ["Stalled", taskGroups.blocked, "border-amber-100 bg-amber-50/70"],
-                  ["Done", taskGroups.done, "border-emerald-100 bg-emerald-50/70"],
-                ].map(([label, bucket, bucketClass]) => (
+                  ["Queued", taskGroups.todo, "border-zinc-200 bg-zinc-50", "queued"],
+                  ["In flight", taskGroups.inProgress, "border-blue-100 bg-blue-50/60", "in_flight"],
+                  ["Stalled", taskGroups.blocked, "border-amber-100 bg-amber-50/70", "stalled"],
+                  ["Done", taskGroups.done, "border-emerald-100 bg-emerald-50/70", "done"],
+                ].map(([label, bucket, bucketClass, bucketKey]) => (
                   <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold text-zinc-900">{label}</h3>
@@ -1091,7 +1091,7 @@ export default function ProjectDetailPage() {
                                   {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
                                   <div className="mt-2 flex flex-wrap gap-2">
                                     <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
-                                    {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
+                                    {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                     {task.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
                                     {checkpointState ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointState.approvalGateStatus))}>{checkpointState.name}: {formatMilestoneGateLabel(checkpointState.approvalGateStatus)}</span> : null}
                                   </div>

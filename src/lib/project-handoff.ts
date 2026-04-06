@@ -1,4 +1,4 @@
-import { triggerAgentWork } from "./agent-dispatch.ts";
+import { dispatchEligibleProjectTasks } from "./project-execution.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 import { selectProjectWithArtifactCompat } from "./project-db-compat.ts";
 
@@ -16,6 +16,7 @@ type SprintRow = {
 
 type TaskRow = {
   id: string;
+  project_id: string;
   sprint_id: string | null;
   title: string;
   status: string;
@@ -76,14 +77,24 @@ function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRo
   };
 }
 
-async function dispatchSprintTodoTasks(db: DbClient, sprint: SprintRow, taskRows: TaskRow[], projectName: string) {
-  const nextTasks = taskRows.filter((task) => task.sprint_id === sprint.id && task.status === "todo" && task.assignee_agent_id);
+async function dispatchSprintTodoTasks(db: DbClient, sprint: SprintRow, taskRows: TaskRow[], project: ProjectRow, sprintRows: SprintRow[]) {
+  const nextTasks = taskRows.filter((task) => task.sprint_id === sprint.id && task.status === "todo");
+  if (!nextTasks.length) return [];
 
-  for (const task of nextTasks) {
-    await triggerAgentWork(db as any, task.assignee_agent_id as string, projectName, task.title, task.id);
-  }
+  const [{ data: jobs }, { data: agents }] = await Promise.all([
+    db.from("jobs").select("id, owner_agent_id, project_id, status, summary, updated_at").eq("project_id", nextTasks[0].project_id).in("status", ["queued", "in_progress", "blocked"]),
+    db.from("agents").select("id, status, current_job_id").not("name", "like", "_archived_%"),
+  ]);
 
-  return nextTasks.map((task) => task.id);
+  const results = await dispatchEligibleProjectTasks(db as any, {
+    project: { id: nextTasks[0].project_id, ...project },
+    tasks: nextTasks as any,
+    sprints: sprintRows as any,
+    jobs: (jobs ?? []) as any,
+    agents: (agents ?? []) as any,
+  });
+
+  return results.filter((result) => result.dispatched).map((result) => result.taskId);
 }
 
 async function completeSprint(db: DbClient, sprint: SprintRow) {
@@ -100,7 +111,6 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
   completedTaskId?: string;
 }) {
   const { project, sprintRows, taskRows } = await loadProjectProgressionContext(db, input.projectId);
-  const projectName = input.projectName || project?.name || "Unknown Project";
   const advancedTransitions: Array<{ previousSprintId: string; nextSprintId: string; dispatchedTaskIds: string[] }> = [];
 
   for (let index = 0; index < sprintRows.length; index += 1) {
@@ -130,7 +140,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
       nextSprint.status = "active";
     }
 
-    const dispatchedTaskIds = await dispatchSprintTodoTasks(db, nextSprint, taskRows, projectName);
+    const dispatchedTaskIds = await dispatchSprintTodoTasks(db, nextSprint, taskRows, project, sprintRows);
     advancedTransitions.push({ previousSprintId: currentSprint.id, nextSprintId: nextSprint.id, dispatchedTaskIds });
 
     await db.from("agent_events").insert({

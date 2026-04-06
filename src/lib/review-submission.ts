@@ -40,6 +40,9 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   const whatChanged = completedTasks.length
     ? `Completed: ${completedTasks.map((task) => task.title).join('; ')}`
     : `Work in ${input.sprintName || 'this checkpoint'} has reached review-ready state.`;
+  const reviewGuidance = completedTasks.some((task) => /frontend|design|ui|landing|page|feature/i.test(task.title))
+    ? 'Review the visual/design output, compare against the requested scope, and request changes if the delivered experience is not acceptable.'
+    : 'Review the submitted output and request changes if the delivered work does not meet the expected outcome.';
 
   const { data: submission, error: submissionError } = await db
     .from('milestone_submissions')
@@ -61,7 +64,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     .insert({
       submission_id: submission.id,
       title: `${input.sprintName || 'Checkpoint'} review packet`,
-      summary: 'Auto-generated review packet from completed workflow outputs.',
+      summary: `Auto-generated review packet from completed workflow outputs. ${reviewGuidance}`,
       completeness_status: completedTasks.length > 0 ? 'ready' : 'incomplete',
     })
     .select()
@@ -75,8 +78,8 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     label: task.title,
     url: null,
     storage_path: null,
-    notes: `Completed task ${task.id}`,
-    metadata: { taskId: task.id, updatedAt: task.updated_at || null },
+    notes: `${task.title}\n\nTask id: ${task.id}\nUpdated: ${task.updated_at || 'unknown'}\n\nReviewer guidance: ${reviewGuidance}`,
+    metadata: { taskId: task.id, updatedAt: task.updated_at || null, reviewGuidance },
     sort_order: index,
   }));
 

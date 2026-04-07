@@ -41,12 +41,10 @@ function storageNotConfiguredMessage() {
 
 function SuccessState({
   project,
-  redirecting,
   docsWarning,
   onOpenProject,
 }: {
   project: CreatedProject;
-  redirecting: boolean;
   docsWarning?: string | null;
   onOpenProject: () => void;
 }) {
@@ -54,7 +52,6 @@ function SuccessState({
   const dispatchAttempted = dispatch?.attempted || 0;
   const dispatchStarted = dispatch?.dispatched || 0;
   const dispatchBlocked = dispatch?.blocked || 0;
-  const redirectStateLabel = redirecting ? "Opening workspace…" : "Redirect paused";
   const workflowSummary = dispatchStarted > 0
     ? "Kickoff was dispatched successfully. Open the workspace to track live execution."
     : dispatchAttempted > 0
@@ -62,23 +59,17 @@ function SuccessState({
         ? "Project created. Kickoff still needs something before it can start. Open the workspace to review the current hold reason."
         : "Project created. Execution has not started yet. Open the workspace to confirm dispatch state."
       : "Project created. Open the workspace to review kickoff and execution state.";
-  const statusTone = redirecting
+  const statusTone = dispatchStarted > 0
     ? {
         badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
         dot: "bg-emerald-500",
         summary: workflowSummary,
       }
-    : dispatchStarted > 0
-      ? {
-          badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
-          dot: "bg-emerald-500",
-          summary: workflowSummary,
-        }
-      : {
-          badge: "border-amber-200 bg-amber-50 text-amber-700",
-          dot: "bg-amber-500",
-          summary: workflowSummary,
-        };
+    : {
+        badge: "border-amber-200 bg-amber-50 text-amber-700",
+        dot: "bg-amber-500",
+        summary: workflowSummary,
+      };
 
   return (
     <div className="px-3 py-4 sm:px-6 sm:py-6">
@@ -98,7 +89,7 @@ function SuccessState({
           </h3>
           <div className="mt-3 flex items-center justify-center gap-2 text-sm text-zinc-600">
             <span className={`inline-flex h-2.5 w-2.5 rounded-full ${statusTone.dot}`} />
-            <span>{redirectStateLabel}</span>
+            <span>Success state preserved until you open the workspace</span>
           </div>
           <p className="mt-2 text-sm text-zinc-500 sm:text-base">{statusTone.summary}</p>
 
@@ -109,10 +100,6 @@ function SuccessState({
               {dispatchBlocked > 0 ? <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">blocked: {dispatchBlocked}</span> : null}
             </div>
           ) : null}
-
-          <div className="mt-5 overflow-hidden rounded-full bg-zinc-100">
-            <div className={`redirect-progress h-1.5 rounded-full bg-zinc-950 ${redirecting ? "is-active" : ""}`} />
-          </div>
 
           {docsWarning ? (
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
@@ -156,7 +143,6 @@ export function CreateProjectModal({
   const [docsBusy, setDocsBusy] = useState(false);
   const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
   const [docsWarning, setDocsWarning] = useState<string | null>(null);
-  const [redirecting, setRedirecting] = useState(false);
   const redirectTimeoutRef = useRef<number | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
@@ -185,7 +171,6 @@ export function CreateProjectModal({
       setDocsBusy(false);
       setCreatedProject(null);
       setDocsWarning(null);
-      setRedirecting(false);
       if (redirectTimeoutRef.current) {
         window.clearTimeout(redirectTimeoutRef.current);
         redirectTimeoutRef.current = null;
@@ -210,18 +195,7 @@ export function CreateProjectModal({
       window.clearTimeout(redirectTimeoutRef.current);
       redirectTimeoutRef.current = null;
     }
-    setRedirecting(false);
-    router.push(`/projects/${projectId}`);
-  };
-
-  const scheduleRedirect = (projectId: string) => {
-    if (redirectTimeoutRef.current) {
-      window.clearTimeout(redirectTimeoutRef.current);
-    }
-    setRedirecting(true);
-    redirectTimeoutRef.current = window.setTimeout(() => {
-      navigateToProject(projectId);
-    }, 2800);
+    router.push(`/projects/${projectId}?created=1`);
   };
 
   async function uploadProjectDocs(projectId: string) {
@@ -377,7 +351,6 @@ export function CreateProjectModal({
           {createdProject ? (
             <SuccessState
               project={createdProject}
-              redirecting={redirecting}
               docsWarning={docsWarning}
               onOpenProject={() => navigateToProject(createdProject.id)}
             />
@@ -398,7 +371,6 @@ export function CreateProjectModal({
 
                 setDocsWarning(null);
                 setCreatedProject(project);
-                scheduleRedirect(project.id);
               }}
               onCancel={() => onOpenChange(false)}
               isSubmitting={isSubmitting || docsBusy}

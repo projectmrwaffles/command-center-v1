@@ -33,6 +33,10 @@ function isBlockedStatus(status?: string | null) {
   return status === "blocked";
 }
 
+function isQueuedTaskBlocker(blocker: ReturnType<typeof getTaskExecutionBlocker>) {
+  return blocker?.key === "waiting_for_kickoff_completion";
+}
+
 export function deriveExecutionState(input: {
   totalDeliveryTasks: number;
   doneDeliveryTasks: number;
@@ -284,7 +288,11 @@ export function deriveProjectTruth(input: {
           });
 
           if (blocker) {
-            acc.stalled.push(task.id || "");
+            if (isQueuedTaskBlocker(blocker)) {
+              acc.queued.push(task.id || "");
+            } else {
+              acc.stalled.push(task.id || "");
+            }
             acc.blockers[task.id || ""] = blocker;
           } else acc.queued.push(task.id || "");
           return acc;

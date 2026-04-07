@@ -391,7 +391,12 @@ export function CreateProjectModal({
                 const project = await createProject(data);
                 const docsResult = await uploadProjectDocs(project.id);
 
-                setDocsWarning(docsResult.ok ? null : docsResult.message);
+                if (!docsResult.ok && docs.length > 0) {
+                  setDocsWarning(docsResult.message || 'Attached documents failed to upload. Project creation is incomplete until the source files are attached successfully.');
+                  throw new Error(docsResult.message || 'Attached documents failed to upload.');
+                }
+
+                setDocsWarning(null);
                 setCreatedProject(project);
                 scheduleRedirect(project.id);
               }}

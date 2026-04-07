@@ -35,6 +35,8 @@ import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/project-truth";
 
+const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
+
 type ProjectDocument = {
   id: string;
   type: string;
@@ -620,7 +622,7 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const projectId = params.id as string;
-  const createdFromIntake = searchParams.get("created") === "1";
+  const createdFromIntakeQuery = searchParams.get("created") === "1";
   const agentsById = useRealtimeStore((s) => s.agentsById);
   const projectsById = useRealtimeStore((s) => s.projectsById);
   const approvalsById = useRealtimeStore((s) => s.approvalsById);
@@ -643,6 +645,7 @@ export default function ProjectDetailPage() {
   const [taskDesc, setTaskDesc] = useState("");
   const [dismissedUpdateIds, setDismissedUpdateIds] = useState<string[]>([]);
   const [clearedFeedAt, setClearedFeedAt] = useState<string | null>(null);
+  const [createdFromIntake, setCreatedFromIntake] = useState(createdFromIntakeQuery);
 
   const activityStorageKey = useMemo(() => `project-detail-activity:${projectId}`, [projectId]);
 
@@ -687,6 +690,37 @@ export default function ProjectDetailPage() {
     }
   }, [projectId, fetchProject, fetchDocuments]);
 
+  useEffect(() => {
+    if (createdFromIntakeQuery) {
+      setCreatedFromIntake(true);
+      return;
+    }
+
+    if (typeof window === "undefined" || !projectId) return;
+
+    try {
+      const raw = window.sessionStorage.getItem(PROJECT_CREATE_HANDOFF_KEY);
+      if (!raw) {
+        setCreatedFromIntake(false);
+        return;
+      }
+
+      const handoff = JSON.parse(raw) as { projectId?: string; createdAt?: string };
+      const createdAtMs = handoff.createdAt ? new Date(handoff.createdAt).getTime() : 0;
+      const isFresh = Number.isFinite(createdAtMs) && Date.now() - createdAtMs < 5 * 60 * 1000;
+      const matchesProject = handoff.projectId === projectId;
+
+      if (matchesProject && isFresh) {
+        setCreatedFromIntake(true);
+        window.sessionStorage.removeItem(PROJECT_CREATE_HANDOFF_KEY);
+        return;
+      }
+
+      setCreatedFromIntake(false);
+    } catch {
+      setCreatedFromIntake(false);
+    }
+  }, [createdFromIntakeQuery, projectId]);
 
   useEffect(() => {
     if (!createdFromIntake || !projectId) return;

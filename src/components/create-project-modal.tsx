@@ -6,7 +6,6 @@ import { ArrowUpRight, Check, Sparkles, X } from "lucide-react";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { Button } from "@/components/ui/button";
 import { useCreateProject } from "@/hooks/use-create-project";
-import { supabaseRealtime } from "@/lib/supabase-realtime";
 
 type CreatedProject = {
   id: string;
@@ -18,6 +17,20 @@ type CreatedProject = {
     blocked?: number;
   } | null;
 };
+
+const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
+
+function writeProjectCreateHandoff(project: CreatedProject) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    PROJECT_CREATE_HANDOFF_KEY,
+    JSON.stringify({
+      projectId: project.id,
+      createdAt: new Date().toISOString(),
+      source: "intake-modal",
+    })
+  );
+}
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -190,70 +203,36 @@ export function CreateProjectModal({
     container.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  const navigateToProject = (projectId: string) => {
+  const navigateToProject = (project: CreatedProject) => {
     if (redirectTimeoutRef.current) {
       window.clearTimeout(redirectTimeoutRef.current);
       redirectTimeoutRef.current = null;
     }
-    router.push(`/projects/${projectId}?created=1`);
+    writeProjectCreateHandoff(project);
+    router.push(`/projects/${project.id}?created=1`);
   };
 
   async function uploadProjectDocs(projectId: string) {
     if (docs.length === 0) return { ok: true } as const;
-    if (!supabaseRealtime) {
-      return { ok: false, message: "Supabase client not configured. Documents were not uploaded." } as const;
-    }
 
     setDocsBusy(true);
     setDocsError(null);
 
     try {
-      const uploaded: Array<{
-        project_id: string;
-        type: string;
-        title: string;
-        storage_path: string;
-        mime_type: string | null;
-        size_bytes: number;
-      }> = [];
-
+      const formData = new FormData();
       for (const file of docs) {
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
-        const ext = safeName.includes(".") ? safeName.split(".").pop() : "bin";
-        const objectName = `${projectId}/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${ext}`;
-
-        const { error: uploadError } = await supabaseRealtime.storage
-          .from("project_docs")
-          .upload(objectName, file, {
-            contentType: file.type || undefined,
-            upsert: false,
-          });
-
-        if (uploadError) {
-          console.error("[Storage upload] error", uploadError);
-          return { ok: false, message: storageNotConfiguredMessage() } as const;
-        }
-
-        uploaded.push({
-          project_id: projectId,
-          type: file.type === "application/pdf" ? "prd_pdf" : file.type.startsWith("image/") ? "image" : "other",
-          title: file.name,
-          storage_path: objectName,
-          mime_type: file.type || null,
-          size_bytes: file.size,
-        });
+        formData.append("files", file, file.name);
       }
 
-      const res = await fetch(`/api/projects/${projectId}/documents`, {
+      const res = await fetch(`/api/projects/${projectId}/documents/upload`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documents: uploaded }),
+        body: formData,
       });
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        console.error("[documents insert] failed", payload);
-        return { ok: false, message: payload.error || "Failed to save document metadata" } as const;
+        console.error("[documents upload] failed", payload);
+        return { ok: false, message: payload.error || storageNotConfiguredMessage() } as const;
       }
 
       return { ok: true } as const;
@@ -357,7 +336,7 @@ export function CreateProjectModal({
             <SuccessState
               project={createdProject}
               docsWarning={docsWarning}
-              onOpenProject={() => navigateToProject(createdProject.id)}
+              onOpenProject={() => navigateToProject(createdProject)}
             />
           ) : (
             <CreateProjectForm
@@ -379,6 +358,9 @@ export function CreateProjectModal({
                 }
 
                 setDocsWarning(null);
+                redirectTimeoutRef.current = window.setTimeout(() => {
+                  navigateToProject(project);
+                }, 1200);
               }}
               onCancel={() => onOpenChange(false)}
               isSubmitting={isSubmitting || docsBusy}

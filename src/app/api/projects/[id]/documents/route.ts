@@ -2,6 +2,9 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
+const STORAGE_BUCKET = "project_docs";
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
 function normalizeDocumentType(value: string) {
   switch (value) {
     case "prd_pdf":
@@ -25,6 +28,17 @@ function normalizeDocumentType(value: string) {
 
 type ProjectDb = NonNullable<ReturnType<typeof createRouteHandlerClient>>;
 
+type StoredProjectDocument = {
+  id: string;
+  type: string;
+  title: string;
+  url?: string | null;
+  storage_path?: string | null;
+  mime_type?: string | null;
+  size_bytes?: number | null;
+  created_at: string;
+};
+
 type DocumentInput = {
   type?: unknown;
   title?: unknown;
@@ -36,6 +50,32 @@ type DocumentInput = {
 async function projectExists(db: ProjectDb, projectId: string) {
   const { data, error } = await db.from("projects").select("id").eq("id", projectId).single();
   return !error && Boolean(data?.id);
+}
+
+async function attachDocumentUrls(db: ProjectDb, documents: StoredProjectDocument[]) {
+  const documentsWithStorage = documents.filter((document) => document.storage_path && !document.url);
+  if (documentsWithStorage.length === 0) return documents;
+
+  const signedUrlEntries = await Promise.all(
+    documentsWithStorage.map(async (document) => {
+      const { data, error } = await db.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(document.storage_path as string, SIGNED_URL_TTL_SECONDS);
+
+      if (error) {
+        console.error("[API /projects/:id/documents GET] signed url error:", error);
+        return [document.id, null] as const;
+      }
+
+      return [document.id, data.signedUrl || null] as const;
+    })
+  );
+
+  const signedUrlById = new Map(signedUrlEntries);
+  return documents.map((document) => ({
+    ...document,
+    url: document.url || signedUrlById.get(document.id) || null,
+  }));
 }
 
 function sanitizeDocuments(documents: DocumentInput[]) {
@@ -105,7 +145,8 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ documents: data ?? [] });
+    const documents = await attachDocumentUrls(db, (data ?? []) as StoredProjectDocument[]);
+    return NextResponse.json({ documents });
   } catch (e: unknown) {
     console.error("[API /projects/:id/documents GET] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

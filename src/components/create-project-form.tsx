@@ -26,6 +26,7 @@ interface CreateProjectFormProps {
   prefillName?: string;
   prefillType?: string;
   docsSection?: ReactNode;
+  reviewAttachments?: Array<{ name: string; sizeLabel: string }>;
   onStepChange?: () => void;
 }
 
@@ -293,6 +294,7 @@ export function CreateProjectForm({
   error,
   prefillName,
   docsSection,
+  reviewAttachments = [],
   onStepChange,
 }: CreateProjectFormProps) {
   const [mode, setMode] = useState<IntakePath>(null);
@@ -996,6 +998,21 @@ export function CreateProjectForm({
                               </div>
                             </div>
                           ) : null}
+                          <div>
+                            <p className="font-medium text-zinc-900">Attached intake files</p>
+                            {reviewAttachments.length > 0 ? (
+                              <ul className="mt-2 space-y-2">
+                                {reviewAttachments.map((file) => (
+                                  <li key={`${file.name}-${file.sizeLabel}`} className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                                    <span className="truncate">{file.name}</span>
+                                    <span className="shrink-0 text-zinc-500">{file.sizeLabel}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-1 text-zinc-500">No intake files attached.</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </section>

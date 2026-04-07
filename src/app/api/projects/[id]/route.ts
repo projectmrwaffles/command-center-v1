@@ -266,13 +266,11 @@ export async function GET(
       const sprintTasks = (tasks || []).filter((task: any) => task.sprint_id === sprint.id);
       const sprintTruth = deriveSprintTruth({ sprint, tasks: sprintTasks });
       const pendingReview = (approvals || []).find((approval: any) => approval.sprint_id === sprint.id && approval.status === "pending");
-<<<<<<< HEAD
       const sprintSubmissions = submissionRows.filter((submission: any) => submission.sprint_id === sprint.id);
       const latestSubmission = sprintSubmissions[0] || null;
       const latestBundle = latestSubmission ? proofBundleRows.find((bundle: any) => bundle.submission_id === latestSubmission.id) || null : null;
       const latestProofItems = latestBundle ? proofItemRows.filter((item: any) => item.proof_bundle_id === latestBundle.id) : [];
       const latestFeedbackItems = latestSubmission ? feedbackRows.filter((item: any) => item.submission_id === latestSubmission.id) : [];
-=======
       const reviewTasks = sprintTasks.filter((task: any) => task.review_required);
       const derivedArtifacts = deriveReviewArtifacts({
         reviewTasks,
@@ -280,7 +278,6 @@ export async function GET(
           .map((task: any) => completionEventsByTaskId.get(task.id))
           .filter(Boolean),
       });
->>>>>>> a89055b (Auto-attach derived review artifacts)
       return {
         id: sprint.id,
         name: sprint.name,
@@ -292,7 +289,6 @@ export async function GET(
         category: sprintTruth.category,
         approvalGateRequired: sprint.approval_gate_required ?? false,
         approvalGateStatus: sprint.approval_gate_status ?? "not_requested",
-<<<<<<< HEAD
         totalTasks: sprintTruth.totalTasks,
         doneTasks: sprintTruth.doneTasks,
         queuedTasks: sprintTruth.queuedTasks,
@@ -300,12 +296,7 @@ export async function GET(
         blockedTasks: sprintTruth.blockedTasks,
         hiddenBootstrapTasks: sprintTruth.hiddenBootstrapTasks,
         progressPct: sprintTruth.progressPct,
-=======
-        totalTasks: total,
-        doneTasks: done,
-        progressPct: total > 0 ? Math.round((done / total) * 100) : 0,
         reviewArtifacts: pendingReview?.context?.artifacts ?? derivedArtifacts,
->>>>>>> a89055b (Auto-attach derived review artifacts)
         reviewRequest: pendingReview
           ? {
               id: pendingReview.id,

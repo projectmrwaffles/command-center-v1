@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -491,6 +491,23 @@ function MilestoneReviewCard({
   );
 }
 
+function CreatedFromIntakeBanner() {
+  return (
+    <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-950 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Project handoff complete</div>
+          <h2 className="mt-1 text-lg font-semibold text-emerald-950">Project created successfully</h2>
+          <p className="mt-1 text-sm leading-6 text-emerald-900/80">You are now in the created project workspace. Intake uploads continue to load here with the rest of the project detail data.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LinkEditor({
   projectId,
   projectType,
@@ -601,7 +618,9 @@ function LinkEditor({
 
 export default function ProjectDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const projectId = params.id as string;
+  const createdFromIntake = searchParams.get("created") === "1";
   const agentsById = useRealtimeStore((s) => s.agentsById);
   const projectsById = useRealtimeStore((s) => s.projectsById);
   const approvalsById = useRealtimeStore((s) => s.approvalsById);
@@ -668,6 +687,18 @@ export default function ProjectDetailPage() {
     }
   }, [projectId, fetchProject, fetchDocuments]);
 
+
+  useEffect(() => {
+    if (!createdFromIntake || !projectId) return;
+    if (documents.length > 0) return;
+
+    const retryTimers = [400, 1200, 2500].map((delay) => window.setTimeout(() => {
+      void fetchDocuments();
+    }, delay));
+
+    return () => retryTimers.forEach((timer) => window.clearTimeout(timer));
+  }, [createdFromIntake, documents.length, fetchDocuments, projectId]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -729,7 +760,7 @@ export default function ProjectDetailPage() {
     const tick = async () => {
       if (cancelled || document.visibilityState !== "visible" || !navigator.onLine) return;
       if (realtimeRefreshState.isFresh) return;
-      await fetchProject(false);
+      await Promise.all([fetchProject(false), fetchDocuments()]);
     };
 
     const interval = window.setInterval(tick, 60000);
@@ -746,7 +777,7 @@ export default function ProjectDetailPage() {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onVisible);
     };
-  }, [projectId, fetchProject, realtimeRefreshState.isFresh]);
+  }, [projectId, fetchDocuments, fetchProject, realtimeRefreshState.isFresh]);
 
   useEffect(() => {
     if (!projectId || loading || !data) return;
@@ -754,12 +785,12 @@ export default function ProjectDetailPage() {
 
     const timeout = window.setTimeout(() => {
       if (document.visibilityState === "visible" && navigator.onLine) {
-        void fetchProject(false);
+        void Promise.all([fetchProject(false), fetchDocuments()]);
       }
     }, 500);
 
     return () => window.clearTimeout(timeout);
-  }, [projectId, loading, data, realtimeRefreshState.key, fetchProject]);
+  }, [projectId, loading, data, realtimeRefreshState.key, fetchDocuments, fetchProject]);
 
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(newStatus);
@@ -1232,6 +1263,8 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </PageHero>
+
+      {createdFromIntake ? <CreatedFromIntakeBanner /> : null}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <div className="space-y-4">

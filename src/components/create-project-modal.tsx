@@ -262,6 +262,11 @@ export function CreateProjectModal({
     }
   }
 
+  const reviewAttachments = docs.map((file) => ({
+    name: file.name,
+    sizeLabel: `${Math.max(1, Math.round(file.size / 1024))} KB`,
+  }));
+
   const docsSection = (
     <div className="overflow-hidden rounded-[28px] border border-red-100/70 bg-white p-4 shadow-[0_12px_30px_rgba(24,24,27,0.05)] sm:p-5">
       <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
@@ -359,18 +364,21 @@ export function CreateProjectModal({
               prefillName={prefillName}
               prefillType={prefillType}
               docsSection={docsSection}
+              reviewAttachments={reviewAttachments}
               onStepChange={scrollContentToTop}
               onSubmit={async (data) => {
                 const project = await createProject(data);
-                const docsResult = await uploadProjectDocs(project.id);
 
+                setCreatedProject(project);
+                setDocsWarning(docs.length > 0 ? "Uploading attached files…" : null);
+
+                const docsResult = await uploadProjectDocs(project.id);
                 if (!docsResult.ok && docs.length > 0) {
-                  setDocsWarning(docsResult.message || 'Attached documents failed to upload. Project creation is incomplete until the source files are attached successfully.');
-                  throw new Error(docsResult.message || 'Attached documents failed to upload.');
+                  setDocsWarning(docsResult.message || "Project created, but attached documents still need to be uploaded.");
+                  return;
                 }
 
                 setDocsWarning(null);
-                setCreatedProject(project);
               }}
               onCancel={() => onOpenChange(false)}
               isSubmitting={isSubmitting || docsBusy}

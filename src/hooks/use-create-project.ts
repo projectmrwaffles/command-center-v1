@@ -19,6 +19,7 @@ export function useCreateProject() {
     description?: string;
     intake?: Record<string, unknown>;
     links?: Record<string, string>;
+    hasAttachments?: boolean;
   }) => {
     setIsSubmitting(true);
     setError(null);

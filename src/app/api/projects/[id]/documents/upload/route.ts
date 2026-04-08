@@ -1,3 +1,4 @@
+import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -132,18 +133,47 @@ export async function POST(
         documents: extractedDocuments,
       });
 
-      await db
+      const nextIntake = {
+        ...currentIntake,
+        requirements: nextRequirements,
+      };
+
+      const { data: updatedProject, error: updateError } = await db
         .from("projects")
         .update({
-          intake: {
-            ...currentIntake,
-            requirements: nextRequirements,
-          },
+          intake: nextIntake,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", projectId);
+        .eq("id", projectId)
+        .select("id, name, type, team_id, intake, links, github_repo_binding")
+        .single();
 
-      return NextResponse.json({ documents: data, requirements: nextRequirements }, { status: 201 });
+      if (updateError || !updatedProject) {
+        throw new Error(updateError?.message || "Failed to persist attachment-derived requirements");
+      }
+
+      const { count: sprintCount, error: sprintCountError } = await db
+        .from("sprints")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", projectId);
+
+      if (sprintCountError) {
+        throw new Error(sprintCountError.message);
+      }
+
+      const dispatchResults = sprintCount === 0
+        ? await finalizeProjectCreate(db, {
+            project: updatedProject,
+            name: updatedProject.name || "Untitled project",
+            type: updatedProject.type || "other",
+            intake: updatedProject.intake || nextIntake,
+            links: updatedProject.links || null,
+            githubRepoBinding: updatedProject.github_repo_binding || null,
+            teamId: updatedProject.team_id || null,
+          })
+        : [];
+
+      return NextResponse.json({ documents: data, requirements: nextRequirements, dispatch: dispatchResults }, { status: 201 });
     } catch (error) {
       if (uploadedPaths.length > 0) {
         await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);

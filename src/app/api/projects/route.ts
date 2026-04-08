@@ -1,8 +1,6 @@
-import { getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
-import { dispatchEligibleProjectTasks } from "@/lib/project-execution";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { getAutoRouteTeamIdsFromIntake, type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
-import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
+import { type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
+import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-create-finalize";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
@@ -34,37 +32,13 @@ function estimateWorkloadFromTeams(teamIds: string[]): {
   };
 }
 
-const TEAMS = {
-  ENGINEERING: "11111111-1111-1111-1111-000000000001",
-  DESIGN: "11111111-1111-1111-1111-000000000002",
-  PRODUCT: "11111111-1111-1111-1111-000000000003",
-  MARKETING: "11111111-1111-1111-1111-000000000004",
-  QA: "11111111-1111-1111-1111-000000000005",
-};
-
 const TEAM_BASE_MINUTES: Record<string, number> = {
-  [TEAMS.ENGINEERING]: 30,
-  [TEAMS.DESIGN]: 20,
-  [TEAMS.PRODUCT]: 15,
-  [TEAMS.MARKETING]: 15,
-  [TEAMS.QA]: 20,
+  ["11111111-1111-1111-1111-000000000001"]: 30,
+  ["11111111-1111-1111-1111-000000000002"]: 20,
+  ["11111111-1111-1111-1111-000000000003"]: 15,
+  ["11111111-1111-1111-1111-000000000004"]: 15,
+  ["11111111-1111-1111-1111-000000000005"]: 20,
 };
-
-function getAutoRouteTeamIds(type: string): string[] {
-  const teamMap: Record<string, string[]> = {
-    saas: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
-    web_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
-    native_app: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
-    marketing: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT],
-    product_build: [TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.PRODUCT, TEAMS.QA],
-    marketing_growth: [TEAMS.MARKETING, TEAMS.DESIGN, TEAMS.PRODUCT],
-    ops_enablement: [TEAMS.PRODUCT, TEAMS.ENGINEERING, TEAMS.DESIGN, TEAMS.QA],
-    strategy_research: [TEAMS.PRODUCT, TEAMS.DESIGN],
-    hybrid: [TEAMS.PRODUCT, TEAMS.DESIGN, TEAMS.ENGINEERING, TEAMS.QA],
-    other: [TEAMS.PRODUCT, TEAMS.ENGINEERING, TEAMS.QA],
-  };
-  return teamMap[type] || [TEAMS.PRODUCT, TEAMS.QA];
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -150,7 +124,7 @@ export async function POST(req: NextRequest) {
     const auth = authorizeApiRequest(req, { allowSameOrigin: true, bearerEnvNames: ["AGENT_AUTH_TOKEN"] });
     if (!auth.ok) return auth.response;
     const body = await req.json();
-    const { name, type, teamId, description, intake, links, githubRepo, provisionGithubRepo, confirmLinkedRepoForNetNew } = body as {
+    const { name, type, teamId, description, intake, links, githubRepo, provisionGithubRepo, confirmLinkedRepoForNetNew, hasAttachments } = body as {
       name?: string;
       type?: string;
       teamId?: string;
@@ -160,6 +134,7 @@ export async function POST(req: NextRequest) {
       githubRepo?: GitHubRepoBindingInput;
       provisionGithubRepo?: boolean;
       confirmLinkedRepoForNetNew?: boolean;
+      hasAttachments?: boolean;
     };
     const sanitizedIntakeBase = stripCallerProvisioningState(intake);
     const sanitizedIntake = sanitizedIntakeBase
@@ -222,11 +197,7 @@ export async function POST(req: NextRequest) {
         }
       : undefined;
     let sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || sanitizedIntake?.links), githubBinding);
-    const autoTeamIds = teamId
-      ? [teamId]
-      : sanitizedIntake
-        ? getAutoRouteTeamIdsFromIntake(sanitizedIntake, TEAMS)
-        : getAutoRouteTeamIds(type);
+    const autoTeamIds = resolveAutoRouteTeamIds(type, sanitizedIntake, teamId);
     const primaryTeamId = autoTeamIds[0];
 
     const workload = estimateWorkloadFromTeams(autoTeamIds);
@@ -375,102 +346,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    let kickoffSeeded = false;
-    const nextTaskPosition = await getProjectTaskPosition(db, project.id);
-
-    try {
-      const kickoff = await seedProjectKickoffPlan(db, {
-        projectId: project.id,
-        projectName: name,
-        type,
-        intake: sanitizedIntake,
-        startPosition: nextTaskPosition,
-      });
-
-      kickoffSeeded = kickoff.tasks.length > 0;
-    } catch (kickoffError) {
-      console.error("[API /projects] kickoff seeding failed, falling back to legacy team tasks:", kickoffError);
-    }
-
-    if (!kickoffSeeded) {
-      const { data: kickoffSprint, error: sprintError } = await db
-        .from("sprints")
-        .insert({
-          project_id: project.id,
-          name: "Kickoff",
-          goal: "Initial delivery setup and routing",
-          status: "active",
-        })
-        .select("id")
-        .single();
-
-      if (sprintError || !kickoffSprint?.id) {
-        console.error("[API /projects] legacy kickoff sprint insert error:", sprintError);
-      } else {
-        const teamTaskTemplates: Record<string, string> = {
-          [TEAMS.ENGINEERING]: "Set up development environment and architecture",
-          [TEAMS.DESIGN]: "Create initial wireframes and design system",
-          [TEAMS.PRODUCT]: "Define product requirements and user stories",
-          [TEAMS.MARKETING]: "Plan marketing strategy and messaging",
-          [TEAMS.QA]: "Create test plan and quality criteria",
-        };
-
-        let fallbackTaskPosition = nextTaskPosition;
-
-        for (const teamId of autoTeamIds) {
-          const { data: teamMembers } = await db
-            .from("team_members")
-            .select("agent_id, role")
-            .eq("team_id", teamId)
-            .order("role", { ascending: true });
-
-          if (!teamMembers?.length) continue;
-
-          const teamTask = teamTaskTemplates[teamId] || `Work on ${name}`;
-          const leadMember = teamMembers.find((member: { role?: string }) => member.role === "lead") || teamMembers[0];
-
-          const { data: createdTask, error: taskError } = await db
-            .from("sprint_items")
-            .insert({
-              sprint_id: kickoffSprint.id,
-              project_id: project.id,
-              title: teamTask,
-              status: "todo",
-              assignee_agent_id: leadMember.agent_id,
-              position: fallbackTaskPosition,
-            })
-            .select("id")
-            .single();
-
-          if (taskError) {
-            console.error("[API /projects] legacy task insert error:", taskError);
-          } else {
-            fallbackTaskPosition += 1;
-          }
-
-          if (createdTask?.id) {
-            // Canonical dispatch happens after state sync so submit, task creation, and phase advancement share the same eligibility path.
-          }
-        }
-      }
-    }
-
-    await syncProjectState(db, project.id);
-
-    const [{ data: tasks }, { data: sprints }, { data: jobs }, { data: agents }] = await Promise.all([
-      db.from("sprint_items").select("*").eq("project_id", project.id),
-      db.from("sprints").select("id, name, status, phase_order, created_at, approval_gate_required, approval_gate_status").eq("project_id", project.id),
-      db.from("jobs").select("id, owner_agent_id, project_id, status, summary, updated_at").eq("project_id", project.id).in("status", ["queued", "in_progress", "blocked"]),
-      db.from("agents").select("id, status, current_job_id").not("name", "like", "_archived_%"),
-    ]);
-
-    const dispatchResults = await dispatchEligibleProjectTasks(db as any, {
-      project: { ...project, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null },
-      tasks: (tasks ?? []) as any,
-      sprints: (sprints ?? []) as any,
-      jobs: (jobs ?? []) as any,
-      agents: (agents ?? []) as any,
-    });
+    const dispatchResults = hasAttachments
+      ? []
+      : await finalizeProjectCreate(db, {
+          project,
+          name,
+          type,
+          intake: sanitizedIntake,
+          links: sanitizedLinks,
+          githubRepoBinding: project.github_repo_binding || githubBinding || null,
+          teamId,
+        });
 
     return NextResponse.json({
       project: { ...project, intake: project.intake || sanitizedIntake || null, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null },

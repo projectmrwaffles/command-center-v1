@@ -229,13 +229,28 @@ export function CreateProjectModal({
         body: formData,
       });
 
+      const payload = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
         console.error("[documents upload] failed", payload);
         return { ok: false, message: payload.error || storageNotConfiguredMessage() } as const;
       }
 
-      return { ok: true } as const;
+      const docSourceCount = Array.isArray(payload?.requirements?.sources)
+        ? payload.requirements.sources.filter((source: { type?: string | null }) => source?.type !== "intake").length
+        : 0;
+
+      const extractedEvidenceCount = Array.isArray(payload?.requirements?.summary)
+        ? payload.requirements.summary.length
+        : 0;
+
+      return {
+        ok: true,
+        ingestionSummary:
+          docSourceCount > 0
+            ? `Read ${docSourceCount} attached file${docSourceCount === 1 ? "" : "s"} into project requirements${extractedEvidenceCount > 0 ? ` (${extractedEvidenceCount} evidence item${extractedEvidenceCount === 1 ? "" : "s"})` : ""}.`
+            : null,
+      } as const;
     } finally {
       setDocsBusy(false);
     }
@@ -357,7 +372,7 @@ export function CreateProjectModal({
                   return;
                 }
 
-                setDocsWarning(null);
+                setDocsWarning(docsResult.ingestionSummary || null);
                 redirectTimeoutRef.current = window.setTimeout(() => {
                   navigateToProject(project);
                 }, 1200);

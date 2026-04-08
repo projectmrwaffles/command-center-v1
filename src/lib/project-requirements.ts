@@ -311,6 +311,17 @@ function collectTechnologyRequirements(input: {
   ].filter((source) => source.text.trim().length > 0);
 
   for (const source of sources) {
+    const sourceKey = `${source.title}::${source.type}`;
+    const baselineEvidence = evidenceForSource(source.text);
+    if (baselineEvidence.length > 0) {
+      const existingSource = sourceMap.get(sourceKey);
+      sourceMap.set(sourceKey, {
+        title: source.title,
+        type: source.type,
+        evidence: dedupeStrings([...(existingSource?.evidence || []), ...baselineEvidence], 6),
+      });
+    }
+
     for (const sentence of sentenceSplit(source.text)) {
       for (const parsed of parseSentenceRequirements(sentence, source.title, source.type)) {
         addParsed(parsed);
@@ -339,6 +350,29 @@ function collectTechnologyRequirements(input: {
 
 function collectConstraintSentences(text: string) {
   return sentenceSplit(text).filter((sentence) => sentenceLooksLikeConstraint(sentence)).slice(0, 12);
+}
+
+function collectStructuredRequirementEvidence(text: string) {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizeWhitespace(line.replace(/^[-*]\s+/, "").replace(/^\d+[.)]\s+/, "")))
+    .filter(Boolean);
+
+  return dedupeStrings(lines.filter((line) => {
+    if (line.length < 12) return false;
+    if (/^#{1,6}\s/.test(line)) return false;
+    if (/^(objective|product summary|users|jobs to be done|mvp feature requirements|non-functional requirements|success criteria|deferred from mvp|open decisions)$/i.test(line)) return false;
+    if (/^(primary:|not in scope for mvp:|supported statuses:|framework:|ui scope:|initial state\/storage:|architecture goal:)/i.test(line)) return true;
+    if (/\b(should|must|required|required title|status|empty state|error state|responsive|under \d+ minutes|one interaction|preserve|open or create|add|edit|remove|reorder|deferred|review|calendar sync|notifications|collaboration|analytics)\b/i.test(line)) return true;
+    return false;
+  }), 20);
+}
+
+function evidenceForSource(text: string) {
+  return dedupeStrings([
+    ...collectConstraintSentences(text),
+    ...collectStructuredRequirementEvidence(text),
+  ], 6);
 }
 
 function buildRequirementSummary(requirements: TechnologyRequirement[]) {
@@ -383,6 +417,7 @@ export function deriveProjectRequirements(input: {
   const summary = dedupeStrings([
     ...buildRequirementSummary(technologyRequirements),
     ...constraints,
+    ...sources.flatMap((source) => source.evidence),
   ], 10);
 
   return {

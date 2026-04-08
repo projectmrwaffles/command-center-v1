@@ -4,9 +4,8 @@ import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-cr
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
-import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat } from "@/lib/project-db-compat";
+import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat, selectProjectsListWithCompat } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
-import { deriveProjectRequirements } from "@/lib/project-requirements";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -52,24 +51,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const selectWithLinks = "id, name, status, type, description, intake_summary, progress_pct, links, created_at, updated_at";
-    const selectWithoutLinks = "id, name, status, type, description, intake_summary, progress_pct, created_at, updated_at";
-
-    const runQuery = async (selectClause: string) => {
-      let query = db.from("projects").select(selectClause).order("created_at", { ascending: false });
-      if (type) query = query.eq("type", type);
-      return query;
-    };
-
-    const initial = await runQuery(selectWithLinks);
-    let projects: any[] = initial.data ?? [];
-    let error = initial.error;
-
-    if (isMissingLinksColumnError(error)) {
-      const fallback = await runQuery(selectWithoutLinks);
-      projects = (fallback.data ?? []).map((project) => ({ ...(project as any), links: null }));
-      error = fallback.error;
-    }
+    const initial = await selectProjectsListWithCompat(db, type);
+    const projects: any[] = initial.data ?? [];
+    const error = initial.error;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -137,6 +121,7 @@ export async function POST(req: NextRequest) {
       hasAttachments?: boolean;
     };
     const sanitizedIntakeBase = stripCallerProvisioningState(intake);
+    const { deriveProjectRequirements } = await import("@/lib/project-requirements");
     const sanitizedIntake = sanitizedIntakeBase
       ? {
           ...sanitizedIntakeBase,

@@ -48,6 +48,68 @@ export function isMissingLinksColumnError(error: DbErrorLike) {
   return isMissingColumnError(error, "links", "projects");
 }
 
+export function isMissingProjectTypeColumnError(error: DbErrorLike) {
+  return isMissingColumnError(error, "type", "projects");
+}
+
+export function isMissingIntakeSummaryColumnError(error: DbErrorLike) {
+  return isMissingColumnError(error, "intake_summary", "projects");
+}
+
+export async function selectProjectsListWithCompat(db: DbClient, type?: string | null) {
+  const runQuery = async (selectClause: string, filterColumn: "type" | "project_type") => {
+    let query = db.from("projects").select(selectClause).order("created_at", { ascending: false });
+    if (type) query = query.eq(filterColumn, type);
+    return query;
+  };
+
+  const modernSelect = "id, name, status, type, description, intake_summary, progress_pct, links, created_at, updated_at";
+  const modernWithoutLinks = "id, name, status, type, description, intake_summary, progress_pct, created_at, updated_at";
+  const legacySelect = "id, name, status, type:project_type, description, intake_summary, progress_pct, links, created_at, updated_at";
+  const legacyWithoutLinks = "id, name, status, type:project_type, description, intake_summary, progress_pct, created_at, updated_at";
+  const legacyBareMinimum = "id, name, status, type:project_type, created_at, updated_at";
+
+  const first = await runQuery(modernSelect, "type");
+  if (!isMissingProjectTypeColumnError(first.error) && !isMissingLinksColumnError(first.error) && !isMissingIntakeSummaryColumnError(first.error)) {
+    return first;
+  }
+
+  if (!isMissingProjectTypeColumnError(first.error)) {
+    const second = await runQuery(modernWithoutLinks, "type");
+    if (!isMissingIntakeSummaryColumnError(second.error)) {
+      return {
+        ...second,
+        data: (second.data ?? []).map((project: any) => ({ ...project, links: null })),
+      };
+    }
+  }
+
+  const legacyFirst = await runQuery(legacySelect, "project_type");
+  if (!isMissingLinksColumnError(legacyFirst.error) && !isMissingIntakeSummaryColumnError(legacyFirst.error)) {
+    return legacyFirst;
+  }
+
+  const legacySecond = await runQuery(legacyWithoutLinks, "project_type");
+  if (!isMissingIntakeSummaryColumnError(legacySecond.error)) {
+    return {
+      ...legacySecond,
+      data: (legacySecond.data ?? []).map((project: any) => ({ ...project, links: null })),
+    };
+  }
+
+  const fallback = await runQuery(legacyBareMinimum, "project_type");
+  return {
+    ...fallback,
+    data: (fallback.data ?? []).map((project: any) => ({
+      ...project,
+      description: null,
+      intake_summary: null,
+      progress_pct: 0,
+      links: null,
+    })),
+  };
+}
+
 export async function selectProjectSummaryTasksWithCompat(db: DbClient, projectIds: string[]) {
   const fullSelect = "project_id, sprint_id, status, task_type, task_metadata";
   const fallbackSelect = "project_id, sprint_id, status";

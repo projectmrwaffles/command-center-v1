@@ -498,9 +498,16 @@ async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTi
 
   if (projectId) {
     try {
-      const [{ syncProjectState }] = await Promise.all([
+      const [{ syncProjectState }, { maybeAdvanceProjectAfterTaskDone }] = await Promise.all([
         import(path.join(REPO_ROOT, 'src/lib/project-state.ts')),
+        import(path.join(REPO_ROOT, 'src/lib/project-handoff.ts')),
       ]);
+      if (taskStatus === "done") {
+        await maybeAdvanceProjectAfterTaskDone(adminSupabase, {
+          projectId,
+          completedTaskId: taskId,
+        });
+      }
       await syncProjectState(adminSupabase, projectId);
     } catch (error) {
       console.error(`[Listener] Failed downstream project sync after task ${taskId}:`, error?.message || error);

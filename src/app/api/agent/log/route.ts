@@ -1,3 +1,4 @@
+import { maybeAdvanceProjectAfterTaskDone } from "@/lib/project-handoff";
 import { syncProjectState } from "@/lib/project-state";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { hasBearerToken } from "@/lib/server-auth";
@@ -248,6 +249,13 @@ export async function POST(req: NextRequest) {
           if (eventInsert.error) {
             return NextResponse.json({ error: eventInsert.error.message }, { status: 500 });
           }
+        }
+
+        if (status === "done") {
+          await maybeAdvanceProjectAfterTaskDone(db as any, {
+            projectId: existingTask.project_id,
+            completedTaskId: taskId,
+          });
         }
 
         const projectState = await syncProjectState(db, existingTask.project_id);

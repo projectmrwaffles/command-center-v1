@@ -361,7 +361,7 @@ export function CreateProjectModal({
               reviewAttachments={reviewAttachments}
               onStepChange={scrollContentToTop}
               onSubmit={async (data) => {
-                const project = await createProject(data);
+                const project = await createProject({ ...data, hasAttachments: docs.length > 0 });
 
                 setCreatedProject(project);
                 setDocsWarning(docs.length > 0 ? "Uploading attached files…" : null);

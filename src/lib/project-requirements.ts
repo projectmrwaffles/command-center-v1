@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { PDFParse } from "pdf-parse";
 
 export type RequirementSource = {
   title: string;
@@ -109,7 +110,7 @@ function sentenceSplit(text: string) {
     .filter(Boolean);
 }
 
-function extractPdfLikeText(buffer: Buffer) {
+function extractPdfLikeTextFallback(buffer: Buffer) {
   const raw = buffer.toString("latin1");
   const matches = [...raw.matchAll(/\(([^()]{3,400})\)/g)].map((match) => normalizeWhitespace(match[1] || ""));
   const cleaned = matches
@@ -118,13 +119,32 @@ function extractPdfLikeText(buffer: Buffer) {
   return cleaned.join("\n");
 }
 
-function extractTextFromBuffer(buffer: Buffer, mimeType?: string | null, title?: string | null) {
+async function extractPdfText(buffer: Buffer) {
+  let parser: InstanceType<typeof PDFParse> | null = null;
+
+  try {
+    parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
+    const parsedText = normalizeWhitespace(result.text || "");
+    if (parsedText) return parsedText;
+  } catch (error) {
+    console.warn("[project-requirements] structured PDF extraction failed; falling back to raw parse", error);
+  } finally {
+    if (parser) {
+      await parser.destroy().catch(() => undefined);
+    }
+  }
+
+  return extractPdfLikeTextFallback(buffer);
+}
+
+async function extractTextFromBuffer(buffer: Buffer, mimeType?: string | null, title?: string | null) {
   const lowerTitle = String(title || "").toLowerCase();
   if ((mimeType || "").startsWith("text/") || /\.(md|txt|json|yaml|yml)$/i.test(lowerTitle)) {
     return buffer.toString("utf8");
   }
   if (mimeType === "application/pdf" || /\.pdf$/i.test(lowerTitle)) {
-    return extractPdfLikeText(buffer);
+    return extractPdfText(buffer);
   }
   return "";
 }
@@ -431,8 +451,8 @@ export function deriveProjectRequirements(input: {
   } satisfies ProjectRequirements;
 }
 
-export function extractRequirementsFromUploadedFile(input: { buffer: Buffer; mimeType?: string | null; title?: string | null; type?: string }) {
-  const text = extractTextFromBuffer(input.buffer, input.mimeType, input.title);
+export async function extractRequirementsFromUploadedFile(input: { buffer: Buffer; mimeType?: string | null; title?: string | null; type?: string }) {
+  const text = await extractTextFromBuffer(input.buffer, input.mimeType, input.title);
   return {
     title: input.title || "Untitled document",
     type: input.type || "other",

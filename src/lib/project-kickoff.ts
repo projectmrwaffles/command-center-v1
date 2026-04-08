@@ -44,7 +44,7 @@ function isMissingColumnError(error: { code?: string; message?: string } | null 
   return error.code === "PGRST204" && columns.some((column) => message.includes(`'${column}' column`));
 }
 
-function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string, string>, options?: { reviewRequired?: boolean }): KickoffPhaseTemplate["tasks"][number] {
+function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string, string>, options?: { reviewRequired?: boolean; projectRequirements?: string[] }): KickoffPhaseTemplate["tasks"][number] {
   const config = TASK_TYPE_CONFIG[taskType];
   const templateKeyField = config.metadataFields[0]?.key;
   const titlePrefix = templateKeyField ? metadata[templateKeyField] : config.goalVerb;
@@ -56,6 +56,7 @@ function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string
     description: [
       `Task type: ${config.label}`,
       `Goal: ${taskGoal}`,
+      ...(options?.projectRequirements?.length ? ["Project requirements:", ...options.projectRequirements.map((item) => `- ${item}`)] : []),
       ...config.metadataFields.map((field) => `${field.label}: ${(metadata[field.key] ?? "").replace(/_/g, " ")}`),
     ].join("\n"),
     taskType,
@@ -76,6 +77,7 @@ export function buildProjectKickoffPlan(input: {
   const intake = input.intake;
   const readiness = intake ? inferIntakeReadiness(intake) : { stage: "planning", confidence: "somewhat-clear" };
   const phaseTemplates: KickoffPhaseTemplate[] = [];
+  const projectRequirements = intake?.requirements?.summary?.slice(0, 6) || undefined;
 
   const needsDiscovery = readiness.stage === "idea" || readiness.stage === "planning" || readiness.confidence === "not-sure";
   const needsDesign = hasCapability(intake, "ux-ui") || intake?.shape === "website" || readiness.stage === "ready-to-design";
@@ -96,7 +98,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("discovery_plan", `${input.projectName} scope, plan, and next-step recommendation`, {
           planning_mode: "define_scope",
           target_area: needsBuild ? "engineering" : needsContent ? "marketing" : needsDesign ? "design" : "hybrid",
-        }, bootstrapPhaseOptions),
+        }, { ...bootstrapPhaseOptions, projectRequirements }),
       ],
     });
   }
@@ -114,7 +116,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("design", `${input.projectName} core user flow and interface direction`, {
           design_output_type: "wireframes",
           surface: intake?.shape === "native-app" ? "mobile" : intake?.shape === "website" ? "web" : "dashboard",
-        }, bootstrapPhaseOptions),
+        }, { ...bootstrapPhaseOptions, projectRequirements }),
       ],
     });
   }
@@ -132,7 +134,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("build_implementation", `${input.projectName} initial delivery slice`, {
           implementation_kind: hasCapability(intake, "backend-data") ? "backend_or_api" : intake?.shape === "website" ? "website_page" : "frontend_feature",
           target_environment: intake?.shape === "website" ? "marketing_site" : intake?.shape === "ops-system" ? "internal_ops" : intake?.shape === "native-app" ? "mobile_app" : "web_app",
-        }, bootstrapPhaseOptions),
+        }, { ...bootstrapPhaseOptions, projectRequirements }),
       ],
     });
   }
@@ -150,7 +152,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("content_messaging", `${input.projectName} launch-ready messaging`, {
           content_type: "launch_messaging",
           channel_or_surface: intake?.shape === "launch-campaign" ? "ads" : "site",
-        }, bootstrapPhaseOptions),
+        }, { ...bootstrapPhaseOptions, projectRequirements }),
       ],
     });
   }
@@ -168,7 +170,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("qa_validation", `${input.projectName} kickoff deliverables`, {
           qa_mode: "acceptance_review",
           subject_ref: needsBuild ? "new_feature" : needsContent ? "landing_page" : "other",
-        }, bootstrapPhaseOptions),
+        }, { ...bootstrapPhaseOptions, projectRequirements }),
       ],
     });
   }

@@ -237,6 +237,24 @@ function isCodeHeavyProject(project) {
   return ["saas-product", "web-app", "native-app", "ops-system", "saas", "web_app", "native_app", "ops_system"].includes(shape);
 }
 
+function readRepoFrameworks(repoWorkspacePath) {
+  if (!repoWorkspacePath) return [];
+  const packageJsonPath = path.join(repoWorkspacePath, "package.json");
+  if (!fs.existsSync(packageJsonPath)) return [];
+  try {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+    const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+    const frameworks = [];
+    if (deps.next) frameworks.push("nextjs");
+    if (deps.vite) frameworks.push("vite");
+    if (deps["react-native"]) frameworks.push("react-native");
+    if (deps.expo) frameworks.push("expo");
+    return frameworks;
+  } catch {
+    return [];
+  }
+}
+
 function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, taskMetadata }) {
   const projectName = project?.name || "Unknown Project";
   const githubRepoUrl = resolveGithubRepoUrl(project);
@@ -245,6 +263,10 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
   const qaMode = String(taskMetadata?.qa_mode || "").toLowerCase();
   const isQaValidation = taskType === "qa_validation";
   const isAcceptanceReview = isQaValidation && qaMode === "acceptance_review";
+  const requirements = project?.intake?.requirements || null;
+  const requiredFrameworks = Array.isArray(requirements?.requiredFrameworks) ? requirements.requiredFrameworks : [];
+  const repoFrameworks = readRepoFrameworks(repoWorkspacePath);
+  const requirementViolations = requiredFrameworks.filter((framework) => !repoFrameworks.includes(framework));
 
   return [
     `New task for project "${projectName}": ${taskTitle}.`,
@@ -254,12 +276,19 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     qaMode ? `QA mode: ${qaMode}.` : null,
     githubRepoUrl ? `GitHub repo: ${githubRepoUrl}` : null,
     repoWorkspacePath ? `Repo workspace path: ${repoWorkspacePath}` : null,
+    requirements?.summary?.length ? `Project requirements summary:\n${requirements.summary.map((item) => `- ${item}`).join("\n")}` : null,
+    requirements?.constraints?.length ? `Critical constraints:\n${requirements.constraints.slice(0, 8).map((item) => `- ${item}`).join("\n")}` : null,
+    requirements?.sources?.length ? `Requirement evidence sources:\n${requirements.sources.slice(0, 3).map((source) => `- ${source.title}: ${source.evidence.join(" | ")}`).join("\n")}` : null,
     codeHeavy ? "This project is repo-backed. Use the exact repo workspace path above when you inspect or change implementation files; do not work in a separate scratch workspace." : null,
     isAcceptanceReview ? "This is a validation/sign-off task, not a greenfield implementation task. Validate the existing deliverables, repo state, and runtime evidence that already exist for this project." : null,
     isAcceptanceReview ? "Return STATUS: done when the acceptance review passes and the Validate task should close. Return STATUS: blocked only when you found a real failure or a concrete missing prerequisite that prevents sign-off." : null,
     isAcceptanceReview ? "Do not block just because you did not need to change code. If no repo change is required, say so explicitly in DETAILS and still finish with STATUS: done when validation passes." : null,
+    isAcceptanceReview && requiredFrameworks.length ? `Required framework check: PRD/spec requires ${requiredFrameworks.join(", ")}. Repo currently shows ${repoFrameworks.length ? repoFrameworks.join(", ") : "no framework detected"}.` : null,
+    isAcceptanceReview && requirementViolations.length ? `QC MUST FAIL if this mismatch is real: missing required framework(s) ${requirementViolations.join(", ")}. Do not approve until the repo matches the PRD/spec.` : null,
     codeHeavy ? "If you change tracked code or docs in that repo-backed workspace, do not stop at a local commit. Commit and push to the remote so origin reflects your final commit before you return STATUS: done." : null,
     codeHeavy ? "Verify the remote push succeeded. Include the pushed commit hash and the exact git/gh commands you ran in DETAILS when you make tracked changes." : null,
+    taskType === "build_implementation" && requirements?.summary?.length ? "Treat the project requirements above as hard inputs for implementation, not optional background context. If the repo or your plan conflicts with them, align the implementation to the requirements or call out the blocker explicitly." : null,
+    taskType === "discovery_plan" && requirements?.summary?.length ? "Discovery must convert the requirements above into an explicit plan/decision record. Do not ignore attached PRD/spec constraints when recommending stack or implementation approach." : null,
     "Do the work now. Do not stop after acknowledging or saying you started.",
     "Continue until you reach a real stop condition: done, blocked, awaiting approval, or awaiting confirmation.",
     "If you need workspace artifacts, create or update them before you stop.",

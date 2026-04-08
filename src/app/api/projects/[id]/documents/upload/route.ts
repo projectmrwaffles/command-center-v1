@@ -1,3 +1,4 @@
+import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -81,13 +82,16 @@ export async function POST(
         mime_type: string | null;
         size_bytes: number;
       }>;
+      const extractedDocuments: Array<{ title: string; type: string; text?: string | null }> = [];
 
       for (const file of files) {
         const objectName = buildObjectName(projectId, file.name || "upload.bin");
         const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const documentType = getDocumentType(file);
         const { error: uploadError } = await db.storage
           .from(STORAGE_BUCKET)
-          .upload(objectName, Buffer.from(arrayBuffer), {
+          .upload(objectName, buffer, {
             contentType: file.type || undefined,
             upsert: false,
           });
@@ -99,12 +103,18 @@ export async function POST(
         uploadedPaths.push(objectName);
         documents.push({
           project_id: projectId,
-          type: getDocumentType(file),
+          type: documentType,
           title: file.name || "Untitled upload",
           storage_path: objectName,
           mime_type: file.type || null,
           size_bytes: file.size,
         });
+        extractedDocuments.push(extractRequirementsFromUploadedFile({
+          buffer,
+          mimeType: file.type || null,
+          title: file.name || "Untitled upload",
+          type: documentType,
+        }));
       }
 
       const { data, error } = await db.from("project_documents").insert(documents).select();
@@ -113,7 +123,27 @@ export async function POST(
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ documents: data }, { status: 201 });
+      const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
+      const currentIntake = (project?.intake || {}) as Record<string, unknown>;
+      const nextRequirements = deriveProjectRequirements({
+        intakeSummary: typeof currentIntake.summary === "string" ? currentIntake.summary : null,
+        intakeGoals: typeof currentIntake.goals === "string" ? currentIntake.goals : null,
+        existing: (currentIntake.requirements as any) || null,
+        documents: extractedDocuments,
+      });
+
+      await db
+        .from("projects")
+        .update({
+          intake: {
+            ...currentIntake,
+            requirements: nextRequirements,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", projectId);
+
+      return NextResponse.json({ documents: data, requirements: nextRequirements }, { status: 201 });
     } catch (error) {
       if (uploadedPaths.length > 0) {
         await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);

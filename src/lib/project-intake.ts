@@ -15,6 +15,8 @@ export type GitHubRepoProvisioningState = {
   nextAction?: string;
 };
 
+import type { ProjectRequirements } from "@/lib/project-requirements";
+
 export type ProjectIntake = {
   shape: string;
   context: string[];
@@ -28,6 +30,7 @@ export type ProjectIntake = {
   links?: ProjectLinks;
   githubRepoProvisioning?: GitHubRepoProvisioningState;
   githubRepoSource?: "linked" | "provisioned" | null;
+  requirements?: ProjectRequirements | null;
 };
 
 export type ReadinessOption = IntakeOption & {

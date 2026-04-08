@@ -1,4 +1,5 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
+import { getProjectRequirementCompliance } from "@/lib/project-requirements";
 import { getSprintReviewEligibility } from "@/lib/review-request-guards";
 import { mergeProjectLinks, buildReviewRequestContext, buildReviewRequestSummary, deriveReviewArtifacts } from "@/lib/review-requests";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
@@ -148,6 +149,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (artifactIntegrity.blockingReason) {
       return NextResponse.json({ error: artifactIntegrity.blockingReason }, { status: 400 });
+    }
+
+    const requirementCompliance = getProjectRequirementCompliance({
+      name: project.name,
+      intake: project.intake,
+      links: mergedLinks || project.links,
+      github_repo_binding: project.github_repo_binding,
+    });
+
+    if (requirementCompliance.violations.length > 0) {
+      return NextResponse.json({ error: `Review blocked: ${requirementCompliance.violations.join(" ")}` }, { status: 400 });
     }
 
     const ownerAgentId = await resolveReviewOwner(db, projectId, sprintId);

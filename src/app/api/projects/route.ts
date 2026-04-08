@@ -8,6 +8,7 @@ import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHu
 import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
+import { deriveProjectRequirements } from "@/lib/project-requirements";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -160,7 +161,17 @@ export async function POST(req: NextRequest) {
       provisionGithubRepo?: boolean;
       confirmLinkedRepoForNetNew?: boolean;
     };
-    const sanitizedIntake = stripCallerProvisioningState(intake);
+    const sanitizedIntakeBase = stripCallerProvisioningState(intake);
+    const sanitizedIntake = sanitizedIntakeBase
+      ? {
+          ...sanitizedIntakeBase,
+          requirements: deriveProjectRequirements({
+            intakeSummary: sanitizedIntakeBase.summary,
+            intakeGoals: sanitizedIntakeBase.goals,
+            existing: sanitizedIntakeBase.requirements,
+          }),
+        }
+      : sanitizedIntakeBase;
 
     if (!name || !type) {
       return NextResponse.json({ error: "Name and type are required" }, { status: 400 });

@@ -122,6 +122,39 @@ function extractPdfLikeTextFallback(buffer: Buffer) {
   return cleaned.join("\n");
 }
 
+async function extractPdfTextWithPython(buffer: Buffer) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ccv1-pdf-extract-"));
+  const pdfPath = path.join(tempDir, "upload.pdf");
+
+  try {
+    fs.writeFileSync(pdfPath, buffer);
+    const { stdout } = await execFileAsync(
+      "python3",
+      [
+        "-c",
+        [
+          "from pathlib import Path",
+          "from PyPDF2 import PdfReader",
+          "reader = PdfReader(str(Path(__import__('sys').argv[1])))",
+          "print(' '.join((page.extract_text() or '').strip() for page in reader.pages))",
+        ].join("; "),
+        pdfPath,
+      ],
+      {
+        timeout: 15000,
+        maxBuffer: 4 * 1024 * 1024,
+        encoding: "utf8",
+      }
+    );
+    return normalizeWhitespace(String(stdout || ""));
+  } catch (error) {
+    console.warn("[project-requirements] python PDF extraction failed", error);
+    return "";
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function extractPdfText(buffer: Buffer) {
   let parser: InstanceType<typeof PDFParse> | null = null;
 
@@ -131,12 +164,15 @@ async function extractPdfText(buffer: Buffer) {
     const parsedText = normalizeWhitespace(result.text || "");
     if (parsedText) return parsedText;
   } catch (error) {
-    console.warn("[project-requirements] structured PDF extraction failed; falling back to raw parse", error);
+    console.warn("[project-requirements] structured PDF extraction failed; falling back to python/raw parse", error);
   } finally {
     if (parser) {
       await parser.destroy().catch(() => undefined);
     }
   }
+
+  const pythonText = await extractPdfTextWithPython(buffer);
+  if (pythonText) return pythonText;
 
   return extractPdfLikeTextFallback(buffer);
 }

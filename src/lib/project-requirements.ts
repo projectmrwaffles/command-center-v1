@@ -55,6 +55,10 @@ export type RequirementCompliance = {
   detectedFrameworks: string[];
   detectedLanguages: string[];
   detectedStyling: string[];
+  detectedBackends: string[];
+  detectedRuntimes: string[];
+  detectedTooling: string[];
+  detectedDatabases: string[];
   violations: string[];
   notes: string[];
 };
@@ -63,6 +67,10 @@ type RepoSignals = {
   frameworks: string[];
   languages: string[];
   styling: string[];
+  backend: string[];
+  runtime: string[];
+  tooling: string[];
+  database: string[];
 };
 
 type ParsedSentenceRequirement = {
@@ -80,7 +88,7 @@ const TECHNOLOGY_CATALOG: TechnologyCatalogEntry[] = [
   { slug: "remix", label: "Remix", aliases: ["remix"], kind: "framework", patterns: [/\bremix\b/i] },
   { slug: "react-native", label: "React Native", aliases: ["react native"], kind: "framework", patterns: [/\breact\s+native\b/i] },
   { slug: "expo", label: "Expo", aliases: ["expo"], kind: "framework", patterns: [/\bexpo\b/i] },
-  { slug: "react", label: "React", aliases: ["react"], kind: "framework", patterns: [/\breact\b/i] },
+  { slug: "react", label: "React", aliases: ["react"], kind: "framework", patterns: [/\breact\b(?!\s+native\b)/i] },
   { slug: "typescript", label: "TypeScript", aliases: ["typescript", "ts"], kind: "language", patterns: [/\btypescript\b/i] },
   { slug: "javascript", label: "JavaScript", aliases: ["javascript", "js"], kind: "language", patterns: [/\bjavascript\b/i] },
   { slug: "tailwind", label: "Tailwind CSS", aliases: ["tailwind", "tailwindcss", "tailwind css"], kind: "styling", patterns: [/\btailwind(?:css)?\b/i, /\btailwind\s+css\b/i] },
@@ -426,10 +434,20 @@ export function resolveRepoWorkspacePath(project: ProjectLikeWithRequirements) {
 }
 
 export function inspectRepoFrameworks(repoWorkspacePath: string | null) {
-  if (!repoWorkspacePath) return { detectedFrameworks: [] as string[], detectedLanguages: [] as string[], detectedStyling: [] as string[], notes: ["No repo workspace path found."] };
+  const emptyDetection = {
+    detectedFrameworks: [] as string[],
+    detectedLanguages: [] as string[],
+    detectedStyling: [] as string[],
+    detectedBackends: [] as string[],
+    detectedRuntimes: [] as string[],
+    detectedTooling: [] as string[],
+    detectedDatabases: [] as string[],
+  };
+
+  if (!repoWorkspacePath) return { ...emptyDetection, notes: ["No repo workspace path found."] };
   const packageJsonPath = path.join(repoWorkspacePath, "package.json");
   if (!fs.existsSync(packageJsonPath)) {
-    return { detectedFrameworks: [] as string[], detectedLanguages: [] as string[], detectedStyling: [] as string[], notes: [`package.json not found at ${packageJsonPath}`] };
+    return { ...emptyDetection, notes: [`package.json not found at ${packageJsonPath}`] };
   }
 
   try {
@@ -439,6 +457,10 @@ export function inspectRepoFrameworks(repoWorkspacePath: string | null) {
       frameworks: new Set<string>(),
       languages: new Set<string>(),
       styling: new Set<string>(),
+      backend: new Set<string>(),
+      runtime: new Set<string>(),
+      tooling: new Set<string>(),
+      database: new Set<string>(),
     };
 
     if (deps.next) detected.frameworks.add("nextjs");
@@ -449,18 +471,24 @@ export function inspectRepoFrameworks(repoWorkspacePath: string | null) {
     if (deps.react) detected.frameworks.add("react");
     if (deps.typescript) detected.languages.add("typescript");
     if (deps.tailwindcss) detected.styling.add("tailwind");
+    if (deps["@supabase/supabase-js"]) detected.backend.add("supabase");
+    if (deps["pg"] || deps["@types/pg"]) detected.database.add("postgresql");
+    if (deps["shadcn-ui"] || deps["@shadcn/ui"] || deps["shadcn"] || deps["class-variance-authority"]) detected.tooling.add("shadcn-ui");
+    if (deps.node || pkg.engines?.node) detected.runtime.add("nodejs");
 
     return {
       detectedFrameworks: [...detected.frameworks],
       detectedLanguages: [...detected.languages],
       detectedStyling: [...detected.styling],
+      detectedBackends: [...detected.backend],
+      detectedRuntimes: [...detected.runtime],
+      detectedTooling: [...detected.tooling],
+      detectedDatabases: [...detected.database],
       notes: [`Inspected ${packageJsonPath}`],
     };
   } catch (error) {
     return {
-      detectedFrameworks: [] as string[],
-      detectedLanguages: [] as string[],
-      detectedStyling: [] as string[],
+      ...emptyDetection,
       notes: [error instanceof Error ? error.message : "Failed to parse package.json"],
     };
   }
@@ -472,6 +500,10 @@ function repoSignalsFromInspection(repoWorkspacePath: string | null): RepoSignal
     frameworks: inspected.detectedFrameworks,
     languages: inspected.detectedLanguages,
     styling: inspected.detectedStyling,
+    backend: inspected.detectedBackends,
+    runtime: inspected.detectedRuntimes,
+    tooling: inspected.detectedTooling,
+    database: inspected.detectedDatabases,
     notes: inspected.notes,
   };
 }
@@ -480,6 +512,10 @@ function observedSignalsForKind(signals: RepoSignals, kind: RequirementSignalKin
   if (kind === "framework") return signals.frameworks;
   if (kind === "language") return signals.languages;
   if (kind === "styling") return signals.styling;
+  if (kind === "backend") return signals.backend;
+  if (kind === "runtime") return signals.runtime;
+  if (kind === "tooling") return signals.tooling;
+  if (kind === "database") return signals.database;
   return [];
 }
 
@@ -519,6 +555,10 @@ export function getProjectRequirementCompliance(project: ProjectLikeWithRequirem
     detectedFrameworks: inspected.frameworks,
     detectedLanguages: inspected.languages,
     detectedStyling: inspected.styling,
+    detectedBackends: inspected.backend,
+    detectedRuntimes: inspected.runtime,
+    detectedTooling: inspected.tooling,
+    detectedDatabases: inspected.database,
     violations,
     notes: inspected.notes,
   };

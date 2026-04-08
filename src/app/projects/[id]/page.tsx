@@ -722,16 +722,26 @@ export default function ProjectDetailPage() {
     }
   }, [createdFromIntakeQuery, projectId]);
 
+  const attachmentRequirementSources = useMemo(() => {
+    const rawSources = data?.project?.intake?.requirements?.sources;
+    if (!Array.isArray(rawSources)) return [];
+    return rawSources.filter((source: any) => source && source.type !== "intake" && Array.isArray(source.evidence) && source.evidence.length > 0);
+  }, [data]);
+
   useEffect(() => {
     if (!createdFromIntake || !projectId) return;
-    if (documents.length > 0) return;
+
+    const needsDocumentRetry = documents.length === 0;
+    const needsRequirementRetry = attachmentRequirementSources.length === 0;
+    if (!needsDocumentRetry && !needsRequirementRetry) return;
 
     const retryTimers = [400, 1200, 2500].map((delay) => window.setTimeout(() => {
-      void fetchDocuments();
+      if (needsDocumentRetry) void fetchDocuments();
+      if (needsRequirementRetry) void fetchProject();
     }, delay));
 
     return () => retryTimers.forEach((timer) => window.clearTimeout(timer));
-  }, [createdFromIntake, documents.length, fetchDocuments, projectId]);
+  }, [attachmentRequirementSources.length, createdFromIntake, documents.length, fetchDocuments, fetchProject, projectId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1675,7 +1685,42 @@ export default function ProjectDetailPage() {
 
           {documents.length > 0 ? (
             <Section title="Supporting docs & uploads" description="Uploaded references, files, and source material tied to this project.">
-              <div className="space-y-2">
+              <div className="space-y-3">
+                {attachmentRequirementSources.length > 0 ? (
+                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        Attachment-derived requirements
+                      </span>
+                      <span className="text-xs text-emerald-800/80">
+                        {attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} read into intake requirements
+                      </span>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {attachmentRequirementSources.map((source: any) => (
+                        <div key={`${source.title}-${source.type}`} className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 shadow-sm">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase text-emerald-700">{String(source.type || "document").replace(/_/g, " ")}</span>
+                            <p className="text-sm font-medium text-zinc-900">{source.title}</p>
+                          </div>
+                          <ul className="mt-2 space-y-1 text-sm leading-6 text-zinc-700">
+                            {source.evidence.slice(0, 4).map((item: string) => (
+                              <li key={item} className="flex gap-2">
+                                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : createdFromIntake ? (
+                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    Attached files are loading into project requirements now. This page will refresh the extracted evidence automatically.
+                  </div>
+                ) : null}
+
                 {documents.map((doc) => (
                   <div key={doc.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
                     <div className="flex items-start justify-between gap-3">

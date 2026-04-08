@@ -7,6 +7,24 @@ export type RequirementSource = {
   evidence: string[];
 };
 
+export type RequirementSignalKind = "framework" | "language" | "styling" | "backend" | "runtime" | "tooling" | "database" | "platform" | "other";
+export type RequirementDirective = "required" | "allowed" | "forbidden";
+
+export type RequirementChoice = {
+  slug: string;
+  label: string;
+  aliases: string[];
+  kind: RequirementSignalKind;
+};
+
+export type TechnologyRequirement = {
+  directive: RequirementDirective;
+  kind: RequirementSignalKind;
+  rationale: string;
+  choices: RequirementChoice[];
+  sourceTitles: string[];
+};
+
 export type ProjectRequirements = {
   derivedAt: string;
   summary: string[];
@@ -14,6 +32,7 @@ export type ProjectRequirements = {
   requiredFrameworks: string[];
   sourceCount: number;
   sources: RequirementSource[];
+  technologyRequirements: TechnologyRequirement[];
 };
 
 export type ProjectLikeWithRequirements = {
@@ -34,9 +53,42 @@ export type ProjectLikeWithRequirements = {
 export type RequirementCompliance = {
   repoWorkspacePath: string | null;
   detectedFrameworks: string[];
+  detectedLanguages: string[];
+  detectedStyling: string[];
   violations: string[];
   notes: string[];
 };
+
+type RepoSignals = {
+  frameworks: string[];
+  languages: string[];
+  styling: string[];
+};
+
+type ParsedSentenceRequirement = {
+  requirement: TechnologyRequirement;
+  source: RequirementSource;
+};
+
+type TechnologyCatalogEntry = RequirementChoice & {
+  patterns: RegExp[];
+};
+
+const TECHNOLOGY_CATALOG: TechnologyCatalogEntry[] = [
+  { slug: "nextjs", label: "Next.js", aliases: ["nextjs", "next.js", "next"], kind: "framework", patterns: [/\bnext\s*\.?(?:js)?\b/i, /\bnextjs\b/i] },
+  { slug: "vite", label: "Vite", aliases: ["vite"], kind: "framework", patterns: [/\bvite\b/i] },
+  { slug: "remix", label: "Remix", aliases: ["remix"], kind: "framework", patterns: [/\bremix\b/i] },
+  { slug: "react-native", label: "React Native", aliases: ["react native"], kind: "framework", patterns: [/\breact\s+native\b/i] },
+  { slug: "expo", label: "Expo", aliases: ["expo"], kind: "framework", patterns: [/\bexpo\b/i] },
+  { slug: "react", label: "React", aliases: ["react"], kind: "framework", patterns: [/\breact\b/i] },
+  { slug: "typescript", label: "TypeScript", aliases: ["typescript", "ts"], kind: "language", patterns: [/\btypescript\b/i] },
+  { slug: "javascript", label: "JavaScript", aliases: ["javascript", "js"], kind: "language", patterns: [/\bjavascript\b/i] },
+  { slug: "tailwind", label: "Tailwind CSS", aliases: ["tailwind", "tailwindcss", "tailwind css"], kind: "styling", patterns: [/\btailwind(?:css)?\b/i, /\btailwind\s+css\b/i] },
+  { slug: "shadcn-ui", label: "shadcn/ui", aliases: ["shadcn", "shadcn/ui"], kind: "tooling", patterns: [/\bshadcn(?:\/ui)?\b/i] },
+  { slug: "supabase", label: "Supabase", aliases: ["supabase"], kind: "backend", patterns: [/\bsupabase\b/i] },
+  { slug: "postgresql", label: "PostgreSQL", aliases: ["postgres", "postgresql"], kind: "database", patterns: [/\bpostgres(?:ql)?\b/i] },
+  { slug: "nodejs", label: "Node.js", aliases: ["node", "node.js", "nodejs"], kind: "runtime", patterns: [/\bnode\s*\.?(?:js)?\b/i, /\bnodejs\b/i] },
+];
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -69,33 +121,6 @@ function extractTextFromBuffer(buffer: Buffer, mimeType?: string | null, title?:
   return "";
 }
 
-function collectFrameworks(text: string) {
-  const frameworks = new Set<string>();
-  const sentences = sentenceSplit(text).map((sentence) => sentence.toLowerCase());
-  const candidates: Array<{ key: string; pattern: RegExp }> = [
-    { key: "nextjs", pattern: /\bnext\s*\.?(?:js)?\b|\bnextjs\b/ },
-    { key: "vite", pattern: /\bvite\b/ },
-    { key: "react-native", pattern: /\breact\s+native\b/ },
-    { key: "expo", pattern: /\bexpo\b/ },
-    { key: "remix", pattern: /\bremix\b/ },
-  ];
-
-  for (const { key, pattern } of candidates) {
-    const positiveMention = sentences.some((sentence) => {
-      if (!pattern.test(sentence)) return false;
-      return !/(do not use|don't use|not use|avoid|instead of|rather than|no )/.test(sentence);
-    });
-    if (positiveMention) frameworks.add(key);
-  }
-
-  return [...frameworks];
-}
-
-function collectConstraintSentences(text: string) {
-  const sentences = sentenceSplit(text);
-  return sentences.filter((sentence) => /\b(must|should|required|requirement|use|built with|build with|stack|framework|tech stack|next\.js|nextjs|vite|react native|expo|tailwind|supabase)\b/i.test(sentence)).slice(0, 12);
-}
-
 function dedupeStrings(values: string[], limit = 12) {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -110,6 +135,219 @@ function dedupeStrings(values: string[], limit = 12) {
   return result;
 }
 
+function dedupeChoices(choices: RequirementChoice[]) {
+  const bySlug = new Map<string, RequirementChoice>();
+  for (const choice of choices) {
+    if (!bySlug.has(choice.slug)) bySlug.set(choice.slug, choice);
+  }
+  return [...bySlug.values()];
+}
+
+function sentenceLooksLikeConstraint(sentence: string) {
+  return /\b(must|should|required|requirement|use|built with|build with|stack|framework|tech stack|do not use|don't use|avoid|instead of|rather than|never use|no )\b/i.test(sentence);
+}
+
+function matchChoices(text: string) {
+  return TECHNOLOGY_CATALOG.filter((entry) => entry.patterns.some((pattern) => pattern.test(text))).map((entry) => ({
+    slug: entry.slug,
+    label: entry.label,
+    aliases: entry.aliases,
+    kind: entry.kind,
+  }));
+}
+
+function detectDirective(sentence: string): RequirementDirective | null {
+  const value = sentence.toLowerCase();
+  if (/\b(do not use|don't use|do not build with|avoid using|avoid|instead of|rather than|never use|must not use|no )\b/.test(value)) {
+    return "forbidden";
+  }
+  if (/\b(must use|must be built with|required to use|required|needs to use|has to use|built with|build with)\b/.test(value)) {
+    return "required";
+  }
+  if (/\b(can use|may use|use either|either .* or .*|or|allowed|one of)\b/.test(value)) {
+    return "allowed";
+  }
+  return null;
+}
+
+function mergeRequirement(existing: TechnologyRequirement | undefined, next: TechnologyRequirement) {
+  if (!existing) return next;
+  return {
+    ...existing,
+    rationale: existing.rationale.length >= next.rationale.length ? existing.rationale : next.rationale,
+    choices: dedupeChoices([...existing.choices, ...next.choices]),
+    sourceTitles: dedupeStrings([...existing.sourceTitles, ...next.sourceTitles], 8),
+  } satisfies TechnologyRequirement;
+}
+
+function keyForRequirement(requirement: TechnologyRequirement) {
+  return `${requirement.directive}:${requirement.kind}:${requirement.choices.map((choice) => choice.slug).sort().join("|")}`;
+}
+
+function parseSentenceRequirements(sentence: string, sourceTitle: string, sourceType: string): ParsedSentenceRequirement[] {
+  if (!sentenceLooksLikeConstraint(sentence)) return [];
+  const choices = dedupeChoices(matchChoices(sentence));
+  if (!choices.length) return [];
+
+  const directive = detectDirective(sentence);
+  const byKind = new Map<RequirementSignalKind, RequirementChoice[]>();
+  for (const choice of choices) {
+    const list = byKind.get(choice.kind) || [];
+    list.push(choice);
+    byKind.set(choice.kind, list);
+  }
+
+  const parsed: ParsedSentenceRequirement[] = [];
+  for (const [kind, groupedChoices] of byKind.entries()) {
+    const finalDirective = directive || (groupedChoices.length > 1 ? "allowed" : "required");
+    const requirement: TechnologyRequirement = {
+      directive: finalDirective,
+      kind,
+      rationale: sentence,
+      choices: dedupeChoices(groupedChoices),
+      sourceTitles: [sourceTitle],
+    };
+    parsed.push({
+      requirement,
+      source: {
+        title: sourceTitle,
+        type: sourceType,
+        evidence: [sentence],
+      },
+    });
+  }
+
+  return parsed;
+}
+
+function normalizeExistingRequirement(raw: any): TechnologyRequirement | null {
+  if (!raw || typeof raw !== "object") return null;
+  const directive = raw.directive;
+  const kind = raw.kind;
+  const rawChoices = Array.isArray(raw.choices) ? raw.choices : [];
+  if (!["required", "allowed", "forbidden"].includes(directive)) return null;
+  if (!rawChoices.length) return null;
+
+  const choices = dedupeChoices(rawChoices
+    .map((choice: any) => {
+      if (!choice || typeof choice !== "object") return null;
+      const slug = normalizeWhitespace(String(choice.slug || "")).toLowerCase();
+      if (!slug) return null;
+      const catalogMatch = TECHNOLOGY_CATALOG.find((entry) => entry.slug === slug);
+      return {
+        slug,
+        label: normalizeWhitespace(String(choice.label || catalogMatch?.label || slug)),
+        aliases: dedupeStrings(Array.isArray(choice.aliases) ? choice.aliases.map(String) : catalogMatch?.aliases || [], 8),
+        kind: (choice.kind || kind || catalogMatch?.kind || "other") as RequirementSignalKind,
+      } satisfies RequirementChoice;
+    })
+    .filter(Boolean) as RequirementChoice[]);
+
+  if (!choices.length) return null;
+
+  return {
+    directive,
+    kind: (kind || choices[0]?.kind || "other") as RequirementSignalKind,
+    rationale: normalizeWhitespace(String(raw.rationale || raw.summary || "")),
+    choices,
+    sourceTitles: dedupeStrings(Array.isArray(raw.sourceTitles) ? raw.sourceTitles.map(String) : [], 8),
+  } satisfies TechnologyRequirement;
+}
+
+function collectTechnologyRequirements(input: {
+  intakeSummary?: string | null;
+  intakeGoals?: string | null;
+  existing?: ProjectRequirements | null;
+  documents?: Array<{ title: string; type: string; text?: string | null }>;
+}) {
+  const buckets = new Map<string, TechnologyRequirement>();
+  const sourceMap = new Map<string, RequirementSource>();
+
+  const addParsed = (parsed: ParsedSentenceRequirement) => {
+    const key = keyForRequirement(parsed.requirement);
+    buckets.set(key, mergeRequirement(buckets.get(key), parsed.requirement));
+
+    const sourceKey = `${parsed.source.title}::${parsed.source.type}`;
+    const existingSource = sourceMap.get(sourceKey);
+    sourceMap.set(sourceKey, {
+      title: parsed.source.title,
+      type: parsed.source.type,
+      evidence: dedupeStrings([...(existingSource?.evidence || []), ...parsed.source.evidence], 6),
+    });
+  };
+
+  for (const requirement of input.existing?.technologyRequirements || []) {
+    const normalized = normalizeExistingRequirement(requirement);
+    if (!normalized) continue;
+    buckets.set(keyForRequirement(normalized), mergeRequirement(buckets.get(keyForRequirement(normalized)), normalized));
+  }
+
+  for (const legacyFramework of input.existing?.requiredFrameworks || []) {
+    const slug = normalizeWhitespace(String(legacyFramework)).toLowerCase();
+    const catalogMatch = TECHNOLOGY_CATALOG.find((entry) => entry.slug === slug);
+    if (!catalogMatch) continue;
+    const requirement: TechnologyRequirement = {
+      directive: "required",
+      kind: catalogMatch.kind,
+      rationale: `Legacy required framework: ${catalogMatch.label}`,
+      choices: [{ slug: catalogMatch.slug, label: catalogMatch.label, aliases: catalogMatch.aliases, kind: catalogMatch.kind }],
+      sourceTitles: [],
+    };
+    buckets.set(keyForRequirement(requirement), mergeRequirement(buckets.get(keyForRequirement(requirement)), requirement));
+  }
+
+  const sources = [
+    { title: "Project summary", type: "intake", text: input.intakeSummary || "" },
+    { title: "Project goals", type: "intake", text: input.intakeGoals || "" },
+    ...(input.documents || []).map((document) => ({ title: document.title, type: document.type, text: document.text || "" })),
+  ].filter((source) => source.text.trim().length > 0);
+
+  for (const source of sources) {
+    for (const sentence of sentenceSplit(source.text)) {
+      for (const parsed of parseSentenceRequirements(sentence, source.title, source.type)) {
+        addParsed(parsed);
+      }
+    }
+  }
+
+  const mergedSources = dedupeStrings([...(input.existing?.sources || []).map((source) => `${source.title}::${source.type}`), ...sourceMap.keys()], 100)
+    .map((key) => {
+      const [title, type] = key.split("::");
+      const existing = (input.existing?.sources || []).find((source) => source.title === title && source.type === type);
+      const parsed = sourceMap.get(key);
+      return {
+        title,
+        type,
+        evidence: dedupeStrings([...(existing?.evidence || []), ...(parsed?.evidence || [])], 6),
+      } satisfies RequirementSource;
+    })
+    .filter((source) => source.evidence.length > 0);
+
+  return {
+    technologyRequirements: [...buckets.values()],
+    sources: mergedSources,
+  };
+}
+
+function collectConstraintSentences(text: string) {
+  return sentenceSplit(text).filter((sentence) => sentenceLooksLikeConstraint(sentence)).slice(0, 12);
+}
+
+function buildRequirementSummary(requirements: TechnologyRequirement[]) {
+  const lines: string[] = [];
+  for (const requirement of requirements) {
+    const labels = requirement.choices.map((choice) => choice.label).join(" or ");
+    if (requirement.directive === "required") {
+      lines.push(`Must use ${labels}${requirement.kind === "language" ? "" : ` (${requirement.kind})`}.`);
+    } else if (requirement.directive === "allowed") {
+      lines.push(`Allowed ${requirement.kind}: ${labels}.`);
+    } else {
+      lines.push(`Do not use ${labels}${requirement.kind === "language" ? "" : ` (${requirement.kind})`}.`);
+    }
+  }
+  return dedupeStrings(lines, 10);
+}
+
 export function deriveProjectRequirements(input: {
   intakeSummary?: string | null;
   intakeGoals?: string | null;
@@ -120,45 +358,24 @@ export function deriveProjectRequirements(input: {
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
 
   const combinedText = sourceTexts.join("\n\n");
-  const requiredFrameworks = dedupeStrings([
-    ...(input.existing?.requiredFrameworks || []),
-    ...collectFrameworks(combinedText),
-  ], 6).map((framework) => framework.toLowerCase());
-
+  const { technologyRequirements, sources } = collectTechnologyRequirements(input);
   const constraints = dedupeStrings([
     ...(input.existing?.constraints || []),
     ...collectConstraintSentences(combinedText),
-  ], 12);
+    ...technologyRequirements.map((requirement) => requirement.rationale),
+  ], 16);
 
-  const documentSources = (input.documents || [])
-    .map((document) => ({
-      title: document.title,
-      type: document.type,
-      evidence: dedupeStrings([
-        ...collectConstraintSentences(document.text || ""),
-        ...collectFrameworks(document.text || "").map((framework) => `Required framework: ${framework}`),
-      ], 4),
-    }))
-    .filter((document) => document.evidence.length > 0);
-
-  const existingSources = input.existing?.sources || [];
-  const sources = [...existingSources];
-  for (const source of documentSources) {
-    const existingIndex = sources.findIndex((candidate) => candidate.title === source.title && candidate.type === source.type);
-    if (existingIndex >= 0) {
-      sources[existingIndex] = {
-        ...sources[existingIndex],
-        evidence: dedupeStrings([...sources[existingIndex].evidence, ...source.evidence], 6),
-      };
-    } else {
-      sources.push(source);
-    }
-  }
+  const requiredFrameworks = dedupeStrings(
+    technologyRequirements
+      .filter((requirement) => requirement.directive === "required" && requirement.kind === "framework")
+      .flatMap((requirement) => requirement.choices.map((choice) => choice.slug)),
+    8,
+  ).map((framework) => framework.toLowerCase());
 
   const summary = dedupeStrings([
-    requiredFrameworks.length ? `Required frameworks: ${requiredFrameworks.join(", ")}` : "",
+    ...buildRequirementSummary(technologyRequirements),
     ...constraints,
-  ], 8);
+  ], 10);
 
   return {
     derivedAt: new Date().toISOString(),
@@ -167,6 +384,7 @@ export function deriveProjectRequirements(input: {
     requiredFrameworks,
     sourceCount: sources.length,
     sources,
+    technologyRequirements,
   } satisfies ProjectRequirements;
 }
 
@@ -208,45 +426,101 @@ export function resolveRepoWorkspacePath(project: ProjectLikeWithRequirements) {
 }
 
 export function inspectRepoFrameworks(repoWorkspacePath: string | null) {
-  if (!repoWorkspacePath) return { detectedFrameworks: [] as string[], notes: ["No repo workspace path found."] };
+  if (!repoWorkspacePath) return { detectedFrameworks: [] as string[], detectedLanguages: [] as string[], detectedStyling: [] as string[], notes: ["No repo workspace path found."] };
   const packageJsonPath = path.join(repoWorkspacePath, "package.json");
   if (!fs.existsSync(packageJsonPath)) {
-    return { detectedFrameworks: [] as string[], notes: [`package.json not found at ${packageJsonPath}`] };
+    return { detectedFrameworks: [] as string[], detectedLanguages: [] as string[], detectedStyling: [] as string[], notes: [`package.json not found at ${packageJsonPath}`] };
   }
 
   try {
     const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
     const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) } as Record<string, string>;
-    const detected = new Set<string>();
-    if (deps.next) detected.add("nextjs");
-    if (deps.vite) detected.add("vite");
-    if (deps["react-native"]) detected.add("react-native");
-    if (deps.expo) detected.add("expo");
-    if (deps["@remix-run/react"] || deps["@remix-run/node"]) detected.add("remix");
-    return { detectedFrameworks: [...detected], notes: [`Inspected ${packageJsonPath}`] };
+    const detected = {
+      frameworks: new Set<string>(),
+      languages: new Set<string>(),
+      styling: new Set<string>(),
+    };
+
+    if (deps.next) detected.frameworks.add("nextjs");
+    if (deps.vite) detected.frameworks.add("vite");
+    if (deps["react-native"]) detected.frameworks.add("react-native");
+    if (deps.expo) detected.frameworks.add("expo");
+    if (deps["@remix-run/react"] || deps["@remix-run/node"]) detected.frameworks.add("remix");
+    if (deps.react) detected.frameworks.add("react");
+    if (deps.typescript) detected.languages.add("typescript");
+    if (deps.tailwindcss) detected.styling.add("tailwind");
+
+    return {
+      detectedFrameworks: [...detected.frameworks],
+      detectedLanguages: [...detected.languages],
+      detectedStyling: [...detected.styling],
+      notes: [`Inspected ${packageJsonPath}`],
+    };
   } catch (error) {
-    return { detectedFrameworks: [], notes: [error instanceof Error ? error.message : "Failed to parse package.json"] };
+    return {
+      detectedFrameworks: [] as string[],
+      detectedLanguages: [] as string[],
+      detectedStyling: [] as string[],
+      notes: [error instanceof Error ? error.message : "Failed to parse package.json"],
+    };
   }
+}
+
+function repoSignalsFromInspection(repoWorkspacePath: string | null): RepoSignals & { notes: string[] } {
+  const inspected = inspectRepoFrameworks(repoWorkspacePath);
+  return {
+    frameworks: inspected.detectedFrameworks,
+    languages: inspected.detectedLanguages,
+    styling: inspected.detectedStyling,
+    notes: inspected.notes,
+  };
+}
+
+function observedSignalsForKind(signals: RepoSignals, kind: RequirementSignalKind) {
+  if (kind === "framework") return signals.frameworks;
+  if (kind === "language") return signals.languages;
+  if (kind === "styling") return signals.styling;
+  return [];
 }
 
 export function getProjectRequirementCompliance(project: ProjectLikeWithRequirements): RequirementCompliance {
   const requirements = project.intake?.requirements;
   const repoWorkspacePath = resolveRepoWorkspacePath(project);
-  const { detectedFrameworks, notes } = inspectRepoFrameworks(repoWorkspacePath);
+  const inspected = repoSignalsFromInspection(repoWorkspacePath);
   const violations: string[] = [];
 
+  for (const requirement of requirements?.technologyRequirements || []) {
+    const observed = observedSignalsForKind(inspected, requirement.kind);
+    const expected = requirement.choices.map((choice) => choice.slug);
+    const labels = requirement.choices.map((choice) => choice.label).join(" or ");
+    if (requirement.directive === "required" && expected.length > 0 && !expected.some((slug) => observed.includes(slug))) {
+      violations.push(`PRD/spec requires ${labels}, but repo shows ${observed.length ? observed.join(", ") : "none detected"} for ${requirement.kind}.`);
+    }
+    if (requirement.directive === "forbidden") {
+      const presentForbidden = expected.filter((slug) => observed.includes(slug));
+      if (presentForbidden.length > 0) {
+        violations.push(`PRD/spec forbids ${presentForbidden.join(", ")}, but repo currently includes ${presentForbidden.join(", ")}.`);
+      }
+    }
+  }
+
   for (const requiredFramework of requirements?.requiredFrameworks || []) {
-    if (!detectedFrameworks.includes(requiredFramework)) {
-      const observed = detectedFrameworks.length ? detectedFrameworks.join(", ") : "none detected";
-      violations.push(`PRD/spec requires ${requiredFramework}, but repo shows ${observed}.`);
+    if (!inspected.frameworks.includes(requiredFramework)) {
+      const observed = inspected.frameworks.length ? inspected.frameworks.join(", ") : "none detected";
+      const alreadyCovered = violations.some((violation) => violation.includes(requiredFramework));
+      if (!alreadyCovered) {
+        violations.push(`PRD/spec requires ${requiredFramework}, but repo shows ${observed}.`);
+      }
     }
   }
 
   return {
     repoWorkspacePath,
-    detectedFrameworks,
+    detectedFrameworks: inspected.frameworks,
+    detectedLanguages: inspected.languages,
+    detectedStyling: inspected.styling,
     violations,
-    notes,
+    notes: inspected.notes,
   };
 }
 
@@ -254,8 +528,18 @@ export function formatRequirementsForPrompt(project: ProjectLikeWithRequirements
   const requirements = project.intake?.requirements;
   if (!requirements) return null;
 
+  const contractLines = requirements.technologyRequirements.flatMap((requirement) => {
+    const labels = requirement.choices.map((choice) => choice.label).join(" or ");
+    if (!labels) return [];
+    if (requirement.directive === "required") return [`- Must use ${labels} (${requirement.kind})`];
+    if (requirement.directive === "allowed") return [`- Allowed ${requirement.kind}: ${labels}`];
+    return [`- Forbidden ${requirement.kind}: ${labels}`];
+  });
+
   const lines = [
-    requirements.requiredFrameworks.length ? `Required frameworks: ${requirements.requiredFrameworks.join(", ")}` : null,
+    contractLines.length ? "Technology contract:" : null,
+    ...contractLines,
+    requirements.constraints.length ? "Constraint evidence:" : null,
     ...requirements.constraints.slice(0, 8).map((constraint) => `- ${constraint}`),
     ...requirements.sources.slice(0, 3).map((source) => `${source.title}: ${source.evidence.join(" | ")}`),
   ].filter(Boolean);

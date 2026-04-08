@@ -29,6 +29,17 @@ function areMissingColumns(error: DbErrorLike, columns: string[], table?: string
   return columns.some((column) => isMissingColumnError(error, column, table));
 }
 
+function isMissingTableError(error: DbErrorLike, table: string) {
+  if (!error?.message) return false;
+  return (
+    error.code === "PGRST205" ||
+    error.code === "42P01" ||
+    error.message.includes(`Could not find the table 'public.${table}'`) ||
+    error.message.includes(`relation \"public.${table}\" does not exist`) ||
+    error.message.includes(`relation \"${table}\" does not exist`)
+  );
+}
+
 export function isMissingGithubRepoBindingColumnError(error: DbErrorLike) {
   return isMissingColumnError(error, "github_repo_binding", "projects");
 }
@@ -73,6 +84,20 @@ export async function selectProjectSummarySprintsWithCompat(db: DbClient, projec
       approval_gate_status: "not_requested",
     })),
   };
+}
+
+export async function selectProjectSummaryJobsWithCompat(db: DbClient, projectIds: string[]) {
+  const first = await db.from("jobs").select("project_id, status").in("project_id", projectIds).in("status", ["queued", "in_progress", "blocked"]);
+
+  if (isMissingTableError(first.error, "jobs") || areMissingColumns(first.error, ["project_id", "status"], "jobs")) {
+    return {
+      ...first,
+      data: [],
+      error: null,
+    };
+  }
+
+  return first;
 }
 
 export async function selectProjectWithArtifactCompat(

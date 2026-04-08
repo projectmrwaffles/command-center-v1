@@ -1,5 +1,8 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { PDFParse } from "pdf-parse";
 
 export type RequirementSource = {
@@ -138,6 +141,47 @@ async function extractPdfText(buffer: Buffer) {
   return extractPdfLikeTextFallback(buffer);
 }
 
+const execFileAsync = promisify(execFile);
+
+function extensionForMimeType(mimeType?: string | null, title?: string | null) {
+  const lowerTitle = String(title || "").toLowerCase();
+  if (/\.png$/i.test(lowerTitle) || mimeType === "image/png") return ".png";
+  if (/\.jpe?g$/i.test(lowerTitle) || mimeType === "image/jpeg") return ".jpg";
+  if (/\.gif$/i.test(lowerTitle) || mimeType === "image/gif") return ".gif";
+  if (/\.webp$/i.test(lowerTitle) || mimeType === "image/webp") return ".webp";
+  if (/\.heic$/i.test(lowerTitle) || mimeType === "image/heic") return ".heic";
+  return ".img";
+}
+
+async function extractImageText(buffer: Buffer, mimeType?: string | null, title?: string | null) {
+  if (process.platform !== "darwin") return "";
+
+  const scriptPath = path.join(process.cwd(), "scripts", "extract-image-text.swift");
+  if (!fs.existsSync(scriptPath)) return "";
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ccv1-image-ocr-"));
+  const imagePath = path.join(tempDir, `upload${extensionForMimeType(mimeType, title)}`);
+
+  try {
+    fs.writeFileSync(imagePath, buffer);
+    const { stdout } = await execFileAsync("swift", [scriptPath, imagePath], {
+      timeout: 15000,
+      maxBuffer: 1024 * 1024,
+      encoding: "utf8",
+    });
+    return String(stdout || "")
+      .split(/\r?\n/)
+      .map((line) => normalizeWhitespace(line))
+      .filter(Boolean)
+      .join("\n");
+  } catch (error) {
+    console.warn("[project-requirements] image OCR failed", error);
+    return "";
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function extractTextFromBuffer(buffer: Buffer, mimeType?: string | null, title?: string | null) {
   const lowerTitle = String(title || "").toLowerCase();
   if ((mimeType || "").startsWith("text/") || /\.(md|txt|json|yaml|yml)$/i.test(lowerTitle)) {
@@ -145,6 +189,9 @@ async function extractTextFromBuffer(buffer: Buffer, mimeType?: string | null, t
   }
   if (mimeType === "application/pdf" || /\.pdf$/i.test(lowerTitle)) {
     return extractPdfText(buffer);
+  }
+  if ((mimeType || "").startsWith("image/") || /\.(png|jpe?g|gif|webp|heic)$/i.test(lowerTitle)) {
+    return extractImageText(buffer, mimeType, title);
   }
   return "";
 }

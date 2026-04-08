@@ -71,11 +71,11 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const projectState = await syncProjectState(db, projectId);
-
     if (data.status === "done") {
       await maybeAdvanceProjectAfterTaskDone(db as any, { projectId, completedTaskId: taskId });
     }
+
+    const projectState = await syncProjectState(db, projectId);
 
     await db.from("agent_events").insert({
       agent_id: null,

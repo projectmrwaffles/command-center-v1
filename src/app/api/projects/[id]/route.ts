@@ -114,12 +114,20 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const repairedRequirements = await repairMissingPdfAttachmentRequirements(db, {
-      projectId,
-      intake: project.intake,
-    });
+    let repairedRequirements:
+      | Awaited<ReturnType<typeof repairMissingPdfAttachmentRequirements>>
+      | null = null;
 
-    const hydratedProject = repairedRequirements.repaired
+    try {
+      repairedRequirements = await repairMissingPdfAttachmentRequirements(db, {
+        projectId,
+        intake: project.intake,
+      });
+    } catch (error) {
+      console.warn(`[API /projects/:id] requirement repair skipped for ${projectId}`, error);
+    }
+
+    const hydratedProject = repairedRequirements?.repaired
       ? {
           ...project,
           intake: repairedRequirements.intake,

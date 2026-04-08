@@ -25,6 +25,9 @@ export async function repairMissingPdfAttachmentRequirements(
   db: DbClient,
   input: { projectId: string; intake?: ProjectIntakeLike | null }
 ) {
+  const logFailure = (stage: string, error: unknown) => {
+    console.warn(`[project-requirements-repair] ${stage} for project ${input.projectId}`, error);
+  };
   const currentIntake = (input.intake || {}) as Record<string, unknown>;
   const existingRequirements = (currentIntake.requirements as ProjectRequirements | null | undefined) || null;
 
@@ -46,18 +49,31 @@ export async function repairMissingPdfAttachmentRequirements(
   const extractedDocuments: Array<{ title: string; type: string; text?: string | null }> = [];
   for (const document of pdfDocuments) {
     if (!document?.storage_path) continue;
-    const { data: file, error: downloadError } = await db.storage.from(STORAGE_BUCKET).download(document.storage_path);
-    if (downloadError || !file) continue;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    extractedDocuments.push(
-      await extractRequirementsFromUploadedFile({
-        buffer,
-        mimeType: document.mime_type || null,
-        title: document.title || "Untitled upload",
-        type: document.type || "prd_pdf",
-      })
-    );
+    try {
+      const { data: file, error: downloadError } = await db.storage.from(STORAGE_BUCKET).download(document.storage_path);
+      if (downloadError || !file) {
+        if (downloadError) logFailure(`storage download failed for ${document.storage_path}`, downloadError);
+        continue;
+      }
+
+      if (typeof file.arrayBuffer !== "function") {
+        logFailure(`downloaded file missing arrayBuffer() for ${document.storage_path}`, new Error("Unsupported storage response type"));
+        continue;
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      extractedDocuments.push(
+        await extractRequirementsFromUploadedFile({
+          buffer,
+          mimeType: document.mime_type || null,
+          title: document.title || "Untitled upload",
+          type: document.type || "prd_pdf",
+        })
+      );
+    } catch (error) {
+      logFailure(`requirement extraction failed for ${document.storage_path}`, error);
+    }
   }
 
   if (extractedDocuments.length === 0) {
@@ -89,7 +105,8 @@ export async function repairMissingPdfAttachmentRequirements(
     .eq("id", input.projectId);
 
   if (updateError) {
-    throw new Error(updateError.message || "Failed to repair missing PDF attachment requirements");
+    logFailure("failed to persist repaired requirements", updateError);
+    return { repaired: false, requirements: existingRequirements } as const;
   }
 
   return { repaired: true, requirements: nextRequirements, intake: nextIntake } as const;

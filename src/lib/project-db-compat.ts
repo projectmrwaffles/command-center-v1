@@ -14,21 +14,65 @@ type DbClient = {
   from: (table: string) => any;
 };
 
-function isMissingColumnError(error: { code?: string; message?: string } | null | undefined, column: string) {
+type DbErrorLike = { code?: string; message?: string } | null | undefined;
+
+function isMissingColumnError(error: DbErrorLike, column: string, table?: string) {
   if (!error?.message) return false;
   return (
     ((error.code === "PGRST204" || error.code === "42703") && error.message.includes(column)) ||
     error.message.includes(`'${column}' column`) ||
-    error.message.includes(`column projects.${column} does not exist`)
+    (table ? error.message.includes(`column ${table}.${column} does not exist`) : false)
   );
 }
 
-export function isMissingGithubRepoBindingColumnError(error: { code?: string; message?: string } | null | undefined) {
-  return isMissingColumnError(error, "github_repo_binding");
+function areMissingColumns(error: DbErrorLike, columns: string[], table?: string) {
+  return columns.some((column) => isMissingColumnError(error, column, table));
 }
 
-export function isMissingLinksColumnError(error: { code?: string; message?: string } | null | undefined) {
-  return isMissingColumnError(error, "links");
+export function isMissingGithubRepoBindingColumnError(error: DbErrorLike) {
+  return isMissingColumnError(error, "github_repo_binding", "projects");
+}
+
+export function isMissingLinksColumnError(error: DbErrorLike) {
+  return isMissingColumnError(error, "links", "projects");
+}
+
+export async function selectProjectSummaryTasksWithCompat(db: DbClient, projectIds: string[]) {
+  const fullSelect = "project_id, sprint_id, status, task_type, task_metadata";
+  const fallbackSelect = "project_id, sprint_id, status";
+
+  const first = await db.from("sprint_items").select(fullSelect).in("project_id", projectIds);
+  if (!areMissingColumns(first.error, ["task_type", "task_metadata"], "sprint_items")) {
+    return first;
+  }
+
+  const fallback = await db.from("sprint_items").select(fallbackSelect).in("project_id", projectIds);
+  return {
+    ...fallback,
+    data: (fallback.data ?? []).map((task: any) => ({ ...task, task_type: null, task_metadata: null })),
+  };
+}
+
+export async function selectProjectSummarySprintsWithCompat(db: DbClient, projectIds: string[]) {
+  const fullSelect = "id, project_id, auto_generated, phase_key, approval_gate_required, approval_gate_status";
+  const fallbackSelect = "id, project_id";
+
+  const first = await db.from("sprints").select(fullSelect).in("project_id", projectIds);
+  if (!areMissingColumns(first.error, ["auto_generated", "phase_key", "approval_gate_required", "approval_gate_status"], "sprints")) {
+    return first;
+  }
+
+  const fallback = await db.from("sprints").select(fallbackSelect).in("project_id", projectIds);
+  return {
+    ...fallback,
+    data: (fallback.data ?? []).map((sprint: any) => ({
+      ...sprint,
+      auto_generated: null,
+      phase_key: null,
+      approval_gate_required: false,
+      approval_gate_status: "not_requested",
+    })),
+  };
 }
 
 export async function selectProjectWithArtifactCompat(

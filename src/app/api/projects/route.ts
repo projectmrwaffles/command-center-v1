@@ -4,7 +4,7 @@ import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-cr
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
-import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError } from "@/lib/project-db-compat";
+import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
 import { deriveProjectRequirements } from "@/lib/project-requirements";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
     }
 
     const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
-      db.from("sprint_items").select("project_id, sprint_id, status, task_type, task_metadata").in("project_id", projectIds),
-      db.from("sprints").select("id, project_id, auto_generated, phase_key, approval_gate_required, approval_gate_status").in("project_id", projectIds),
+      selectProjectSummaryTasksWithCompat(db, projectIds),
+      selectProjectSummarySprintsWithCompat(db, projectIds),
       db.from("jobs").select("project_id, status").in("project_id", projectIds).in("status", ["queued", "in_progress", "blocked"]),
     ]);
 

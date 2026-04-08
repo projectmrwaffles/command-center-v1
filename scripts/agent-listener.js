@@ -264,9 +264,18 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
   const isQaValidation = taskType === "qa_validation";
   const isAcceptanceReview = isQaValidation && qaMode === "acceptance_review";
   const requirements = project?.intake?.requirements || null;
+  const technologyRequirements = Array.isArray(requirements?.technologyRequirements) ? requirements.technologyRequirements : [];
   const requiredFrameworks = Array.isArray(requirements?.requiredFrameworks) ? requirements.requiredFrameworks : [];
   const repoFrameworks = readRepoFrameworks(repoWorkspacePath);
   const requirementViolations = requiredFrameworks.filter((framework) => !repoFrameworks.includes(framework));
+  const formattedTechnologyContract = technologyRequirements.length
+    ? technologyRequirements.slice(0, 8).map((requirement) => {
+        const labels = Array.isArray(requirement?.choices) ? requirement.choices.map((choice) => choice?.label || choice?.slug).filter(Boolean).join(" or ") : "unspecified";
+        if (requirement?.directive === "forbidden") return `- Forbidden ${requirement?.kind || "technology"}: ${labels}`;
+        if (requirement?.directive === "allowed") return `- Allowed ${requirement?.kind || "technology"}: ${labels}`;
+        return `- Must use ${labels}${requirement?.kind ? ` (${requirement.kind})` : ""}`;
+      }).join("\n")
+    : null;
 
   return [
     `New task for project "${projectName}": ${taskTitle}.`,
@@ -277,6 +286,7 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     githubRepoUrl ? `GitHub repo: ${githubRepoUrl}` : null,
     repoWorkspacePath ? `Repo workspace path: ${repoWorkspacePath}` : null,
     requirements?.summary?.length ? `Project requirements summary:\n${requirements.summary.map((item) => `- ${item}`).join("\n")}` : null,
+    formattedTechnologyContract ? `Technology contract from PRD/spec:\n${formattedTechnologyContract}` : null,
     requirements?.constraints?.length ? `Critical constraints:\n${requirements.constraints.slice(0, 8).map((item) => `- ${item}`).join("\n")}` : null,
     requirements?.sources?.length ? `Requirement evidence sources:\n${requirements.sources.slice(0, 3).map((source) => `- ${source.title}: ${source.evidence.join(" | ")}`).join("\n")}` : null,
     codeHeavy ? "This project is repo-backed. Use the exact repo workspace path above when you inspect or change implementation files; do not work in a separate scratch workspace." : null,
@@ -287,8 +297,8 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     isAcceptanceReview && requirementViolations.length ? `QC MUST FAIL if this mismatch is real: missing required framework(s) ${requirementViolations.join(", ")}. Do not approve until the repo matches the PRD/spec.` : null,
     codeHeavy ? "If you change tracked code or docs in that repo-backed workspace, do not stop at a local commit. Commit and push to the remote so origin reflects your final commit before you return STATUS: done." : null,
     codeHeavy ? "Verify the remote push succeeded. Include the pushed commit hash and the exact git/gh commands you ran in DETAILS when you make tracked changes." : null,
-    taskType === "build_implementation" && requirements?.summary?.length ? "Treat the project requirements above as hard inputs for implementation, not optional background context. If the repo or your plan conflicts with them, align the implementation to the requirements or call out the blocker explicitly." : null,
-    taskType === "discovery_plan" && requirements?.summary?.length ? "Discovery must convert the requirements above into an explicit plan/decision record. Do not ignore attached PRD/spec constraints when recommending stack or implementation approach." : null,
+    taskType === "build_implementation" && requirements?.summary?.length ? "Treat the project requirements above as a hard contract for implementation. Required choices must be present, allowed choices define the acceptable option set, and forbidden technologies must not be introduced. If the repo or your plan conflicts with that contract, align the implementation or call out the blocker explicitly." : null,
+    taskType === "discovery_plan" && requirements?.summary?.length ? "Discovery must convert the PRD/spec requirements above into an explicit implementation contract. Preserve required choices, allowed alternatives, and forbidden technologies instead of collapsing them into generic notes." : null,
     "Do the work now. Do not stop after acknowledging or saying you started.",
     "Continue until you reach a real stop condition: done, blocked, awaiting approval, or awaiting confirmation.",
     "If you need workspace artifacts, create or update them before you stop.",

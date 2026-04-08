@@ -110,7 +110,7 @@ export async function POST(
           mime_type: file.type || null,
           size_bytes: file.size,
         });
-        extractedDocuments.push(extractRequirementsFromUploadedFile({
+        extractedDocuments.push(await extractRequirementsFromUploadedFile({
           buffer,
           mimeType: file.type || null,
           title: file.name || "Untitled upload",

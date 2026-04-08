@@ -5,6 +5,10 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { PDFParse } from "pdf-parse";
 
+function isHostDependentExtractionAllowed() {
+  return !process.env.VERCEL;
+}
+
 export type RequirementSource = {
   title: string;
   type: string;
@@ -123,6 +127,10 @@ function extractPdfLikeTextFallback(buffer: Buffer) {
 }
 
 async function extractPdfTextWithPython(buffer: Buffer) {
+  if (!isHostDependentExtractionAllowed()) {
+    return "";
+  }
+
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ccv1-pdf-extract-"));
   const pdfPath = path.join(tempDir, "upload.pdf");
 
@@ -190,7 +198,7 @@ function extensionForMimeType(mimeType?: string | null, title?: string | null) {
 }
 
 async function extractImageText(buffer: Buffer, mimeType?: string | null, title?: string | null) {
-  if (process.platform !== "darwin") return "";
+  if (!isHostDependentExtractionAllowed() || process.platform !== "darwin") return "";
 
   const scriptPath = path.join(process.cwd(), "scripts", "extract-image-text.swift");
   if (!fs.existsSync(scriptPath)) return "";

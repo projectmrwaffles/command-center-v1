@@ -2,6 +2,14 @@ import { deriveProjectRequirements, extractRequirementsFromUploadedFile, type Pr
 
 const STORAGE_BUCKET = "project_docs";
 
+function shouldRunRequirementsRepair() {
+  return !process.env.VERCEL;
+}
+
+function getExistingRequirements(intake?: ProjectIntakeLike | null) {
+  return (((intake || {}) as Record<string, unknown>).requirements as ProjectRequirements | null | undefined) || null;
+}
+
 type DbClient = {
   from: (table: string) => any;
   storage: {
@@ -25,11 +33,15 @@ export async function repairMissingPdfAttachmentRequirements(
   db: DbClient,
   input: { projectId: string; intake?: ProjectIntakeLike | null }
 ) {
+  if (!shouldRunRequirementsRepair()) {
+    return { repaired: false, requirements: getExistingRequirements(input.intake) } as const;
+  }
+
   const logFailure = (stage: string, error: unknown) => {
     console.warn(`[project-requirements-repair] ${stage} for project ${input.projectId}`, error);
   };
   const currentIntake = (input.intake || {}) as Record<string, unknown>;
-  const existingRequirements = (currentIntake.requirements as ProjectRequirements | null | undefined) || null;
+  const existingRequirements = getExistingRequirements(input.intake);
 
   if (hasAttachmentDerivedRequirements(existingRequirements)) {
     return { repaired: false, requirements: existingRequirements } as const;

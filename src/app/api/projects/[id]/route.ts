@@ -4,7 +4,6 @@ import { reconcileProjectPhaseProgression } from "@/lib/project-handoff";
 import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
-import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -114,31 +113,11 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    let repairedRequirements:
-      | Awaited<ReturnType<typeof repairMissingPdfAttachmentRequirements>>
-      | null = null;
-
-    try {
-      repairedRequirements = await repairMissingPdfAttachmentRequirements(db, {
-        projectId,
-        intake: project.intake,
-      });
-    } catch (error) {
-      console.warn(`[API /projects/:id] requirement repair skipped for ${projectId}`, error);
-    }
-
-    const hydratedProject = repairedRequirements?.repaired
-      ? {
-          ...project,
-          intake: repairedRequirements.intake,
-        }
-      : project;
-
-    const derivedGithubBinding = deriveCompatGithubBinding(hydratedProject);
+    const derivedGithubBinding = deriveCompatGithubBinding(project);
     const projectWithDerivedArtifacts = {
-      ...hydratedProject,
+      ...project,
       github_repo_binding: derivedGithubBinding,
-      links: syncProjectLinksWithGitHubBinding(hydratedProject.links || hydratedProject.intake?.links || null, derivedGithubBinding),
+      links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
     };
 
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";

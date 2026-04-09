@@ -2,6 +2,7 @@ import { getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
 import { dispatchEligibleProjectTasks } from "@/lib/project-execution";
 import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
+import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 
 type ProjectDb = any;
 
@@ -118,6 +119,16 @@ export async function finalizeProjectCreate(db: ProjectDb, input: {
       }
     }
   }
+
+  await syncProjectPreBuildCheckpoint(db, {
+    projectId: input.project.id,
+    project: {
+      ...input.project,
+      intake: input.intake || input.project?.intake || null,
+      links: input.links || input.project?.links || null,
+      github_repo_binding: input.githubRepoBinding || input.project?.github_repo_binding || null,
+    },
+  });
 
   await syncProjectState(db, input.project.id);
 

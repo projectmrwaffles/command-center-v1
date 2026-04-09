@@ -2,6 +2,7 @@ import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
+import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -175,7 +176,9 @@ export async function POST(
         throw new Error(sprintCountError.message);
       }
 
-      const dispatchResults = sprintCount === 0 && attachmentRequirementsReady
+      const effectiveSprintCount = sprintCount ?? 0;
+
+      const dispatchResults = effectiveSprintCount === 0 && attachmentRequirementsReady
         ? await finalizeProjectCreate(db, {
             project: {
               ...updatedProject,
@@ -189,6 +192,16 @@ export async function POST(
             teamId: updatedProject.team_id || null,
           })
         : [];
+
+      if (effectiveSprintCount > 0) {
+        await syncProjectPreBuildCheckpoint(db, {
+          projectId,
+          project: {
+            ...updatedProject,
+            intake: effectiveIntake,
+          },
+        });
+      }
 
       return NextResponse.json({
         documents: data,

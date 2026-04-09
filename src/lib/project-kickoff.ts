@@ -38,6 +38,13 @@ function hasCapability(intake: ProjectIntake | undefined, capability: string) {
   return intake?.capabilities?.includes(capability) ?? false;
 }
 
+function hasPrdDrivenRequirements(intake: ProjectIntake | undefined) {
+  return Boolean(
+    intake?.requirements?.technologyRequirements?.length
+    && intake.requirements.sources?.some((source) => source?.type !== "intake" && Array.isArray(source.evidence) && source.evidence.length > 0)
+  );
+}
+
 function isMissingColumnError(error: { code?: string; message?: string } | null | undefined, columns: string[]) {
   if (!error) return false;
   const message = error.message || "";
@@ -84,6 +91,7 @@ export function buildProjectKickoffPlan(input: {
   const needsBuild = hasCapability(intake, "frontend") || hasCapability(intake, "backend-data") || ["product_build", "web_app", "native_app", "ops_enablement", "saas"].includes(input.type);
   const needsContent = hasCapability(intake, "content-copy") || hasCapability(intake, "growth-marketing") || input.type === "marketing_growth" || intake?.shape === "launch-campaign";
   const needsQa = hasCapability(intake, "qa-optimization") || needsBuild || readiness.stage === "already-live";
+  const needsPreBuildCheckpoint = needsBuild && hasPrdDrivenRequirements(intake);
 
   if (needsDiscovery) {
     phaseTemplates.push({
@@ -128,7 +136,7 @@ export function buildProjectKickoffPlan(input: {
       goal: "Implement the first working delivery slice from the approved plan.",
       order: phaseTemplates.length + 1,
       status: phaseTemplates.length === 0 ? "active" : "draft",
-      gateRequired: false,
+      gateRequired: needsPreBuildCheckpoint,
       gateStatus: "not_requested",
       tasks: [
         phaseTask("build_implementation", `${input.projectName} initial delivery slice`, {

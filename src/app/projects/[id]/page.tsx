@@ -71,6 +71,15 @@ type ReviewArtifact = {
   sourceTaskTitle?: string;
 };
 
+type PreBuildCheckpointView = {
+  applicable: boolean;
+  outcome: "match" | "mismatch" | "manual_review" | null;
+  status: "approved" | "pending" | "not_requested";
+  title: string | null;
+  summary: string | null;
+  reasons: string[];
+};
+
 type Milestone = {
   id: string;
   name: string;
@@ -98,6 +107,7 @@ type Milestone = {
     links?: ProjectLinks | null;
   } | null;
   reviewSummary?: MilestoneReviewSummary | null;
+  preBuildCheckpoint?: PreBuildCheckpointView | null;
 };
 
 type ProjectDetail = {
@@ -122,6 +132,7 @@ type ProjectDetail = {
     links?: ProjectLinks | null;
     github_repo_binding?: GitHubRepoBinding | null;
     github_repo_provenance?: GitHubRepoProvenance | null;
+    preBuildCheckpoint?: PreBuildCheckpointView | null;
     [key: string]: any;
   };
   teams: any[];
@@ -1426,7 +1437,7 @@ export default function ProjectDetailPage() {
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoint</div>
                               <h3 className="mt-1 text-base font-semibold text-zinc-950">{milestone.name}</h3>
                               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                                {summary?.latestSubmissionSummary || (checkpointState.key === "awaiting_submission" ? "No review packet submitted yet." : checkpointState.key === "awaiting_materials" ? "Submission exists, but review materials are not ready yet." : checkpointState.key === "changes_requested" ? "Changes were requested on the latest submission." : checkpointState.key === "approved" ? "This checkpoint has already been approved." : "This stage is waiting for review.")}
+                                {summary?.latestSubmissionSummary || milestone.preBuildCheckpoint?.summary || (checkpointState.key === "awaiting_submission" ? "No review packet submitted yet." : checkpointState.key === "awaiting_materials" ? "Submission exists, but review materials are not ready yet." : checkpointState.key === "changes_requested" ? "Changes were requested on the latest submission." : checkpointState.key === "approved" ? "This checkpoint has already been approved." : "This stage is waiting for review.")}
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-4">
@@ -1434,6 +1445,7 @@ export default function ProjectDetailPage() {
                                 {formatMilestoneGateLabel(milestone.approvalGateStatus)}
                               </span>
                               {summary?.proofCompletenessStatus ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(summary.proofCompletenessStatus))}>Proof {summary.proofCompletenessStatus.replace(/_/g, " ")}</span> : null}
+                              {milestone.preBuildCheckpoint?.outcome ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", milestone.preBuildCheckpoint.outcome === "match" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : milestone.preBuildCheckpoint.outcome === "mismatch" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700")}>Stack {milestone.preBuildCheckpoint.outcome.replace(/_/g, " ")}</span> : null}
                               {summary?.latestRevisionNumber ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">Revision {summary.latestRevisionNumber}</span> : null}
                             </div>
                           </div>
@@ -1452,6 +1464,12 @@ export default function ProjectDetailPage() {
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.feedbackItemCount || 0} open/requested</div>
                             </div>
                           </div>
+
+                          {milestone.preBuildCheckpoint?.reasons?.length ? (
+                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm leading-6 text-zinc-700">
+                              <span className="font-medium">Stack checkpoint:</span> {milestone.preBuildCheckpoint.reasons[0]}
+                            </div>
+                          ) : null}
 
                           {summary?.latestDecisionNotes ? (
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">

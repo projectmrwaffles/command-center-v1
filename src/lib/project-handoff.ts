@@ -133,7 +133,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
       break;
     }
 
-    if (currentSprint.approval_gate_required) {
+    if (currentSprint.approval_gate_required && currentSprint.approval_gate_status !== "approved") {
       const submission = await ensureMilestoneReviewSubmission(db as any, {
         projectId: input.projectId,
         sprintId: currentSprint.id,

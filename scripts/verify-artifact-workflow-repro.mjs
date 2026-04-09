@@ -139,6 +139,9 @@ const db = createDb({
   ],
   agent_events: [],
   jobs: [],
+  milestone_submissions: [],
+  proof_bundles: [],
+  proof_items: [],
 });
 
 const stateBeforeRepo = await syncProjectState(db, "p1");
@@ -193,6 +196,9 @@ const staleDb = createDb({
   ],
   agent_events: [],
   jobs: [],
+  milestone_submissions: [],
+  proof_bundles: [],
+  proof_items: [],
 });
 const reconciled = await reconcileProjectPhaseProgression(staleDb, { projectId: "p2" });
 assert.equal(reconciled.advanced, true);
@@ -225,6 +231,9 @@ const laterPhaseStaleDb = createDb({
   ],
   agent_events: [],
   jobs: [],
+  milestone_submissions: [],
+  proof_bundles: [],
+  proof_items: [],
 });
 const laterPhaseHeal = await syncProjectState(laterPhaseStaleDb, "p3");
 assert.equal(laterPhaseHeal.progressPct, 50);

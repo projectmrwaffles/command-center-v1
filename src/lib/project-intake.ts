@@ -15,7 +15,7 @@ export type GitHubRepoProvisioningState = {
   nextAction?: string;
 };
 
-import type { ProjectRequirements } from "@/lib/project-requirements";
+import type { ProjectRequirements } from "@/lib/project-requirements.types";
 
 export type ProjectIntake = {
   shape: string;

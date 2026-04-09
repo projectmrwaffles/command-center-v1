@@ -1,0 +1,287 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import { seedProjectKickoffPlan } from "../src/lib/project-kickoff.ts";
+import { syncProjectPreBuildCheckpoint } from "../src/lib/pre-build-checkpoint.ts";
+import { dispatchEligibleProjectTasks } from "../src/lib/project-execution.ts";
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+let idCounter = 1;
+function makeId(prefix) {
+  const value = `${prefix}-${idCounter}`;
+  idCounter += 1;
+  return value;
+}
+
+function createDb(tables) {
+  return {
+    tables,
+    from(table) {
+      if (!this.tables[table]) this.tables[table] = [];
+      return createQuery(this.tables, table);
+    },
+    channel() {
+      return {
+        async send() {
+          return { error: null };
+        },
+      };
+    },
+  };
+}
+
+function createQuery(tables, table) {
+  const state = { filters: [], orderBy: [], limitCount: null, pendingUpdate: null, pendingInsert: null, pendingDelete: false, selectClause: null };
+  const api = {
+    select(selectClause) {
+      state.selectClause = selectClause;
+      return api;
+    },
+    eq(column, value) {
+      state.filters.push((row) => row?.[column] === value);
+      return api;
+    },
+    in(column, values) {
+      state.filters.push((row) => values.includes(row?.[column]));
+      return api;
+    },
+    not(column, op, value) {
+      if (op === "is" && value === null) state.filters.push((row) => row?.[column] !== null && row?.[column] !== undefined);
+      if (op === "like" && typeof value === "string") {
+        const regex = new RegExp(`^${value.replace(/[%*]/g, ".*")}$`);
+        state.filters.push((row) => !regex.test(String(row?.[column] ?? "")));
+      }
+      return api;
+    },
+    ilike(column, value) {
+      const needle = String(value || "").toLowerCase();
+      state.filters.push((row) => String(row?.[column] || "").toLowerCase().includes(needle));
+      return api;
+    },
+    order(column, { ascending = true } = {}) {
+      state.orderBy.push({ column, ascending });
+      return api;
+    },
+    limit(count) {
+      state.limitCount = count;
+      return api;
+    },
+    update(payload) {
+      state.pendingUpdate = payload;
+      return api;
+    },
+    insert(payload) {
+      state.pendingInsert = payload;
+      return api;
+    },
+    delete() {
+      state.pendingDelete = true;
+      return api;
+    },
+    async maybeSingle() {
+      const rows = apply();
+      return { data: rows[0] ?? null, error: null };
+    },
+    async single() {
+      const rows = apply();
+      return { data: rows[0] ?? null, error: rows[0] ? null : { message: `No row in ${table}` } };
+    },
+    then(resolve, reject) {
+      return Promise.resolve({ data: apply(), error: null }).then(resolve, reject);
+    },
+  };
+
+  function applyFilters(rows) {
+    let next = rows.filter((row) => state.filters.every((filter) => filter(row)));
+    for (const { column, ascending } of state.orderBy) {
+      next = next.slice().sort((a, b) => {
+        const av = a?.[column] ?? 0;
+        const bv = b?.[column] ?? 0;
+        return ascending ? (av > bv ? 1 : av < bv ? -1 : 0) : (av < bv ? 1 : av > bv ? -1 : 0);
+      });
+    }
+    if (typeof state.limitCount === "number") next = next.slice(0, state.limitCount);
+    return next;
+  }
+
+  function normalizeInsert(row) {
+    const cloned = clone(row);
+    if (!cloned.id) cloned.id = makeId(table.slice(0, 3));
+    if (table === "milestone_submissions") {
+      if (!cloned.submitted_at) cloned.submitted_at = new Date().toISOString();
+      if (!cloned.revision_number) cloned.revision_number = 1;
+    }
+    return cloned;
+  }
+
+  function apply() {
+    const rows = tables[table] || [];
+    const matched = applyFilters(rows);
+
+    if (state.pendingUpdate) {
+      for (const row of rows) {
+        if (state.filters.every((filter) => filter(row))) Object.assign(row, clone(state.pendingUpdate));
+      }
+      return applyFilters(rows);
+    }
+
+    if (state.pendingInsert) {
+      const inserted = (Array.isArray(state.pendingInsert) ? state.pendingInsert : [state.pendingInsert]).map(normalizeInsert);
+      tables[table].push(...inserted);
+      return inserted;
+    }
+
+    if (state.pendingDelete) {
+      tables[table] = rows.filter((row) => !state.filters.every((filter) => filter(row)));
+      return matched;
+    }
+
+    return matched;
+  }
+
+  return api;
+}
+
+function requirements() {
+  return {
+    derivedAt: new Date().toISOString(),
+    summary: ["Must use Next.js (framework).", "Must use TypeScript (language)."],
+    constraints: ["Build with Next.js and TypeScript."],
+    requiredFrameworks: ["nextjs"],
+    sourceCount: 1,
+    sources: [{ title: "Spec.pdf", type: "prd_pdf", evidence: ["Build with Next.js and TypeScript."] }],
+    technologyRequirements: [
+      { directive: "required", kind: "framework", rationale: "Build with Next.js.", choices: [{ slug: "nextjs", label: "Next.js", aliases: ["nextjs", "next.js", "next"], kind: "framework" }], sourceTitles: ["Spec.pdf"] },
+      { directive: "required", kind: "language", rationale: "Use TypeScript.", choices: [{ slug: "typescript", label: "TypeScript", aliases: ["typescript", "ts"], kind: "language" }], sourceTitles: ["Spec.pdf"] },
+    ],
+  };
+}
+
+function projectRecord(id, repoUrl) {
+  return {
+    id,
+    name: id,
+    type: "product_build",
+    status: "active",
+    progress_pct: 0,
+    team_id: "team-eng",
+    intake: {
+      shape: "web-app",
+      capabilities: ["frontend"],
+      requirements: requirements(),
+    },
+    links: { github: repoUrl },
+    github_repo_binding: { url: repoUrl },
+  };
+}
+
+function baseTables(projects) {
+  return {
+    projects,
+    sprints: [],
+    sprint_items: [],
+    jobs: [],
+    agents: [{ id: "agent-eng", name: "Engineer", status: "idle", current_job_id: null }],
+    teams: [{ id: "team-eng", name: "Engineering" }],
+    team_members: [{ team_id: "team-eng", agent_id: "agent-eng", role: "lead" }],
+    approvals: [],
+    agent_events: [],
+    milestone_submissions: [],
+    proof_bundles: [],
+    proof_items: [],
+    agent_notifications: [],
+  };
+}
+
+function ensureRepo(slug, packageJson) {
+  const repoDir = path.join(os.homedir(), ".openclaw", "workspace-tech-lead-architect", "projects", slug);
+  fs.rmSync(repoDir, { recursive: true, force: true });
+  fs.mkdirSync(repoDir, { recursive: true });
+  if (packageJson) fs.writeFileSync(path.join(repoDir, "package.json"), JSON.stringify(packageJson, null, 2));
+  return repoDir;
+}
+
+const matchSlug = `prebuild-match-${Date.now()}`;
+const mismatchSlug = `prebuild-mismatch-${Date.now()}`;
+const manualSlug = `prebuild-manual-${Date.now()}`;
+
+const createdRepos = [
+  ensureRepo(matchSlug, { dependencies: { next: "16.1.6", react: "19.2.3" }, devDependencies: { typescript: "^5.0.0" } }),
+  ensureRepo(mismatchSlug, { dependencies: { vite: "^7.0.0", react: "19.2.3" }, devDependencies: { typescript: "^5.0.0" } }),
+  ensureRepo(manualSlug, null),
+];
+
+try {
+  const createDbMatch = createDb(baseTables([projectRecord("project-live", `https://github.com/acme/${matchSlug}`)]));
+  await seedProjectKickoffPlan(createDbMatch, {
+    projectId: "project-live",
+    projectName: "project-live",
+    type: "product_build",
+    intake: createDbMatch.tables.projects[0].intake,
+    startPosition: 1,
+  });
+  await syncProjectPreBuildCheckpoint(createDbMatch, { projectId: "project-live", project: createDbMatch.tables.projects[0] });
+  const buildSprintLive = createDbMatch.tables.sprints.find((row) => row.phase_key === "build");
+  assert(buildSprintLive, "finalizeProjectCreate should create a Build sprint");
+  assert.equal(buildSprintLive.approval_gate_required, true, "live path should automatically create the Build checkpoint when PRD requirements exist");
+  assert.equal(buildSprintLive.approval_gate_status, "approved", "matching repo should auto-clear the Build checkpoint");
+  assert(createDbMatch.tables.milestone_submissions.some((row) => row.sprint_id === buildSprintLive.id), "checkpoint should be visible through existing review submission surfaces");
+  const liveDispatchResults = await dispatchEligibleProjectTasks(createDbMatch, {
+    project: createDbMatch.tables.projects[0],
+    tasks: createDbMatch.tables.sprint_items,
+    sprints: createDbMatch.tables.sprints,
+    jobs: createDbMatch.tables.jobs,
+    agents: createDbMatch.tables.agents,
+  });
+  assert(liveDispatchResults.some((row) => row.dispatched), "live path should still dispatch eligible non-blocked work");
+
+  const outcomesDb = createDb(baseTables([
+    projectRecord("project-match", `https://github.com/acme/${matchSlug}`),
+    projectRecord("project-mismatch", `https://github.com/acme/${mismatchSlug}`),
+    projectRecord("project-manual", `https://github.com/acme/${manualSlug}`),
+  ]));
+  outcomesDb.tables.sprints.push(
+    { id: "s-match", project_id: "project-match", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" },
+    { id: "s-mismatch", project_id: "project-mismatch", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" },
+    { id: "s-manual", project_id: "project-manual", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" },
+  );
+  const matchState = await syncProjectPreBuildCheckpoint(outcomesDb, { projectId: "project-match", project: outcomesDb.tables.projects[0] });
+  const mismatchState = await syncProjectPreBuildCheckpoint(outcomesDb, { projectId: "project-mismatch", project: outcomesDb.tables.projects[1] });
+  const manualState = await syncProjectPreBuildCheckpoint(outcomesDb, { projectId: "project-manual", project: outcomesDb.tables.projects[2] });
+  assert.equal(matchState.state.outcome, "match");
+  assert.equal(mismatchState.state.outcome, "mismatch");
+  assert.equal(manualState.state.outcome, "manual_review");
+
+  const blockedDb = createDb(baseTables([projectRecord("project-blocked", `https://github.com/acme/${mismatchSlug}`)]));
+  blockedDb.tables.sprints.push({ id: "s-blocked", project_id: "project-blocked", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" });
+  blockedDb.tables.sprint_items.push({ id: "t-blocked", project_id: "project-blocked", sprint_id: "s-blocked", title: "Implement slice", status: "todo", assignee_agent_id: "agent-eng", task_type: "build_implementation", owner_team_id: "team-eng" });
+  await syncProjectPreBuildCheckpoint(blockedDb, { projectId: "project-blocked", project: blockedDb.tables.projects[0] });
+  const blockedDispatch = await dispatchEligibleProjectTasks(blockedDb, {
+    project: blockedDb.tables.projects[0],
+    tasks: blockedDb.tables.sprint_items,
+    sprints: blockedDb.tables.sprints,
+    jobs: blockedDb.tables.jobs,
+    agents: blockedDb.tables.agents,
+  });
+  assert.equal(blockedDispatch[0].dispatched, false);
+  assert.equal(blockedDispatch[0].blocker?.key, "waiting_for_approval", "Build dispatch should be blocked until the checkpoint is cleared");
+
+  blockedDb.tables.sprints[0].approval_gate_status = "approved";
+  const approvedDispatch = await dispatchEligibleProjectTasks(blockedDb, {
+    project: blockedDb.tables.projects[0],
+    tasks: blockedDb.tables.sprint_items,
+    sprints: blockedDb.tables.sprints,
+    jobs: blockedDb.tables.jobs,
+    agents: blockedDb.tables.agents,
+  });
+  assert.equal(approvedDispatch[0].dispatched, true, "manual approval should unblock Build dispatch");
+
+  console.log("verify-prebuild-checkpoint: ok");
+} finally {
+  for (const repoDir of createdRepos) fs.rmSync(repoDir, { recursive: true, force: true });
+}

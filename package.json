@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "verify:prebuild-checkpoint": "node scripts/verify-prebuild-checkpoint.mjs",
     "verify:closeout": "node scripts/verify-closeout.js",
     "verify:final-sprint-closeout": "node scripts/verify-final-sprint-closeout.mjs",
     "verify:smoke": "node scripts/internal-ready-smoke.js"

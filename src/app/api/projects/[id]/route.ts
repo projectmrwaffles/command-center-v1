@@ -3,6 +3,7 @@ import { getTaskExecutionBlocker } from "@/lib/project-execution";
 import { reconcileProjectPhaseProgression } from "@/lib/project-handoff";
 import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
+import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
@@ -249,6 +250,7 @@ export async function GET(
       : [];
 
     const artifactIntegrity = getProjectArtifactIntegrity(projectWithDerivedArtifacts, tasks || []);
+    const preBuildCheckpoint = derivePreBuildCheckpointState(projectWithDerivedArtifacts);
     const truth = deriveProjectTruth({
       project: projectWithDerivedArtifacts,
       tasks: tasks || [],
@@ -322,6 +324,7 @@ export async function GET(
               feedbackItemCount: latestFeedbackItems.length,
             }
           : null,
+        preBuildCheckpoint: sprint.phase_key === "build" || /\bbuild\b/i.test(sprint.name || "") ? preBuildCheckpoint : null,
       };
     });
 
@@ -408,6 +411,7 @@ export async function GET(
           provisioningState: projectWithDerivedArtifacts.intake?.githubRepoProvisioning,
         }),
         progress_pct: overallProgress,
+        preBuildCheckpoint,
       },
       deliveryIntegrity: artifactIntegrity,
       teams: teamsWithStats,
@@ -579,6 +583,15 @@ export async function PATCH(
     }
 
     if (links !== undefined || githubRepo !== undefined || provisionGithubRepo) {
+      await syncProjectPreBuildCheckpoint(db as any, {
+        projectId,
+        project: {
+          ...data,
+          intake: data?.intake || null,
+          links: data?.links || null,
+          github_repo_binding: data?.github_repo_binding || null,
+        },
+      });
       await reconcileProjectPhaseProgression(db as any, {
         projectId,
         projectName: data?.name || null,

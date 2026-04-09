@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildReviewEventPayload } from './milestone-review.ts';
+import { buildReviewEventPayload, getCheckpointEvidenceRequirements } from './milestone-review.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
 
@@ -18,7 +18,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 }) {
   const [{ data: activeSubmission, error: activeSubmissionError }, { data: sprint, error: sprintError }] = await Promise.all([
     db.from('milestone_submissions').select('id, status').eq('sprint_id', input.sprintId).in('status', ['submitted', 'under_review']).maybeSingle(),
-    db.from('sprints').select('id, approval_gate_required').eq('id', input.sprintId).maybeSingle(),
+    db.from('sprints').select('id, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
   ]);
 
   if (activeSubmissionError) throw activeSubmissionError;
@@ -48,6 +48,8 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     .from('milestone_submissions')
     .insert({
       sprint_id: input.sprintId,
+      checkpoint_type: sprint.checkpoint_type || 'delivery_review',
+      evidence_requirements: getCheckpointEvidenceRequirements(sprint.checkpoint_type, sprint.checkpoint_evidence_requirements),
       revision_number: nextRevision,
       summary,
       what_changed: whatChanged,

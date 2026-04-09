@@ -20,6 +20,7 @@ import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
 import { getProjectLinkEntries, type ProjectLinks } from "@/lib/project-links";
+import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,8 @@ type ApprovalRow = {
   agents?: { name: string; title: string | null } | { name: string; title: string | null }[] | null;
   jobs?: { title: string | null; status: string | null } | { title: string | null; status: string | null }[] | null;
   sprint_id: string | null;
-  context?: { links?: ProjectLinks | null; sprint_name?: string | null; note?: string | null; artifacts?: ApprovalArtifact[] | null } | null;
+  approval_type?: string | null;
+  context?: { links?: ProjectLinks | null; sprint_name?: string | null; note?: string | null; checkpointType?: string | null; approvalType?: string | null; evidenceRequirements?: Record<string, unknown> | null; artifacts?: ApprovalArtifact[] | null } | null;
   projects?: { name: string | null; links?: ProjectLinks | null } | { name: string | null; links?: ProjectLinks | null }[] | null;
   sprints?: { name: string | null } | { name: string | null }[] | null;
 };
@@ -207,7 +209,7 @@ export default async function ApprovalsPage({
   try {
     const res = await db
       .from("approvals")
-      .select("id, status, summary, note, decided_at, agent_id, job_id, project_id, severity, requester_name, created_at, sprint_id, context, agents(name, title), jobs(title, status), projects(name, links), sprints(name)")
+      .select("id, status, summary, note, decided_at, agent_id, job_id, project_id, severity, requester_name, created_at, sprint_id, approval_type, context, agents(name, title), jobs(title, status), projects(name, links), sprints(name)")
       .order("created_at", { ascending: false });
     approvals = (res.data ?? null) as ApprovalRow[] | null;
   } catch (err) {
@@ -324,6 +326,8 @@ export default async function ApprovalsPage({
               const project = getJoinedRow(a.projects);
               const sprint = getJoinedRow(a.sprints);
               const reviewLinks = getProjectLinkEntries(a.context?.links || project?.links || null);
+              const approvalType = a.approval_type || a.context?.approvalType || a.context?.checkpointType || null;
+              const evidenceRequirements = getCheckpointEvidenceRequirements(approvalType, a.context?.evidenceRequirements);
 
               return (
                 <Card
@@ -347,6 +351,16 @@ export default async function ApprovalsPage({
                           <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
                             Pending
                           </span>
+                          {approvalType ? (
+                            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-700">
+                              {formatCheckpointTypeLabel(approvalType)}
+                            </span>
+                          ) : null}
+                          {evidenceRequirements.screenshotRequired ? (
+                            <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-purple-700">
+                              Screenshot evidence required
+                            </span>
+                          ) : null}
                         </div>
 
                         <div>
@@ -405,6 +419,12 @@ export default async function ApprovalsPage({
                           <p className="mt-1 text-sm leading-6 text-zinc-600">{a.context.note}</p>
                         </div>
                       ) : null}
+                      {evidenceRequirements.screenshotRequired ? (
+                        <div className="rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm leading-6 text-purple-950">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-purple-700">Evidence requirement</div>
+                          <p className="mt-1">{evidenceRequirements.captureHint || `Attach at least ${evidenceRequirements.minScreenshotCount} screenshot${evidenceRequirements.minScreenshotCount === 1 ? "" : "s"} from the local app capture flow before approving this checkpoint.`}</p>
+                        </div>
+                      ) : null}
                       <div>
                         <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Artifact links</div>
                         {reviewLinks.length > 0 ? (
@@ -445,7 +465,7 @@ export default async function ApprovalsPage({
                         <textarea
                           id={`note-${a.id}`}
                           name="note"
-                          placeholder="Add context for the decision. Required when requesting changes."
+                          placeholder="Add context for the decision. Required when requesting changes / rejecting with comment."
                           className="min-h-28 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
                           rows={4}
                         />
@@ -478,7 +498,7 @@ export default async function ApprovalsPage({
                         className="flex-1 rounded-xl border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
                       >
                         <AlertTriangle className="h-4 w-4" />
-                        Request changes
+                        Reject with comment
                       </Button>
                     </div>
                   </CardContent>

@@ -34,6 +34,7 @@ import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-boot
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/project-truth";
+import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
 
@@ -49,17 +50,21 @@ type ProjectDocument = {
 };
 
 type MilestoneReviewSummary = {
+  checkpointType?: string | null;
+  evidenceRequirements?: Record<string, unknown> | null;
   latestSubmissionId: string | null;
   latestSubmissionStatus: string | null;
   latestRevisionNumber: number | null;
   latestSubmissionSummary: string | null;
   latestDecision: string | null;
   latestDecisionNotes: string | null;
+  latestRejectionComment?: string | null;
   latestSubmittedAt: string | null;
   proofBundleId: string | null;
   proofBundleTitle: string | null;
   proofCompletenessStatus: string | null;
   proofItemCount: number;
+  screenshotItemCount?: number;
   feedbackItemCount: number;
 };
 
@@ -91,6 +96,8 @@ type Milestone = {
   category?: "bootstrap" | "delivery";
   approvalGateRequired?: boolean;
   approvalGateStatus?: string;
+  checkpointType?: string | null;
+  checkpointEvidenceRequirements?: Record<string, unknown> | null;
   totalTasks: number;
   doneTasks: number;
   queuedTasks?: number;
@@ -1428,6 +1435,7 @@ export default function ProjectDetailPage() {
                       approvalGateStatus: milestone.approvalGateStatus,
                       reviewSummary: summary,
                     });
+                    const evidenceRequirements = getCheckpointEvidenceRequirements(summary?.checkpointType || milestone.checkpointType, summary?.evidenceRequirements || milestone.checkpointEvidenceRequirements);
                     const canApprove = checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready";
                     return (
                       <div key={milestone.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
@@ -1441,10 +1449,14 @@ export default function ProjectDetailPage() {
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-4">
+                              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">
+                                {formatCheckpointTypeLabel(summary?.checkpointType || milestone.checkpointType)}
+                              </span>
                               <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(milestone.approvalGateStatus))}>
                                 {formatMilestoneGateLabel(milestone.approvalGateStatus)}
                               </span>
                               {summary?.proofCompletenessStatus ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(summary.proofCompletenessStatus))}>Proof {summary.proofCompletenessStatus.replace(/_/g, " ")}</span> : null}
+                              {evidenceRequirements.screenshotRequired ? <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">Screenshot evidence required</span> : null}
                               {milestone.preBuildCheckpoint?.outcome ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", milestone.preBuildCheckpoint.outcome === "match" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : milestone.preBuildCheckpoint.outcome === "mismatch" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700")}>Stack {milestone.preBuildCheckpoint.outcome.replace(/_/g, " ")}</span> : null}
                               {summary?.latestRevisionNumber ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">Revision {summary.latestRevisionNumber}</span> : null}
                             </div>
@@ -1458,6 +1470,7 @@ export default function ProjectDetailPage() {
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || 0} item{(summary?.proofItemCount || 0) === 1 ? "" : "s"}</div>
+                              {evidenceRequirements.screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {summary?.screenshotItemCount || 0}/{evidenceRequirements.minScreenshotCount}</div> : null}
                             </div>
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requested changes</div>
@@ -1471,7 +1484,11 @@ export default function ProjectDetailPage() {
                             </div>
                           ) : null}
 
-                          {summary?.latestDecisionNotes ? (
+                          {summary?.latestRejectionComment ? (
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
+                              <span className="font-medium">Latest reject comment:</span> {summary.latestRejectionComment}
+                            </div>
+                          ) : summary?.latestDecisionNotes ? (
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
                               <span className="font-medium">Latest note:</span> {summary.latestDecisionNotes}
                             </div>
@@ -1481,7 +1498,7 @@ export default function ProjectDetailPage() {
                             {milestone.approvalGateStatus === "pending" ? (
                               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                                 <label className="block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Change request</span>
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Reject comment</span>
                                   <textarea
                                     value={checkpointDrafts[milestone.id]?.requestedChanges || ""}
                                     onChange={(event) =>
@@ -1497,7 +1514,7 @@ export default function ProjectDetailPage() {
                                       }))
                                     }
                                     rows={4}
-                                    placeholder="Describe what needs to change before you can approve this stage"
+                                    placeholder="Required. Describe exactly what needs to change before this checkpoint can be approved"
                                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
                                   />
                                 </label>
@@ -1567,6 +1584,11 @@ export default function ProjectDetailPage() {
                                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
                                   />
                                 </label>
+                                {evidenceRequirements.screenshotRequired ? (
+                                  <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs leading-5 text-purple-900">
+                                    {evidenceRequirements.captureHint || "Attach current local-app screenshots in the next submission before re-review."}
+                                  </div>
+                                ) : null}
                                 <label className="mt-3 block">
                                   <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Updated proof link</span>
                                   <input

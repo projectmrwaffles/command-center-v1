@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload } from "@/lib/milestone-review";
+import { buildReviewEventPayload, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string; milestoneId: string }> }) {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const { data: submission, error: submissionError } = await db
       .from("milestone_submissions")
-      .select("id, sprint_id, revision_number, status, approval_id, summary")
+      .select("id, sprint_id, revision_number, status, approval_id, summary, checkpoint_type, evidence_requirements")
       .eq("id", submissionId)
       .eq("sprint_id", milestoneId)
       .single();
@@ -37,8 +37,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .single();
 
     if (bundleError || !proofBundle) return NextResponse.json({ error: "Proof bundle not found" }, { status: 404 });
+
+    const { data: proofItems, error: proofItemsError } = await db
+      .from("proof_items")
+      .select("kind")
+      .eq("proof_bundle_id", proofBundle.id);
     if (proofBundle.completeness_status !== "ready") {
       return NextResponse.json({ error: "Proof bundle must be ready before approval" }, { status: 409 });
+    }
+    if (proofItemsError) return NextResponse.json({ error: proofItemsError.message || "Failed to inspect proof items" }, { status: 500 });
+    const proofValidation = validateProofBundleRequirements({
+      checkpointType: submission.checkpoint_type,
+      evidenceRequirements: submission.evidence_requirements,
+      items: proofItems || [],
+    });
+    if (!proofValidation.ok) {
+      return NextResponse.json({ error: proofValidation.message, evidenceRequirements: proofValidation.requirements, screenshotCount: proofValidation.screenshotCount }, { status: 409 });
     }
 
     const now = new Date().toISOString();

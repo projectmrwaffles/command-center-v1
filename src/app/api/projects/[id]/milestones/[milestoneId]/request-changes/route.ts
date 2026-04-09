@@ -25,6 +25,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       });
 
     if (!submissionId) return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
+    if (!decisionNotes) return NextResponse.json({ error: "A rejection comment is required before sending this checkpoint back." }, { status: 400 });
     if (!normalized.some((item: { feedbackType: string; body: string }) => item.feedbackType === "required" || item.feedbackType === "blocker")) {
       return NextResponse.json({ error: "At least one required or blocker feedback item is required" }, { status: 400 });
     }
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         status: "changes_requested",
         decision: "request_changes",
         decision_notes: decisionNotes,
+        rejection_comment: decisionNotes,
         decided_at: now,
         updated_at: now,
       })

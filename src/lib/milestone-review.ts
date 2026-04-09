@@ -1,4 +1,4 @@
-import type { ProjectLinks } from "@/lib/project-links";
+import type { ProjectLinks } from "./project-links.ts";
 
 export type SubmissionStatus = "draft" | "submitted" | "under_review" | "changes_requested" | "approved" | "superseded";
 export type SubmissionDecision = "approve" | "request_changes";

@@ -1,4 +1,4 @@
-import type { GitHubRepoBinding } from "./github-repo-binding";
+import type { GitHubRepoBinding } from "./github-repo-binding.ts";
 
 export type ProjectDbCompatRow = {
   id?: string;

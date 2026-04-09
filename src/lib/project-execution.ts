@@ -1,5 +1,5 @@
-import { triggerAgentWork } from "./agent-dispatch";
-import { getProjectArtifactIntegrity } from "./project-artifact-requirements";
+import { triggerAgentWork } from "./agent-dispatch.ts";
+import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
 

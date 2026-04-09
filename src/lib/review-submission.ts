@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildReviewEventPayload } from '@/lib/milestone-review';
+import { buildReviewEventPayload } from './milestone-review.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
 

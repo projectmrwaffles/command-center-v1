@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload, isProofItemKind } from "@/lib/milestone-review";
+import { buildReviewEventPayload, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
     const [{ data: sprint, error: sprintError }, { data: activeSubmission, error: activeSubmissionError }] = await Promise.all([
-      db.from("sprints").select("id, project_id, name, approval_gate_required").eq("id", milestoneId).eq("project_id", projectId).single(),
+      db.from("sprints").select("id, project_id, name, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
       db.from("milestone_submissions").select("id, status").eq("sprint_id", milestoneId).in("status", ["submitted", "under_review"]).maybeSingle(),
     ]);
 
@@ -59,10 +59,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const nextRevision = (lastSubmission?.revision_number || 0) + 1;
 
+    const proofValidation = validateProofBundleRequirements({
+      checkpointType: sprint.checkpoint_type,
+      evidenceRequirements: sprint.checkpoint_evidence_requirements,
+      items: proofBundle.items,
+    });
+    if (!proofValidation.ok) {
+      return NextResponse.json({ error: proofValidation.message, evidenceRequirements: proofValidation.requirements, screenshotCount: proofValidation.screenshotCount }, { status: 400 });
+    }
+
     const { data: submission, error: submissionError } = await db
       .from("milestone_submissions")
       .insert({
         sprint_id: milestoneId,
+        checkpoint_type: sprint.checkpoint_type || "delivery_review",
+        evidence_requirements: proofValidation.requirements,
         revision_number: nextRevision,
         summary: summary.trim(),
         what_changed: whatChanged.trim(),

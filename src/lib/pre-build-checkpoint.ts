@@ -174,6 +174,8 @@ async function ensureCheckpointSubmission(db: DbClient, input: {
   if (activeSubmission?.id) {
     const now = new Date().toISOString();
     await db.from("milestone_submissions").update({
+      checkpoint_type: "prebuild_checkpoint",
+      evidence_requirements: { screenshotRequired: false, minScreenshotCount: 0 },
       status: input.state.status === "approved" ? "approved" : "submitted",
       decision: input.state.status === "approved" ? "approve" : null,
       decision_notes: input.state.reasons.join(" "),
@@ -211,6 +213,8 @@ async function ensureCheckpointSubmission(db: DbClient, input: {
     .from("milestone_submissions")
     .insert({
       sprint_id: input.sprint.id,
+      checkpoint_type: "prebuild_checkpoint",
+      evidence_requirements: { screenshotRequired: false, minScreenshotCount: 0 },
       revision_number: 1,
       summary: input.state.title,
       what_changed: input.state.summary,

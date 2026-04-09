@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload, isProofItemKind } from "@/lib/milestone-review";
+import { buildReviewEventPayload, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -37,14 +37,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const db = createRouteHandlerClient();
     if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
-    const { data: priorSubmission, error: priorError } = await db
-      .from("milestone_submissions")
-      .select("id, sprint_id, revision_number, status, summary")
-      .eq("id", priorSubmissionId)
-      .eq("sprint_id", milestoneId)
-      .single();
+    const [{ data: priorSubmission, error: priorError }, { data: sprint, error: sprintError }] = await Promise.all([
+      db
+        .from("milestone_submissions")
+        .select("id, sprint_id, revision_number, status, summary, checkpoint_type, evidence_requirements, rejection_comment")
+        .eq("id", priorSubmissionId)
+        .eq("sprint_id", milestoneId)
+        .single(),
+      db.from("sprints").select("id, project_id, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
+    ]);
 
     if (priorError || !priorSubmission) return NextResponse.json({ error: "Prior submission not found" }, { status: 404 });
+    if (sprintError || !sprint) return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
     if (priorSubmission.status !== "changes_requested") {
       return NextResponse.json({ error: "Only changes-requested submissions can be resubmitted" }, { status: 409 });
     }
@@ -52,10 +56,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const nextRevision = (priorSubmission.revision_number || 0) + 1;
     const now = new Date().toISOString();
 
+    const proofValidation = validateProofBundleRequirements({
+      checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
+      evidenceRequirements: sprint.checkpoint_evidence_requirements || priorSubmission.evidence_requirements,
+      items: proofBundle.items,
+    });
+    if (!proofValidation.ok) {
+      return NextResponse.json({ error: proofValidation.message, evidenceRequirements: proofValidation.requirements, screenshotCount: proofValidation.screenshotCount }, { status: 400 });
+    }
+
     const { data: newSubmission, error: newSubmissionError } = await db
       .from("milestone_submissions")
       .insert({
         sprint_id: milestoneId,
+        checkpoint_type: sprint.checkpoint_type || priorSubmission.checkpoint_type || "delivery_review",
+        evidence_requirements: proofValidation.requirements,
         revision_number: nextRevision,
         summary: summary.trim(),
         what_changed: whatChanged.trim(),

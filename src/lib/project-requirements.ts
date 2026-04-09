@@ -5,7 +5,6 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { PDFParse } from "pdf-parse";
 
 import type {
   ProjectLikeWithRequirements,
@@ -115,9 +114,10 @@ async function extractPdfTextWithPython(buffer: Buffer) {
 }
 
 async function extractPdfText(buffer: Buffer) {
-  let parser: InstanceType<typeof PDFParse> | null = null;
+  let parser: { getText: () => Promise<{ text?: string | null }>; destroy: () => Promise<void> } | null = null;
 
   try {
+    const { PDFParse } = await import("pdf-parse");
     parser = new PDFParse({ data: buffer });
     const result = await parser.getText();
     const parsedText = normalizeWhitespace(result.text || "");

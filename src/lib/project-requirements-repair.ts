@@ -1,4 +1,5 @@
-import { deriveProjectRequirements, extractRequirementsFromUploadedFile, type ProjectRequirements } from "@/lib/project-requirements";
+import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
+import type { ProjectRequirements } from "@/lib/project-requirements.types";
 
 const STORAGE_BUCKET = "project_docs";
 

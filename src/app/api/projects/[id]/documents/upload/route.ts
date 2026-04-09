@@ -178,7 +178,7 @@ export async function POST(
 
       const effectiveSprintCount = sprintCount ?? 0;
 
-      const dispatchResults = effectiveSprintCount === 0 && attachmentRequirementsReady
+      const dispatchResults = effectiveSprintCount === 0
         ? await finalizeProjectCreate(db, {
             project: {
               ...updatedProject,

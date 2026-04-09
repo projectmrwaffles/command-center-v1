@@ -40,6 +40,12 @@ type PreBuildCheckpointState = {
 
 const INSPECTABLE_KINDS = new Set(["framework", "language", "styling", "backend", "runtime", "tooling", "database"]);
 
+function isMissingRelationError(error: { code?: string | null; message?: string | null } | null | undefined, relation: string) {
+  if (!error) return false;
+  const message = String(error.message || "").toLowerCase();
+  return error.code === "42P01" || message.includes(`could not find the table 'public.${relation.toLowerCase()}'`) || message.includes(`relation \"${relation.toLowerCase()}\" does not exist`);
+}
+
 function hasPrdDerivedRequirements(requirements: ProjectRequirements | null | undefined) {
   return Boolean(
     requirements?.technologyRequirements?.length
@@ -169,7 +175,10 @@ async function ensureCheckpointSubmission(db: DbClient, input: {
     .limit(1)
     .maybeSingle();
 
-  if (activeSubmissionError) throw new Error(activeSubmissionError.message);
+  if (activeSubmissionError) {
+    if (isMissingRelationError(activeSubmissionError, "milestone_submissions")) return null;
+    throw new Error(activeSubmissionError.message);
+  }
 
   if (activeSubmission?.id) {
     const now = new Date().toISOString();
@@ -291,7 +300,8 @@ export async function syncProjectPreBuildCheckpoint(db: DbClient, input: {
     updatedSprintIds.push(sprint.id);
 
     if (state.applicable && compliance) {
-      await ensureCheckpointSubmission(db, { projectId: input.projectId, sprint, state, compliance });
+      const submissionId = await ensureCheckpointSubmission(db, { projectId: input.projectId, sprint, state, compliance });
+      if (!submissionId) continue;
       await db.from("agent_events").insert({
         agent_id: null,
         project_id: input.projectId,

@@ -1,5 +1,7 @@
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
+import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
+import type { ProjectRequirements } from "@/lib/project-requirements.types";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -11,6 +13,10 @@ function storageNotConfiguredMessage() {
 }
 
 type ProjectDb = NonNullable<ReturnType<typeof createRouteHandlerClient>>;
+
+function hasAttachmentDerivedRequirements(requirements: ProjectRequirements | null | undefined) {
+  return Boolean(requirements?.sources?.some((source) => source?.type !== "intake" && Array.isArray(source.evidence) && source.evidence.length > 0));
+}
 
 async function projectExists(db: ProjectDb, projectId: string) {
   const { data, error } = await db.from("projects").select("id").eq("id", projectId).single();
@@ -152,6 +158,14 @@ export async function POST(
         throw new Error(updateError?.message || "Failed to persist attachment-derived requirements");
       }
 
+      const repaired = await repairMissingPdfAttachmentRequirements(db, {
+        projectId,
+        intake: updatedProject.intake || nextIntake,
+      });
+      const effectiveIntake = repaired.intake || updatedProject.intake || nextIntake;
+      const effectiveRequirements = repaired.requirements || (effectiveIntake.requirements as ProjectRequirements | null | undefined) || nextRequirements;
+      const attachmentRequirementsReady = hasAttachmentDerivedRequirements(effectiveRequirements);
+
       const { count: sprintCount, error: sprintCountError } = await db
         .from("sprints")
         .select("id", { count: "exact", head: true })
@@ -161,19 +175,27 @@ export async function POST(
         throw new Error(sprintCountError.message);
       }
 
-      const dispatchResults = sprintCount === 0
+      const dispatchResults = sprintCount === 0 && attachmentRequirementsReady
         ? await finalizeProjectCreate(db, {
-            project: updatedProject,
+            project: {
+              ...updatedProject,
+              intake: effectiveIntake,
+            },
             name: updatedProject.name || "Untitled project",
             type: updatedProject.type || "other",
-            intake: updatedProject.intake || nextIntake,
+            intake: effectiveIntake,
             links: updatedProject.links || null,
             githubRepoBinding: updatedProject.github_repo_binding || null,
             teamId: updatedProject.team_id || null,
           })
         : [];
 
-      return NextResponse.json({ documents: data, requirements: nextRequirements, dispatch: dispatchResults }, { status: 201 });
+      return NextResponse.json({
+        documents: data,
+        requirements: effectiveRequirements,
+        dispatch: dispatchResults,
+        intakeRequirementStatus: attachmentRequirementsReady ? "ready" : "missing_attachment_requirements",
+      }, { status: 201 });
     } catch (error) {
       if (uploadedPaths.length > 0) {
         await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);

@@ -33,7 +33,7 @@ import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-bootstrap";
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
-import { deriveReviewCheckpointState } from "@/lib/project-truth";
+import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
 import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";

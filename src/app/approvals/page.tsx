@@ -116,7 +116,9 @@ async function handleApproval(formData: FormData) {
 
   const id = formData.get("id") as string;
   const decision = formData.get("decision") as string;
-  const note = formData.get("note") as string;
+  const approvalNote = (formData.get("approval_note") as string) || "";
+  const changeNote = (formData.get("change_note") as string) || "";
+  const note = decision === "changes_requested" ? changeNote : approvalNote;
 
   if (decision === "changes_requested" && (!note || note.trim() === "")) {
     redirect("/approvals?error=note_required");
@@ -458,49 +460,83 @@ export default async function ApprovalsPage({
 
                     <form action={handleApproval} id={`form-${a.id}`} className="mt-auto space-y-4">
                       <input type="hidden" name="id" value={a.id} />
-                      <div>
-                        <label htmlFor={`note-${a.id}`} className="mb-2 block text-sm font-medium text-zinc-900">
-                          Decision note
-                        </label>
-                        <textarea
-                          id={`note-${a.id}`}
-                          name="note"
-                          placeholder="Add context for the decision. Required when requesting changes / rejecting with comment."
-                          className="min-h-28 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                          rows={4}
-                        />
-                      </div>
-                    </form>
 
-                    <div
-                      data-testid="sticky-action-bar"
-                      className="sticky bottom-16 z-40 flex flex-col gap-2 border-t border-zinc-100 bg-white pt-4 md:static md:border-0 md:bg-transparent md:p-0 lg:flex-row"
-                    >
-                      <Button
-                        type="submit"
-                        form={`form-${a.id}`}
-                        name="decision"
-                        value="approve"
-                        size="lg"
-                        variant="warm"
-                        className="flex-1 rounded-xl"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Approve
-                      </Button>
-                      <Button
-                        type="submit"
-                        form={`form-${a.id}`}
-                        name="decision"
-                        value="changes_requested"
-                        size="lg"
-                        variant="outline"
-                        className="flex-1 rounded-xl border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                      >
-                        <AlertTriangle className="h-4 w-4" />
-                        Reject with comment
-                      </Button>
-                    </div>
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Ready to approve</div>
+                            <p className="mt-1 text-sm leading-6 text-emerald-950">If this checkpoint looks good, approve it here. Request changes only if the work needs another revision.</p>
+                          </div>
+                          <Button
+                            type="submit"
+                            form={`form-${a.id}`}
+                            name="decision"
+                            value="approve"
+                            size="lg"
+                            variant="warm"
+                            className="min-h-12 w-full rounded-xl px-6 text-base font-semibold shadow-sm sm:w-auto"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approve checkpoint
+                          </Button>
+                        </div>
+
+                        <details className="mt-4 rounded-2xl border border-white/80 bg-white/80 p-4">
+                          <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">
+                            Add optional approval note
+                          </summary>
+                          <div className="mt-3">
+                            <label htmlFor={`approve-note-${a.id}`} className="mb-2 block text-sm font-medium text-zinc-900">
+                              Approval note
+                            </label>
+                            <textarea
+                              id={`approve-note-${a.id}`}
+                              name="approval_note"
+                              placeholder="Optional context to store with the approval."
+                              className="min-h-24 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                              rows={3}
+                            />
+                          </div>
+                        </details>
+                      </div>
+
+                      <details className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
+                        <summary className="cursor-pointer list-none text-sm font-medium text-amber-900">
+                          Request changes instead
+                        </summary>
+                        <div className="mt-3 space-y-4">
+                          <div>
+                            <label htmlFor={`changes-note-${a.id}`} className="mb-2 block text-sm font-medium text-amber-950">
+                              What needs to change
+                            </label>
+                            <textarea
+                              id={`changes-note-${a.id}`}
+                              name="change_note"
+                              placeholder="Required. Explain what should change before this checkpoint can be approved."
+                              className="min-h-28 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                              rows={4}
+                            />
+                          </div>
+                          <div
+                            data-testid="sticky-action-bar"
+                            className="sticky bottom-16 z-40 border-t border-amber-200 bg-amber-50/95 pt-4 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0"
+                          >
+                            <Button
+                              type="submit"
+                              form={`form-${a.id}`}
+                              name="decision"
+                              value="changes_requested"
+                              size="lg"
+                              variant="outline"
+                              className="min-h-11 w-full rounded-xl border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                              Send change request
+                            </Button>
+                          </div>
+                        </div>
+                      </details>
+                    </form>
                   </CardContent>
                 </Card>
               );

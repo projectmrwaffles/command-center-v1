@@ -1178,7 +1178,10 @@ export default function ProjectDetailPage() {
   const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
-  const reviewableMilestones = milestones.filter((milestone) => milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId));
+  const reviewableMilestones = milestones.filter((milestone) => {
+    const hasQaValidationTask = tasks.some((task) => task.sprint_id === milestone.id && task.task_type === "qa_validation");
+    return milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId) || hasQaValidationTask;
+  });
   const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
 
   const selectedTaskMetadataEntries = selectedTaskTypeConfig
@@ -1208,8 +1211,8 @@ export default function ProjectDetailPage() {
               : "border-amber-200 bg-amber-50 text-amber-700";
   const operationalDetails = [
     { label: "approvals", value: String(stats.pendingApprovals || 0) },
-    { label: "queued", value: String(truth?.counts.jobs.queued ?? truth?.counts.delivery.queued ?? 0) },
-    { label: "running", value: String(truth?.counts.jobs.running ?? truth?.counts.delivery.running ?? 0) },
+    { label: "queued", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
+    { label: "running", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
   ];
   const updatedLabel = formatUpdatedDate(project.updated_at).replace(/^Updated\s+/i, "");
   const queuedPhaseHoldReasons = executionVisibility?.queuedReasons?.filter((reason) => reason.status === "waiting_for_kickoff_completion") || [];

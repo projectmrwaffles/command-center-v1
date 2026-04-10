@@ -1,3 +1,4 @@
+import { finalizeCheckpointApproval } from "@/lib/checkpoint-approval";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { buildReviewEventPayload, validateProofBundleRequirements } from "@/lib/milestone-review";
@@ -143,11 +144,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       });
     }
 
-    await db.from("sprints").update({ approval_gate_status: "approved", updated_at: now }).eq("id", milestoneId).eq("project_id", projectId);
+    const approvalResult = await finalizeCheckpointApproval(db as any, {
+      projectId,
+      milestoneId,
+      decidedAt: now,
+    });
 
-    await db.from("sprint_items").update({ review_status: "approved", status: "done", updated_at: now }).eq("project_id", projectId).eq("sprint_id", milestoneId).eq("review_required", true);
-
-    return NextResponse.json({ ok: true, submissionId: submissionId || null });
+    return NextResponse.json({ ok: true, submissionId: submissionId || null, progression: approvalResult.progression });
   } catch (e: unknown) {
     console.error("[API /projects/:id/milestones/:milestoneId/approve] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

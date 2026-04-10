@@ -978,8 +978,9 @@ export default function ProjectDetailPage() {
   };
 
   const handleCheckpointApprove = async (milestone: Milestone) => {
-    const submissionId = milestone.reviewSummary?.latestSubmissionId;
-    if (!submissionId) return;
+    const submissionId = milestone.reviewSummary?.latestSubmissionId || null;
+    const isManualPrebuildApproval = milestone.approvalGateStatus === "pending" && !submissionId && Boolean(milestone.preBuildCheckpoint);
+    if (!submissionId && !isManualPrebuildApproval) return;
     setCheckpointActionLoading(`${milestone.id}:approve`);
     try {
       const note = checkpointDrafts[milestone.id]?.note?.trim() || null;
@@ -1540,84 +1541,92 @@ export default function ProjectDetailPage() {
 
                           <div className="space-y-3">
                             {milestone.approvalGateStatus === "pending" ? (
-                              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 sm:p-4">
-                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                  <div>
-                                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Ready to approve</div>
-                                    <p className="mt-1 text-sm leading-6 text-emerald-950">Approve this checkpoint to move the project forward. Open request changes only if this work needs another revision.</p>
-                                    {approvalBlockedReason ? <p className="mt-2 text-sm leading-6 text-amber-900">{approvalBlockedReason}</p> : null}
-                                  </div>
-                                  <Button
-                                    onClick={() => handleCheckpointApprove(milestone)}
-                                    disabled={!canApprove || checkpointActionLoading === `${milestone.id}:approve`}
-                                    variant="warm"
-                                    className="min-h-12 w-full rounded-xl px-5 text-base font-semibold shadow-sm sm:w-auto"
-                                  >
-                                    {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve checkpoint"}
-                                  </Button>
-                                </div>
-
-                                <details className="mt-4 rounded-2xl border border-white/80 bg-white/80 p-4">
-                                  <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Add optional approval note</summary>
-                                  <label className="mt-3 block">
-                                    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Approval note</span>
-                                    <input
-                                      type="text"
-                                      value={checkpointDrafts[milestone.id]?.note || ""}
-                                      onChange={(event) =>
-                                        setCheckpointDrafts((current) => ({
-                                          ...current,
-                                          [milestone.id]: {
-                                            note: event.target.value,
-                                            requestedChanges: current[milestone.id]?.requestedChanges || "",
-                                            resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                            resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                            proofLink: current[milestone.id]?.proofLink || "",
-                                          },
-                                        }))
-                                      }
-                                      placeholder="Optional note to store with the approval"
-                                      className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
-                                    />
-                                  </label>
-                                </details>
-
-                                <details className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-                                  <summary className="cursor-pointer list-none text-sm font-medium text-amber-900">Request changes instead</summary>
-                                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                                    <label className="block">
-                                      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">What needs to change</span>
-                                      <textarea
-                                        value={checkpointDrafts[milestone.id]?.requestedChanges || ""}
-                                        onChange={(event) =>
-                                          setCheckpointDrafts((current) => ({
-                                            ...current,
-                                            [milestone.id]: {
-                                              note: current[milestone.id]?.note || "",
-                                              requestedChanges: event.target.value,
-                                              resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                              resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                              proofLink: current[milestone.id]?.proofLink || "",
-                                            },
-                                          }))
-                                        }
-                                        rows={4}
-                                        placeholder="Required. Explain exactly what should change before this checkpoint can be approved."
-                                        className="mt-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-amber-500 focus:outline-none"
-                                      />
-                                    </label>
-                                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                              <div className="rounded-[28px] border border-zinc-200 bg-gradient-to-br from-white via-emerald-50/40 to-zinc-50 p-3 shadow-sm sm:p-4">
+                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+                                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Primary action</span>
+                                      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-700">Ready to approve</span>
+                                    </div>
+                                    <p className="mt-2 text-sm leading-6 text-emerald-950">Approve this checkpoint to move the project forward. Use request changes only when another revision is genuinely needed.</p>
+                                    {approvalBlockedReason ? <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">{approvalBlockedReason}</p> : null}
+                                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                      <div className="text-xs leading-5 text-emerald-800">This records the checkpoint decision and clears the stage gate for the next phase.</div>
                                       <Button
-                                        onClick={() => handleCheckpointRequestChanges(milestone)}
-                                        disabled={checkpointActionLoading === `${milestone.id}:request-changes`}
-                                        variant="outline"
-                                        className="min-h-11 rounded-xl border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                                        onClick={() => handleCheckpointApprove(milestone)}
+                                        disabled={!canApprove || checkpointActionLoading === `${milestone.id}:approve`}
+                                        variant="warm"
+                                        className="min-h-12 w-full rounded-xl px-5 text-base font-semibold shadow-sm sm:w-auto"
                                       >
-                                        {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Send change request"}
+                                        {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve checkpoint"}
                                       </Button>
                                     </div>
                                   </div>
-                                </details>
+
+                                  <div className="space-y-3">
+                                    <details className="rounded-2xl border border-zinc-200 bg-white p-4">
+                                      <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Add optional approval note</summary>
+                                      <label className="mt-3 block">
+                                        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Approval note</span>
+                                        <input
+                                          type="text"
+                                          value={checkpointDrafts[milestone.id]?.note || ""}
+                                          onChange={(event) =>
+                                            setCheckpointDrafts((current) => ({
+                                              ...current,
+                                              [milestone.id]: {
+                                                note: event.target.value,
+                                                requestedChanges: current[milestone.id]?.requestedChanges || "",
+                                                resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                                resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                                proofLink: current[milestone.id]?.proofLink || "",
+                                              },
+                                            }))
+                                          }
+                                          placeholder="Optional note to store with the approval"
+                                          className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
+                                        />
+                                      </label>
+                                    </details>
+
+                                    <details className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+                                      <summary className="cursor-pointer list-none text-sm font-medium text-amber-900">Request changes instead</summary>
+                                      <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                                        <label className="block">
+                                          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">What needs to change</span>
+                                          <textarea
+                                            value={checkpointDrafts[milestone.id]?.requestedChanges || ""}
+                                            onChange={(event) =>
+                                              setCheckpointDrafts((current) => ({
+                                                ...current,
+                                                [milestone.id]: {
+                                                  note: current[milestone.id]?.note || "",
+                                                  requestedChanges: event.target.value,
+                                                  resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                                  resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                                  proofLink: current[milestone.id]?.proofLink || "",
+                                                },
+                                              }))
+                                            }
+                                            rows={4}
+                                            placeholder="Required. Explain exactly what should change before this checkpoint can be approved."
+                                            className="mt-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-amber-500 focus:outline-none"
+                                          />
+                                        </label>
+                                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                          <Button
+                                            onClick={() => handleCheckpointRequestChanges(milestone)}
+                                            disabled={checkpointActionLoading === `${milestone.id}:request-changes`}
+                                            variant="outline"
+                                            className="min-h-11 rounded-xl border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                                          >
+                                            {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Send change request"}
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </details>
+                                  </div>
+                                </div>
                               </div>
                             ) : milestone.approvalGateStatus === "rejected" ? (
                               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">

@@ -292,15 +292,19 @@ export async function syncProjectPreBuildCheckpoint(db: DbClient, input: {
   const updatedSprintIds: string[] = [];
 
   for (const sprint of buildSprints) {
-    const updatePayload = state.applicable
-      ? { approval_gate_required: true, approval_gate_status: state.status, updated_at: new Date().toISOString() }
+    const effectiveState = state.applicable && sprint.approval_gate_status === "approved"
+      ? { ...state, status: "approved" as const }
+      : state;
+
+    const updatePayload = effectiveState.applicable
+      ? { approval_gate_required: true, approval_gate_status: effectiveState.status, updated_at: new Date().toISOString() }
       : { approval_gate_required: false, approval_gate_status: "not_requested", updated_at: new Date().toISOString() };
 
     await db.from("sprints").update(updatePayload).eq("id", sprint.id).eq("project_id", input.projectId);
     updatedSprintIds.push(sprint.id);
 
-    if (state.applicable && compliance) {
-      const submissionId = await ensureCheckpointSubmission(db, { projectId: input.projectId, sprint, state, compliance });
+    if (effectiveState.applicable && compliance) {
+      const submissionId = await ensureCheckpointSubmission(db, { projectId: input.projectId, sprint, state: effectiveState, compliance });
       if (!submissionId) continue;
       await db.from("agent_events").insert({
         agent_id: null,
@@ -309,10 +313,10 @@ export async function syncProjectPreBuildCheckpoint(db: DbClient, input: {
         payload: {
           sprint_id: sprint.id,
           sprint_name: sprint.name,
-          outcome: state.outcome,
-          status: state.status,
-          reasons: state.reasons,
-          repo_workspace_path: state.repoWorkspacePath,
+          outcome: effectiveState.outcome,
+          status: effectiveState.status,
+          reasons: effectiveState.reasons,
+          repo_workspace_path: effectiveState.repoWorkspacePath,
         },
       });
     }

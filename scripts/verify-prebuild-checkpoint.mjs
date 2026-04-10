@@ -279,7 +279,22 @@ try {
     jobs: blockedDb.tables.jobs,
     agents: blockedDb.tables.agents,
   });
-  assert.equal(approvedDispatch[0].dispatched, true, "manual approval should unblock Build dispatch");
+  assert.equal(approvedDispatch[0].dispatched, false, "stack mismatch should still block Build even if the sprint gate was bypassed");
+  assert.equal(approvedDispatch[0].blocker?.key, "waiting_for_approval");
+
+  const bypassDb = createDb(baseTables([projectRecord("project-bypass", `https://github.com/acme/${mismatchSlug}`)]));
+  bypassDb.tables.sprints.push({ id: "s-kickoff", project_id: "project-bypass", name: "Kickoff", status: "active", phase_key: "kickoff", approval_gate_required: false, approval_gate_status: "not_requested" });
+  bypassDb.tables.sprint_items.push({ id: "t-bypass", project_id: "project-bypass", sprint_id: "s-kickoff", title: "Implement slice from wrong sprint", status: "todo", assignee_agent_id: "agent-eng", task_type: "build_implementation", owner_team_id: "team-eng" });
+  const bypassDispatch = await dispatchEligibleProjectTasks(bypassDb, {
+    project: bypassDb.tables.projects[0],
+    tasks: bypassDb.tables.sprint_items,
+    sprints: bypassDb.tables.sprints,
+    jobs: bypassDb.tables.jobs,
+    agents: bypassDb.tables.agents,
+  });
+  assert.equal(bypassDispatch[0].dispatched, false, "Build tasks outside the gated Build sprint must still be blocked by stack mismatch");
+  assert.equal(bypassDispatch[0].blocker?.key, "waiting_for_approval");
+  assert.match(bypassDispatch[0].blocker?.detail || "", /requires Next\.js|requires nextjs/i);
 
   console.log("verify-prebuild-checkpoint: ok");
 } finally {

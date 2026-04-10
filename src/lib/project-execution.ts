@@ -1,4 +1,5 @@
 import { triggerAgentWork } from "./agent-dispatch.ts";
+import { derivePreBuildCheckpointState } from "./pre-build-checkpoint.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
@@ -130,6 +131,27 @@ export function getTaskExecutionBlocker(input: {
       resolution: "Complete the required repository setup before this task can start.",
       actionableBy: "user",
       cta: "open_project_setup",
+    } as const;
+  }
+
+  const preBuildCheckpoint = input.task.task_type === "build_implementation"
+    ? derivePreBuildCheckpointState(input.project)
+    : null;
+
+  if (preBuildCheckpoint?.applicable && preBuildCheckpoint.outcome && preBuildCheckpoint.outcome !== "match") {
+    const detail = preBuildCheckpoint.reasons[0]
+      || preBuildCheckpoint.summary
+      || "PRD stack requirements have not cleared the pre-build checkpoint yet.";
+
+    return {
+      key: preBuildCheckpoint.outcome === "mismatch" ? "waiting_for_approval" : "waiting_for_repo",
+      label: preBuildCheckpoint.outcome === "mismatch" ? "Waiting for stack approval" : "Waiting for stack review",
+      detail,
+      resolution: preBuildCheckpoint.outcome === "mismatch"
+        ? "Review the stack checkpoint and align the repo with the PRD before starting implementation."
+        : "Resolve the repo stack checkpoint before starting implementation.",
+      actionableBy: "user",
+      cta: preBuildCheckpoint.outcome === "mismatch" ? "review_checkpoint" : "open_project_setup",
     } as const;
   }
 

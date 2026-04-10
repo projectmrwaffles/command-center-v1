@@ -121,6 +121,16 @@ export async function GET(
       links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
     };
 
+    await syncProjectPreBuildCheckpoint(db as any, {
+      projectId,
+      project: {
+        ...projectWithDerivedArtifacts,
+        intake: projectWithDerivedArtifacts.intake || null,
+        links: projectWithDerivedArtifacts.links || null,
+        github_repo_binding: projectWithDerivedArtifacts.github_repo_binding || null,
+      },
+    });
+
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
     const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }, { data: completionEvents }] = await Promise.all([
       db.from("sprint_items").select("*").eq("project_id", projectId).order("position", { ascending: true }),

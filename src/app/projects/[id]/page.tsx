@@ -251,6 +251,38 @@ function proofTone(value?: string | null) {
   }
 }
 
+function checkpointSummaryCopy(input: {
+  summary?: MilestoneReviewSummary | null;
+  preBuildCheckpoint?: PreBuildCheckpointView | null;
+  checkpointState: ReturnType<typeof deriveReviewCheckpointState>;
+}) {
+  if (input.summary?.latestSubmissionSummary) return input.summary.latestSubmissionSummary;
+  if (input.preBuildCheckpoint?.summary) return input.preBuildCheckpoint.summary;
+
+  switch (input.checkpointState.key) {
+    case "awaiting_submission":
+      return "No review packet has been submitted yet.";
+    case "awaiting_materials":
+      return "A submission exists, but the review materials are not complete yet.";
+    case "changes_requested":
+      return "This checkpoint is waiting on updates before it can be approved.";
+    case "approved":
+      return "This checkpoint is approved and ready to move forward.";
+    default:
+      return "This checkpoint is ready for review and decision.";
+  }
+}
+
+function formatCheckpointReason(reason?: string | null) {
+  if (!reason) return null;
+
+  return reason
+    .replace(/^Manual review required for unsupported requirement kinds:\s*/i, "Needs manual review because these requirement types could not be auto-checked: ")
+    .replace(/^Missing required project artifact:\s*/i, "Missing required project artifact: ")
+    .replace(/^Code-heavy delivery cannot advance to review or completion without a real GitHub repo linked to the project\.?/i, "Add a real GitHub repo to this project before this checkpoint can be approved.")
+    .replace(/^GitHub repo provisioning is in progress for this code-heavy project\. A real repo will still be required before review or completion\.?/i, "GitHub repo setup is still in progress. This checkpoint stays blocked until a real repo is linked.");
+}
+
 function formatTaskStatusLabel(value?: string | null) {
   if (!value) return "Unknown";
   return value.replace(/_/g, " ");
@@ -1436,7 +1468,15 @@ export default function ProjectDetailPage() {
                       reviewSummary: summary,
                     });
                     const evidenceRequirements = getCheckpointEvidenceRequirements(summary?.checkpointType || milestone.checkpointType, summary?.evidenceRequirements || milestone.checkpointEvidenceRequirements);
-                    const canApprove = checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready";
+                    const isManualPrebuildApproval = milestone.approvalGateStatus === "pending" && !summary?.latestSubmissionId && Boolean(milestone.preBuildCheckpoint);
+                    const canApprove = isManualPrebuildApproval || (checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready");
+                    const approvalBlockedReason = !canApprove
+                      ? checkpointState.key === "awaiting_submission"
+                        ? "Approval is not available yet because this checkpoint does not have a review packet attached."
+                        : checkpointState.key === "awaiting_materials"
+                          ? "Approval is not available yet because the review materials are still incomplete."
+                          : null
+                      : null;
                     return (
                       <div key={milestone.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
                         <div className="flex flex-col gap-3">
@@ -1445,7 +1485,11 @@ export default function ProjectDetailPage() {
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoint</div>
                               <h3 className="mt-1 text-base font-semibold text-zinc-950">{milestone.name}</h3>
                               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                                {summary?.latestSubmissionSummary || milestone.preBuildCheckpoint?.summary || (checkpointState.key === "awaiting_submission" ? "No review packet submitted yet." : checkpointState.key === "awaiting_materials" ? "Submission exists, but review materials are not ready yet." : checkpointState.key === "changes_requested" ? "Changes were requested on the latest submission." : checkpointState.key === "approved" ? "This checkpoint has already been approved." : "This stage is waiting for review.")}
+                                {checkpointSummaryCopy({
+                                  summary,
+                                  preBuildCheckpoint: milestone.preBuildCheckpoint,
+                                  checkpointState,
+                                })}
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-4">
@@ -1480,7 +1524,7 @@ export default function ProjectDetailPage() {
 
                           {milestone.preBuildCheckpoint?.reasons?.length ? (
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm leading-6 text-zinc-700">
-                              <span className="font-medium">Stack checkpoint:</span> {milestone.preBuildCheckpoint.reasons[0]}
+                              <span className="font-medium">Why approval is needed:</span> {formatCheckpointReason(milestone.preBuildCheckpoint.reasons[0])}
                             </div>
                           ) : null}
 
@@ -1496,49 +1540,84 @@ export default function ProjectDetailPage() {
 
                           <div className="space-y-3">
                             {milestone.approvalGateStatus === "pending" ? (
-                              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                                <label className="block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Reject comment</span>
-                                  <textarea
-                                    value={checkpointDrafts[milestone.id]?.requestedChanges || ""}
-                                    onChange={(event) =>
-                                      setCheckpointDrafts((current) => ({
-                                        ...current,
-                                        [milestone.id]: {
-                                          note: current[milestone.id]?.note || "",
-                                          requestedChanges: event.target.value,
-                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                          proofLink: current[milestone.id]?.proofLink || "",
-                                        },
-                                      }))
-                                    }
-                                    rows={4}
-                                    placeholder="Required. Describe exactly what needs to change before this checkpoint can be approved"
-                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
-                                  />
-                                </label>
-                                <label className="mt-3 block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Approval note</span>
-                                  <input
-                                    type="text"
-                                    value={checkpointDrafts[milestone.id]?.note || ""}
-                                    onChange={(event) =>
-                                      setCheckpointDrafts((current) => ({
-                                        ...current,
-                                        [milestone.id]: {
-                                          note: event.target.value,
-                                          requestedChanges: current[milestone.id]?.requestedChanges || "",
-                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                          proofLink: current[milestone.id]?.proofLink || "",
-                                        },
-                                      }))
-                                    }
-                                    placeholder="Optional note to store with the approval"
-                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
-                                  />
-                                </label>
+                              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 sm:p-4">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Ready to approve</div>
+                                    <p className="mt-1 text-sm leading-6 text-emerald-950">Approve this checkpoint to move the project forward. Open request changes only if this work needs another revision.</p>
+                                    {approvalBlockedReason ? <p className="mt-2 text-sm leading-6 text-amber-900">{approvalBlockedReason}</p> : null}
+                                  </div>
+                                  <Button
+                                    onClick={() => handleCheckpointApprove(milestone)}
+                                    disabled={!canApprove || checkpointActionLoading === `${milestone.id}:approve`}
+                                    variant="warm"
+                                    className="min-h-12 w-full rounded-xl px-5 text-base font-semibold shadow-sm sm:w-auto"
+                                  >
+                                    {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve checkpoint"}
+                                  </Button>
+                                </div>
+
+                                <details className="mt-4 rounded-2xl border border-white/80 bg-white/80 p-4">
+                                  <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Add optional approval note</summary>
+                                  <label className="mt-3 block">
+                                    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Approval note</span>
+                                    <input
+                                      type="text"
+                                      value={checkpointDrafts[milestone.id]?.note || ""}
+                                      onChange={(event) =>
+                                        setCheckpointDrafts((current) => ({
+                                          ...current,
+                                          [milestone.id]: {
+                                            note: event.target.value,
+                                            requestedChanges: current[milestone.id]?.requestedChanges || "",
+                                            resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                            resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                            proofLink: current[milestone.id]?.proofLink || "",
+                                          },
+                                        }))
+                                      }
+                                      placeholder="Optional note to store with the approval"
+                                      className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
+                                    />
+                                  </label>
+                                </details>
+
+                                <details className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+                                  <summary className="cursor-pointer list-none text-sm font-medium text-amber-900">Request changes instead</summary>
+                                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                                    <label className="block">
+                                      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">What needs to change</span>
+                                      <textarea
+                                        value={checkpointDrafts[milestone.id]?.requestedChanges || ""}
+                                        onChange={(event) =>
+                                          setCheckpointDrafts((current) => ({
+                                            ...current,
+                                            [milestone.id]: {
+                                              note: current[milestone.id]?.note || "",
+                                              requestedChanges: event.target.value,
+                                              resubmitSummary: current[milestone.id]?.resubmitSummary || "",
+                                              resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
+                                              proofLink: current[milestone.id]?.proofLink || "",
+                                            },
+                                          }))
+                                        }
+                                        rows={4}
+                                        placeholder="Required. Explain exactly what should change before this checkpoint can be approved."
+                                        className="mt-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-amber-500 focus:outline-none"
+                                      />
+                                    </label>
+                                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                      <Button
+                                        onClick={() => handleCheckpointRequestChanges(milestone)}
+                                        disabled={checkpointActionLoading === `${milestone.id}:request-changes`}
+                                        variant="outline"
+                                        className="min-h-11 rounded-xl border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                                      >
+                                        {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Send change request"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </details>
                               </div>
                             ) : milestone.approvalGateStatus === "rejected" ? (
                               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
@@ -1613,34 +1692,14 @@ export default function ProjectDetailPage() {
                               </div>
                             ) : null}
 
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                               {checkpointState.actionable ? (
                                 <Button
                                   onClick={() => setReviewingCheckpointId(milestone.id)}
-                                  variant="warm"
-                                  className="rounded-xl"
-                                >
-                                  Review
-                                </Button>
-                              ) : null}
-                              {milestone.approvalGateStatus === "pending" ? (
-                                <Button
-                                  onClick={() => handleCheckpointRequestChanges(milestone)}
-                                  disabled={checkpointActionLoading === `${milestone.id}:request-changes`}
                                   variant="outline"
-                                  className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
+                                  className="min-h-11 rounded-xl sm:w-auto"
                                 >
-                                  {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Request changes"}
-                                </Button>
-                              ) : null}
-                              {canApprove ? (
-                                <Button
-                                  onClick={() => handleCheckpointApprove(milestone)}
-                                  disabled={checkpointActionLoading === `${milestone.id}:approve`}
-                                  variant="warm"
-                                  className="rounded-xl"
-                                >
-                                  {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve"}
+                                  Review details
                                 </Button>
                               ) : null}
                               {milestone.approvalGateStatus === "rejected" ? (

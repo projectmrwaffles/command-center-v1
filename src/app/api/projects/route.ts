@@ -230,6 +230,7 @@ export async function POST(req: NextRequest) {
           projectId: project.id,
           projectName: name,
           description: description || sanitizedIntake?.summary || null,
+          requirements: sanitizedIntake?.requirements || null,
         });
         sanitizedLinks = syncProjectLinksWithGitHubBinding(sanitizeProjectLinks(links || sanitizedIntake?.links), provisionedBinding);
         provisioningState = {

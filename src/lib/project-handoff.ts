@@ -123,15 +123,6 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
     if (state.artifactIntegrity.blockingReason) {
       return { advanced: false, reason: "required_artifacts_missing", advancedTransitions };
     }
-    if (state.gateBlocked) {
-      return { advanced: false, reason: "review_gate_not_approved", advancedTransitions };
-    }
-
-    const nextSprint = sprintRows.slice(index + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
-    if (!nextSprint) {
-      await completeSprint(db, currentSprint);
-      break;
-    }
 
     if (currentSprint.approval_gate_required && currentSprint.approval_gate_status !== "approved") {
       const submission = await ensureMilestoneReviewSubmission(db as any, {
@@ -154,6 +145,16 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
         });
       }
       return { advanced: false, reason: "review_submission_created", advancedTransitions };
+    }
+
+    if (state.gateBlocked) {
+      return { advanced: false, reason: "review_gate_not_approved", advancedTransitions };
+    }
+
+    const nextSprint = sprintRows.slice(index + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
+    if (!nextSprint) {
+      await completeSprint(db, currentSprint);
+      break;
     }
 
     await completeSprint(db, currentSprint);

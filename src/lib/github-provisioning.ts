@@ -52,8 +52,51 @@ export function shouldAutoProvisionGitHubRepo(input: {
   return isCodeHeavyProject(input.type, input.intake);
 }
 
-function getGitHubToken() {
+export function getGitHubToken() {
   return process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim() || null;
+}
+
+export function getGitHubProvisioningReadiness(input: {
+  type: string;
+  intake?: ProjectIntake | null;
+  existingGitHubUrl?: string | null;
+  provisionGithubRepo?: boolean;
+}) {
+  const requiresProvisioning = shouldAutoProvisionGitHubRepo(input);
+  const token = getGitHubToken();
+
+  if (!requiresProvisioning) {
+    return {
+      ok: true,
+      requiresProvisioning,
+      authConfigured: Boolean(token),
+      code: null,
+      error: null,
+      nextAction: null,
+    } as const;
+  }
+
+  if (!token) {
+    return {
+      ok: false,
+      requiresProvisioning,
+      authConfigured: false,
+      code: "GITHUB_PROVISIONING_AUTH_MISSING",
+      error:
+        "This project needs a new GitHub repo before creation can continue, but GitHub provisioning auth is missing in the current server runtime.",
+      nextAction:
+        "Set GITHUB_TOKEN (preferred) or GH_TOKEN for the server runtime with repo creation access, then retry. If you meant to use an existing repo, switch the project origin to existing and link that repo explicitly.",
+    } as const;
+  }
+
+  return {
+    ok: true,
+    requiresProvisioning,
+    authConfigured: true,
+    code: null,
+    error: null,
+    nextAction: null,
+  } as const;
 }
 
 function getGitHubHeaders() {

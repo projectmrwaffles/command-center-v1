@@ -471,7 +471,7 @@ export function CreateProjectForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {error ? <div className="whitespace-pre-wrap rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <div className="min-w-0 px-1 sm:px-0">
         <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 bg-white px-3 py-3 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">

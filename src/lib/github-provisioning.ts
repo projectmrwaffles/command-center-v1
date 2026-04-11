@@ -1,5 +1,6 @@
 import { createGitHubRepoBinding, type GitHubRepoBinding } from "./github-repo-binding.ts";
 import type { ProjectIntake } from "./project-intake.ts";
+import type { ProjectRequirements } from "./project-requirements.types.ts";
 
 const CODE_HEAVY_PROJECT_TYPES = new Set(["product_build", "ops_enablement", "saas", "web_app", "native_app"]);
 const CODE_HEAVY_SHAPES = new Set(["saas-product", "web-app", "native-app", "ops-system"]);
@@ -15,6 +16,12 @@ type GitHubApiRepo = {
 type GitHubApiUser = {
   login: string;
   type?: string;
+};
+
+type RepoSeedFile = {
+  path: string;
+  content: string;
+  message: string;
 };
 
 function slugifyRepoName(value: string) {
@@ -144,10 +151,111 @@ async function chooseRepoName(owner: string, projectName: string, projectId: str
   return `${base}-${Date.now().toString(36)}`;
 }
 
+function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
+  const packageJson = {
+    name: slugifyRepoName(projectName),
+    private: true,
+    version: "0.1.0",
+    scripts: {
+      dev: "next dev",
+      build: "next build",
+      start: "next start",
+      lint: "next lint",
+    },
+    dependencies: {
+      next: "15.3.0",
+      react: "19.0.0",
+      "react-dom": "19.0.0",
+    },
+    devDependencies: {
+      typescript: "^5.8.3",
+      "@types/node": "^22.14.1",
+      "@types/react": "^19.0.10",
+      "@types/react-dom": "^19.0.4",
+      eslint: "^9.24.0",
+      "eslint-config-next": "15.3.0",
+    },
+  };
+
+  return [
+    {
+      path: "package.json",
+      message: "chore: seed required Next.js scaffold",
+      content: `${JSON.stringify(packageJson, null, 2)}\n`,
+    },
+    {
+      path: "tsconfig.json",
+      message: "chore: seed required Next.js scaffold",
+      content: `${JSON.stringify({
+        compilerOptions: {
+          target: "ES2017",
+          lib: ["dom", "dom.iterable", "esnext"],
+          allowJs: true,
+          skipLibCheck: true,
+          strict: true,
+          noEmit: true,
+          esModuleInterop: true,
+          module: "esnext",
+          moduleResolution: "bundler",
+          resolveJsonModule: true,
+          isolatedModules: true,
+          jsx: "preserve",
+          incremental: true,
+          plugins: [{ name: "next" }],
+        },
+        include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+        exclude: ["node_modules"],
+      }, null, 2)}\n`,
+    },
+    {
+      path: "next-env.d.ts",
+      message: "chore: seed required Next.js scaffold",
+      content: "/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n\n// NOTE: This file should not be edited\n",
+    },
+    {
+      path: "app/page.tsx",
+      message: "chore: seed required Next.js scaffold",
+      content: `export default function HomePage() {\n  return (\n    <main style={{ padding: 24, fontFamily: \"Inter, Arial, sans-serif\" }}>\n      <h1>${projectName}</h1>\n      <p>Next.js scaffold provisioned automatically to satisfy the project stack contract.</p>\n    </main>\n  );\n}\n`,
+    },
+    {
+      path: "README.md",
+      message: "chore: seed required Next.js scaffold",
+      content: `# ${projectName}\n\nThis repository was provisioned with a minimal Next.js scaffold because the project requirements explicitly require Next.js.\n`,
+    },
+    {
+      path: ".gitignore",
+      message: "chore: seed required Next.js scaffold",
+      content: "node_modules\n.next\nout\n.env\n.env.local\n.DS_Store\n",
+    },
+  ];
+}
+
+export function deriveRepoSeedFiles(input: { projectName: string; requirements?: ProjectRequirements | null }) {
+  const requiredFrameworks = (input.requirements?.requiredFrameworks || []).map((value) => String(value).toLowerCase());
+  if (requiredFrameworks.includes("nextjs")) {
+    return buildNextJsRepoSeed(input.projectName);
+  }
+  return [] as RepoSeedFile[];
+}
+
+async function seedProvisionedRepo(input: { owner: string; repo: string; branch: string; files: RepoSeedFile[] }) {
+  for (const file of input.files) {
+    await githubRequest(`/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${file.path.split("/").map(encodeURIComponent).join("/")}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        message: file.message,
+        content: Buffer.from(file.content, "utf8").toString("base64"),
+        branch: input.branch,
+      }),
+    });
+  }
+}
+
 export async function provisionGitHubRepoForProject(input: {
   projectId: string;
   projectName: string;
   description?: string | null;
+  requirements?: ProjectRequirements | null;
 }) : Promise<GitHubRepoBinding> {
   const owner = await resolveProvisioningOwner();
   const ownerType = await resolveOwnerType(owner);
@@ -168,6 +276,11 @@ export async function provisionGitHubRepoForProject(input: {
       description,
     }),
   });
+
+  const seedFiles = deriveRepoSeedFiles({ projectName: input.projectName, requirements: input.requirements });
+  if (seedFiles.length) {
+    await seedProvisionedRepo({ owner, repo, branch: createdRepo?.default_branch || "main", files: seedFiles });
+  }
 
   const binding = createGitHubRepoBinding({
     url: createdRepo?.html_url,

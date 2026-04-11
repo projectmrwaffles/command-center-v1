@@ -217,6 +217,7 @@ export async function POST(req: NextRequest) {
 
     let project: any = null;
     let error: { message: string; code?: string } | null = null;
+    let warning: { code: string; message: string; details?: string } | null = null;
 
     const firstInsert = await db.from("projects").insert({ ...projectInsertBase, links: sanitizedLinks }).select().single();
     project = firstInsert.data;
@@ -345,13 +346,11 @@ export async function POST(req: NextRequest) {
           .single();
 
         project = failedProject ?? { ...project, intake: failedIntake };
-
-        return NextResponse.json({
-          error: "Project record was created, but GitHub repo provisioning failed before setup completed.",
+        warning = {
           code: "GITHUB_PROVISIONING_FAILED",
+          message: "Project record was created, but GitHub repo provisioning failed before setup completed.",
           details: [provisionFailureMessage, provisioningState.nextAction].filter(Boolean).join(" "),
-          project: { ...project, intake: failedIntake, links: sanitizedLinks, github_repo_binding: null },
-        }, { status: 502 });
+        };
       }
     }
 
@@ -376,6 +375,7 @@ export async function POST(req: NextRequest) {
         blocked: dispatchResults.filter((result) => !result.dispatched && result.blocker).length,
         results: dispatchResults,
       },
+      warning,
     }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects] exception:", e);

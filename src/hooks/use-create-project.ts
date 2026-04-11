@@ -2,6 +2,12 @@
 
 import { useCallback, useState } from "react";
 
+export function formatCreateProjectError(payload: { error?: string; details?: string; code?: string } | null, status: number) {
+  const base = payload?.error || `Project creation failed (HTTP ${status}).`;
+  if (!payload?.details) return base;
+  return `${base}\n\n${payload.details}`;
+}
+
 export function useCreateProject() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +39,7 @@ export function useCreateProject() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        throw new Error(formatCreateProjectError(err, res.status));
       }
 
       const result = await res.json();

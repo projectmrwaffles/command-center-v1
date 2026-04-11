@@ -3,7 +3,7 @@ import { type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/proj
 import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-create-finalize";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
-import { provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
+import { getGitHubProvisioningReadiness, provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat, selectProjectsListWithCompat } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -168,6 +168,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "GitHub repo provisioning is not available in this environment yet. Link an existing repo for now." }, { status: 501 });
     }
 
+    const provisioningReadiness = getGitHubProvisioningReadiness({
+      type,
+      intake: sanitizedIntake,
+      existingGitHubUrl: githubRepoUrl,
+      provisionGithubRepo,
+    });
+
+    if (!provisioningReadiness.ok) {
+      return NextResponse.json({
+        error: provisioningReadiness.error,
+        code: provisioningReadiness.code,
+        details: provisioningReadiness.nextAction,
+      }, { status: 412 });
+    }
+
     const githubBinding = createGitHubRepoBinding({
       url: githubRepoUrl,
       source: shouldProvisionGithubRepo ? "provisioned" : "linked",
@@ -306,9 +321,10 @@ export async function POST(req: NextRequest) {
         };
       } catch (provisionError) {
         console.error("[API /projects] GitHub provisioning failed:", provisionError);
+        const provisionFailureMessage = provisionError instanceof Error ? provisionError.message : "GitHub repo auto-provisioning failed.";
         provisioningState = {
           status: "failed",
-          reason: provisionError instanceof Error ? provisionError.message : "GitHub repo auto-provisioning failed.",
+          reason: provisionFailureMessage,
           attemptedAt: new Date().toISOString(),
           nextAction: "Verify GITHUB_TOKEN/GH_TOKEN is configured with repo creation access for the server runtime, then retry provisioning or attach an existing GitHub repo manually.",
         };
@@ -329,6 +345,13 @@ export async function POST(req: NextRequest) {
           .single();
 
         project = failedProject ?? { ...project, intake: failedIntake };
+
+        return NextResponse.json({
+          error: "Project record was created, but GitHub repo provisioning failed before setup completed.",
+          code: "GITHUB_PROVISIONING_FAILED",
+          details: [provisionFailureMessage, provisioningState.nextAction].filter(Boolean).join(" "),
+          project: { ...project, intake: failedIntake, links: sanitizedLinks, github_repo_binding: null },
+        }, { status: 502 });
       }
     }
 

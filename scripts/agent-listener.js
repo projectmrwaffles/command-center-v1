@@ -13,6 +13,7 @@
 
 const { createClient } = require("@supabase/supabase-js");
 const { exec } = require("child_process");
+const os = require("os");
 const path = require("path");
 const fs = require("fs");
 
@@ -21,7 +22,7 @@ const RECONCILE_INTERVAL_MS = 15 * 1000;
 const TASK_PROGRESS_HEARTBEAT_MS = 30 * 1000;
 const REPO_ROOT = path.resolve(__dirname, "..");
 const INTERNAL_BASE_URL = (process.env.AGENT_LOG_BASE_URL || process.env.INTERNAL_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
-const DEFAULT_OPENCLAW_BIN = path.join(process.env.HOME || "", ".npm-global/bin/openclaw");
+const DEFAULT_OPENCLAW_BIN = path.join(process.env.HOME || os.homedir(), ".npm-global/bin/openclaw");
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || (fs.existsSync(DEFAULT_OPENCLAW_BIN) ? DEFAULT_OPENCLAW_BIN : "openclaw");
 const LOCK_DIR = process.env.AGENT_LISTENER_LOCK_DIR || "/tmp/command-center-agent-listeners";
 
@@ -214,11 +215,15 @@ function getRepoSlugFromUrl(url) {
   return match?.[2] || null;
 }
 
+function resolveOpenClawRoot() {
+  return path.join(process.env.HOME || os.homedir(), ".openclaw");
+}
+
 function resolveRepoWorkspacePath(project) {
   const repoSlug = getRepoSlugFromUrl(resolveGithubRepoUrl(project));
   if (!repoSlug) return null;
 
-  const openClawRoot = path.join(process.env.HOME || "", ".openclaw");
+  const openClawRoot = resolveOpenClawRoot();
   const candidates = [
     path.join(openClawRoot, "workspace-product-lead", "projects", repoSlug),
     path.join(openClawRoot, "workspace-tech-lead-architect", "projects", repoSlug),

@@ -350,6 +350,10 @@ export function getProvisionedRepoWorkspaceTargets(repo: string) {
   ];
 }
 
+export function shouldHydrateProvisionedRepoWorkspace() {
+  return !process.env.VERCEL;
+}
+
 function syncProvisionedRepoToWorkspace(input: { owner: string; repo: string; branch: string; files: RepoSeedFile[] }) {
   const targetDirs = getProvisionedRepoWorkspaceTargets(input.repo);
   const primaryTargetDir = targetDirs[1] || targetDirs[0];
@@ -420,7 +424,9 @@ export async function provisionGitHubRepoForProject(input: {
   if (seedFiles.length) {
     await seedProvisionedRepo({ owner, repo, branch, files: seedFiles });
   }
-  syncProvisionedRepoToWorkspace({ owner, repo, branch, files: seedFiles });
+  if (shouldHydrateProvisionedRepoWorkspace()) {
+    syncProvisionedRepoToWorkspace({ owner, repo, branch, files: seedFiles });
+  }
 
   const binding = createGitHubRepoBinding({
     url: createdRepo?.html_url,

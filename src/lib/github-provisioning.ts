@@ -13,6 +13,7 @@ const CODE_HEAVY_SHAPES = new Set(["saas-product", "web-app", "native-app", "ops
 const CODE_HEAVY_CAPABILITIES = new Set(["frontend", "backend-data"]);
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2022-11-28";
+const NEXTJS_SEED_VERSION = "15.5.15";
 
 type GitHubApiRepo = {
   html_url: string;
@@ -212,7 +213,7 @@ function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
       lint: "next lint",
     },
     dependencies: {
-      next: "15.3.0",
+      next: NEXTJS_SEED_VERSION,
       react: "19.0.0",
       "react-dom": "19.0.0",
     },
@@ -222,7 +223,7 @@ function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
       "@types/react": "^19.0.10",
       "@types/react-dom": "^19.0.4",
       eslint: "^9.24.0",
-      "eslint-config-next": "15.3.0",
+      "eslint-config-next": NEXTJS_SEED_VERSION,
     },
   };
 
@@ -260,6 +261,11 @@ function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
       path: "next-env.d.ts",
       message: "chore: seed required Next.js scaffold",
       content: "/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n\n// NOTE: This file should not be edited\n",
+    },
+    {
+      path: "app/layout.tsx",
+      message: "chore: seed required Next.js scaffold",
+      content: `export default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang=\"en\">\n      <body>{children}</body>\n    </html>\n  );\n}\n`,
     },
     {
       path: "app/page.tsx",

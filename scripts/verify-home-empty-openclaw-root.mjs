@@ -32,7 +32,7 @@ const childLines = [
   '  fs.rmSync(target, { recursive: true, force: true });',
   '  fs.mkdirSync(target, { recursive: true });',
   '}',
-  'fs.writeFileSync(path.join(workspaceTargets[1], "package.json"), JSON.stringify({ dependencies: { next: "15.3.0" } }), "utf8");',
+  'fs.writeFileSync(path.join(workspaceTargets[1], "package.json"), JSON.stringify({ dependencies: { next: "15.5.15" } }), "utf8");',
   'const resolvedFromRequirements = resolveRepoWorkspacePath(project);',
   'assert.ok(workspaceTargets.includes(resolvedFromRequirements), `repo lookup should resolve one mirrored workspace path: ${resolvedFromRequirements}`);',
   'const resolvedFromListener = listenerModule.resolveRepoWorkspacePath(project);',

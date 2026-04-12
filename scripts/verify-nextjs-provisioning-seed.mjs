@@ -42,7 +42,7 @@ const packageSeed = seedFiles.find((file) => file.path === "package.json");
 assert(packageSeed, "expected Next.js seed package.json");
 const pkg = JSON.parse(packageSeed.content);
 assert.equal(pkg.scripts.dev, "next dev");
-assert.equal(pkg.dependencies.next, "15.3.0");
+assert.equal(pkg.dependencies.next, "15.5.15");
 assert.equal(pkg.dependencies.react, "19.0.0");
 assert.ok(!pkg.devDependencies?.vite, "seed must not include vite");
 
@@ -71,6 +71,12 @@ installFetchMock({
   },
   "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/tsconfig.json": async () => ({ status: 201, body: {} }),
   "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/next-env.d.ts": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/app/layout.tsx": async ({ init }) => {
+    const payload = JSON.parse(init.body);
+    const decoded = Buffer.from(payload.content, "base64").toString("utf8");
+    assert.match(decoded, /RootLayout/);
+    return { status: 201, body: {} };
+  },
   "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/app/page.tsx": async ({ init }) => {
     const payload = JSON.parse(init.body);
     const decoded = Buffer.from(payload.content, "base64").toString("utf8");

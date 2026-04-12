@@ -58,7 +58,7 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function normalizeSourceText(value: unknown) {
+function normalizeSourceText(value: unknown): string {
   if (Array.isArray(value)) {
     return value
       .map((entry) => normalizeSourceText(entry))

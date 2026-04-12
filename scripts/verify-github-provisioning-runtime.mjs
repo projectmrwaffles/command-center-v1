@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { provisionGitHubRepoForProject, verifyGitHubCliRuntime } from "../src/lib/github-provisioning.ts";
+import { provisionGitHubRepoForProject, shouldHydrateProvisionedRepoWorkspace, verifyGitHubCliRuntime } from "../src/lib/github-provisioning.ts";
 
 const originalEnv = { ...process.env };
 const originalFetch = globalThis.fetch;
@@ -79,46 +79,69 @@ installFetchMock({
   "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/.gitignore": async () => ({ status: 201, body: {} }),
 });
 
-process.env = {
-  ...originalEnv,
-  HOME: "",
-  GITHUB_TOKEN: "runtime-token",
-  GH_TOKEN: "",
-  GITHUB_PROVISIONING_OWNER: "acme-inc",
-};
-
-const runtime = await verifyGitHubCliRuntime();
-assert.equal(runtime.executable, "github-rest-api", "runtime verification should use the server-safe API path");
-assert.match(runtime.version, /authenticated as octocat/i, "runtime verification should resolve the authenticated viewer");
-
 const repoWorkspacePaths = [
   path.join(os.homedir(), ".openclaw", "workspace-product-lead", "projects", "runtime-provisioning-test-123456"),
   path.join(os.homedir(), ".openclaw", "workspace-tech-lead-architect", "projects", "runtime-provisioning-test-123456"),
   path.join(os.homedir(), ".openclaw", "workspace", "projects", "runtime-provisioning-test-123456"),
 ];
-for (const repoWorkspacePath of repoWorkspacePaths) {
-  fs.rmSync(repoWorkspacePath, { recursive: true, force: true });
+
+async function runScenario(label, envOverrides, expectHydration) {
+  process.env = {
+    ...originalEnv,
+    ...envOverrides,
+  };
+
+  const runtime = await verifyGitHubCliRuntime();
+  assert.equal(runtime.executable, "github-rest-api", `${label}: runtime verification should use the server-safe API path`);
+  assert.match(runtime.version, /authenticated as octocat/i, `${label}: runtime verification should resolve the authenticated viewer`);
+  assert.equal(shouldHydrateProvisionedRepoWorkspace(), expectHydration, `${label}: hydration policy should match environment`);
+
+  for (const repoWorkspacePath of repoWorkspacePaths) {
+    fs.rmSync(repoWorkspacePath, { recursive: true, force: true });
+  }
+
+  const binding = await provisionGitHubRepoForProject({
+    projectId: "12345678-1234-1234-1234-1234567890ab",
+    projectName: "Runtime Provisioning Test",
+    description: "Runtime verification",
+    requirements: { requiredFrameworks: ["nextjs"] },
+  });
+
+  assert.equal(binding.fullName, "acme-inc/runtime-provisioning-test-123456");
+  assert.equal(binding.url, "https://github.com/acme-inc/runtime-provisioning-test-123456");
+  assert.equal(binding.source, "provisioned");
+  assert.equal(binding.provisioning?.status, "ready");
+  for (const repoWorkspacePath of repoWorkspacePaths) {
+    assert.equal(
+      fs.existsSync(path.join(repoWorkspacePath, "package.json")),
+      expectHydration,
+      `${label}: provisioning ${expectHydration ? "should" : "should not"} materialize a local inspectable workspace at ${repoWorkspacePath}`,
+    );
+  }
+  if (expectHydration) {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(repoWorkspacePaths[1], "package.json"), "utf8"));
+    assert.equal(packageJson.dependencies?.next, "15.3.0");
+  }
+  for (const repoWorkspacePath of repoWorkspacePaths) {
+    fs.rmSync(repoWorkspacePath, { recursive: true, force: true });
+  }
 }
 
-const binding = await provisionGitHubRepoForProject({
-  projectId: "12345678-1234-1234-1234-1234567890ab",
-  projectName: "Runtime Provisioning Test",
-  description: "Runtime verification",
-  requirements: { requiredFrameworks: ["nextjs"] },
-});
+await runScenario("local", {
+  HOME: "",
+  GITHUB_TOKEN: "runtime-token",
+  GH_TOKEN: "",
+  GITHUB_PROVISIONING_OWNER: "acme-inc",
+  VERCEL: "",
+}, true);
 
-assert.equal(binding.fullName, "acme-inc/runtime-provisioning-test-123456");
-assert.equal(binding.url, "https://github.com/acme-inc/runtime-provisioning-test-123456");
-assert.equal(binding.source, "provisioned");
-assert.equal(binding.provisioning?.status, "ready");
-for (const repoWorkspacePath of repoWorkspacePaths) {
-  assert.equal(fs.existsSync(path.join(repoWorkspacePath, "package.json")), true, `provisioning should materialize a local inspectable workspace at ${repoWorkspacePath}`);
-}
-const packageJson = JSON.parse(fs.readFileSync(path.join(repoWorkspacePaths[1], "package.json"), "utf8"));
-assert.equal(packageJson.dependencies?.next, "15.3.0");
-for (const repoWorkspacePath of repoWorkspacePaths) {
-  fs.rmSync(repoWorkspacePath, { recursive: true, force: true });
-}
+await runScenario("deployed", {
+  HOME: "",
+  GITHUB_TOKEN: "runtime-token",
+  GH_TOKEN: "",
+  GITHUB_PROVISIONING_OWNER: "acme-inc",
+  VERCEL: "1",
+}, false);
 
 process.env = originalEnv;
 globalThis.fetch = originalFetch;

@@ -14,7 +14,8 @@
     "verify:final-sprint-closeout": "node scripts/verify-final-sprint-closeout.mjs",
     "verify:review-packet-materialization": "node --experimental-strip-types scripts/verify-review-packet-materialization.mjs",
     "verify:github-provisioning-readiness": "node --experimental-strip-types scripts/verify-github-provisioning-readiness.mjs",
-    "verify:smoke": "node scripts/internal-ready-smoke.js"
+    "verify:smoke": "node scripts/internal-ready-smoke.js",
+    "verify:home-empty-openclaw-root": "node --experimental-strip-types scripts/verify-home-empty-openclaw-root.mjs"
   },
   "dependencies": {
     "@playwright/test": "^1.58.2",

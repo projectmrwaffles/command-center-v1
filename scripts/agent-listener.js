@@ -22,7 +22,40 @@ const RECONCILE_INTERVAL_MS = 15 * 1000;
 const TASK_PROGRESS_HEARTBEAT_MS = 30 * 1000;
 const REPO_ROOT = path.resolve(__dirname, "..");
 const INTERNAL_BASE_URL = (process.env.AGENT_LOG_BASE_URL || process.env.INTERNAL_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
-const DEFAULT_OPENCLAW_BIN = path.join(process.env.HOME || os.homedir(), ".npm-global/bin/openclaw");
+function firstAbsolutePath(...values) {
+  for (const value of values) {
+    if (!value) continue;
+    const trimmed = String(value).trim();
+    if (!trimmed) continue;
+    if (path.isAbsolute(trimmed)) return trimmed;
+  }
+  return null;
+}
+
+function deriveOpenClawRootFromAbsolutePath(sourcePath) {
+  if (!sourcePath) return null;
+  const normalized = path.resolve(sourcePath);
+  const marker = `${path.sep}.openclaw`;
+  const index = normalized.indexOf(marker);
+  if (index >= 0) return normalized.slice(0, index + marker.length);
+  if (path.basename(normalized) === ".openclaw") return normalized;
+  return null;
+}
+
+function resolveOpenClawRoot() {
+  const explicitRoot = firstAbsolutePath(process.env.OPENCLAW_ROOT);
+  if (explicitRoot) return explicitRoot;
+
+  const homeRoot = firstAbsolutePath(process.env.HOME, os.homedir());
+  if (homeRoot) return path.join(homeRoot, ".openclaw");
+
+  const derivedRoot = deriveOpenClawRootFromAbsolutePath(firstAbsolutePath(process.cwd(), __dirname));
+  if (derivedRoot) return derivedRoot;
+
+  return path.join(os.tmpdir(), ".openclaw");
+}
+
+const DEFAULT_OPENCLAW_BIN = path.join(resolveOpenClawRoot(), '..', ".npm-global/bin/openclaw");
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || (fs.existsSync(DEFAULT_OPENCLAW_BIN) ? DEFAULT_OPENCLAW_BIN : "openclaw");
 const LOCK_DIR = process.env.AGENT_LISTENER_LOCK_DIR || "/tmp/command-center-agent-listeners";
 
@@ -215,9 +248,6 @@ function getRepoSlugFromUrl(url) {
   return match?.[2] || null;
 }
 
-function resolveOpenClawRoot() {
-  return path.join(process.env.HOME || os.homedir(), ".openclaw");
-}
 
 function resolveRepoWorkspacePath(project) {
   const repoSlug = getRepoSlugFromUrl(resolveGithubRepoUrl(project));
@@ -858,7 +888,15 @@ async function startListener() {
   process.on("SIGTERM", shutdown);
 }
 
-startListener().catch((err) => {
-  console.error("[Listener] Fatal error:", err);
-  process.exit(1);
-});
+if (require.main === module) {
+  startListener().catch((err) => {
+    console.error("[Listener] Fatal error:", err);
+    process.exit(1);
+  });
+} else {
+  module.exports = {
+    resolveOpenClawRoot,
+    resolveRepoWorkspacePath,
+    buildAgentMessage,
+  };
+}

@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
+const currentModuleDir = path.dirname(new URL(import.meta.url).pathname);
 import { spawnSync } from "node:child_process";
 import { createGitHubRepoBinding, type GitHubRepoBinding } from "./github-repo-binding.ts";
 import type { ProjectIntake } from "./project-intake.ts";
@@ -306,11 +308,40 @@ function writeSeedFilesToWorkspace(targetDir: string, files: RepoSeedFile[]) {
   }
 }
 
-function resolveOpenClawRoot() {
-  return path.join(process.env.HOME || os.homedir(), ".openclaw");
+function firstAbsolutePath(...values: Array<string | null | undefined>) {
+  for (const value of values) {
+    if (!value) continue;
+    const trimmed = String(value).trim();
+    if (!trimmed) continue;
+    if (path.isAbsolute(trimmed)) return trimmed;
+  }
+  return null;
 }
 
-function getProvisionedRepoWorkspaceTargets(repo: string) {
+function deriveOpenClawRootFromAbsolutePath(sourcePath: string | null) {
+  if (!sourcePath) return null;
+  const normalized = path.resolve(sourcePath);
+  const marker = `${path.sep}.openclaw`;
+  const index = normalized.indexOf(marker);
+  if (index >= 0) return normalized.slice(0, index + marker.length);
+  if (path.basename(normalized) === ".openclaw") return normalized;
+  return null;
+}
+
+function resolveOpenClawRoot() {
+  const explicitRoot = firstAbsolutePath(process.env.OPENCLAW_ROOT);
+  if (explicitRoot) return explicitRoot;
+
+  const homeRoot = firstAbsolutePath(process.env.HOME, os.homedir());
+  if (homeRoot) return path.join(homeRoot, ".openclaw");
+
+  const derivedRoot = deriveOpenClawRootFromAbsolutePath(firstAbsolutePath(process.cwd(), currentModuleDir));
+  if (derivedRoot) return derivedRoot;
+
+  return path.join(os.tmpdir(), ".openclaw");
+}
+
+export function getProvisionedRepoWorkspaceTargets(repo: string) {
   const openClawRoot = resolveOpenClawRoot();
   return [
     path.join(openClawRoot, "workspace-product-lead", "projects", repo),

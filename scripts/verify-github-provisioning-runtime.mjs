@@ -81,6 +81,7 @@ installFetchMock({
 
 process.env = {
   ...originalEnv,
+  HOME: "",
   GITHUB_TOKEN: "runtime-token",
   GH_TOKEN: "",
   GITHUB_PROVISIONING_OWNER: "acme-inc",

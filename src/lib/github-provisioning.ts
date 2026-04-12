@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createGitHubRepoBinding, type GitHubRepoBinding } from "./github-repo-binding.ts";
@@ -305,8 +306,12 @@ function writeSeedFilesToWorkspace(targetDir: string, files: RepoSeedFile[]) {
   }
 }
 
+function resolveOpenClawRoot() {
+  return path.join(process.env.HOME || os.homedir(), ".openclaw");
+}
+
 function getProvisionedRepoWorkspaceTargets(repo: string) {
-  const openClawRoot = path.join(process.env.HOME || "", ".openclaw");
+  const openClawRoot = resolveOpenClawRoot();
   return [
     path.join(openClawRoot, "workspace-product-lead", "projects", repo),
     path.join(openClawRoot, "workspace-tech-lead-architect", "projects", repo),

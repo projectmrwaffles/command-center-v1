@@ -548,11 +548,15 @@ function getRepoSlugFromUrl(url: string | null) {
   return match ? match[2] : null;
 }
 
+function resolveOpenClawRoot() {
+  return path.join(process.env.HOME || os.homedir(), ".openclaw");
+}
+
 export function resolveRepoWorkspacePath(project: ProjectLikeWithRequirements) {
   const repoSlug = getRepoSlugFromUrl(resolveGithubRepoUrl(project));
   if (!repoSlug) return null;
 
-  const openClawRoot = path.join(process.env.HOME || "", ".openclaw");
+  const openClawRoot = resolveOpenClawRoot();
   const candidates = [
     path.join(openClawRoot, "workspace-product-lead", "projects", repoSlug),
     path.join(openClawRoot, "workspace-tech-lead-architect", "projects", repoSlug),

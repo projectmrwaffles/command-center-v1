@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
+const currentModuleDir = path.dirname(new URL(import.meta.url).pathname);
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -548,8 +550,37 @@ function getRepoSlugFromUrl(url: string | null) {
   return match ? match[2] : null;
 }
 
+function firstAbsolutePath(...values: Array<string | null | undefined>) {
+  for (const value of values) {
+    if (!value) continue;
+    const trimmed = String(value).trim();
+    if (!trimmed) continue;
+    if (path.isAbsolute(trimmed)) return trimmed;
+  }
+  return null;
+}
+
+function deriveOpenClawRootFromAbsolutePath(sourcePath: string | null) {
+  if (!sourcePath) return null;
+  const normalized = path.resolve(sourcePath);
+  const marker = `${path.sep}.openclaw`;
+  const index = normalized.indexOf(marker);
+  if (index >= 0) return normalized.slice(0, index + marker.length);
+  if (path.basename(normalized) === ".openclaw") return normalized;
+  return null;
+}
+
 function resolveOpenClawRoot() {
-  return path.join(process.env.HOME || os.homedir(), ".openclaw");
+  const explicitRoot = firstAbsolutePath(process.env.OPENCLAW_ROOT);
+  if (explicitRoot) return explicitRoot;
+
+  const homeRoot = firstAbsolutePath(process.env.HOME, os.homedir());
+  if (homeRoot) return path.join(homeRoot, ".openclaw");
+
+  const derivedRoot = deriveOpenClawRootFromAbsolutePath(firstAbsolutePath(process.cwd(), currentModuleDir));
+  if (derivedRoot) return derivedRoot;
+
+  return path.join(os.tmpdir(), ".openclaw");
 }
 
 export function resolveRepoWorkspacePath(project: ProjectLikeWithRequirements) {

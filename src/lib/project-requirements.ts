@@ -58,6 +58,25 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function normalizeSourceText(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => normalizeSourceText(entry))
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value == null) {
+    return "";
+  }
+
+  return String(value);
+}
+
 function sentenceSplit(text: string) {
   return text
     .split(/(?<=[.!?])\s+|\n+/)
@@ -257,34 +276,52 @@ function parseSentenceRequirements(sentence: string, sourceTitle: string, source
   const choices = dedupeChoices(matchChoices(sentence));
   if (!choices.length) return [];
 
-  const directive = detectDirective(sentence);
-  const byKind = new Map<RequirementSignalKind, RequirementChoice[]>();
-  for (const choice of choices) {
-    const list = byKind.get(choice.kind) || [];
-    list.push(choice);
-    byKind.set(choice.kind, list);
-  }
+  const choiceText = choices.map((choice) => [choice, `${choice.label} ${choice.aliases.join(" ")}`.toLowerCase()] as const);
+  const loweredSentence = sentence.toLowerCase();
+  const forbiddenChoices = dedupeChoices(choiceText
+    .filter(([, aliases]) => {
+      const tokens = aliases.split(/\s+/).filter(Boolean);
+      return tokens.some((token) => new RegExp(`\\b(?:not|instead of|rather than|avoid|never use|must not use)\\s+${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(loweredSentence));
+    })
+    .map(([choice]) => choice));
+  const requiredChoices = dedupeChoices(choices.filter((choice) => !forbiddenChoices.some((forbidden) => forbidden.slug === choice.slug)));
 
   const parsed: ParsedSentenceRequirement[] = [];
-  for (const [kind, groupedChoices] of byKind.entries()) {
-    const finalDirective = directive || (groupedChoices.length > 1 ? "allowed" : "required");
-    const requirement: TechnologyRequirement = {
-      directive: finalDirective,
-      kind,
-      rationale: sentence,
-      choices: dedupeChoices(groupedChoices),
-      sourceTitles: [sourceTitle],
-    };
-    parsed.push({
-      requirement,
-      source: {
-        title: sourceTitle,
-        type: sourceType,
-        evidence: [sentence],
-      },
-    });
+  const pushGroupedRequirement = (groupedChoices: RequirementChoice[], directive: RequirementDirective) => {
+    if (!groupedChoices.length) return;
+    const byKind = new Map<RequirementSignalKind, RequirementChoice[]>();
+    for (const choice of groupedChoices) {
+      const list = byKind.get(choice.kind) || [];
+      list.push(choice);
+      byKind.set(choice.kind, list);
+    }
+
+    for (const [kind, kindChoices] of byKind.entries()) {
+      parsed.push({
+        requirement: {
+          directive,
+          kind,
+          rationale: sentence,
+          choices: dedupeChoices(kindChoices),
+          sourceTitles: [sourceTitle],
+        },
+        source: {
+          title: sourceTitle,
+          type: sourceType,
+          evidence: [sentence],
+        },
+      });
+    }
+  };
+
+  if (forbiddenChoices.length > 0) {
+    pushGroupedRequirement(requiredChoices, requiredChoices.length > 1 ? "allowed" : "required");
+    pushGroupedRequirement(forbiddenChoices, "forbidden");
+    return parsed;
   }
 
+  const directive = detectDirective(sentence);
+  pushGroupedRequirement(choices, directive || (choices.length > 1 ? "allowed" : "required"));
   return parsed;
 }
 
@@ -365,9 +402,9 @@ function collectTechnologyRequirements(input: {
   }
 
   const sources = [
-    { title: "Project summary", type: "intake", text: input.intakeSummary || "" },
-    { title: "Project goals", type: "intake", text: input.intakeGoals || "" },
-    ...(input.documents || []).map((document) => ({ title: document.title, type: document.type, text: document.text || "" })),
+    { title: "Project summary", type: "intake", text: normalizeSourceText(input.intakeSummary) },
+    { title: "Project goals", type: "intake", text: normalizeSourceText(input.intakeGoals) },
+    ...(input.documents || []).map((document) => ({ title: document.title, type: document.type, text: normalizeSourceText(document.text) })),
   ].filter((source) => source.text.trim().length > 0);
 
   for (const source of sources) {
@@ -457,7 +494,8 @@ export function deriveProjectRequirements(input: {
   documents?: Array<{ title: string; type: string; text?: string | null }>;
 }) {
   const sourceTexts = [input.intakeSummary, input.intakeGoals, ...(input.documents || []).map((doc) => doc.text || "")]
-    .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+    .map((value) => normalizeSourceText(value))
+    .filter((value) => value.trim().length > 0);
 
   const combinedText = sourceTexts.join("\n\n");
   const { technologyRequirements, sources } = collectTechnologyRequirements(input);

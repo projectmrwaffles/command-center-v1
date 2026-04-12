@@ -290,6 +290,41 @@ function readRepoFrameworks(repoWorkspacePath) {
   }
 }
 
+function loadPackageJson(repoWorkspacePath) {
+  if (!repoWorkspacePath) return null;
+  const packageJsonPath = path.join(repoWorkspacePath, "package.json");
+  if (!fs.existsSync(packageJsonPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function repoHasDeclaredTestsWithoutFiles(repoWorkspacePath) {
+  const pkg = loadPackageJson(repoWorkspacePath);
+  const testScript = pkg?.scripts?.test;
+  if (!testScript || typeof testScript !== "string") return false;
+
+  const matches = [];
+  const testFilePattern = /\.(test|spec)\.(c|m)?[jt]sx?$/i;
+  const roots = ["src", "app", "tests", "test", "server", "lib"];
+
+  for (const root of roots) {
+    const rootPath = path.join(repoWorkspacePath, root);
+    if (!fs.existsSync(rootPath)) continue;
+    for (const entry of fs.readdirSync(rootPath, { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const entryParentPath = typeof entry.parentPath === "string" ? entry.parentPath : rootPath;
+      const absolutePath = path.join(entryParentPath, entry.name);
+      const relativePath = path.relative(repoWorkspacePath, absolutePath);
+      if (testFilePattern.test(relativePath)) matches.push(relativePath);
+    }
+  }
+
+  return matches.length === 0;
+}
+
 function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, taskMetadata }) {
   const projectName = project?.name || "Unknown Project";
   const githubRepoUrl = resolveGithubRepoUrl(project);
@@ -332,6 +367,7 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     isAcceptanceReview && requirementViolations.length ? `QC MUST FAIL if this mismatch is real: missing required framework(s) ${requirementViolations.join(", ")}. Do not approve until the repo matches the PRD/spec.` : null,
     codeHeavy ? "If you change tracked code or docs in that repo-backed workspace, do not stop at a local commit. Commit and push to the remote so origin reflects your final commit before you return STATUS: done." : null,
     codeHeavy ? "Verify the remote push succeeded. Include the pushed commit hash and the exact git/gh commands you ran in DETAILS when you make tracked changes." : null,
+    taskType === "build_implementation" ? "Validation contract: if package.json declares a test script, the repo must include at least one real matching test file and the declared test command must be truthful. Do not leave behind placeholder test tooling or a failing empty test pipeline. If you do not add tests, remove the test script instead of shipping a broken one." : null,
     taskType === "build_implementation" && requirements?.summary?.length ? "Treat the project requirements above as a hard contract for implementation. Required choices must be present, allowed choices define the acceptable option set, and forbidden technologies must not be introduced. If the repo or your plan conflicts with that contract, align the implementation or call out the blocker explicitly." : null,
     taskType === "discovery_plan" && requirements?.summary?.length ? "Discovery must convert the PRD/spec requirements above into an explicit implementation contract. Preserve required choices, allowed alternatives, and forbidden technologies instead of collapsing them into generic notes." : null,
     "Do the work now. Do not stop after acknowledging or saying you started.",
@@ -776,7 +812,20 @@ async function startListener() {
           }, TASK_PROGRESS_HEARTBEAT_MS);
           console.log(`[Listener] Triggering agent ${agentName} for task: ${taskTitle}`);
           console.log(`[Listener] Message: ${message}`);
-          const result = await runAgentUntilStopCondition(agentName, message);
+          let result = await runAgentUntilStopCondition(agentName, message);
+          if (result.taskStatus === "done" && taskContext?.task_type === "build_implementation") {
+            const repoWorkspacePath = resolveRepoWorkspacePath(project);
+            if (repoWorkspacePath && repoHasDeclaredTestsWithoutFiles(repoWorkspacePath)) {
+              result = {
+                ...result,
+                status: "blocked",
+                taskStatus: "blocked",
+                summary: "Build output declares a test script but no matching test files exist in the repo.",
+                raw: `${result.raw}\n\n[listener-validation] package.json declares a test script, but no *.test.* or *.spec.* files were found under src/app/tests/test/server/lib. Remove the broken test script or add real tests before marking this done.`,
+                hasRealBlockerSignal: true,
+              };
+            }
+          }
           console.log(`[Listener] Agent ${agentName} finished task ${taskId} with ${result.taskStatus}: ${result.summary}`);
           await finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTitle, result);
         } catch (error) {

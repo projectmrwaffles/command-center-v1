@@ -74,6 +74,7 @@ installFetchMock({
   "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/package.json": async () => ({ status: 201, body: {} }),
   "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/tsconfig.json": async () => ({ status: 201, body: {} }),
   "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/next-env.d.ts": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/app/layout.tsx": async () => ({ status: 201, body: {} }),
   "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/app/page.tsx": async () => ({ status: 201, body: {} }),
   "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/README.md": async () => ({ status: 201, body: {} }),
   "PUT /repos/acme-inc/runtime-provisioning-test-123456/contents/.gitignore": async () => ({ status: 201, body: {} }),
@@ -120,7 +121,7 @@ async function runScenario(label, envOverrides, expectHydration) {
   }
   if (expectHydration) {
     const packageJson = JSON.parse(fs.readFileSync(path.join(repoWorkspacePaths[1], "package.json"), "utf8"));
-    assert.equal(packageJson.dependencies?.next, "15.3.0");
+    assert.equal(packageJson.dependencies?.next, "15.5.15");
   }
   for (const repoWorkspacePath of repoWorkspacePaths) {
     fs.rmSync(repoWorkspacePath, { recursive: true, force: true });

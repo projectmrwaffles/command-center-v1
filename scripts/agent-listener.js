@@ -301,10 +301,14 @@ function loadPackageJson(repoWorkspacePath) {
   }
 }
 
-function repoHasDeclaredTestsWithoutFiles(repoWorkspacePath) {
+function inspectRepoTestContract(repoWorkspacePath) {
   const pkg = loadPackageJson(repoWorkspacePath);
-  const testScript = pkg?.scripts?.test;
-  if (!testScript || typeof testScript !== "string") return false;
+  const testScript = typeof pkg?.scripts?.test === "string" ? pkg.scripts.test : null;
+  const deps = {
+    ...(pkg?.dependencies || {}),
+    ...(pkg?.devDependencies || {}),
+  };
+  const declaredTooling = ["vitest", "jsdom", "@testing-library/react", "@testing-library/jest-dom", "vite"].filter((name) => deps[name]);
 
   const matches = [];
   const testFilePattern = /\.(test|spec)\.(c|m)?[jt]sx?$/i;
@@ -322,7 +326,13 @@ function repoHasDeclaredTestsWithoutFiles(repoWorkspacePath) {
     }
   }
 
-  return matches.length === 0;
+  const hasBrokenTestContract = matches.length === 0 && Boolean(testScript || declaredTooling.length);
+  return {
+    hasBrokenTestContract,
+    testScript,
+    declaredTooling,
+    matches,
+  };
 }
 
 function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, taskMetadata }) {
@@ -367,7 +377,7 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     isAcceptanceReview && requirementViolations.length ? `QC MUST FAIL if this mismatch is real: missing required framework(s) ${requirementViolations.join(", ")}. Do not approve until the repo matches the PRD/spec.` : null,
     codeHeavy ? "If you change tracked code or docs in that repo-backed workspace, do not stop at a local commit. Commit and push to the remote so origin reflects your final commit before you return STATUS: done." : null,
     codeHeavy ? "Verify the remote push succeeded. Include the pushed commit hash and the exact git/gh commands you ran in DETAILS when you make tracked changes." : null,
-    taskType === "build_implementation" ? "Validation contract: if package.json declares a test script, the repo must include at least one real matching test file and the declared test command must be truthful. Do not leave behind placeholder test tooling or a failing empty test pipeline. If you do not add tests, remove the test script instead of shipping a broken one." : null,
+    taskType === "build_implementation" ? "Validation contract: do not leave behind placeholder test tooling. If the repo declares a test script or adds Vitest/jsdom/testing-library config, it must also include at least one real matching app test file. Setup files and config alone do not count. If you do not add tests, remove the unused test script and test-only tooling before marking the task done." : null,
     taskType === "build_implementation" && requirements?.summary?.length ? "Treat the project requirements above as a hard contract for implementation. Required choices must be present, allowed choices define the acceptable option set, and forbidden technologies must not be introduced. If the repo or your plan conflicts with that contract, align the implementation or call out the blocker explicitly." : null,
     taskType === "discovery_plan" && requirements?.summary?.length ? "Discovery must convert the PRD/spec requirements above into an explicit implementation contract. Preserve required choices, allowed alternatives, and forbidden technologies instead of collapsing them into generic notes." : null,
     "Do the work now. Do not stop after acknowledging or saying you started.",
@@ -815,15 +825,24 @@ async function startListener() {
           let result = await runAgentUntilStopCondition(agentName, message);
           if (result.taskStatus === "done" && taskContext?.task_type === "build_implementation") {
             const repoWorkspacePath = resolveRepoWorkspacePath(project);
-            if (repoWorkspacePath && repoHasDeclaredTestsWithoutFiles(repoWorkspacePath)) {
-              result = {
-                ...result,
-                status: "blocked",
-                taskStatus: "blocked",
-                summary: "Build output declares a test script but no matching test files exist in the repo.",
-                raw: `${result.raw}\n\n[listener-validation] package.json declares a test script, but no *.test.* or *.spec.* files were found under src/app/tests/test/server/lib. Remove the broken test script or add real tests before marking this done.`,
-                hasRealBlockerSignal: true,
-              };
+            if (repoWorkspacePath) {
+              const testContract = inspectRepoTestContract(repoWorkspacePath);
+              if (testContract.hasBrokenTestContract) {
+                const toolingDetail = testContract.declaredTooling.length
+                  ? ` Tooling found: ${testContract.declaredTooling.join(", ")}.`
+                  : "";
+                const scriptDetail = testContract.testScript
+                  ? ` Test script: ${testContract.testScript}.`
+                  : "";
+                result = {
+                  ...result,
+                  status: "blocked",
+                  taskStatus: "blocked",
+                  summary: "Build output leaves test tooling or a test script without any real app test files in the repo.",
+                  raw: `${result.raw}\n\n[listener-validation] No *.test.* or *.spec.* files were found under src/app/tests/test/server/lib, but the repo still declares test tooling.${scriptDetail}${toolingDetail} Remove the broken test stack or add at least one real app test before marking this done.`,
+                  hasRealBlockerSignal: true,
+                };
+              }
             }
           }
           console.log(`[Listener] Agent ${agentName} finished task ${taskId} with ${result.taskStatus}: ${result.summary}`);
@@ -947,5 +966,6 @@ if (require.main === module) {
     resolveOpenClawRoot,
     resolveRepoWorkspacePath,
     buildAgentMessage,
+    inspectRepoTestContract,
   };
 }

@@ -259,6 +259,13 @@ function detectDirective(sentence: string): RequirementDirective | null {
   return null;
 }
 
+function sentenceImpliesAllChoicesRequired(sentence: string) {
+  const value = sentence.toLowerCase();
+  if (/\b(use either|either .* or .*|one of|allowed|can use|may use)\b/.test(value)) return false;
+  if (/\b(?:tech stack|stack|framework|frontend stack|backend stack)\s*:/i.test(sentence)) return true;
+  return /\+|\bplus\b|\band\b/i.test(sentence);
+}
+
 function mergeRequirement(existing: TechnologyRequirement | undefined, next: TechnologyRequirement) {
   if (!existing) return next;
   return {
@@ -317,13 +324,24 @@ function parseSentenceRequirements(sentence: string, sourceTitle: string, source
   };
 
   if (forbiddenChoices.length > 0) {
-    pushGroupedRequirement(requiredChoices, requiredChoices.length > 1 ? "allowed" : "required");
+    if (requiredChoices.length > 0) {
+      if (sentenceImpliesAllChoicesRequired(sentence)) {
+        for (const choice of requiredChoices) pushGroupedRequirement([choice], "required");
+      } else {
+        pushGroupedRequirement(requiredChoices, requiredChoices.length > 1 ? "allowed" : "required");
+      }
+    }
     pushGroupedRequirement(forbiddenChoices, "forbidden");
     return parsed;
   }
 
   const directive = detectDirective(sentence);
-  pushGroupedRequirement(choices, directive || (choices.length > 1 ? "allowed" : "required"));
+  const effectiveDirective = directive || (sentenceImpliesAllChoicesRequired(sentence) ? "required" : choices.length > 1 ? "allowed" : "required");
+  if (effectiveDirective === "required" && choices.length > 1 && sentenceImpliesAllChoicesRequired(sentence)) {
+    for (const choice of choices) pushGroupedRequirement([choice], "required");
+    return parsed;
+  }
+  pushGroupedRequirement(choices, effectiveDirective);
   return parsed;
 }
 

@@ -29,6 +29,32 @@ assert.deepEqual(
   "React Native parsing should not overmatch plain React",
 );
 
+const plusStackRequirements = deriveProjectRequirements({
+  intakeSummary: "Tech stack: Next.js + React",
+});
+assert(
+  plusStackRequirements.requiredFrameworks.includes("nextjs"),
+  "plus-joined framework stacks should require Next.js",
+);
+assert(
+  plusStackRequirements.technologyRequirements.some(
+    (requirement) => requirement.directive === "required" && requirement.choices.some((choice) => choice.slug === "nextjs"),
+  ),
+  "plus-joined framework stacks should produce a required Next.js requirement",
+);
+assert(
+  !plusStackRequirements.summary.includes("Allowed framework: Next.js or React."),
+  "plus-joined framework stacks should not be summarized as an allowed either/or choice",
+);
+
+const explicitUsePlusRequirements = deriveProjectRequirements({
+  intakeSummary: "Use Next.js + React for the app.",
+});
+assert(
+  explicitUsePlusRequirements.requiredFrameworks.includes("nextjs"),
+  "use-plus phrasing should also require Next.js",
+);
+
 makeRepo("prd-contract-forbidden-supabase-runtime", {
   name: "prd-contract-forbidden-supabase-runtime",
   private: true,

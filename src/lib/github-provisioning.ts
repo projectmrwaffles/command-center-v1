@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { createGitHubRepoBinding, type GitHubRepoBinding } from "./github-repo-binding.ts";
 import type { ProjectIntake } from "./project-intake.ts";
 import type { ProjectRequirements } from "./project-requirements.types.ts";
@@ -294,6 +297,62 @@ async function seedProvisionedRepo(input: { owner: string; repo: string; branch:
   }
 }
 
+function writeSeedFilesToWorkspace(targetDir: string, files: RepoSeedFile[]) {
+  for (const file of files) {
+    const filePath = path.join(targetDir, file.path);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, file.content, "utf8");
+  }
+}
+
+function getProvisionedRepoWorkspaceTargets(repo: string) {
+  const openClawRoot = path.join(process.env.HOME || "", ".openclaw");
+  return [
+    path.join(openClawRoot, "workspace-product-lead", "projects", repo),
+    path.join(openClawRoot, "workspace-tech-lead-architect", "projects", repo),
+    path.join(openClawRoot, "workspace", "projects", repo),
+  ];
+}
+
+function syncProvisionedRepoToWorkspace(input: { owner: string; repo: string; branch: string; files: RepoSeedFile[] }) {
+  const targetDirs = getProvisionedRepoWorkspaceTargets(input.repo);
+  const primaryTargetDir = targetDirs[1] || targetDirs[0];
+  for (const targetDir of targetDirs) {
+    fs.rmSync(targetDir, { recursive: true, force: true });
+    fs.mkdirSync(path.dirname(targetDir), { recursive: true });
+  }
+
+  const token = getGitHubToken();
+  const authenticatedUrl = token
+    ? `https://x-access-token:${encodeURIComponent(token)}@github.com/${input.owner}/${input.repo}.git`
+    : null;
+
+  let hydratedSourceDir: string | null = null;
+  if (authenticatedUrl) {
+    const cloneResult = spawnSync("git", ["clone", "--branch", input.branch, "--single-branch", authenticatedUrl, primaryTargetDir], {
+      encoding: "utf8",
+      timeout: 120000,
+    });
+
+    if (cloneResult.status === 0) {
+      hydratedSourceDir = primaryTargetDir;
+    }
+  }
+
+  if (!hydratedSourceDir) {
+    fs.mkdirSync(primaryTargetDir, { recursive: true });
+    writeSeedFilesToWorkspace(primaryTargetDir, input.files);
+    hydratedSourceDir = primaryTargetDir;
+  }
+
+  for (const targetDir of targetDirs) {
+    if (targetDir === hydratedSourceDir) continue;
+    fs.cpSync(hydratedSourceDir, targetDir, { recursive: true });
+  }
+
+  return primaryTargetDir;
+}
+
 export async function provisionGitHubRepoForProject(input: {
   projectId: string;
   projectName: string;
@@ -315,20 +374,22 @@ export async function provisionGitHubRepoForProject(input: {
     body: JSON.stringify({
       name: repo,
       private: true,
-      auto_init: true,
+      auto_init: false,
       description,
     }),
   });
 
+  const branch = createdRepo?.default_branch || "main";
   const seedFiles = deriveRepoSeedFiles({ projectName: input.projectName, requirements: input.requirements });
   if (seedFiles.length) {
-    await seedProvisionedRepo({ owner, repo, branch: createdRepo?.default_branch || "main", files: seedFiles });
+    await seedProvisionedRepo({ owner, repo, branch, files: seedFiles });
   }
+  syncProvisionedRepoToWorkspace({ owner, repo, branch, files: seedFiles });
 
   const binding = createGitHubRepoBinding({
     url: createdRepo?.html_url,
     source: "provisioned",
-    defaultBranch: createdRepo?.default_branch || "main",
+    defaultBranch: branch,
     provisioning: {
       status: "ready",
       reason: "GitHub repository provisioned automatically during project submission.",

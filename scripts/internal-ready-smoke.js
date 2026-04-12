@@ -30,6 +30,15 @@ function logResult(ok, name, detail) {
   }
 }
 
+async function isServerReady(baseUrl) {
+  try {
+    const response = await fetch(`${baseUrl}/api/webhook`);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function waitForServer(baseUrl, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   let lastError = null;
@@ -46,6 +55,25 @@ async function waitForServer(baseUrl, timeoutMs = 30000) {
   }
 
   throw lastError || new Error("Server did not become ready in time");
+}
+
+async function resolveExistingLocalBaseUrl(preferredBaseUrl) {
+  const candidates = [
+    preferredBaseUrl,
+    process.env.NEXT_PUBLIC_APP_URL,
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3001",
+    "http://localhost:3001",
+  ].filter(Boolean);
+
+  for (const candidate of [...new Set(candidates)]) {
+    if (await isServerReady(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 function createJsonClient(url, key) {
@@ -120,7 +148,7 @@ async function main() {
   const service = createJsonClient(supabaseUrl, serviceKey);
 
   const port = String(process.env.SMOKE_PORT || 3210);
-  const baseUrl = process.env.SMOKE_BASE_URL?.trim() || `http://127.0.0.1:${port}`;
+  let baseUrl = process.env.SMOKE_BASE_URL?.trim() || `http://127.0.0.1:${port}`;
   const startLocalServer = process.env.SMOKE_BASE_URL ? false : process.env.SMOKE_START_LOCAL_SERVER !== "0";
 
   let serverProcess = null;
@@ -162,14 +190,20 @@ async function main() {
     }
 
     if (startLocalServer) {
-      serverProcess = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", port], {
-        stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env },
-      });
-      serverProcess.stdout.on("data", () => {});
-      serverProcess.stderr.on("data", () => {});
-      await waitForServer(baseUrl);
-      logResult(true, "local app server started", baseUrl);
+      const existingBaseUrl = await resolveExistingLocalBaseUrl(baseUrl);
+      if (existingBaseUrl) {
+        baseUrl = existingBaseUrl;
+        logResult(true, "reused existing local app server", baseUrl);
+      } else {
+        serverProcess = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", port], {
+          stdio: ["ignore", "pipe", "pipe"],
+          env: { ...process.env },
+        });
+        serverProcess.stdout.on("data", () => {});
+        serverProcess.stderr.on("data", () => {});
+        await waitForServer(baseUrl);
+        logResult(true, "local app server started", baseUrl);
+      }
     }
 
     const trustedHeaders = getTrustedHeaders(baseUrl, agentToken);

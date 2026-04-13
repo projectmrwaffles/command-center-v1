@@ -1,3 +1,4 @@
+import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
 
@@ -123,4 +124,65 @@ export async function repairMissingPdfAttachmentRequirements(
   }
 
   return { repaired: true, requirements: nextRequirements, intake: nextIntake } as const;
+}
+
+export async function reconcileAttachmentBackedProjectCreate(
+  db: DbClient,
+  input: {
+    project: {
+      id: string;
+      name?: string | null;
+      type?: string | null;
+      team_id?: string | null;
+      intake?: any;
+      links?: Record<string, string> | null;
+      github_repo_binding?: any;
+    };
+  }
+) {
+  const project = input.project;
+  const repaired = await repairMissingPdfAttachmentRequirements(db, {
+    projectId: project.id,
+    intake: project.intake || null,
+  });
+
+  const effectiveIntake = repaired.intake || project.intake || null;
+  const effectiveRequirements = repaired.requirements || getExistingRequirements(effectiveIntake);
+  const attachmentRequirementsReady = hasAttachmentDerivedRequirements(effectiveRequirements);
+
+  const { count: sprintCount, error: sprintCountError } = await db
+    .from("sprints")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", project.id);
+
+  if (sprintCountError) {
+    throw new Error(sprintCountError.message || "Failed to inspect project sprint state");
+  }
+
+  let finalized = false;
+  if ((sprintCount ?? 0) === 0 && attachmentRequirementsReady) {
+    await finalizeProjectCreate(db as any, {
+      project: {
+        ...project,
+        intake: effectiveIntake as any,
+      },
+      name: project.name || "Untitled project",
+      type: project.type || "other",
+      intake: effectiveIntake as any,
+      links: project.links || null,
+      githubRepoBinding: project.github_repo_binding || null,
+      teamId: project.team_id || null,
+    });
+    finalized = true;
+  }
+
+  return {
+    repaired: repaired.repaired,
+    finalized,
+    attachmentRequirementsReady,
+    project: {
+      ...project,
+      intake: effectiveIntake as any,
+    },
+  } as const;
 }

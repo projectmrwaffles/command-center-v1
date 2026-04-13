@@ -194,6 +194,7 @@ function baseTables(projects) {
     milestone_submissions: [],
     proof_bundles: [],
     proof_items: [],
+    submission_feedback_items: [],
     agent_notifications: [],
   };
 }
@@ -209,6 +210,7 @@ function ensureRepo(slug, packageJson) {
 const matchSlug = `prebuild-match-${Date.now()}`;
 const mismatchSlug = `prebuild-mismatch-${Date.now()}`;
 const manualSlug = `prebuild-manual-${Date.now()}`;
+const missingWorkspaceSlug = `prebuild-missing-workspace-${Date.now()}`;
 
 const createdRepos = [
   ensureRepo(matchSlug, { dependencies: { next: "16.1.6", react: "19.2.3" }, devDependencies: { typescript: "^5.0.0" } }),
@@ -243,7 +245,7 @@ try {
   const outcomesDb = createDb(baseTables([
     projectRecord("project-match", `https://github.com/acme/${matchSlug}`),
     projectRecord("project-mismatch", `https://github.com/acme/${mismatchSlug}`),
-    projectRecord("project-manual", `https://github.com/acme/${manualSlug}`),
+    projectRecord("project-manual", `https://github.com/acme/${missingWorkspaceSlug}`),
   ]));
   outcomesDb.tables.sprints.push(
     { id: "s-match", project_id: "project-match", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" },
@@ -256,6 +258,18 @@ try {
   assert.equal(matchState.state.outcome, "match");
   assert.equal(mismatchState.state.outcome, "mismatch");
   assert.equal(manualState.state.outcome, "manual_review");
+  assert.equal(outcomesDb.tables.milestone_submissions.filter((row) => row.sprint_id === "s-manual").length, 0, "missing local repo workspace should stay on manual approval path instead of creating a dead review packet");
+  assert.equal(outcomesDb.tables.proof_bundles.length, 2, "only materializable pre-build checkpoints should create proof bundles");
+
+  const staleManualDb = createDb(baseTables([projectRecord("project-manual-stale", `https://github.com/acme/${missingWorkspaceSlug}`)]));
+  staleManualDb.tables.sprints.push({ id: "s-manual-stale", project_id: "project-manual-stale", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: true, approval_gate_status: "pending" });
+  staleManualDb.tables.milestone_submissions.push({ id: "ms-stale", sprint_id: "s-manual-stale", checkpoint_type: "prebuild_checkpoint", revision_number: 1, summary: "Pre-build stack checkpoint requires manual review", what_changed: "manual review", status: "submitted" });
+  staleManualDb.tables.proof_bundles.push({ id: "pb-stale", submission_id: "ms-stale", title: "Phase 1 · Build pre-build checkpoint", summary: "manual review", completeness_status: "ready" });
+  staleManualDb.tables.proof_items.push({ id: "pi-stale", proof_bundle_id: "pb-stale", kind: "note", label: "Checkpoint outcome", notes: "No repo workspace path found.", metadata: { checkpointOutcome: "manual_review", repoWorkspacePath: null }, sort_order: 0 });
+  await syncProjectPreBuildCheckpoint(staleManualDb, { projectId: "project-manual-stale", project: staleManualDb.tables.projects[0] });
+  assert.equal(staleManualDb.tables.milestone_submissions.length, 0, "sync should clear stale unusable pre-build submissions when no local repo workspace exists");
+  assert.equal(staleManualDb.tables.proof_bundles.length, 0, "sync should clear stale unusable pre-build proof bundles when no local repo workspace exists");
+  assert.equal(staleManualDb.tables.proof_items.length, 0, "sync should clear stale unusable pre-build proof items when no local repo workspace exists");
 
   const blockedDb = createDb(baseTables([projectRecord("project-blocked", `https://github.com/acme/${mismatchSlug}`)]));
   blockedDb.tables.sprints.push({ id: "s-blocked", project_id: "project-blocked", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" });

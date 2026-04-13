@@ -160,6 +160,48 @@ function buildCheckpointProofItems(state: PreBuildCheckpointState, compliance: R
   }));
 }
 
+function shouldMaterializeCheckpointSubmission(state: PreBuildCheckpointState) {
+  return !(state.outcome === "manual_review" && !state.repoWorkspacePath);
+}
+
+async function clearCheckpointSubmission(db: DbClient, sprintId: string) {
+  const { data: submissions, error: submissionError } = await db
+    .from("milestone_submissions")
+    .select("id")
+    .eq("sprint_id", sprintId)
+    .eq("checkpoint_type", "prebuild_checkpoint");
+
+  if (submissionError) {
+    if (isMissingRelationError(submissionError, "milestone_submissions")) return;
+    throw new Error(submissionError.message);
+  }
+
+  const submissionIds = ((submissions || []) as Array<{ id: string }>).map((row) => row.id).filter(Boolean);
+  if (submissionIds.length === 0) return;
+
+  const { data: bundles, error: bundleError } = await db
+    .from("proof_bundles")
+    .select("id")
+    .in("submission_id", submissionIds);
+  if (bundleError) throw new Error(bundleError.message);
+
+  const bundleIds = ((bundles || []) as Array<{ id: string }>).map((row) => row.id).filter(Boolean);
+  if (bundleIds.length > 0) {
+    const { error: proofItemsError } = await db.from("proof_items").delete().in("proof_bundle_id", bundleIds);
+    if (proofItemsError) throw new Error(proofItemsError.message);
+    const { error: bundleDeleteError } = await db.from("proof_bundles").delete().in("id", bundleIds);
+    if (bundleDeleteError) throw new Error(bundleDeleteError.message);
+  }
+
+  const { error: feedbackDeleteError } = await db.from("submission_feedback_items").delete().in("submission_id", submissionIds);
+  if (feedbackDeleteError && !isMissingRelationError(feedbackDeleteError, "submission_feedback_items")) {
+    throw new Error(feedbackDeleteError.message);
+  }
+
+  const { error: submissionDeleteError } = await db.from("milestone_submissions").delete().in("id", submissionIds);
+  if (submissionDeleteError) throw new Error(submissionDeleteError.message);
+}
+
 async function ensureCheckpointSubmission(db: DbClient, input: {
   projectId: string;
   sprint: SprintRow;
@@ -304,8 +346,13 @@ export async function syncProjectPreBuildCheckpoint(db: DbClient, input: {
     updatedSprintIds.push(sprint.id);
 
     if (effectiveState.applicable && compliance) {
-      const submissionId = await ensureCheckpointSubmission(db, { projectId: input.projectId, sprint, state: effectiveState, compliance });
-      if (!submissionId) continue;
+      if (!shouldMaterializeCheckpointSubmission(effectiveState)) {
+        await clearCheckpointSubmission(db, sprint.id);
+      } else {
+        const submissionId = await ensureCheckpointSubmission(db, { projectId: input.projectId, sprint, state: effectiveState, compliance });
+        if (!submissionId) continue;
+      }
+
       await db.from("agent_events").insert({
         agent_id: null,
         project_id: input.projectId,

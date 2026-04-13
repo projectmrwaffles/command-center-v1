@@ -173,6 +173,22 @@ export function countProofItemsByKind(items: Array<{ kind?: string | null }> | n
   return (items || []).filter((item) => item?.kind === kind).length;
 }
 
+export function countDeliverableEvidenceItems(items: Array<{ kind?: string | null }> | null | undefined) {
+  return (items || []).filter((item) => {
+    const kind = item?.kind;
+    return kind != null && kind !== "note" && kind !== "checklist";
+  }).length;
+}
+
+export function computeProofBundleCompletenessStatus(input: {
+  checkpointType?: StageCheckpointType | string | null;
+  evidenceRequirements?: unknown;
+  items: Array<{ kind?: string | null }>;
+}): ProofCompletenessStatus {
+  const validation = validateProofBundleRequirements(input);
+  return validation.ok ? "ready" : "incomplete";
+}
+
 export function validateProofBundleRequirements(input: {
   checkpointType?: StageCheckpointType | string | null;
   evidenceRequirements?: unknown;
@@ -180,6 +196,16 @@ export function validateProofBundleRequirements(input: {
 }) {
   const requirements = getCheckpointEvidenceRequirements(input.checkpointType, input.evidenceRequirements);
   const screenshotCount = countProofItemsByKind(input.items, "screenshot");
+  const deliverableEvidenceCount = countDeliverableEvidenceItems(input.items);
+  if (input.checkpointType === "delivery_review" && deliverableEvidenceCount < 1) {
+    return {
+      ok: false,
+      message: "This delivery review requires at least one real deliverable artifact, such as a screenshot, preview URL, PR, commit, Loom, doc, or uploaded artifact, before review.",
+      requirements,
+      screenshotCount,
+      deliverableEvidenceCount,
+    };
+  }
   if (requirements.screenshotRequired && screenshotCount < requirements.minScreenshotCount) {
     return {
       ok: false,
@@ -188,9 +214,10 @@ export function validateProofBundleRequirements(input: {
         : `This ${formatCheckpointTypeLabel(input.checkpointType).toLowerCase()} requires at least one screenshot before review.`,
       requirements,
       screenshotCount,
+      deliverableEvidenceCount,
     };
   }
-  return { ok: true, requirements, screenshotCount };
+  return { ok: true, requirements, screenshotCount, deliverableEvidenceCount };
 }
 
 export function mapSubmissionStatusToTaskReviewStatus(status: SubmissionStatus): string {

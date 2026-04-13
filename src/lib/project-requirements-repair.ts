@@ -5,7 +5,7 @@ import type { ProjectRequirements } from "@/lib/project-requirements.types";
 const STORAGE_BUCKET = "project_docs";
 
 function shouldRunRequirementsRepair() {
-  return !process.env.VERCEL;
+  return true;
 }
 
 function getExistingRequirements(intake?: ProjectIntakeLike | null) {

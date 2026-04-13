@@ -5,6 +5,7 @@ import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
+import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -121,13 +122,24 @@ export async function GET(
       links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
     };
 
-    await syncProjectPreBuildCheckpoint(db as any, {
-      projectId,
+    const attachmentReconciled = await reconcileAttachmentBackedProjectCreate(db as any, {
       project: {
         ...projectWithDerivedArtifacts,
         intake: projectWithDerivedArtifacts.intake || null,
         links: projectWithDerivedArtifacts.links || null,
         github_repo_binding: projectWithDerivedArtifacts.github_repo_binding || null,
+      },
+    });
+
+    const effectiveProject: any = attachmentReconciled.project;
+
+    await syncProjectPreBuildCheckpoint(db as any, {
+      projectId,
+      project: {
+        ...effectiveProject,
+        intake: effectiveProject.intake || null,
+        links: effectiveProject.links || null,
+        github_repo_binding: effectiveProject.github_repo_binding || null,
       },
     });
 
@@ -258,10 +270,10 @@ export async function GET(
       ? ((await db.from("submission_feedback_items").select("*").in("submission_id", submissionIds)).data || [])
       : [];
 
-    const artifactIntegrity = getProjectArtifactIntegrity(projectWithDerivedArtifacts, tasks || []);
-    const preBuildCheckpoint = derivePreBuildCheckpointState(projectWithDerivedArtifacts);
+    const artifactIntegrity = getProjectArtifactIntegrity(effectiveProject, tasks || []);
+    const preBuildCheckpoint = derivePreBuildCheckpointState(effectiveProject);
     const truth = deriveProjectTruth({
-      project: projectWithDerivedArtifacts,
+      project: effectiveProject,
       tasks: tasks || [],
       sprints: sprints || [],
       jobs: jobs || [],
@@ -347,7 +359,7 @@ export async function GET(
       .filter((task: any) => task.status === "todo")
       .map((task: any) => {
         const blocker = getTaskExecutionBlocker({
-          project: projectWithDerivedArtifacts,
+          project: effectiveProject,
           task,
           sprint: (sprints || []).find((sprint: any) => sprint.id === task.sprint_id) ?? null,
           sprints: (sprints || []) as any,
@@ -419,11 +431,11 @@ export async function GET(
 
     return NextResponse.json({
       project: {
-        ...projectWithDerivedArtifacts,
+        ...effectiveProject,
         github_repo_provenance: getGitHubRepoProvenance({
-          binding: projectWithDerivedArtifacts.github_repo_binding,
-          projectOrigin: projectWithDerivedArtifacts.intake?.projectOrigin,
-          provisioningState: projectWithDerivedArtifacts.intake?.githubRepoProvisioning,
+          binding: effectiveProject.github_repo_binding,
+          projectOrigin: effectiveProject.intake?.projectOrigin,
+          provisioningState: effectiveProject.intake?.githubRepoProvisioning,
         }),
         progress_pct: overallProgress,
         preBuildCheckpoint,

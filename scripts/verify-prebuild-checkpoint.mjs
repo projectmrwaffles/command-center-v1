@@ -6,6 +6,7 @@ import path from "node:path";
 import { seedProjectKickoffPlan } from "../src/lib/project-kickoff.ts";
 import { syncProjectPreBuildCheckpoint } from "../src/lib/pre-build-checkpoint.ts";
 import { dispatchEligibleProjectTasks } from "../src/lib/project-execution.ts";
+import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.ts";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -270,6 +271,20 @@ try {
   assert.equal(staleManualDb.tables.milestone_submissions.length, 0, "sync should clear stale unusable pre-build submissions when no local repo workspace exists");
   assert.equal(staleManualDb.tables.proof_bundles.length, 0, "sync should clear stale unusable pre-build proof bundles when no local repo workspace exists");
   assert.equal(staleManualDb.tables.proof_items.length, 0, "sync should clear stale unusable pre-build proof items when no local repo workspace exists");
+
+  const stalePacketState = deriveReviewCheckpointState({
+    approvalGateStatus: "pending",
+    reviewSummary: {
+      latestSubmissionId: "ms-stale-ui",
+      checkpointType: "prebuild_checkpoint",
+      proofCompletenessStatus: "ready",
+      proofItemCount: 1,
+      latestDecisionNotes: "No repo workspace path found.",
+      latestRejectionComment: "No repo workspace path found.",
+    },
+  });
+  assert.equal(stalePacketState.key, "awaiting_materials", "stale error-only pre-build packets must not present as ready for review");
+  assert.equal(stalePacketState.actionable, false, "stale error-only pre-build packets must not be actionable");
 
   const blockedDb = createDb(baseTables([projectRecord("project-blocked", `https://github.com/acme/${mismatchSlug}`)]));
   blockedDb.tables.sprints.push({ id: "s-blocked", project_id: "project-blocked", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" });

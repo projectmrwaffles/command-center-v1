@@ -2,9 +2,10 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-create-finalize";
 import { sanitizeProjectLinks } from "@/lib/project-links";
+import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { getGitHubProvisioningReadiness, provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
-import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat, selectProjectsListWithCompat } from "@/lib/project-db-compat";
+import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat, selectProjectsListWithCompat, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -52,19 +53,19 @@ export async function GET(req: NextRequest) {
     }
 
     const initial = await selectProjectsListWithCompat(db, type);
-    const projects: any[] = initial.data ?? [];
-    const error = initial.error;
+    let projects: any[] = initial.data ?? [];
+    let error = initial.error;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const projectIds = projects.map((project) => project.id).filter(Boolean);
+    let projectIds = projects.map((project) => project.id).filter(Boolean);
     if (projectIds.length === 0) {
       return NextResponse.json({ projects });
     }
 
-    const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
+    let [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
       selectProjectSummaryTasksWithCompat(db, projectIds),
       selectProjectSummarySprintsWithCompat(db, projectIds),
       selectProjectSummaryJobsWithCompat(db, projectIds),
@@ -72,6 +73,59 @@ export async function GET(req: NextRequest) {
 
     if (tasksError || sprintsError || jobsError) {
       return NextResponse.json({ error: tasksError?.message || sprintsError?.message || jobsError?.message || "Failed to resolve project progress truth" }, { status: 500 });
+    }
+
+    const sprintCountByProjectId = new Map<string, number>();
+    for (const sprint of sprints ?? []) {
+      const projectId = typeof sprint?.project_id === "string" ? sprint.project_id : null;
+      if (!projectId) continue;
+      sprintCountByProjectId.set(projectId, (sprintCountByProjectId.get(projectId) || 0) + 1);
+    }
+
+    const candidateProjectIds = projectIds.filter((projectId) => !sprintCountByProjectId.get(projectId));
+    let attachmentProjectsReconciled = false;
+
+    for (const projectId of candidateProjectIds) {
+      const { data: candidateProject, error: candidateError } = await selectProjectWithArtifactCompat(
+        db,
+        projectId,
+        "id, name, type, team_id, intake"
+      );
+
+      if (candidateError || !candidateProject) continue;
+
+      const reconciled = await reconcileAttachmentBackedProjectCreate(db as any, {
+        project: {
+          ...candidateProject,
+          intake: candidateProject.intake || null,
+          links: candidateProject.links || null,
+          github_repo_binding: candidateProject.github_repo_binding || null,
+        },
+      });
+
+      if (reconciled.repaired || reconciled.finalized) {
+        attachmentProjectsReconciled = true;
+      }
+    }
+
+    if (attachmentProjectsReconciled) {
+      const refreshed = await selectProjectsListWithCompat(db, type);
+      projects = refreshed.data ?? projects;
+      error = refreshed.error ?? error;
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      projectIds = projects.map((project) => project.id).filter(Boolean);
+      [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
+        selectProjectSummaryTasksWithCompat(db, projectIds),
+        selectProjectSummarySprintsWithCompat(db, projectIds),
+        selectProjectSummaryJobsWithCompat(db, projectIds),
+      ]);
+
+      if (tasksError || sprintsError || jobsError) {
+        return NextResponse.json({ error: tasksError?.message || sprintsError?.message || jobsError?.message || "Failed to resolve project progress truth" }, { status: 500 });
+      }
     }
 
     const projectTruthById = buildProjectTruthIndex({

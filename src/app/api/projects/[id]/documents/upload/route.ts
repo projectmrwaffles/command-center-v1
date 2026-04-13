@@ -2,6 +2,7 @@ import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
+import { shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
 import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -178,7 +179,12 @@ export async function POST(
 
       const effectiveSprintCount = sprintCount ?? 0;
 
-      const dispatchResults = effectiveSprintCount === 0
+      const shouldFinalize = shouldFinalizeProjectAfterAttachmentUpload({
+        sprintCount: effectiveSprintCount,
+        attachmentRequirementsReady,
+      });
+
+      const dispatchResults = shouldFinalize
         ? await finalizeProjectCreate(db, {
             project: {
               ...updatedProject,
@@ -208,6 +214,11 @@ export async function POST(
         requirements: effectiveRequirements,
         dispatch: dispatchResults,
         intakeRequirementStatus: attachmentRequirementsReady ? "ready" : "missing_attachment_requirements",
+        kickoffStatus: shouldFinalize
+          ? "finalized"
+          : effectiveSprintCount > 0
+            ? "already_initialized"
+            : "waiting_for_attachment_requirements",
       }, { status: 201 });
     } catch (error) {
       if (uploadedPaths.length > 0) {

@@ -180,10 +180,11 @@ function createSeed() {
   assert.equal(db.tables.milestone_submissions.length, 1, "completion path should materialize a review submission");
   assert.equal(db.tables.proof_bundles.length, 1, "completion path should materialize a proof bundle");
   assert.equal(db.tables.proof_items.length, 1, "completion path should materialize proof items from done tasks");
+  assert.equal(db.tables.proof_bundles[0]?.completeness_status, "incomplete", "note-only auto packets must stay incomplete until real deliverable evidence is attached");
   assert.equal(db.tables.sprints[0].approval_gate_status, "pending", "checkpoint gate should move into pending review");
   assert.equal(db.tables.sprints[0].status, "active", "gated sprint should stay active until review decision");
 
-  console.log("PASS task completion creates a review packet for a completed Validate checkpoint");
+  console.log("PASS task completion creates an incomplete review packet when only generic task notes exist");
 }
 
 {
@@ -194,8 +195,8 @@ function createSeed() {
 
   assert.equal(result.reason, "review_submission_created");
   assert.equal(db.tables.milestone_submissions.length, 1, "reconcile path should also create a submission from rendered state");
-  assert.equal(db.tables.proof_bundles[0]?.completeness_status, "ready");
+  assert.equal(db.tables.proof_bundles[0]?.completeness_status, "incomplete");
   assert.equal(db.tables.proof_items[0]?.label, "Validate delivered flow");
 
-  console.log("PASS project reconciliation backfills the same review packet from the stored sprint state");
+  console.log("PASS project reconciliation backfills the same incomplete packet from stored sprint state");
 }

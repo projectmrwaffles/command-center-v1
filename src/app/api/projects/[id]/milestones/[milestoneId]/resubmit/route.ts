@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -96,7 +96,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         submission_id: newSubmission.id,
         title: proofBundle.title.trim(),
         summary: typeof proofBundle.summary === "string" ? proofBundle.summary.trim() || null : null,
-        completeness_status: "ready",
+        completeness_status: computeProofBundleCompletenessStatus({
+          checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
+          evidenceRequirements: sprint.checkpoint_evidence_requirements || priorSubmission.evidence_requirements,
+          items: proofBundle.items,
+        }),
       })
       .select()
       .single();

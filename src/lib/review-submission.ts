@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildReviewEventPayload, getCheckpointEvidenceRequirements } from './milestone-review.ts';
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, getCheckpointEvidenceRequirements } from './milestone-review.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
 
@@ -61,13 +61,19 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
   if (submissionError || !submission) throw submissionError || new Error('Failed to create submission');
 
+  const bundleCompletenessStatus = computeProofBundleCompletenessStatus({
+    checkpointType: sprint.checkpoint_type || 'delivery_review',
+    evidenceRequirements: sprint.checkpoint_evidence_requirements,
+    items: completedTasks.map(() => ({ kind: 'note' })),
+  });
+
   const { data: bundle, error: bundleError } = await db
     .from('proof_bundles')
     .insert({
       submission_id: submission.id,
       title: `${input.sprintName || 'Checkpoint'} review packet`,
       summary: `Auto-generated review packet from completed workflow outputs. ${reviewGuidance}`,
-      completeness_status: completedTasks.length > 0 ? 'ready' : 'incomplete',
+      completeness_status: bundleCompletenessStatus,
     })
     .select()
     .single();

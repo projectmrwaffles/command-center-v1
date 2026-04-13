@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -87,7 +87,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: submissionError?.message || "Failed to create submission" }, { status: 500 });
     }
 
-    const completenessStatus = proofBundle.items.length > 0 ? "ready" : "incomplete";
+    const completenessStatus = computeProofBundleCompletenessStatus({
+      checkpointType: sprint.checkpoint_type,
+      evidenceRequirements: sprint.checkpoint_evidence_requirements,
+      items: proofBundle.items,
+    });
     const { data: bundle, error: bundleError } = await db
       .from("proof_bundles")
       .insert({

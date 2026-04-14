@@ -1,4 +1,5 @@
 import { buildAttachmentKickoffFinalizedIntake, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint } from "@/lib/project-attachment-finalize";
+import type { ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
@@ -168,6 +169,7 @@ export async function reconcileAttachmentBackedProjectCreate(
   const hasAttachmentKickoffShell = (sprintCount ?? 0) > 0 && (sprintRows || []).every((sprint: { name?: string | null }) => isAttachmentKickoffShellSprint(sprint));
 
   let finalized = false;
+  let resolvedIntake = effectiveIntake as ProjectIntakeLike | null;
   if (((sprintCount ?? 0) === 0 || hasAttachmentKickoffShell) && attachmentRequirementsReady) {
     if (hasAttachmentKickoffShell && sprintRows?.length) {
       const sprintIds = sprintRows.map((sprint: { id: string }) => sprint.id).filter(Boolean);
@@ -179,14 +181,28 @@ export async function reconcileAttachmentBackedProjectCreate(
       }
     }
 
+    resolvedIntake = buildAttachmentKickoffFinalizedIntake(effectiveIntake as ProjectIntake) as ProjectIntakeLike;
+
+    const { error: persistFinalizeError } = await db
+      .from("projects")
+      .update({
+        intake: resolvedIntake,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", project.id);
+
+    if (persistFinalizeError) {
+      throw new Error(persistFinalizeError.message || "Failed to persist finalized attachment kickoff state");
+    }
+
     await finalizeProjectCreate(db as any, {
       project: {
         ...project,
-        intake: effectiveIntake as any,
+        intake: resolvedIntake as any,
       },
       name: project.name || "Untitled project",
       type: project.type || "other",
-      intake: buildAttachmentKickoffFinalizedIntake(effectiveIntake as any) as any,
+      intake: resolvedIntake as any,
       links: project.links || null,
       githubRepoBinding: project.github_repo_binding || null,
       teamId: project.team_id || null,
@@ -200,7 +216,7 @@ export async function reconcileAttachmentBackedProjectCreate(
     attachmentRequirementsReady,
     project: {
       ...project,
-      intake: effectiveIntake as any,
+      intake: resolvedIntake as any,
     },
   } as const;
 }

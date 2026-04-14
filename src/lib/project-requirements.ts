@@ -136,6 +136,9 @@ async function extractPdfTextWithPython(buffer: Buffer) {
 }
 
 async function extractPdfText(buffer: Buffer) {
+  const pythonText = await extractPdfTextWithPython(buffer);
+  if (pythonText) return pythonText;
+
   let parser: { getText: () => Promise<{ text?: string | null }>; destroy: () => Promise<void> } | null = null;
 
   try {
@@ -145,15 +148,12 @@ async function extractPdfText(buffer: Buffer) {
     const parsedText = normalizeWhitespace(result.text || "");
     if (parsedText) return parsedText;
   } catch (error) {
-    console.warn("[project-requirements] structured PDF extraction failed; falling back to python/raw parse", error);
+    console.warn("[project-requirements] structured PDF extraction failed; falling back to raw parse", error);
   } finally {
     if (parser) {
       await parser.destroy().catch(() => undefined);
     }
   }
-
-  const pythonText = await extractPdfTextWithPython(buffer);
-  if (pythonText) return pythonText;
 
   return extractPdfLikeTextFallback(buffer);
 }

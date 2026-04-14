@@ -177,14 +177,14 @@ export function buildProjectKickoffPlan(input: {
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: false,
       gateStatus: "not_requested",
-      checkpointType: "launch_approval",
+      checkpointType: "content_review",
       checkpointEvidenceRequirements: {
         screenshotRequired: false,
         minScreenshotCount: 0,
         captureMode: null,
-        requiredEvidenceKinds: ["staging_url", "screenshot"],
-        requiredEvidenceKindsMode: "all",
-        captureHint: "Attach the live preview URL plus a supporting screenshot before requesting launch approval.",
+        requiredEvidenceKinds: ["doc", "artifact", "screenshot", "staging_url", "loom"],
+        requiredEvidenceKindsMode: "any",
+        captureHint: "Attach the actual messaging artifact to review, such as a draft doc, screenshot, preview URL, exported asset, or Loom walkthrough.",
       },
       tasks: [
         phaseTask("content_messaging", `${input.projectName} launch-ready messaging`, {

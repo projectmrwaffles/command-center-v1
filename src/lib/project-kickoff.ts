@@ -89,7 +89,8 @@ export function buildProjectKickoffPlan(input: {
   const phaseTemplates: KickoffPhaseTemplate[] = [];
   const projectRequirements = intake?.requirements?.summary?.slice(0, 6) || undefined;
 
-  const needsDiscovery = readiness.stage === "idea" || readiness.stage === "planning" || readiness.confidence === "not-sure";
+  const hasAttachmentBackedRequirements = hasPrdDrivenRequirements(intake);
+  const needsDiscovery = hasAttachmentBackedRequirements || readiness.stage === "idea" || readiness.stage === "planning" || readiness.confidence === "not-sure";
   const needsDesign = hasCapability(intake, "ux-ui") || intake?.shape === "website" || readiness.stage === "ready-to-design";
   const needsBuild = hasCapability(intake, "frontend") || hasCapability(intake, "backend-data") || ["product_build", "web_app", "native_app", "ops_enablement", "saas"].includes(input.type);
   const needsContent = hasCapability(intake, "content-copy") || hasCapability(intake, "growth-marketing") || input.type === "marketing_growth" || intake?.shape === "launch-campaign";
@@ -116,9 +117,18 @@ export function buildProjectKickoffPlan(input: {
       },
       tasks: [
         phaseTask("discovery_plan", `${input.projectName} scope, plan, and next-step recommendation`, {
-          planning_mode: "define_scope",
+          planning_mode: hasAttachmentBackedRequirements ? "scope_from_attachments" : "define_scope",
           target_area: needsBuild ? "engineering" : needsContent ? "marketing" : needsDesign ? "design" : "hybrid",
-        }, { ...bootstrapPhaseOptions, projectRequirements }),
+        }, {
+          ...bootstrapPhaseOptions,
+          projectRequirements: hasAttachmentBackedRequirements
+            ? [
+                "Treat the uploaded attachments as the source material for this scope pass.",
+                "Convert attachment-derived requirements into an explicit execution scope, success criteria, and handoff recommendation.",
+                ...(projectRequirements || []),
+              ]
+            : projectRequirements,
+        }),
       ],
     });
   }

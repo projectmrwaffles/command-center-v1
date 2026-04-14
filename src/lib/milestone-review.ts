@@ -13,6 +13,8 @@ export type CheckpointEvidenceRequirements = {
   minScreenshotCount: number;
   captureMode?: "local_app" | "manual" | null;
   captureHint?: string | null;
+  requiredEvidenceKinds?: ProofItemKind[];
+  requiredEvidenceKindsMode?: "any" | "all" | null;
 };
 
 export type MilestoneSubmissionRecord = {
@@ -156,16 +158,36 @@ export function getCheckpointEvidenceRequirements(checkpointType?: StageCheckpoi
         captureMode: "local_app",
         captureHint: "Attach at least one current screenshot from the local app capture flow before review.",
       }
-    : {
-        screenshotRequired: false,
-        minScreenshotCount: 0,
-      };
+    : checkpointType === "acceptance_review"
+      ? {
+          screenshotRequired: false,
+          minScreenshotCount: 0,
+          requiredEvidenceKinds: ["screenshot", "staging_url", "loom"],
+          requiredEvidenceKindsMode: "any",
+        }
+      : checkpointType === "launch_approval"
+        ? {
+            screenshotRequired: false,
+            minScreenshotCount: 0,
+            requiredEvidenceKinds: ["staging_url"],
+            requiredEvidenceKindsMode: "all",
+          }
+        : {
+            screenshotRequired: false,
+            minScreenshotCount: 0,
+          };
 
   return {
     screenshotRequired: typeof raw.screenshotRequired === "boolean" ? raw.screenshotRequired : defaults.screenshotRequired,
     minScreenshotCount: typeof raw.minScreenshotCount === "number" && Number.isFinite(raw.minScreenshotCount) ? raw.minScreenshotCount : defaults.minScreenshotCount,
     captureMode: raw.captureMode === "local_app" || raw.captureMode === "manual" ? raw.captureMode : defaults.captureMode ?? null,
     captureHint: typeof raw.captureHint === "string" ? raw.captureHint : defaults.captureHint ?? null,
+    requiredEvidenceKinds: Array.isArray(raw.requiredEvidenceKinds)
+      ? raw.requiredEvidenceKinds.filter(isProofItemKind)
+      : defaults.requiredEvidenceKinds,
+    requiredEvidenceKindsMode: raw.requiredEvidenceKindsMode === "any" || raw.requiredEvidenceKindsMode === "all"
+      ? raw.requiredEvidenceKindsMode
+      : defaults.requiredEvidenceKindsMode ?? null,
   };
 }
 
@@ -178,6 +200,11 @@ export function countDeliverableEvidenceItems(items: Array<{ kind?: string | nul
     const kind = item?.kind;
     return kind != null && kind !== "note" && kind !== "checklist";
   }).length;
+}
+
+export function countMatchingProofKinds(items: Array<{ kind?: string | null }> | null | undefined, kinds: ProofItemKind[]) {
+  const allowed = new Set(kinds);
+  return (items || []).filter((item) => item?.kind && allowed.has(item.kind as ProofItemKind)).length;
 }
 
 export function computeProofBundleCompletenessStatus(input: {
@@ -216,6 +243,25 @@ export function validateProofBundleRequirements(input: {
       screenshotCount,
       deliverableEvidenceCount,
     };
+  }
+  if ((requirements.requiredEvidenceKinds?.length || 0) > 0) {
+    const matchedRequiredEvidenceCount = countMatchingProofKinds(input.items, requirements.requiredEvidenceKinds || []);
+    const satisfiesRequiredKinds = requirements.requiredEvidenceKindsMode === "all"
+      ? matchedRequiredEvidenceCount >= (requirements.requiredEvidenceKinds?.length || 0)
+      : matchedRequiredEvidenceCount > 0;
+    if (!satisfiesRequiredKinds) {
+      const requiredKindsLabel = (requirements.requiredEvidenceKinds || []).map((kind) => kind.replace(/_/g, " ")).join(requirements.requiredEvidenceKindsMode === "all" ? " + " : " or ");
+      return {
+        ok: false,
+        message: requirements.requiredEvidenceKindsMode === "all"
+          ? `This ${formatCheckpointTypeLabel(input.checkpointType).toLowerCase()} requires ${requiredKindsLabel} evidence before review.`
+          : `This ${formatCheckpointTypeLabel(input.checkpointType).toLowerCase()} requires at least one ${requiredKindsLabel} evidence item before review.`,
+        requirements,
+        screenshotCount,
+        deliverableEvidenceCount,
+        matchedRequiredEvidenceCount,
+      };
+    }
   }
   return { ok: true, requirements, screenshotCount, deliverableEvidenceCount };
 }

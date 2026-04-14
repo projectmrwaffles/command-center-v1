@@ -127,8 +127,8 @@ export async function selectProjectSummaryTasksWithCompat(db: DbClient, projectI
 }
 
 export async function selectProjectSummarySprintsWithCompat(db: DbClient, projectIds: string[]) {
-  const fullSelect = "id, project_id, auto_generated, phase_key, approval_gate_required, approval_gate_status";
-  const fallbackSelect = "id, project_id";
+  const fullSelect = "id, project_id, name, auto_generated, phase_key, approval_gate_required, approval_gate_status";
+  const fallbackSelect = "id, project_id, name";
 
   const first = await db.from("sprints").select(fullSelect).in("project_id", projectIds);
   if (!areMissingColumns(first.error, ["auto_generated", "phase_key", "approval_gate_required", "approval_gate_status"], "sprints")) {
@@ -140,6 +140,7 @@ export async function selectProjectSummarySprintsWithCompat(db: DbClient, projec
     ...fallback,
     data: (fallback.data ?? []).map((sprint: any) => ({
       ...sprint,
+      name: sprint.name ?? null,
       auto_generated: null,
       phase_key: null,
       approval_gate_required: false,

@@ -1,7 +1,7 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-create-finalize";
-import { ATTACHMENT_INTAKE_SPRINT_NAME, ATTACHMENT_INTAKE_TASK_TITLE, buildAttachmentKickoffWaitingIntake, filterObsoleteAttachmentKickoffShellState, shouldFinalizeAttachmentProjectNow, shouldSeedAttachmentKickoffShell } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffWaitingIntake, filterLegacyAttachmentShellState, shouldFinalizeAttachmentProjectNow, shouldInitializeAttachmentWorkflow } from "@/lib/project-attachment-finalize";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       sprintCountByProjectId.set(projectId, (sprintCountByProjectId.get(projectId) || 0) + 1);
       const currentAllShell = allSprintsAreAttachmentShellByProjectId.get(projectId);
       const sprintName = typeof sprint?.name === "string" ? sprint.name : null;
-      const isAttachmentShell = sprintName?.trim().toLowerCase() === ATTACHMENT_INTAKE_SPRINT_NAME.toLowerCase();
+      const isAttachmentShell = sprintName?.trim().toLowerCase() === "attachment intake";
       allSprintsAreAttachmentShellByProjectId.set(projectId, currentAllShell === undefined ? Boolean(isAttachmentShell) : currentAllShell && Boolean(isAttachmentShell));
     }
 
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest) {
     const visibleTasks: any[] = [];
     const visibleSprints: any[] = [];
     for (const project of projects) {
-      const filtered = filterObsoleteAttachmentKickoffShellState({
+      const filtered = filterLegacyAttachmentShellState({
         sprints: (sprints ?? []).filter((sprint: any) => sprint.project_id === project.id),
         tasks: (tasks ?? []).filter((task: any) => task.project_id === project.id),
       });
@@ -176,37 +176,6 @@ function stripCallerProvisioningState(intake?: ProjectIntake) {
   delete sanitizedIntake.githubRepoProvisioning;
   delete sanitizedIntake.attachmentKickoffState;
   return sanitizedIntake;
-}
-
-async function seedAttachmentKickoffShell(db: any, input: { projectId: string }) {
-  const { data: sprint, error: sprintError } = await db
-    .from("sprints")
-    .insert({
-      project_id: input.projectId,
-      name: ATTACHMENT_INTAKE_SPRINT_NAME,
-      goal: "Process uploaded materials before kickoff is seeded.",
-      status: "active",
-    })
-    .select("id")
-    .single();
-
-  if (sprintError || !sprint?.id) {
-    throw new Error(sprintError?.message || "Failed to seed attachment intake sprint");
-  }
-
-  const { error: taskError } = await db
-    .from("sprint_items")
-    .insert({
-      sprint_id: sprint.id,
-      project_id: input.projectId,
-      title: ATTACHMENT_INTAKE_TASK_TITLE,
-      status: "in_progress",
-      position: 1,
-    });
-
-  if (taskError) {
-    throw new Error(taskError.message || "Failed to seed attachment intake task");
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -465,7 +434,7 @@ export async function POST(req: NextRequest) {
       intake: sanitizedIntake || undefined,
     });
 
-    if (shouldSeedAttachmentKickoffShell({ hasAttachments: Boolean(hasAttachments), intake: sanitizedIntake || undefined })) {
+    if (shouldInitializeAttachmentWorkflow({ hasAttachments: Boolean(hasAttachments), intake: sanitizedIntake || undefined })) {
       const waitingIntake = buildAttachmentKickoffWaitingIntake(sanitizedIntake || null);
       const { data: waitingProject, error: waitingUpdateError } = await db
         .from("projects")
@@ -482,7 +451,6 @@ export async function POST(req: NextRequest) {
       }
 
       project = waitingProject ?? { ...project, intake: waitingIntake };
-      await seedAttachmentKickoffShell(db, { projectId: project.id });
     }
 
     const dispatchResults = shouldFinalizeNow

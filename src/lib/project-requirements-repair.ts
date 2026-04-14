@@ -1,4 +1,4 @@
-import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints } from "@/lib/project-attachment-finalize";
 import type { ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
@@ -220,12 +220,12 @@ export async function reconcileAttachmentBackedProjectCreate(
     throw new Error(sprintRowsError.message || "Failed to inspect project sprint state");
   }
 
-  const hasAttachmentKickoffShell = (sprintCount ?? 0) > 0 && (sprintRows || []).every((sprint: { name?: string | null }) => isAttachmentKickoffShellSprint(sprint));
+  const hasLegacyAttachmentShell = hasOnlyLegacyAttachmentShellSprints(sprintRows || []);
 
   let finalized = false;
   let resolvedIntake = effectiveIntake as ProjectIntakeLike | null;
-  if (shouldAttemptRecovery && ((sprintCount ?? 0) === 0 || hasAttachmentKickoffShell) && attachmentRequirementsReady) {
-    if (hasAttachmentKickoffShell && sprintRows?.length) {
+  if (shouldAttemptRecovery && ((sprintCount ?? 0) === 0 || hasLegacyAttachmentShell) && attachmentRequirementsReady) {
+    if (hasLegacyAttachmentShell && sprintRows?.length) {
       const sprintIds = sprintRows.map((sprint: { id: string }) => sprint.id).filter(Boolean);
       if (sprintIds.length > 0) {
         const { error: deleteTasksError } = await db.from("sprint_items").delete().in("sprint_id", sprintIds);

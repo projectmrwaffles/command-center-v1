@@ -113,7 +113,7 @@ class MockDb {
   }
 }
 
-function createSeed() {
+function createValidateSeed() {
   return {
     projects: [
       {
@@ -169,8 +169,58 @@ function createSeed() {
   };
 }
 
+function createLegacyMessageSeed() {
+  return {
+    projects: [
+      {
+        id: "project-message",
+        name: "Message packet repro",
+        type: "marketing_growth",
+        intake: {},
+        links: {},
+        github_repo_binding: null,
+      },
+    ],
+    sprints: [
+      {
+        id: "sprint-message",
+        project_id: "project-message",
+        name: "Phase 2 · Message",
+        status: "active",
+        phase_key: "message",
+        phase_order: 2,
+        approval_gate_required: true,
+        approval_gate_status: "not_requested",
+        checkpoint_type: null,
+        checkpoint_evidence_requirements: null,
+        created_at: "2026-04-10T22:00:00.000Z",
+      },
+    ],
+    sprint_items: [
+      {
+        id: "task-message-review",
+        project_id: "project-message",
+        sprint_id: "sprint-message",
+        title: "Draft launch-ready messaging",
+        status: "done",
+        review_required: true,
+        review_status: "pending",
+        task_type: "content_messaging",
+        updated_at: "2026-04-10T22:15:00.000Z",
+        position: 1,
+      },
+    ],
+    jobs: [],
+    agents: [],
+    milestone_submissions: [],
+    proof_bundles: [],
+    proof_items: [],
+    agent_events: [],
+  };
+}
+
 {
-  const db = new MockDb(createSeed());
+  const db = new MockDb(createValidateSeed());
   const result = await maybeAdvanceProjectAfterTaskDone(db, {
     projectId: "project-validate",
     completedTaskId: "task-validate-review",
@@ -189,7 +239,7 @@ function createSeed() {
 }
 
 {
-  const db = new MockDb(createSeed());
+  const db = new MockDb(createValidateSeed());
   const result = await reconcileProjectPhaseProgression(db, {
     projectId: "project-validate",
   });
@@ -200,4 +250,19 @@ function createSeed() {
   assert.equal(db.tables.proof_items[0]?.label, "Validate delivered flow");
 
   console.log("PASS project reconciliation backfills the same incomplete packet from stored sprint state");
+}
+
+{
+  const db = new MockDb(createLegacyMessageSeed());
+  const result = await maybeAdvanceProjectAfterTaskDone(db, {
+    projectId: "project-message",
+    completedTaskId: "task-message-review",
+  });
+
+  assert.equal(result.reason, "review_submission_created");
+  assert.equal(db.tables.milestone_submissions[0]?.checkpoint_type, "content_review", "legacy message milestones should backfill a content_review checkpoint type instead of generic delivery_review");
+  assert.deepEqual(db.tables.milestone_submissions[0]?.evidence_requirements?.requiredEvidenceKinds, ["doc", "artifact", "screenshot", "staging_url", "loom"], "legacy message milestones should materialize explicit content evidence metadata");
+  assert.equal(db.tables.proof_bundles[0]?.completeness_status, "incomplete", "note-only content packets should stay incomplete until a real content artifact is attached");
+
+  console.log("PASS legacy message milestones now backfill explicit content-review metadata instead of generic delivery defaults");
 }

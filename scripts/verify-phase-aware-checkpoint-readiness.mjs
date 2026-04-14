@@ -5,6 +5,54 @@ import { buildProjectKickoffPlan } from "../src/lib/project-kickoff.ts";
 import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.ts";
 
 {
+  const weakScopeCase = validateProofBundleRequirements({
+    checkpointType: "scope_approval",
+    items: [{ kind: "github_pr" }],
+  });
+
+  assert.equal(weakScopeCase.ok, false, "scope approval should reject engineering-only proof without an actual scope artifact");
+  assert.deepEqual(getCheckpointEvidenceRequirements("scope_approval").requiredEvidenceKinds, ["doc", "checklist", "loom"]);
+  assert.match(weakScopeCase.message || "", /scope approval requires at least one doc or checklist or loom evidence item/i);
+
+  const awaitingScopeEvidence = deriveReviewCheckpointState({
+    approvalGateStatus: "pending",
+    reviewSummary: {
+      latestSubmissionId: "sub-scope",
+      checkpointType: "scope_approval",
+      proofCompletenessStatus: computeProofBundleCompletenessStatus({
+        checkpointType: "scope_approval",
+        items: [{ kind: "github_pr" }],
+      }),
+      proofItemCount: 1,
+    },
+  });
+  assert.equal(awaitingScopeEvidence.key, "awaiting_evidence", "scope approval should stay awaiting evidence until a scope artifact exists");
+
+  const readyScopeState = deriveReviewCheckpointState({
+    approvalGateStatus: "pending",
+    reviewSummary: {
+      latestSubmissionId: "sub-scope-ready",
+      checkpointType: "scope_approval",
+      proofCompletenessStatus: computeProofBundleCompletenessStatus({
+        checkpointType: "scope_approval",
+        items: [{ kind: "doc" }],
+      }),
+      proofItemCount: 1,
+    },
+  });
+  assert.equal(readyScopeState.key, "ready_for_review", "scope approval should become ready for review once metadata-approved evidence exists");
+
+  const inferredDiscoveryPolicy = deriveMilestoneEvidenceRequirements({
+    sprintName: "Phase 1 · Discover",
+    phaseKey: "discover",
+    taskTypes: ["discovery_plan"],
+  });
+  assert.deepEqual(inferredDiscoveryPolicy.requiredEvidenceKinds, ["doc", "checklist", "loom"]);
+  assert.equal(inferredDiscoveryPolicy.requiredEvidenceKindsMode, "any");
+  console.log("PASS scope approval now uses explicit scope evidence instead of generic proof");
+}
+
+{
   const legacyWeakCase = validateProofBundleRequirements({
     checkpointType: "acceptance_review",
     items: [{ kind: "github_pr" }],
@@ -61,6 +109,35 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
 }
 
 {
+  const discoveryKickoffPlan = buildProjectKickoffPlan({
+    projectName: "Metadata Pilot",
+    type: "web_app",
+    intake: {
+      shape: "hybrid-not-sure",
+      goals: ["Help define scope and recommend the right execution path"],
+      capabilities: ["frontend", "ux-ui", "content-copy"],
+      requirements: {
+        summary: [],
+        technologyRequirements: ["Next.js"],
+        sources: [{ type: "prd", evidence: ["spec"] }],
+      },
+    },
+  });
+  const discoverPhase = discoveryKickoffPlan.find((phase) => phase.key === "discover");
+  assert.ok(discoverPhase, "kickoff should seed a discover phase when discovery is needed");
+  assert.equal(discoverPhase.checkpointType, "scope_approval", "discover phase should seed explicit checkpoint type");
+  assert.deepEqual(discoverPhase.checkpointEvidenceRequirements?.requiredEvidenceKinds, ["doc", "checklist", "loom"]);
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: discoverPhase.checkpointType,
+    evidenceRequirements: discoverPhase.checkpointEvidenceRequirements,
+    items: [{ kind: "github_pr" }],
+  }).ok, false, "discover scope approval should reject unrelated engineering proof");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: discoverPhase.checkpointType,
+    evidenceRequirements: discoverPhase.checkpointEvidenceRequirements,
+    items: [{ kind: "doc" }],
+  }).ok, true, "discover scope approval should accept a planning artifact");
+
   const kickoffPlan = buildProjectKickoffPlan({
     projectName: "Metadata Pilot",
     type: "web_app",
@@ -73,6 +150,7 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
       },
     },
   });
+
   const designPhase = kickoffPlan.find((phase) => phase.key === "design");
   assert.ok(designPhase, "kickoff should seed a design phase");
   assert.equal(designPhase.checkpointType, "design_review", "design phase should seed explicit checkpoint type");
@@ -167,7 +245,7 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
     items: [{ kind: "github_pr" }, { kind: "loom" }],
   });
   assert.equal(metadataReady.ok, true, "seeded validate milestone should become ready with metadata-approved evidence");
-  console.log("PASS seeded kickoff phases use explicit metadata-driven evidence policy across design, build, content, launch, and validate checkpoints");
+  console.log("PASS seeded kickoff phases use explicit metadata-driven evidence policy across discover, design, build, content, launch, and validate checkpoints");
 }
 
 console.log("verify-phase-aware-checkpoint-readiness: ok");

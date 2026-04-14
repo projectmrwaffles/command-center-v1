@@ -42,6 +42,16 @@ export type FeedbackType = 'blocker' | 'required' | 'optional' | 'question';
 export type FeedbackStatus = 'open' | 'resolved' | 'carried_forward';
 ```
 
+### Checkpoint evidence policy taxonomy
+
+- `scope_approval`: requires at least one scope artifact, such as a `doc`, `checklist`, or `loom`.
+- `design_review`: requires at least one current screenshot or prototype capture.
+- `delivery_review`: requires at least one real delivery artifact, such as a screenshot, staging URL, PR, commit, or Loom.
+- `content_review`: requires at least one actual messaging artifact, such as a doc, uploaded asset, screenshot, staging URL, or Loom.
+- `acceptance_review`: requires validation evidence, such as a screenshot, staging URL, or Loom.
+- `launch_approval`: requires a live `staging_url`.
+- `prebuild_checkpoint`: remains metadata-driven through the repo/setup checkpoint flow.
+
 ---
 
 ## Core records

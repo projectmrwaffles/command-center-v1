@@ -5,6 +5,7 @@ import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
+import { filterObsoleteAttachmentKickoffShellState } from "@/lib/project-attachment-finalize";
 import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
@@ -182,6 +183,12 @@ export async function GET(
         .limit(100),
     ]);
     const events = eventsResult?.data || [];
+    const visibleProjectState = filterObsoleteAttachmentKickoffShellState({
+      sprints: sprints || [],
+      tasks: tasks || [],
+    });
+    const visibleSprints = visibleProjectState.sprints;
+    const visibleTasks = visibleProjectState.tasks;
 
     const completionEventsByTaskId = new Map(
       (completionEvents || [])
@@ -190,7 +197,7 @@ export async function GET(
     );
 
     const assignedAgentIds = Array.from(
-      new Set((tasks || []).map((task) => task.assignee_agent_id).filter(Boolean))
+      new Set((visibleTasks || []).map((task) => task.assignee_agent_id).filter(Boolean))
     ) as string[];
 
     let derivedTeamIds: string[] = [];
@@ -228,7 +235,7 @@ export async function GET(
     const teamsWithStats = teams.map((team) => {
       const members = teamMembers.filter((member) => member.team_id === team.id);
       const teamTasks =
-        tasks?.filter(
+        visibleTasks?.filter(
           (task) => task.assignee_agent_id && members.some((member) => member.agent_id === task.assignee_agent_id)
         ) || [];
       const activeAgents = members.filter((member) => member.agents?.status === "active").length;
@@ -270,12 +277,12 @@ export async function GET(
       ? ((await db.from("submission_feedback_items").select("*").in("submission_id", submissionIds)).data || [])
       : [];
 
-    const artifactIntegrity = getProjectArtifactIntegrity(effectiveProject, tasks || []);
+    const artifactIntegrity = getProjectArtifactIntegrity(effectiveProject, visibleTasks || []);
     const preBuildCheckpoint = derivePreBuildCheckpointState(effectiveProject);
     const truth = deriveProjectTruth({
       project: effectiveProject,
-      tasks: tasks || [],
-      sprints: sprints || [],
+      tasks: visibleTasks || [],
+      sprints: visibleSprints || [],
       jobs: jobs || [],
       agents: agents || [],
     });
@@ -285,8 +292,8 @@ export async function GET(
       ? Math.min(truth.progressPct, artifactIntegrity.completionCapPct)
       : truth.progressPct;
 
-    const milestones = (sprints || []).map((sprint: any) => {
-      const sprintTasks = (tasks || []).filter((task: any) => task.sprint_id === sprint.id);
+    const milestones = (visibleSprints || []).map((sprint: any) => {
+      const sprintTasks = (visibleTasks || []).filter((task: any) => task.sprint_id === sprint.id);
       const sprintTruth = deriveSprintTruth({ sprint, tasks: sprintTasks });
       const pendingReview = (approvals || []).find((approval: any) => approval.sprint_id === sprint.id && approval.status === "pending");
       const sprintSubmissions = submissionRows.filter((submission: any) => submission.sprint_id === sprint.id);
@@ -355,14 +362,14 @@ export async function GET(
       };
     });
 
-    const queuedExecutionReasons = (tasks || [])
+    const queuedExecutionReasons = (visibleTasks || [])
       .filter((task: any) => task.status === "todo")
       .map((task: any) => {
         const blocker = getTaskExecutionBlocker({
           project: effectiveProject,
           task,
-          sprint: (sprints || []).find((sprint: any) => sprint.id === task.sprint_id) ?? null,
-          sprints: (sprints || []) as any,
+          sprint: (visibleSprints || []).find((sprint: any) => sprint.id === task.sprint_id) ?? null,
+          sprints: (visibleSprints || []) as any,
           jobs: (jobs || []) as any,
           agents: (agents || []) as any,
         });
@@ -443,8 +450,8 @@ export async function GET(
       deliveryIntegrity: artifactIntegrity,
       teams: teamsWithStats,
       milestones,
-      sprints: sprints || [],
-      tasks: tasks || [],
+      sprints: visibleSprints || [],
+      tasks: visibleTasks || [],
       events: events || [],
       recentSignals,
       truth: {

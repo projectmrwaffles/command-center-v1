@@ -1,7 +1,7 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-create-finalize";
-import { ATTACHMENT_INTAKE_SPRINT_NAME, ATTACHMENT_INTAKE_TASK_TITLE, buildAttachmentKickoffWaitingIntake, shouldFinalizeAttachmentProjectNow, shouldSeedAttachmentKickoffShell } from "@/lib/project-attachment-finalize";
+import { ATTACHMENT_INTAKE_SPRINT_NAME, ATTACHMENT_INTAKE_TASK_TITLE, buildAttachmentKickoffWaitingIntake, filterObsoleteAttachmentKickoffShellState, shouldFinalizeAttachmentProjectNow, shouldSeedAttachmentKickoffShell } from "@/lib/project-attachment-finalize";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -137,10 +137,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const visibleTasks: any[] = [];
+    const visibleSprints: any[] = [];
+    for (const project of projects) {
+      const filtered = filterObsoleteAttachmentKickoffShellState({
+        sprints: (sprints ?? []).filter((sprint: any) => sprint.project_id === project.id),
+        tasks: (tasks ?? []).filter((task: any) => task.project_id === project.id),
+      });
+      visibleSprints.push(...filtered.sprints);
+      visibleTasks.push(...filtered.tasks);
+    }
+
     const projectTruthById = buildProjectTruthIndex({
       projects,
-      tasks: tasks ?? [],
-      sprints: sprints ?? [],
+      tasks: visibleTasks,
+      sprints: visibleSprints,
       jobs: jobs ?? [],
     });
 

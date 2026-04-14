@@ -86,6 +86,34 @@ export function isAttachmentKickoffShellSprint(sprint: { name?: string | null } 
   return (sprint?.name || "").trim().toLowerCase() === ATTACHMENT_INTAKE_SPRINT_NAME.toLowerCase();
 }
 
+export function filterObsoleteAttachmentKickoffShellState<
+  TSprint extends { id?: string | null; name?: string | null },
+  TTask extends { sprint_id?: string | null },
+>(input: {
+  sprints?: TSprint[] | null;
+  tasks?: TTask[] | null;
+}) {
+  const sprints = Array.isArray(input.sprints) ? input.sprints : [];
+  const tasks = Array.isArray(input.tasks) ? input.tasks : [];
+  const shellSprintIds = new Set(
+    sprints
+      .filter((sprint) => isAttachmentKickoffShellSprint(sprint))
+      .map((sprint) => sprint.id)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  const hasRealSprint = sprints.some((sprint) => !isAttachmentKickoffShellSprint(sprint));
+  if (!hasRealSprint || shellSprintIds.size === 0) {
+    return { sprints, tasks, filtered: false } as const;
+  }
+
+  return {
+    sprints: sprints.filter((sprint) => !isAttachmentKickoffShellSprint(sprint)),
+    tasks: tasks.filter((task) => !task.sprint_id || !shellSprintIds.has(task.sprint_id)),
+    filtered: true,
+  } as const;
+}
+
 export function shouldFinalizeProjectAfterAttachmentUpload(input: {
   sprintCount: number;
   attachmentRequirementsReady: boolean;

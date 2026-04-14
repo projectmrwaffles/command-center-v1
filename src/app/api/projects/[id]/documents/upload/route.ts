@@ -2,7 +2,7 @@ import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
-import { shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
 import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -15,10 +15,6 @@ function storageNotConfiguredMessage() {
 }
 
 type ProjectDb = NonNullable<ReturnType<typeof createRouteHandlerClient>>;
-
-function hasAttachmentDerivedRequirements(requirements: ProjectRequirements | null | undefined) {
-  return Boolean(requirements?.sources?.some((source) => source?.type !== "intake" && Array.isArray(source.evidence) && source.evidence.length > 0));
-}
 
 async function projectExists(db: ProjectDb, projectId: string) {
   const { data, error } = await db.from("projects").select("id").eq("id", projectId).single();
@@ -177,34 +173,75 @@ export async function POST(
         throw new Error(sprintCountError.message);
       }
 
+      const { data: sprintRows, error: sprintRowsError } = await db
+        .from("sprints")
+        .select("id, name")
+        .eq("project_id", projectId);
+
+      if (sprintRowsError) {
+        throw new Error(sprintRowsError.message);
+      }
+
       const effectiveSprintCount = sprintCount ?? 0;
+      const hasAttachmentKickoffShell = effectiveSprintCount > 0 && (sprintRows || []).every((sprint: { name?: string | null }) => isAttachmentKickoffShellSprint(sprint));
 
       const shouldFinalize = shouldFinalizeProjectAfterAttachmentUpload({
         sprintCount: effectiveSprintCount,
         attachmentRequirementsReady,
+        hasAttachmentKickoffShell,
       });
+
+      const effectiveProjectForFinalize = {
+        ...updatedProject,
+        intake: attachmentRequirementsReady ? buildAttachmentKickoffReadyIntake(effectiveIntake) : effectiveIntake,
+      };
+
+      if (shouldFinalize && hasAttachmentKickoffShell && sprintRows?.length) {
+        const sprintIds = sprintRows.map((sprint: { id: string }) => sprint.id).filter(Boolean);
+        if (sprintIds.length > 0) {
+          const { error: deleteTasksError } = await db.from("sprint_items").delete().in("sprint_id", sprintIds);
+          if (deleteTasksError) throw new Error(deleteTasksError.message);
+          const { error: deleteSprintsError } = await db.from("sprints").delete().in("id", sprintIds);
+          if (deleteSprintsError) throw new Error(deleteSprintsError.message);
+        }
+      }
 
       const dispatchResults = shouldFinalize
         ? await finalizeProjectCreate(db, {
-            project: {
-              ...updatedProject,
-              intake: effectiveIntake,
-            },
+            project: effectiveProjectForFinalize,
             name: updatedProject.name || "Untitled project",
             type: updatedProject.type || "other",
-            intake: effectiveIntake,
+            intake: buildAttachmentKickoffFinalizedIntake(effectiveProjectForFinalize.intake),
             links: updatedProject.links || null,
             githubRepoBinding: updatedProject.github_repo_binding || null,
             teamId: updatedProject.team_id || null,
           })
         : [];
 
-      if (effectiveSprintCount > 0) {
+      const persistedIntake = shouldFinalize
+        ? buildAttachmentKickoffFinalizedIntake(effectiveProjectForFinalize.intake)
+        : attachmentRequirementsReady
+          ? buildAttachmentKickoffReadyIntake(effectiveProjectForFinalize.intake)
+          : effectiveProjectForFinalize.intake;
+
+      const { error: persistKickoffStateError } = await db
+        .from("projects")
+        .update({
+          intake: persistedIntake,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", projectId);
+
+      if (persistKickoffStateError) {
+        throw new Error(persistKickoffStateError.message);
+      }
+
+      if ((shouldFinalize ? 1 : effectiveSprintCount) > 0) {
         await syncProjectPreBuildCheckpoint(db, {
           projectId,
           project: {
             ...updatedProject,
-            intake: effectiveIntake,
+            intake: persistedIntake,
           },
         });
       }

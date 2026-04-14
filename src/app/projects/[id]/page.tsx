@@ -251,11 +251,19 @@ function proofTone(value?: string | null) {
   }
 }
 
+function isBlockerOnlyCheckpoint(milestone: Milestone) {
+  const checkpointType = milestone.reviewSummary?.checkpointType || milestone.checkpointType;
+  return checkpointType === "prebuild_checkpoint" && Boolean(milestone.preBuildCheckpoint?.outcome) && !milestone.reviewRequest;
+}
+
 function checkpointSummaryCopy(input: {
   summary?: MilestoneReviewSummary | null;
   preBuildCheckpoint?: PreBuildCheckpointView | null;
   checkpointState: ReturnType<typeof deriveReviewCheckpointState>;
 }) {
+  if (input.preBuildCheckpoint?.outcome && input.preBuildCheckpoint.outcome !== "match") {
+    return input.preBuildCheckpoint.summary || input.summary?.latestSubmissionSummary || "Build is blocked until the repo and stack contract are resolved.";
+  }
   if (input.summary?.latestSubmissionSummary) return input.summary.latestSubmissionSummary;
   if (input.preBuildCheckpoint?.summary) return input.preBuildCheckpoint.summary;
 
@@ -1205,8 +1213,10 @@ export default function ProjectDetailPage() {
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
   const reviewableMilestones = milestones.filter((milestone) => (
-    milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId)
+    (milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId)) && !isBlockerOnlyCheckpoint(milestone)
   ));
+
+  const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
   const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
 
   const selectedTaskMetadataEntries = selectedTaskTypeConfig
@@ -1503,12 +1513,40 @@ export default function ProjectDetailPage() {
         <div className="space-y-4">
 
           <Section title="Review checkpoints" description="Stage approvals and revision loops for the current project.">
+            {blockerOnlyMilestones.length > 0 ? (
+              <div className="mb-3 space-y-3">
+                {blockerOnlyMilestones.map((milestone) => {
+                  const reason = formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.";
+                  const nextAction = milestone.preBuildCheckpoint?.outcome === "mismatch"
+                    ? "Align the linked repo with the PRD stack contract, then rerun the checkpoint."
+                    : "Link or provision the real repo workspace, then rerun the checkpoint.";
+
+                  return (
+                    <div key={`${milestone.id}-blocker`} className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Build blocker</div>
+                          <h3 className="mt-1 text-base font-semibold text-amber-950">{milestone.name} needs repo setup, not approval</h3>
+                          <p className="mt-2 text-sm leading-6 text-amber-950">{reason}</p>
+                        </div>
+                        <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</span>
+                      </div>
+                      <div className="mt-3 rounded-2xl border border-amber-200 bg-white px-3 py-3 text-sm leading-6 text-amber-900">
+                        <span className="font-medium">Next action:</span> {nextAction}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
             {reviewableMilestones.length === 0 ? (
-              <EmptySectionState
-                icon={<ShieldCheck className="h-7 w-7" />}
-                title="No review checkpoints yet"
-                description="Review checkpoints will show up here once stages are created. This surface stays visible so review remains part of the workflow, not a hidden mode."
-              />
+              blockerOnlyMilestones.length === 0 ? (
+                <EmptySectionState
+                  icon={<ShieldCheck className="h-7 w-7" />}
+                  title="No review checkpoints yet"
+                  description="Review checkpoints will show up here once stages are created. This surface stays visible so review remains part of the workflow, not a hidden mode."
+                />
+              ) : null
             ) : (
               <div className="space-y-3">
                 {reviewableMilestones.map((milestone) => {

@@ -42,14 +42,33 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
   });
   assert.equal(readyScopeState.key, "ready_for_review", "scope approval should become ready for review once metadata-approved evidence exists");
 
+  const legacyDiscoveryCheckpointType = resolveMilestoneCheckpointType({
+    checkpointType: null,
+    sprintName: "Phase 1 · Discover",
+    phaseKey: "discover",
+    taskTypes: ["discovery_plan"],
+  });
+  assert.equal(legacyDiscoveryCheckpointType, "scope_approval", "legacy discovery milestones should infer a scope approval checkpoint type instead of generic delivery review");
+
   const inferredDiscoveryPolicy = deriveMilestoneEvidenceRequirements({
+    checkpointType: legacyDiscoveryCheckpointType,
     sprintName: "Phase 1 · Discover",
     phaseKey: "discover",
     taskTypes: ["discovery_plan"],
   });
   assert.deepEqual(inferredDiscoveryPolicy.requiredEvidenceKinds, ["doc", "checklist", "loom"]);
   assert.equal(inferredDiscoveryPolicy.requiredEvidenceKindsMode, "any");
-  console.log("PASS scope approval now uses explicit scope evidence instead of generic proof");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: legacyDiscoveryCheckpointType,
+    evidenceRequirements: inferredDiscoveryPolicy,
+    items: [{ kind: "github_pr" }],
+  }).ok, false, "legacy discovery milestones should stay awaiting evidence with engineering-only proof");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: legacyDiscoveryCheckpointType,
+    evidenceRequirements: inferredDiscoveryPolicy,
+    items: [{ kind: "doc" }],
+  }).ok, true, "legacy discovery milestones should become ready once a planning artifact is attached");
+  console.log("PASS legacy discovery milestones now infer metadata-driven scope approval evidence policy");
 }
 
 {

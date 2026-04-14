@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
-import { computeProofBundleCompletenessStatus, getCheckpointEvidenceRequirements, validateProofBundleRequirements } from "../src/lib/milestone-review.ts";
+import { computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, getCheckpointEvidenceRequirements, validateProofBundleRequirements } from "../src/lib/milestone-review.ts";
+import { buildProjectKickoffPlan } from "../src/lib/project-kickoff.ts";
 import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.ts";
 
 {
@@ -57,6 +58,42 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
   });
   assert.equal(readyLaunch.ok, true, "launch approval should become ready once a staging url is present");
   console.log("PASS launch approval now depends on live preview evidence");
+}
+
+{
+  const kickoffPlan = buildProjectKickoffPlan({
+    projectName: "Metadata Pilot",
+    type: "web_app",
+    intake: {
+      capabilities: ["frontend"],
+      requirements: {
+        summary: ["Ship a reviewable MVP"],
+        technologyRequirements: ["Next.js"],
+        sources: [{ type: "prd", evidence: ["spec"] }],
+      },
+    },
+  });
+  const validatePhase = kickoffPlan.find((phase) => phase.key === "validate");
+  assert.ok(validatePhase, "kickoff should seed a validate phase");
+  assert.equal(validatePhase.checkpointType, "acceptance_review", "validate phase should seed explicit checkpoint type");
+  assert.deepEqual(validatePhase.checkpointEvidenceRequirements?.requiredEvidenceKinds, ["screenshot", "staging_url", "loom"]);
+
+  const seededPolicy = deriveMilestoneEvidenceRequirements({
+    checkpointType: validatePhase.checkpointType,
+    explicitRequirements: validatePhase.checkpointEvidenceRequirements,
+    sprintName: validatePhase.name,
+    phaseKey: validatePhase.key,
+    taskTypes: ["qa_validation"],
+  });
+  assert.deepEqual(seededPolicy, validatePhase.checkpointEvidenceRequirements, "explicit seeded evidence policy should win over validation heuristics");
+
+  const metadataReady = validateProofBundleRequirements({
+    checkpointType: validatePhase.checkpointType,
+    evidenceRequirements: seededPolicy,
+    items: [{ kind: "github_pr" }, { kind: "loom" }],
+  });
+  assert.equal(metadataReady.ok, true, "seeded validate milestone should become ready with metadata-approved evidence");
+  console.log("PASS seeded validate phase uses explicit metadata-driven evidence policy");
 }
 
 console.log("verify-phase-aware-checkpoint-readiness: ok");

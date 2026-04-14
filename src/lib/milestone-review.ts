@@ -191,6 +191,19 @@ export function getCheckpointEvidenceRequirements(checkpointType?: StageCheckpoi
   };
 }
 
+function hasExplicitEvidencePolicy(value: unknown) {
+  if (!value || typeof value !== "object") return false;
+  const raw = value as Record<string, unknown>;
+  return typeof raw.screenshotRequired === "boolean"
+    || typeof raw.minScreenshotCount === "number"
+    || Array.isArray(raw.requiredEvidenceKinds)
+    || raw.requiredEvidenceKindsMode === "any"
+    || raw.requiredEvidenceKindsMode === "all"
+    || raw.captureMode === "local_app"
+    || raw.captureMode === "manual"
+    || typeof raw.captureHint === "string";
+}
+
 export function deriveMilestoneEvidenceRequirements(input: {
   checkpointType?: StageCheckpointType | string | null;
   explicitRequirements?: unknown;
@@ -199,6 +212,7 @@ export function deriveMilestoneEvidenceRequirements(input: {
   taskTypes?: Array<string | null | undefined> | null;
 }) {
   const base = getCheckpointEvidenceRequirements(input.checkpointType, input.explicitRequirements);
+  if (hasExplicitEvidencePolicy(input.explicitRequirements)) return base;
   const phaseKey = String(input.phaseKey || "").toLowerCase();
   const sprintName = String(input.sprintName || "").toLowerCase();
   const taskTypes = (input.taskTypes || []).map((value) => String(value || "").toLowerCase());

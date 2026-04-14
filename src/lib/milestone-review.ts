@@ -237,9 +237,12 @@ export function resolveMilestoneCheckpointType(input: {
   const isContentMilestone = phaseKey === "message"
     || /\bmessage\b|\bmessaging\b|\bcontent\b|\bcopy\b/.test(sprintName)
     || taskTypes.includes("content_messaging");
+  const isLaunchMilestone = (phaseKey === "launch" || phaseKey === "release" || phaseKey === "validate" || taskTypes.includes("qa_validation"))
+    && /\blaunch\b|\blaunch readiness\b|\bgo[- ]live\b|\brelease\b/.test(sprintName);
 
   if (isDiscoveryMilestone) return "scope_approval" satisfies StageCheckpointType;
   if (isContentMilestone) return "content_review" satisfies StageCheckpointType;
+  if (isLaunchMilestone) return "launch_approval" satisfies StageCheckpointType;
   return null;
 }
 
@@ -265,6 +268,8 @@ export function deriveMilestoneEvidenceRequirements(input: {
   const isContentMilestone = phaseKey === "message"
     || /\bmessage\b|\bmessaging\b|\bcontent\b|\bcopy\b/.test(sprintName)
     || taskTypes.includes("content_messaging");
+  const isLaunchMilestone = (phaseKey === "launch" || phaseKey === "release" || phaseKey === "validate" || taskTypes.includes("qa_validation"))
+    && /\blaunch\b|\blaunch readiness\b|\bgo[- ]live\b|\brelease\b/.test(sprintName);
 
   if (isDiscoveryMilestone && resolvedCheckpointType === "scope_approval") {
     const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
@@ -293,6 +298,15 @@ export function deriveMilestoneEvidenceRequirements(input: {
       requiredEvidenceKinds: Array.from(requiredEvidenceKinds),
       requiredEvidenceKindsMode: "any" as const,
       captureHint: base.captureHint || "Attach the actual messaging artifact to review, such as a draft doc, screenshot, preview URL, exported asset, or Loom walkthrough.",
+    } satisfies CheckpointEvidenceRequirements;
+  }
+
+  if (isLaunchMilestone && resolvedCheckpointType === "launch_approval") {
+    return {
+      ...base,
+      requiredEvidenceKinds: ["staging_url"],
+      requiredEvidenceKindsMode: "all" as const,
+      captureHint: base.captureHint || "Attach the launch-ready staging or live candidate URL before requesting launch approval.",
     } satisfies CheckpointEvidenceRequirements;
   }
 

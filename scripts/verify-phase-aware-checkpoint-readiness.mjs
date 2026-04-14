@@ -142,6 +142,66 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
 }
 
 {
+  const legacyLaunchCheckpointType = resolveMilestoneCheckpointType({
+    checkpointType: null,
+    sprintName: "Launch readiness",
+    phaseKey: "validate",
+    taskTypes: ["qa_validation"],
+  });
+  assert.equal(legacyLaunchCheckpointType, "launch_approval", "legacy launch validation milestones should infer a launch approval checkpoint type instead of generic acceptance or delivery review");
+
+  const legacyLaunchPolicy = deriveMilestoneEvidenceRequirements({
+    checkpointType: legacyLaunchCheckpointType,
+    sprintName: "Launch readiness",
+    phaseKey: "validate",
+    taskTypes: ["qa_validation"],
+  });
+  assert.deepEqual(legacyLaunchPolicy.requiredEvidenceKinds, ["staging_url"]);
+  assert.equal(legacyLaunchPolicy.requiredEvidenceKindsMode, "all");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: legacyLaunchCheckpointType,
+    evidenceRequirements: legacyLaunchPolicy,
+    items: [{ kind: "screenshot" }],
+  }).ok, false, "legacy launch milestones should stay awaiting evidence without a launch URL");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: legacyLaunchCheckpointType,
+    evidenceRequirements: legacyLaunchPolicy,
+    items: [{ kind: "staging_url" }],
+  }).ok, true, "legacy launch milestones should become ready once a launch URL is attached");
+
+  const awaitingLaunchEvidence = deriveReviewCheckpointState({
+    approvalGateStatus: "pending",
+    reviewSummary: {
+      latestSubmissionId: "sub-launch",
+      checkpointType: legacyLaunchCheckpointType,
+      proofCompletenessStatus: computeProofBundleCompletenessStatus({
+        checkpointType: legacyLaunchCheckpointType,
+        evidenceRequirements: legacyLaunchPolicy,
+        items: [{ kind: "screenshot" }],
+      }),
+      proofItemCount: 1,
+    },
+  });
+  assert.equal(awaitingLaunchEvidence.key, "awaiting_evidence", "launch approval should stay awaiting evidence until the launch URL exists");
+
+  const readyLaunchState = deriveReviewCheckpointState({
+    approvalGateStatus: "pending",
+    reviewSummary: {
+      latestSubmissionId: "sub-launch-ready",
+      checkpointType: legacyLaunchCheckpointType,
+      proofCompletenessStatus: computeProofBundleCompletenessStatus({
+        checkpointType: legacyLaunchCheckpointType,
+        evidenceRequirements: legacyLaunchPolicy,
+        items: [{ kind: "staging_url" }],
+      }),
+      proofItemCount: 1,
+    },
+  });
+  assert.equal(readyLaunchState.key, "ready_for_review", "launch approval should become ready once the launch URL is attached");
+  console.log("PASS legacy launch milestones now infer metadata-driven launch-approval evidence policy");
+}
+
+{
   const discoveryKickoffPlan = buildProjectKickoffPlan({
     projectName: "Metadata Pilot",
     type: "web_app",

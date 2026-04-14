@@ -4,6 +4,7 @@ import path from "node:path";
 
 const currentModuleDir = path.dirname(new URL(import.meta.url).pathname);
 import { execFile } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 
 import type {
@@ -16,6 +17,8 @@ import type {
   RequirementSource,
   TechnologyRequirement,
 } from "@/lib/project-requirements.types";
+import { getGitHubToken } from "./github-provisioning.ts";
+import { parseGitHubRepoUrl } from "./github-repo-binding.ts";
 
 function isHostDependentExtractionAllowed() {
   return !process.env.VERCEL;
@@ -619,7 +622,63 @@ export function resolveRepoWorkspacePath(project: ProjectLikeWithRequirements) {
   return null;
 }
 
-export function inspectRepoFrameworks(repoWorkspacePath: string | null) {
+function inspectRemoteRepoFrameworks(repoUrl: string | null) {
+  const emptyDetection = {
+    detectedFrameworks: [] as string[],
+    detectedLanguages: [] as string[],
+    detectedStyling: [] as string[],
+    detectedBackends: [] as string[],
+    detectedRuntimes: [] as string[],
+    detectedTooling: [] as string[],
+    detectedDatabases: [] as string[],
+  };
+
+  if (!repoUrl) return { ...emptyDetection, notes: ["No GitHub repo URL found for remote inspection."] };
+
+  const parsed = parseGitHubRepoUrl(repoUrl);
+  if (!parsed) return { ...emptyDetection, notes: ["No GitHub repo URL found for remote inspection."] };
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ccv1-remote-repo-inspect-"));
+  const packageJsonPath = path.join(tempDir, "package.json");
+  const token = getGitHubToken();
+  const curlArgs = [
+    "-L",
+    "-H", "Accept: application/vnd.github.raw+json",
+    "-H", "X-GitHub-Api-Version: 2022-11-28",
+    "-H", "User-Agent: command-center-v1-requirements",
+  ];
+
+  if (token) {
+    curlArgs.push("-H", `Authorization: Bearer ${token}`);
+  }
+
+  curlArgs.push(
+    "-o", packageJsonPath,
+    "-w", "%{http_code}",
+    `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/contents/package.json`
+  );
+
+  try {
+    const fetchResult = spawnSync("curl", curlArgs, { encoding: "utf8", timeout: 30000 });
+    const httpCode = String(fetchResult.stdout || "").trim();
+
+    if (fetchResult.status !== 0) {
+      const stderr = String(fetchResult.stderr || fetchResult.stdout || "").trim();
+      return { ...emptyDetection, notes: [`Remote repo inspection unavailable: ${stderr || "curl failed"}`] };
+    }
+
+    if (!/^2\d\d$/.test(httpCode)) {
+      const stderr = String(fetchResult.stderr || "").trim();
+      return { ...emptyDetection, notes: [`Remote repo inspection unavailable: GitHub returned HTTP ${httpCode}${stderr ? ` (${stderr})` : ""}`] };
+    }
+
+    return inspectRepoFrameworks(tempDir, "remote");
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+export function inspectRepoFrameworks(repoWorkspacePath: string | null, source: "local" | "remote" = "local") {
   const emptyDetection = {
     detectedFrameworks: [] as string[],
     detectedLanguages: [] as string[],
@@ -670,7 +729,7 @@ export function inspectRepoFrameworks(repoWorkspacePath: string | null) {
       detectedRuntimes: [...detected.runtime],
       detectedTooling: [...detected.tooling],
       detectedDatabases: [...detected.database],
-      notes: [`Inspected ${packageJsonPath}`],
+      notes: [source === "remote" ? `Inspected remote repo package.json (${packageJsonPath})` : `Inspected ${packageJsonPath}`],
     };
   } catch (error) {
     return {
@@ -680,8 +739,10 @@ export function inspectRepoFrameworks(repoWorkspacePath: string | null) {
   }
 }
 
-function repoSignalsFromInspection(repoWorkspacePath: string | null): RepoSignals & { notes: string[] } {
-  const inspected = inspectRepoFrameworks(repoWorkspacePath);
+function repoSignalsFromInspection(project: ProjectLikeWithRequirements, repoWorkspacePath: string | null): RepoSignals & { notes: string[] } {
+  const inspected = repoWorkspacePath
+    ? inspectRepoFrameworks(repoWorkspacePath, "local")
+    : inspectRemoteRepoFrameworks(resolveGithubRepoUrl(project));
   return {
     frameworks: inspected.detectedFrameworks,
     languages: inspected.detectedLanguages,
@@ -708,7 +769,7 @@ function observedSignalsForKind(signals: RepoSignals, kind: RequirementSignalKin
 export function getProjectRequirementCompliance(project: ProjectLikeWithRequirements): RequirementCompliance {
   const requirements = project.intake?.requirements;
   const repoWorkspacePath = resolveRepoWorkspacePath(project);
-  const inspected = repoSignalsFromInspection(repoWorkspacePath);
+  const inspected = repoSignalsFromInspection(project, repoWorkspacePath);
   const violations: string[] = [];
 
   for (const requirement of requirements?.technologyRequirements || []) {

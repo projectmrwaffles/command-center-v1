@@ -55,10 +55,12 @@ function storageNotConfiguredMessage() {
 function SuccessState({
   project,
   docsWarning,
+  docsProgress,
   onOpenProject,
 }: {
   project: CreatedProject;
   docsWarning?: string | null;
+  docsProgress?: number | null;
   onOpenProject: () => void;
 }) {
   const dispatch = project.dispatch || null;
@@ -117,6 +119,7 @@ function SuccessState({
           {docsWarning ? (
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800">
               {docsWarning}
+              {typeof docsProgress === "number" ? <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-100"><div className="h-full rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${docsProgress}%` }} /></div> : null}
             </div>
           ) : null}
 
@@ -156,6 +159,7 @@ export function CreateProjectModal({
   const [docsBusy, setDocsBusy] = useState(false);
   const [createdProject, setCreatedProject] = useState<CreatedProject | null>(null);
   const [docsWarning, setDocsWarning] = useState<string | null>(null);
+  const [docsProgress, setDocsProgress] = useState<number | null>(null);
   const redirectTimeoutRef = useRef<number | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
@@ -184,6 +188,7 @@ export function CreateProjectModal({
       setDocsBusy(false);
       setCreatedProject(null);
       setDocsWarning(null);
+      setDocsProgress(null);
       if (redirectTimeoutRef.current) {
         window.clearTimeout(redirectTimeoutRef.current);
         redirectTimeoutRef.current = null;
@@ -213,10 +218,16 @@ export function CreateProjectModal({
   };
 
   async function uploadProjectDocs(projectId: string) {
+    const progressTimers: number[] = [];
     if (docs.length === 0) return { ok: true } as const;
 
     setDocsBusy(true);
     setDocsError(null);
+    setDocsWarning(`Upload received. Processing ${docs.length} attachment${docs.length === 1 ? "" : "s"}...`);
+    setDocsProgress(18);
+    progressTimers.push(window.setTimeout(() => { setDocsWarning("Extracting PRD text and image notes..."); setDocsProgress(42); }, 350));
+    progressTimers.push(window.setTimeout(() => { setDocsWarning("Deriving requirements from attached materials..."); setDocsProgress(64); }, 1100));
+    progressTimers.push(window.setTimeout(() => { setDocsWarning("Seeding kickoff from extracted requirements..."); setDocsProgress(84); }, 2200));
 
     try {
       const formData = new FormData();
@@ -246,12 +257,14 @@ export function CreateProjectModal({
 
       return {
         ok: true,
+        attachmentKickoffState: payload?.attachmentKickoffState || null,
         ingestionSummary:
           docSourceCount > 0
             ? `Read ${docSourceCount} attached file${docSourceCount === 1 ? "" : "s"} into project requirements${extractedEvidenceCount > 0 ? ` (${extractedEvidenceCount} evidence item${extractedEvidenceCount === 1 ? "" : "s"})` : ""}.`
             : null,
       } as const;
     } finally {
+      progressTimers.forEach((timer) => window.clearTimeout(timer));
       setDocsBusy(false);
     }
   }
@@ -351,6 +364,7 @@ export function CreateProjectModal({
             <SuccessState
               project={createdProject}
               docsWarning={docsWarning}
+              docsProgress={docsProgress}
               onOpenProject={() => navigateToProject(createdProject)}
             />
           ) : (
@@ -364,15 +378,18 @@ export function CreateProjectModal({
                 const project = await createProject({ ...data, hasAttachments: docs.length > 0 });
 
                 setCreatedProject(project);
-                setDocsWarning(docs.length > 0 ? "Uploading attached files…" : null);
+                setDocsWarning(docs.length > 0 ? "Upload received. Processing attached files..." : null);
+                setDocsProgress(docs.length > 0 ? 12 : null);
 
                 const docsResult = await uploadProjectDocs(project.id);
                 if (!docsResult.ok && docs.length > 0) {
                   setDocsWarning(docsResult.message || "Project created, but attached documents still need to be uploaded.");
+                  setDocsProgress(null);
                   return;
                 }
 
-                setDocsWarning(docsResult.ingestionSummary || null);
+                setDocsWarning(docsResult.ingestionSummary || docsResult.attachmentKickoffState?.detail || null);
+                setDocsProgress(docsResult.attachmentKickoffState?.progressPct || 100);
                 redirectTimeoutRef.current = window.setTimeout(() => {
                   navigateToProject(project);
                 }, 1200);

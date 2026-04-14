@@ -1,5 +1,6 @@
 import type { ProjectIntake } from "./project-intake.ts";
 import { inferIntakeReadiness } from "./project-intake.ts";
+import type { CheckpointEvidenceRequirements, StageCheckpointType } from "./milestone-review.ts";
 import { TASK_TYPE_CONFIG, type TaskType, type TeamLane } from "./task-model.ts";
 
 export type KickoffDbClient = {
@@ -14,6 +15,8 @@ export type KickoffPhaseTemplate = {
   status: "active" | "draft";
   gateRequired: boolean;
   gateStatus: "not_requested";
+  checkpointType?: StageCheckpointType;
+  checkpointEvidenceRequirements?: CheckpointEvidenceRequirements | null;
   tasks: Array<{
     title: string;
     description: string;
@@ -174,6 +177,15 @@ export function buildProjectKickoffPlan(input: {
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: false,
       gateStatus: "not_requested",
+      checkpointType: "acceptance_review",
+      checkpointEvidenceRequirements: {
+        screenshotRequired: false,
+        minScreenshotCount: 0,
+        captureMode: null,
+        requiredEvidenceKinds: ["screenshot", "staging_url", "loom"],
+        requiredEvidenceKindsMode: "any",
+        captureHint: "Attach validation evidence for this milestone, such as a screenshot, staging URL, or Loom walkthrough, before requesting review.",
+      },
       tasks: [
         phaseTask("qa_validation", `${input.projectName} kickoff deliverables`, {
           qa_mode: "acceptance_review",
@@ -248,6 +260,8 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
       auto_generated: true,
       approval_gate_required: phase.gateRequired,
       approval_gate_status: phase.gateStatus,
+      checkpoint_type: phase.checkpointType ?? null,
+      checkpoint_evidence_requirements: phase.checkpointEvidenceRequirements ?? {},
     };
 
     let sprintResult = await db
@@ -256,7 +270,7 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
       .select("id, name")
       .single();
 
-    if (isMissingColumnError(sprintResult.error, ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status"])) {
+    if (isMissingColumnError(sprintResult.error, ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status", "checkpoint_type", "checkpoint_evidence_requirements"])) {
       sprintResult = await db
         .from("sprints")
         .insert({

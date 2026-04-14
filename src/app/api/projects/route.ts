@@ -77,13 +77,21 @@ export async function GET(req: NextRequest) {
     }
 
     const sprintCountByProjectId = new Map<string, number>();
+    const allSprintsAreAttachmentShellByProjectId = new Map<string, boolean>();
     for (const sprint of sprints ?? []) {
       const projectId = typeof sprint?.project_id === "string" ? sprint.project_id : null;
       if (!projectId) continue;
       sprintCountByProjectId.set(projectId, (sprintCountByProjectId.get(projectId) || 0) + 1);
+      const currentAllShell = allSprintsAreAttachmentShellByProjectId.get(projectId);
+      const sprintName = typeof sprint?.name === "string" ? sprint.name : null;
+      const isAttachmentShell = sprintName?.trim().toLowerCase() === ATTACHMENT_INTAKE_SPRINT_NAME.toLowerCase();
+      allSprintsAreAttachmentShellByProjectId.set(projectId, currentAllShell === undefined ? Boolean(isAttachmentShell) : currentAllShell && Boolean(isAttachmentShell));
     }
 
-    const candidateProjectIds = projectIds.filter((projectId) => !sprintCountByProjectId.get(projectId));
+    const candidateProjectIds = projectIds.filter((projectId) => {
+      const sprintCount = sprintCountByProjectId.get(projectId) || 0;
+      return sprintCount === 0 || allSprintsAreAttachmentShellByProjectId.get(projectId) === true;
+    });
     let attachmentProjectsReconciled = false;
 
     for (const projectId of candidateProjectIds) {

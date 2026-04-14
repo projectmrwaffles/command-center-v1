@@ -124,28 +124,28 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
 
   const messagePhase = kickoffPlan.find((phase) => phase.key === "message");
   assert.ok(messagePhase, "kickoff should seed a message phase");
-  assert.equal(messagePhase.checkpointType, "launch_approval", "message phase should seed a launch-oriented checkpoint type");
-  assert.deepEqual(messagePhase.checkpointEvidenceRequirements?.requiredEvidenceKinds, ["staging_url", "screenshot"]);
-  assert.equal(messagePhase.checkpointEvidenceRequirements?.requiredEvidenceKindsMode, "all");
+  assert.equal(messagePhase.checkpointType, "content_review", "message phase should seed a content-oriented checkpoint type");
+  assert.deepEqual(messagePhase.checkpointEvidenceRequirements?.requiredEvidenceKinds, ["doc", "artifact", "screenshot", "staging_url", "loom"]);
+  assert.equal(messagePhase.checkpointEvidenceRequirements?.requiredEvidenceKindsMode, "any");
 
-  const seededLaunchPolicy = deriveMilestoneEvidenceRequirements({
+  const seededContentPolicy = deriveMilestoneEvidenceRequirements({
     checkpointType: messagePhase.checkpointType,
     explicitRequirements: messagePhase.checkpointEvidenceRequirements,
     sprintName: messagePhase.name,
     phaseKey: messagePhase.key,
     taskTypes: ["content_messaging"],
   });
-  assert.deepEqual(seededLaunchPolicy, messagePhase.checkpointEvidenceRequirements, "explicit launch metadata should win over defaults");
+  assert.deepEqual(seededContentPolicy, messagePhase.checkpointEvidenceRequirements, "explicit content metadata should win over defaults");
   assert.equal(validateProofBundleRequirements({
     checkpointType: messagePhase.checkpointType,
-    evidenceRequirements: seededLaunchPolicy,
-    items: [{ kind: "staging_url" }],
-  }).ok, false, "launch approval should stay blocked until all seeded launch evidence is present");
+    evidenceRequirements: seededContentPolicy,
+    items: [{ kind: "github_pr" }],
+  }).ok, false, "content review should reject unrelated engineering-only proof");
   assert.equal(validateProofBundleRequirements({
     checkpointType: messagePhase.checkpointType,
-    evidenceRequirements: seededLaunchPolicy,
-    items: [{ kind: "staging_url" }, { kind: "screenshot" }],
-  }).ok, true, "launch approval should become ready once seeded launch evidence is complete");
+    evidenceRequirements: seededContentPolicy,
+    items: [{ kind: "doc" }],
+  }).ok, true, "content review should become ready once an actual messaging artifact is attached");
 
   const validatePhase = kickoffPlan.find((phase) => phase.key === "validate");
   assert.ok(validatePhase, "kickoff should seed a validate phase");
@@ -167,7 +167,7 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
     items: [{ kind: "github_pr" }, { kind: "loom" }],
   });
   assert.equal(metadataReady.ok, true, "seeded validate milestone should become ready with metadata-approved evidence");
-  console.log("PASS seeded kickoff phases use explicit metadata-driven evidence policy across design, build, launch, and validate checkpoints");
+  console.log("PASS seeded kickoff phases use explicit metadata-driven evidence policy across design, build, content, launch, and validate checkpoints");
 }
 
 console.log("verify-phase-aware-checkpoint-readiness: ok");

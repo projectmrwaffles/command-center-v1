@@ -1,6 +1,6 @@
 import type { ProjectLinks } from "./project-links.ts";
 
-export type StageCheckpointType = "scope_approval" | "design_review" | "delivery_review" | "acceptance_review" | "launch_approval" | "prebuild_checkpoint";
+export type StageCheckpointType = "scope_approval" | "design_review" | "delivery_review" | "acceptance_review" | "content_review" | "launch_approval" | "prebuild_checkpoint";
 export type ApprovalType = StageCheckpointType;
 export type SubmissionStatus = "draft" | "submitted" | "under_review" | "changes_requested" | "approved" | "superseded";
 export type SubmissionDecision = "approve" | "request_changes";
@@ -113,7 +113,7 @@ export type MilestoneReviewDetail = {
 };
 
 export function isStageCheckpointType(value: unknown): value is StageCheckpointType {
-  return typeof value === "string" && ["scope_approval", "design_review", "delivery_review", "acceptance_review", "launch_approval", "prebuild_checkpoint"].includes(value);
+  return typeof value === "string" && ["scope_approval", "design_review", "delivery_review", "acceptance_review", "content_review", "launch_approval", "prebuild_checkpoint"].includes(value);
 }
 
 export function isApprovalType(value: unknown): value is ApprovalType {
@@ -143,6 +143,7 @@ export function formatCheckpointTypeLabel(value?: StageCheckpointType | string |
     case "design_review": return "Design / UX review";
     case "delivery_review": return "Delivery review";
     case "acceptance_review": return "Acceptance review";
+    case "content_review": return "Content review";
     case "launch_approval": return "Launch approval";
     case "prebuild_checkpoint": return "Pre-build checkpoint";
     default: return String(value).replace(/_/g, " ");
@@ -165,13 +166,20 @@ export function getCheckpointEvidenceRequirements(checkpointType?: StageCheckpoi
           requiredEvidenceKinds: ["screenshot", "staging_url", "loom"],
           requiredEvidenceKindsMode: "any",
         }
-      : checkpointType === "launch_approval"
+      : checkpointType === "content_review"
         ? {
             screenshotRequired: false,
             minScreenshotCount: 0,
-            requiredEvidenceKinds: ["staging_url"],
-            requiredEvidenceKindsMode: "all",
+            requiredEvidenceKinds: ["doc", "artifact", "screenshot", "staging_url", "loom"],
+            requiredEvidenceKindsMode: "any",
           }
+        : checkpointType === "launch_approval"
+          ? {
+              screenshotRequired: false,
+              minScreenshotCount: 0,
+              requiredEvidenceKinds: ["staging_url"],
+              requiredEvidenceKindsMode: "all",
+            }
         : {
             screenshotRequired: false,
             minScreenshotCount: 0,

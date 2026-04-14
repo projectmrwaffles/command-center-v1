@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, getCheckpointEvidenceRequirements, validateProofBundleRequirements } from "../src/lib/milestone-review.ts";
+import { computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, getCheckpointEvidenceRequirements, resolveMilestoneCheckpointType, validateProofBundleRequirements } from "../src/lib/milestone-review.ts";
 import { buildProjectKickoffPlan } from "../src/lib/project-kickoff.ts";
 import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.ts";
 
@@ -94,18 +94,32 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
 }
 
 {
-  const blockedLaunch = validateProofBundleRequirements({
-    checkpointType: "launch_approval",
-    items: [{ kind: "screenshot" }, { kind: "doc" }],
+  const legacyMessageCheckpointType = resolveMilestoneCheckpointType({
+    checkpointType: null,
+    sprintName: "Phase 2 · Message",
+    phaseKey: "message",
+    taskTypes: ["content_messaging"],
   });
-  assert.equal(blockedLaunch.ok, false, "launch approval should require a live staging url, not just generic proof");
+  assert.equal(legacyMessageCheckpointType, "content_review", "legacy message milestones should infer a content review checkpoint type instead of generic delivery review");
 
-  const readyLaunch = validateProofBundleRequirements({
-    checkpointType: "launch_approval",
-    items: [{ kind: "staging_url" }, { kind: "screenshot" }],
+  const legacyMessagePolicy = deriveMilestoneEvidenceRequirements({
+    checkpointType: legacyMessageCheckpointType,
+    sprintName: "Phase 2 · Message",
+    phaseKey: "message",
+    taskTypes: ["content_messaging"],
   });
-  assert.equal(readyLaunch.ok, true, "launch approval should become ready once a staging url is present");
-  console.log("PASS launch approval now depends on live preview evidence");
+  assert.deepEqual(legacyMessagePolicy.requiredEvidenceKinds, ["doc", "artifact", "screenshot", "staging_url", "loom"]);
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: legacyMessageCheckpointType,
+    evidenceRequirements: legacyMessagePolicy,
+    items: [{ kind: "github_pr" }],
+  }).ok, false, "legacy message milestones should stay awaiting evidence with engineering-only proof");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: legacyMessageCheckpointType,
+    evidenceRequirements: legacyMessagePolicy,
+    items: [{ kind: "doc" }],
+  }).ok, true, "legacy message milestones should become ready once a real messaging artifact is attached");
+  console.log("PASS legacy message milestones now infer metadata-driven content-review evidence policy");
 }
 
 {

@@ -220,6 +220,25 @@ function hasExplicitEvidencePolicy(value: unknown) {
     || typeof raw.captureHint === "string";
 }
 
+export function resolveMilestoneCheckpointType(input: {
+  checkpointType?: StageCheckpointType | string | null;
+  sprintName?: string | null;
+  phaseKey?: string | null;
+  taskTypes?: Array<string | null | undefined> | null;
+}) {
+  if (isStageCheckpointType(input.checkpointType)) return input.checkpointType;
+
+  const phaseKey = String(input.phaseKey || "").toLowerCase();
+  const sprintName = String(input.sprintName || "").toLowerCase();
+  const taskTypes = (input.taskTypes || []).map((value) => String(value || "").toLowerCase());
+  const isContentMilestone = phaseKey === "message"
+    || /\bmessage\b|\bmessaging\b|\bcontent\b|\bcopy\b/.test(sprintName)
+    || taskTypes.includes("content_messaging");
+
+  if (isContentMilestone) return "content_review" satisfies StageCheckpointType;
+  return null;
+}
+
 export function deriveMilestoneEvidenceRequirements(input: {
   checkpointType?: StageCheckpointType | string | null;
   explicitRequirements?: unknown;
@@ -227,7 +246,8 @@ export function deriveMilestoneEvidenceRequirements(input: {
   phaseKey?: string | null;
   taskTypes?: Array<string | null | undefined> | null;
 }) {
-  const base = getCheckpointEvidenceRequirements(input.checkpointType, input.explicitRequirements);
+  const resolvedCheckpointType = resolveMilestoneCheckpointType(input) || input.checkpointType;
+  const base = getCheckpointEvidenceRequirements(resolvedCheckpointType, input.explicitRequirements);
   if (hasExplicitEvidencePolicy(input.explicitRequirements)) return base;
   const phaseKey = String(input.phaseKey || "").toLowerCase();
   const sprintName = String(input.sprintName || "").toLowerCase();
@@ -238,8 +258,11 @@ export function deriveMilestoneEvidenceRequirements(input: {
   const isDiscoveryMilestone = phaseKey === "discover"
     || /\bdiscover\b|\bscope\b|\bplan\b|\bbrief\b/.test(sprintName)
     || taskTypes.includes("discovery_plan");
+  const isContentMilestone = phaseKey === "message"
+    || /\bmessage\b|\bmessaging\b|\bcontent\b|\bcopy\b/.test(sprintName)
+    || taskTypes.includes("content_messaging");
 
-  if (isDiscoveryMilestone && input.checkpointType == null) {
+  if (isDiscoveryMilestone && resolvedCheckpointType == null) {
     const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
     requiredEvidenceKinds.add("doc");
     requiredEvidenceKinds.add("checklist");
@@ -250,6 +273,22 @@ export function deriveMilestoneEvidenceRequirements(input: {
       requiredEvidenceKinds: Array.from(requiredEvidenceKinds),
       requiredEvidenceKindsMode: "any" as const,
       captureHint: base.captureHint || "Attach the actual scope artifact, such as a planning doc, checklist, or Loom walkthrough, before requesting scope approval.",
+    } satisfies CheckpointEvidenceRequirements;
+  }
+
+  if (isContentMilestone && resolvedCheckpointType === "content_review") {
+    const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
+    requiredEvidenceKinds.add("doc");
+    requiredEvidenceKinds.add("artifact");
+    requiredEvidenceKinds.add("screenshot");
+    requiredEvidenceKinds.add("staging_url");
+    requiredEvidenceKinds.add("loom");
+
+    return {
+      ...base,
+      requiredEvidenceKinds: Array.from(requiredEvidenceKinds),
+      requiredEvidenceKindsMode: "any" as const,
+      captureHint: base.captureHint || "Attach the actual messaging artifact to review, such as a draft doc, screenshot, preview URL, exported asset, or Loom walkthrough.",
     } satisfies CheckpointEvidenceRequirements;
   }
 

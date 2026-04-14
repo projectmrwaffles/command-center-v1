@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements } from './milestone-review.ts';
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from './milestone-review.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
 
@@ -45,8 +45,15 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     ? 'Review the visual/design output, compare against the requested scope, and request changes if the delivered experience is not acceptable.'
     : 'Review the submitted output and request changes if the delivered work does not meet the expected outcome.';
 
+  const checkpointType = resolveMilestoneCheckpointType({
+    checkpointType: sprint.checkpoint_type,
+    sprintName: sprint.name || input.sprintName || null,
+    phaseKey: sprint.phase_key || null,
+    taskTypes: input.tasks.map((task) => task.task_type),
+  }) || sprint.checkpoint_type || 'delivery_review';
+
   const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
-    checkpointType: sprint.checkpoint_type || 'delivery_review',
+    checkpointType,
     explicitRequirements: sprint.checkpoint_evidence_requirements,
     sprintName: sprint.name || input.sprintName || null,
     phaseKey: sprint.phase_key || null,
@@ -57,7 +64,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     .from('milestone_submissions')
     .insert({
       sprint_id: input.sprintId,
-      checkpoint_type: sprint.checkpoint_type || 'delivery_review',
+      checkpoint_type: checkpointType,
       evidence_requirements: generatedEvidenceRequirements,
       revision_number: nextRevision,
       summary,
@@ -71,7 +78,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   if (submissionError || !submission) throw submissionError || new Error('Failed to create submission');
 
   const bundleCompletenessStatus = computeProofBundleCompletenessStatus({
-    checkpointType: sprint.checkpoint_type || 'delivery_review',
+    checkpointType,
     evidenceRequirements: generatedEvidenceRequirements,
     items: completedTasks.map(() => ({ kind: 'note' })),
   });

@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, isProofItemKind, resolveMilestoneCheckpointType, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -55,15 +55,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const nextRevision = (priorSubmission.revision_number || 0) + 1;
     const now = new Date().toISOString();
-    const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
+    const checkpointType = resolveMilestoneCheckpointType({
       checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
+      sprintName: sprint.name,
+      phaseKey: sprint.phase_key,
+    }) || sprint.checkpoint_type || priorSubmission.checkpoint_type || "delivery_review";
+    const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
+      checkpointType,
       explicitRequirements: sprint.checkpoint_evidence_requirements || priorSubmission.evidence_requirements,
       sprintName: sprint.name,
       phaseKey: sprint.phase_key,
     });
 
     const proofValidation = validateProofBundleRequirements({
-      checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
+      checkpointType: checkpointType,
       evidenceRequirements: generatedEvidenceRequirements,
       items: proofBundle.items,
     });
@@ -75,7 +80,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .from("milestone_submissions")
       .insert({
         sprint_id: milestoneId,
-        checkpoint_type: sprint.checkpoint_type || priorSubmission.checkpoint_type || "delivery_review",
+        checkpoint_type: checkpointType,
         evidence_requirements: proofValidation.requirements,
         revision_number: nextRevision,
         summary: summary.trim(),
@@ -103,7 +108,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         title: proofBundle.title.trim(),
         summary: typeof proofBundle.summary === "string" ? proofBundle.summary.trim() || null : null,
         completeness_status: computeProofBundleCompletenessStatus({
-          checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
+          checkpointType,
           evidenceRequirements: generatedEvidenceRequirements,
           items: proofBundle.items,
         }),

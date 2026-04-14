@@ -1,3 +1,4 @@
+import { buildAttachmentKickoffFinalizedIntake, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint } from "@/lib/project-attachment-finalize";
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
@@ -26,10 +27,6 @@ type ProjectIntakeLike = {
   goals?: string | null;
   requirements?: ProjectRequirements | null;
 };
-
-function hasAttachmentDerivedRequirements(requirements: ProjectRequirements | null | undefined) {
-  return Boolean(requirements?.sources?.some((source) => source?.type !== "intake" && Array.isArray(source.evidence) && source.evidence.length > 0));
-}
 
 export async function repairMissingPdfAttachmentRequirements(
   db: DbClient,
@@ -159,8 +156,29 @@ export async function reconcileAttachmentBackedProjectCreate(
     throw new Error(sprintCountError.message || "Failed to inspect project sprint state");
   }
 
+  const { data: sprintRows, error: sprintRowsError } = await db
+    .from("sprints")
+    .select("id, name")
+    .eq("project_id", project.id);
+
+  if (sprintRowsError) {
+    throw new Error(sprintRowsError.message || "Failed to inspect project sprint state");
+  }
+
+  const hasAttachmentKickoffShell = (sprintCount ?? 0) > 0 && (sprintRows || []).every((sprint: { name?: string | null }) => isAttachmentKickoffShellSprint(sprint));
+
   let finalized = false;
-  if ((sprintCount ?? 0) === 0 && attachmentRequirementsReady) {
+  if (((sprintCount ?? 0) === 0 || hasAttachmentKickoffShell) && attachmentRequirementsReady) {
+    if (hasAttachmentKickoffShell && sprintRows?.length) {
+      const sprintIds = sprintRows.map((sprint: { id: string }) => sprint.id).filter(Boolean);
+      if (sprintIds.length > 0) {
+        const { error: deleteTasksError } = await db.from("sprint_items").delete().in("sprint_id", sprintIds);
+        if (deleteTasksError) throw new Error(deleteTasksError.message);
+        const { error: deleteSprintsError } = await db.from("sprints").delete().in("id", sprintIds);
+        if (deleteSprintsError) throw new Error(deleteSprintsError.message);
+      }
+    }
+
     await finalizeProjectCreate(db as any, {
       project: {
         ...project,
@@ -168,7 +186,7 @@ export async function reconcileAttachmentBackedProjectCreate(
       },
       name: project.name || "Untitled project",
       type: project.type || "other",
-      intake: effectiveIntake as any,
+      intake: buildAttachmentKickoffFinalizedIntake(effectiveIntake as any) as any,
       links: project.links || null,
       githubRepoBinding: project.github_repo_binding || null,
       teamId: project.team_id || null,

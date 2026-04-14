@@ -1,6 +1,7 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-create-finalize";
+import { ATTACHMENT_INTAKE_SPRINT_NAME, ATTACHMENT_INTAKE_TASK_TITLE, buildAttachmentKickoffWaitingIntake, shouldFinalizeAttachmentProjectNow, shouldSeedAttachmentKickoffShell } from "@/lib/project-attachment-finalize";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -152,9 +153,41 @@ export async function GET(req: NextRequest) {
 function stripCallerProvisioningState(intake?: ProjectIntake) {
   if (!intake) return intake;
 
-  const sanitizedIntake = { ...intake };
+  const sanitizedIntake = { ...intake } as ProjectIntake & { attachmentKickoffState?: unknown };
   delete sanitizedIntake.githubRepoProvisioning;
+  delete sanitizedIntake.attachmentKickoffState;
   return sanitizedIntake;
+}
+
+async function seedAttachmentKickoffShell(db: any, input: { projectId: string }) {
+  const { data: sprint, error: sprintError } = await db
+    .from("sprints")
+    .insert({
+      project_id: input.projectId,
+      name: ATTACHMENT_INTAKE_SPRINT_NAME,
+      goal: "Hold kickoff until attachment-derived requirements are available.",
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (sprintError || !sprint?.id) {
+    throw new Error(sprintError?.message || "Failed to seed attachment intake sprint");
+  }
+
+  const { error: taskError } = await db
+    .from("sprint_items")
+    .insert({
+      sprint_id: sprint.id,
+      project_id: input.projectId,
+      title: ATTACHMENT_INTAKE_TASK_TITLE,
+      status: "blocked",
+      position: 1,
+    });
+
+  if (taskError) {
+    throw new Error(taskError.message || "Failed to seed attachment intake task");
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -408,9 +441,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const dispatchResults = hasAttachments
-      ? []
-      : await finalizeProjectCreate(db, {
+    const shouldFinalizeNow = shouldFinalizeAttachmentProjectNow({
+      hasAttachments: Boolean(hasAttachments),
+      intake: sanitizedIntake || undefined,
+    });
+
+    if (shouldSeedAttachmentKickoffShell({ hasAttachments: Boolean(hasAttachments), intake: sanitizedIntake || undefined })) {
+      const waitingIntake = buildAttachmentKickoffWaitingIntake(sanitizedIntake || null);
+      const { data: waitingProject, error: waitingUpdateError } = await db
+        .from("projects")
+        .update({
+          intake: waitingIntake,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", project.id)
+        .select()
+        .single();
+
+      if (waitingUpdateError) {
+        throw new Error(waitingUpdateError.message || "Failed to persist attachment kickoff waiting state");
+      }
+
+      project = waitingProject ?? { ...project, intake: waitingIntake };
+      await seedAttachmentKickoffShell(db, { projectId: project.id });
+    }
+
+    const dispatchResults = shouldFinalizeNow
+      ? await finalizeProjectCreate(db, {
           project,
           name,
           type,
@@ -418,7 +475,8 @@ export async function POST(req: NextRequest) {
           links: sanitizedLinks,
           githubRepoBinding: project.github_repo_binding || githubBinding || null,
           teamId,
-        });
+        })
+      : [];
 
     return NextResponse.json({
       project: { ...project, intake: project.intake || sanitizedIntake || null, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null },

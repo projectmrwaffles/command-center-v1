@@ -1,4 +1,4 @@
-import { buildAttachmentKickoffFinalizedIntake, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint } from "@/lib/project-attachment-finalize";
 import type { ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
@@ -27,7 +27,58 @@ type ProjectIntakeLike = {
   summary?: string | null;
   goals?: string | null;
   requirements?: ProjectRequirements | null;
+  attachmentKickoffState?: Record<string, unknown> | null;
 };
+
+const ATTACHMENT_RECOVERY_TIMEOUT_MS = 2 * 60 * 1000;
+const ACTIVE_ATTACHMENT_RECOVERY_STATES = new Set([
+  "upload_received",
+  "extracting_attachment_text",
+  "deriving_requirements",
+  "requirements_ready",
+  "seeding_kickoff",
+  "starting_work",
+]);
+
+export function isStaleAttachmentRecoveryState(intake?: ProjectIntakeLike | null, now = Date.now()) {
+  const state = getAttachmentKickoffState(intake as Record<string, unknown> | null | undefined);
+  if (!state?.active || !state?.status || !ACTIVE_ATTACHMENT_RECOVERY_STATES.has(state.status)) {
+    return false;
+  }
+
+  const updatedAt = typeof state.updatedAt === "string" ? Date.parse(state.updatedAt) : NaN;
+  if (!Number.isFinite(updatedAt)) {
+    return true;
+  }
+
+  return (now - updatedAt) >= ATTACHMENT_RECOVERY_TIMEOUT_MS;
+}
+
+async function persistAttachmentRecoveryFailure(
+  db: DbClient,
+  projectId: string,
+  intake: ProjectIntakeLike | Record<string, unknown> | null | undefined,
+  detail: string,
+) {
+  const nextIntake = buildAttachmentKickoffStageState((intake || {}) as Record<string, unknown>, "failed", {
+    error: detail,
+    detail,
+  });
+
+  const { error } = await db
+    .from("projects")
+    .update({
+      intake: nextIntake,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  if (error) {
+    throw new Error(error.message || "Failed to persist recovered attachment failure state");
+  }
+
+  return nextIntake as ProjectIntakeLike;
+}
 
 export async function repairMissingPdfAttachmentRequirements(
   db: DbClient,
@@ -139,10 +190,13 @@ export async function reconcileAttachmentBackedProjectCreate(
   }
 ) {
   const project = input.project;
-  const repaired = await repairMissingPdfAttachmentRequirements(db, {
-    projectId: project.id,
-    intake: project.intake || null,
-  });
+  const shouldAttemptRecovery = isStaleAttachmentRecoveryState(project.intake || null);
+  const repaired = shouldAttemptRecovery
+    ? await repairMissingPdfAttachmentRequirements(db, {
+        projectId: project.id,
+        intake: project.intake || null,
+      })
+    : ({ repaired: false, requirements: getExistingRequirements(project.intake || null), intake: project.intake || null } as const);
 
   const effectiveIntake = repaired.intake || project.intake || null;
   const effectiveRequirements = repaired.requirements || getExistingRequirements(effectiveIntake);
@@ -170,7 +224,7 @@ export async function reconcileAttachmentBackedProjectCreate(
 
   let finalized = false;
   let resolvedIntake = effectiveIntake as ProjectIntakeLike | null;
-  if (((sprintCount ?? 0) === 0 || hasAttachmentKickoffShell) && attachmentRequirementsReady) {
+  if (shouldAttemptRecovery && ((sprintCount ?? 0) === 0 || hasAttachmentKickoffShell) && attachmentRequirementsReady) {
     if (hasAttachmentKickoffShell && sprintRows?.length) {
       const sprintIds = sprintRows.map((sprint: { id: string }) => sprint.id).filter(Boolean);
       if (sprintIds.length > 0) {
@@ -208,6 +262,13 @@ export async function reconcileAttachmentBackedProjectCreate(
       teamId: project.team_id || null,
     });
     finalized = true;
+  } else if (shouldAttemptRecovery && !attachmentRequirementsReady) {
+    resolvedIntake = await persistAttachmentRecoveryFailure(
+      db,
+      project.id,
+      effectiveIntake,
+      "Attachment processing stopped before requirements could be derived. Re-upload the file or retry attachment processing.",
+    );
   }
 
   return {

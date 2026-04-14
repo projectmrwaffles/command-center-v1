@@ -123,6 +123,15 @@ export function buildProjectKickoffPlan(input: {
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: false,
       gateStatus: "not_requested",
+      checkpointType: "design_review",
+      checkpointEvidenceRequirements: {
+        screenshotRequired: true,
+        minScreenshotCount: 1,
+        captureMode: "local_app",
+        captureHint: "Attach at least one current design capture or prototype screenshot before requesting design review.",
+        requiredEvidenceKinds: undefined,
+        requiredEvidenceKindsMode: null,
+      },
       tasks: [
         phaseTask("design", `${input.projectName} core user flow and interface direction`, {
           design_output_type: "wireframes",
@@ -141,6 +150,15 @@ export function buildProjectKickoffPlan(input: {
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: needsPreBuildCheckpoint,
       gateStatus: "not_requested",
+      checkpointType: "delivery_review",
+      checkpointEvidenceRequirements: {
+        screenshotRequired: false,
+        minScreenshotCount: 0,
+        captureMode: null,
+        requiredEvidenceKinds: ["screenshot", "staging_url", "github_pr", "commit", "loom"],
+        requiredEvidenceKindsMode: "any",
+        captureHint: "Attach at least one concrete build artifact, such as a screenshot, preview URL, PR, commit, or Loom walkthrough, before requesting review.",
+      },
       tasks: [
         phaseTask("build_implementation", `${input.projectName} initial delivery slice`, {
           implementation_kind: hasCapability(intake, "backend-data") ? "backend_or_api" : intake?.shape === "website" ? "website_page" : "frontend_feature",
@@ -159,6 +177,15 @@ export function buildProjectKickoffPlan(input: {
       status: phaseTemplates.length === 0 ? "active" : "draft",
       gateRequired: false,
       gateStatus: "not_requested",
+      checkpointType: "launch_approval",
+      checkpointEvidenceRequirements: {
+        screenshotRequired: false,
+        minScreenshotCount: 0,
+        captureMode: null,
+        requiredEvidenceKinds: ["staging_url", "screenshot"],
+        requiredEvidenceKindsMode: "all",
+        captureHint: "Attach the live preview URL plus a supporting screenshot before requesting launch approval.",
+      },
       tasks: [
         phaseTask("content_messaging", `${input.projectName} launch-ready messaging`, {
           content_type: "launch_messaging",

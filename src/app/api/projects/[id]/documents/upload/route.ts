@@ -2,7 +2,7 @@ import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
-import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
 import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -15,6 +15,20 @@ function storageNotConfiguredMessage() {
 }
 
 type ProjectDb = NonNullable<ReturnType<typeof createRouteHandlerClient>>;
+
+async function persistAttachmentKickoffStage(db: ProjectDb, projectId: string, intake: Record<string, unknown> | null | undefined, status: any, extras?: Record<string, unknown>) {
+  const nextIntake = buildAttachmentKickoffStageState(intake, status, extras);
+  const { error } = await db
+    .from("projects")
+    .update({
+      intake: nextIntake,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  if (error) throw new Error(error.message || `Failed to persist attachment stage ${status}`);
+  return nextIntake;
+}
 
 async function projectExists(db: ProjectDb, projectId: string) {
   const { data, error } = await db.from("projects").select("id").eq("id", projectId).single();
@@ -89,6 +103,10 @@ export async function POST(
       }>;
       const extractedDocuments: Array<{ title: string; type: string; text?: string | null }> = [];
 
+      const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
+      let currentIntake = (project?.intake || {}) as Record<string, unknown>;
+      currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "upload_received", { fileCount: files.length });
+
       for (const file of files) {
         const objectName = buildObjectName(projectId, file.name || "upload.bin");
         const arrayBuffer = await file.arrayBuffer();
@@ -114,6 +132,7 @@ export async function POST(
           mime_type: file.type || null,
           size_bytes: file.size,
         });
+        currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "extracting_attachment_text", { fileCount: files.length, currentFileName: file.name || "Untitled upload" });
         extractedDocuments.push(await extractRequirementsFromUploadedFile({
           buffer,
           mimeType: file.type || null,
@@ -128,8 +147,7 @@ export async function POST(
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
-      const currentIntake = (project?.intake || {}) as Record<string, unknown>;
+      currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "deriving_requirements", { fileCount: files.length });
       const nextRequirements = deriveProjectRequirements({
         intakeSummary: typeof currentIntake.summary === "string" ? currentIntake.summary : null,
         intakeGoals: typeof currentIntake.goals === "string" ? currentIntake.goals : null,
@@ -191,6 +209,10 @@ export async function POST(
         hasAttachmentKickoffShell,
       });
 
+      if (attachmentRequirementsReady) {
+        currentIntake = await persistAttachmentKickoffStage(db, projectId, effectiveIntake as Record<string, unknown>, "requirements_ready", { fileCount: files.length });
+      }
+
       const effectiveProjectForFinalize = {
         ...updatedProject,
         intake: attachmentRequirementsReady ? buildAttachmentKickoffReadyIntake(effectiveIntake) : effectiveIntake,
@@ -206,6 +228,10 @@ export async function POST(
         }
       }
 
+      if (shouldFinalize) {
+        currentIntake = await persistAttachmentKickoffStage(db, projectId, effectiveProjectForFinalize.intake as Record<string, unknown>, "seeding_kickoff", { fileCount: files.length });
+      }
+
       const dispatchResults = shouldFinalize
         ? await finalizeProjectCreate(db, {
             project: effectiveProjectForFinalize,
@@ -218,8 +244,12 @@ export async function POST(
           })
         : [];
 
+      const kickoffStartingIntake = shouldFinalize
+        ? buildAttachmentKickoffStageState(effectiveProjectForFinalize.intake, "starting_work", { fileCount: files.length })
+        : effectiveProjectForFinalize.intake;
+
       const persistedIntake = shouldFinalize
-        ? buildAttachmentKickoffFinalizedIntake(effectiveProjectForFinalize.intake)
+        ? buildAttachmentKickoffFinalizedIntake(kickoffStartingIntake)
         : attachmentRequirementsReady
           ? buildAttachmentKickoffReadyIntake(effectiveProjectForFinalize.intake)
           : effectiveProjectForFinalize.intake;
@@ -256,8 +286,17 @@ export async function POST(
           : effectiveSprintCount > 0
             ? "already_initialized"
             : "waiting_for_attachment_requirements",
+        attachmentKickoffState: getAttachmentKickoffState(persistedIntake),
       }, { status: 201 });
     } catch (error) {
+      try {
+        const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
+        await persistAttachmentKickoffStage(db, projectId, (project?.intake || {}) as Record<string, unknown>, "failed", {
+          error: error instanceof Error ? error.message : "Attachment processing failed",
+          detail: error instanceof Error ? error.message : "Attachment processing failed",
+          fileCount: files.length,
+        });
+      } catch {}
       if (uploadedPaths.length > 0) {
         await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);
       }

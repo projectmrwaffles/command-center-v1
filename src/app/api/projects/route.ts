@@ -184,7 +184,7 @@ async function seedAttachmentKickoffShell(db: any, input: { projectId: string })
     .insert({
       project_id: input.projectId,
       name: ATTACHMENT_INTAKE_SPRINT_NAME,
-      goal: "Hold kickoff until attachment-derived requirements are available.",
+      goal: "Process uploaded materials before kickoff is seeded.",
       status: "active",
     })
     .select("id")
@@ -200,7 +200,7 @@ async function seedAttachmentKickoffShell(db: any, input: { projectId: string })
       sprint_id: sprint.id,
       project_id: input.projectId,
       title: ATTACHMENT_INTAKE_TASK_TITLE,
-      status: "blocked",
+      status: "in_progress",
       position: 1,
     });
 

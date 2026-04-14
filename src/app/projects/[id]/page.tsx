@@ -772,6 +772,20 @@ export default function ProjectDetailPage() {
     }
   }, [createdFromIntakeQuery, projectId]);
 
+  const attachmentProcessingState = useMemo(() => {
+    const state = data?.project?.intake?.attachmentKickoffState;
+    return state && typeof state === "object" ? state as {
+      status?: string;
+      label?: string;
+      detail?: string;
+      progressPct?: number;
+      active?: boolean;
+      updatedAt?: string;
+      fileCount?: number;
+      error?: string;
+    } : null;
+  }, [data]);
+
   const attachmentRequirementSources = useMemo(() => {
     const rawSources = data?.project?.intake?.requirements?.sources;
     if (!Array.isArray(rawSources)) return [];
@@ -783,15 +797,27 @@ export default function ProjectDetailPage() {
 
     const needsDocumentRetry = documents.length === 0;
     const needsRequirementRetry = attachmentRequirementSources.length === 0;
-    if (!needsDocumentRetry && !needsRequirementRetry) return;
+    const isAttachmentActive = Boolean(attachmentProcessingState?.active);
+    if (!needsDocumentRetry && !needsRequirementRetry && !isAttachmentActive) return;
 
     const retryTimers = [400, 1200, 2500].map((delay) => window.setTimeout(() => {
-      if (needsDocumentRetry) void fetchDocuments();
-      if (needsRequirementRetry) void fetchProject();
+      if (needsDocumentRetry || isAttachmentActive) void fetchDocuments();
+      if (needsRequirementRetry || isAttachmentActive) void fetchProject();
     }, delay));
 
-    return () => retryTimers.forEach((timer) => window.clearTimeout(timer));
-  }, [attachmentRequirementSources.length, createdFromIntake, documents.length, fetchDocuments, fetchProject, projectId]);
+    let pollTimer: number | null = null;
+    if (isAttachmentActive) {
+      pollTimer = window.setInterval(() => {
+        void fetchProject(false);
+        void fetchDocuments();
+      }, 2500);
+    }
+
+    return () => {
+      retryTimers.forEach((timer) => window.clearTimeout(timer));
+      if (pollTimer) window.clearInterval(pollTimer);
+    };
+  }, [attachmentProcessingState?.active, attachmentRequirementSources.length, createdFromIntake, documents.length, fetchDocuments, fetchProject, projectId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1219,6 +1245,11 @@ export default function ProjectDetailPage() {
   const queuedPhaseHoldSummary = queuedPhaseHoldReasons.length
     ? `${queuedPhaseHoldReasons.map((reason) => reason.taskTitle).join(" and ")} unlock after earlier phase work finishes.`
     : null;
+  const attachmentProcessingTone = attachmentProcessingState?.status === "failed"
+    ? "border-red-200 bg-red-50 text-red-900"
+    : attachmentProcessingState?.active
+      ? "border-sky-200 bg-sky-50 text-sky-900"
+      : "border-emerald-200 bg-emerald-50 text-emerald-900";
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden pb-10 md:space-y-8">
@@ -1274,6 +1305,22 @@ export default function ProjectDetailPage() {
                 </div>
               ) : null}
               <div className="flex flex-col gap-3">
+                {attachmentProcessingState ? (
+                  <div className={cn("rounded-2xl border px-3 py-3", attachmentProcessingTone)}>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
+                      <span>{attachmentProcessingState.label || "Attachment processing"}</span>
+                      {typeof attachmentProcessingState.progressPct === "number" ? <span>{attachmentProcessingState.progressPct}%</span> : null}
+                      {attachmentProcessingState.fileCount ? <span>· {attachmentProcessingState.fileCount} file{attachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
+                    </div>
+                    <p className="mt-1 text-sm leading-6">{attachmentProcessingState.error || attachmentProcessingState.detail || "Attached materials are still being processed."}</p>
+                    {attachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(attachmentProcessingState.updatedAt)}</p> : null}
+                    {attachmentProcessingState.active && typeof attachmentProcessingState.progressPct === "number" ? (
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/70">
+                        <div className="h-full rounded-full bg-sky-500 transition-all duration-500" style={{ width: `${Math.max(8, attachmentProcessingState.progressPct)}%` }} />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
                   <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
                     {progress}% complete</span>
@@ -1827,7 +1874,7 @@ export default function ProjectDetailPage() {
                   </div>
                 ) : createdFromIntake ? (
                   <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                    Attached files are loading into project requirements now. This page will refresh the extracted evidence automatically.
+                    Attached files are being processed into project requirements now. This page will keep refreshing while extraction and kickoff are running.
                   </div>
                 ) : null}
 

@@ -191,6 +191,36 @@ export function getCheckpointEvidenceRequirements(checkpointType?: StageCheckpoi
   };
 }
 
+export function deriveMilestoneEvidenceRequirements(input: {
+  checkpointType?: StageCheckpointType | string | null;
+  explicitRequirements?: unknown;
+  sprintName?: string | null;
+  phaseKey?: string | null;
+  taskTypes?: Array<string | null | undefined> | null;
+}) {
+  const base = getCheckpointEvidenceRequirements(input.checkpointType, input.explicitRequirements);
+  const phaseKey = String(input.phaseKey || "").toLowerCase();
+  const sprintName = String(input.sprintName || "").toLowerCase();
+  const taskTypes = (input.taskTypes || []).map((value) => String(value || "").toLowerCase());
+  const isValidationMilestone = phaseKey === "validate"
+    || /\bvalidate\b|\bqa\b|\bacceptance\b/.test(sprintName)
+    || taskTypes.includes("qa_validation");
+
+  if (!isValidationMilestone) return base;
+
+  const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
+  requiredEvidenceKinds.add("screenshot");
+  requiredEvidenceKinds.add("staging_url");
+  requiredEvidenceKinds.add("loom");
+
+  return {
+    ...base,
+    requiredEvidenceKinds: Array.from(requiredEvidenceKinds),
+    requiredEvidenceKindsMode: "any" as const,
+    captureHint: base.captureHint || "Attach validation evidence for this milestone, such as a screenshot, staging URL, or Loom walkthrough, before requesting review.",
+  } satisfies CheckpointEvidenceRequirements;
+}
+
 export function countProofItemsByKind(items: Array<{ kind?: string | null }> | null | undefined, kind: ProofItemKind) {
   return (items || []).filter((item) => item?.kind === kind).length;
 }
@@ -221,7 +251,10 @@ export function validateProofBundleRequirements(input: {
   evidenceRequirements?: unknown;
   items: Array<{ kind?: string | null }>;
 }) {
-  const requirements = getCheckpointEvidenceRequirements(input.checkpointType, input.evidenceRequirements);
+  const requirements = deriveMilestoneEvidenceRequirements({
+    checkpointType: input.checkpointType,
+    explicitRequirements: input.evidenceRequirements,
+  });
   const screenshotCount = countProofItemsByKind(input.items, "screenshot");
   const deliverableEvidenceCount = countDeliverableEvidenceItems(input.items);
   if (input.checkpointType === "delivery_review" && deliverableEvidenceCount < 1) {

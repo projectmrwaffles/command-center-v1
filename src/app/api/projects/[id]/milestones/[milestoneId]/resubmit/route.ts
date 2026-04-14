@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload, computeProofBundleCompletenessStatus, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         .eq("id", priorSubmissionId)
         .eq("sprint_id", milestoneId)
         .single(),
-      db.from("sprints").select("id, project_id, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
+      db.from("sprints").select("id, project_id, name, phase_key, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
     ]);
 
     if (priorError || !priorSubmission) return NextResponse.json({ error: "Prior submission not found" }, { status: 404 });
@@ -55,10 +55,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const nextRevision = (priorSubmission.revision_number || 0) + 1;
     const now = new Date().toISOString();
+    const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
+      checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
+      explicitRequirements: sprint.checkpoint_evidence_requirements || priorSubmission.evidence_requirements,
+      sprintName: sprint.name,
+      phaseKey: sprint.phase_key,
+    });
 
     const proofValidation = validateProofBundleRequirements({
       checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
-      evidenceRequirements: sprint.checkpoint_evidence_requirements || priorSubmission.evidence_requirements,
+      evidenceRequirements: generatedEvidenceRequirements,
       items: proofBundle.items,
     });
     if (!proofValidation.ok) {
@@ -98,7 +104,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         summary: typeof proofBundle.summary === "string" ? proofBundle.summary.trim() || null : null,
         completeness_status: computeProofBundleCompletenessStatus({
           checkpointType: sprint.checkpoint_type || priorSubmission.checkpoint_type,
-          evidenceRequirements: sprint.checkpoint_evidence_requirements || priorSubmission.evidence_requirements,
+          evidenceRequirements: generatedEvidenceRequirements,
           items: proofBundle.items,
         }),
       })

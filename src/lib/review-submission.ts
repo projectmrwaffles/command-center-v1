@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildReviewEventPayload, computeProofBundleCompletenessStatus, getCheckpointEvidenceRequirements } from './milestone-review.ts';
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements } from './milestone-review.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
 
@@ -7,6 +7,7 @@ type TaskLike = {
   id: string;
   title: string;
   status: string;
+  task_type?: string | null;
   updated_at?: string | null;
 };
 
@@ -18,7 +19,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 }) {
   const [{ data: activeSubmission, error: activeSubmissionError }, { data: sprint, error: sprintError }] = await Promise.all([
     db.from('milestone_submissions').select('id, status').eq('sprint_id', input.sprintId).in('status', ['submitted', 'under_review']).maybeSingle(),
-    db.from('sprints').select('id, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
+    db.from('sprints').select('id, name, phase_key, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
   ]);
 
   if (activeSubmissionError) throw activeSubmissionError;
@@ -44,12 +45,20 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     ? 'Review the visual/design output, compare against the requested scope, and request changes if the delivered experience is not acceptable.'
     : 'Review the submitted output and request changes if the delivered work does not meet the expected outcome.';
 
+  const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
+    checkpointType: sprint.checkpoint_type || 'delivery_review',
+    explicitRequirements: sprint.checkpoint_evidence_requirements,
+    sprintName: sprint.name || input.sprintName || null,
+    phaseKey: sprint.phase_key || null,
+    taskTypes: input.tasks.map((task) => task.task_type),
+  });
+
   const { data: submission, error: submissionError } = await db
     .from('milestone_submissions')
     .insert({
       sprint_id: input.sprintId,
       checkpoint_type: sprint.checkpoint_type || 'delivery_review',
-      evidence_requirements: getCheckpointEvidenceRequirements(sprint.checkpoint_type, sprint.checkpoint_evidence_requirements),
+      evidence_requirements: generatedEvidenceRequirements,
       revision_number: nextRevision,
       summary,
       what_changed: whatChanged,
@@ -63,7 +72,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
   const bundleCompletenessStatus = computeProofBundleCompletenessStatus({
     checkpointType: sprint.checkpoint_type || 'delivery_review',
-    evidenceRequirements: sprint.checkpoint_evidence_requirements,
+    evidenceRequirements: generatedEvidenceRequirements,
     items: completedTasks.map(() => ({ kind: 'note' })),
   });
 

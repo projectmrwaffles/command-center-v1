@@ -181,6 +181,7 @@ function createSeed() {
   assert.equal(db.tables.proof_bundles.length, 1, "completion path should materialize a proof bundle");
   assert.equal(db.tables.proof_items.length, 1, "completion path should materialize proof items from done tasks");
   assert.equal(db.tables.proof_bundles[0]?.completeness_status, "incomplete", "note-only auto packets must stay incomplete until real deliverable evidence is attached");
+  assert.deepEqual(db.tables.milestone_submissions[0]?.evidence_requirements?.requiredEvidenceKinds, ["screenshot", "staging_url", "loom"], "validate milestone should generate milestone-shaped validation evidence requirements");
   assert.equal(db.tables.sprints[0].approval_gate_status, "pending", "checkpoint gate should move into pending review");
   assert.equal(db.tables.sprints[0].status, "active", "gated sprint should stay active until review decision");
 

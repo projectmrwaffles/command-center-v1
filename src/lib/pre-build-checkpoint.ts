@@ -79,7 +79,7 @@ export function derivePreBuildCheckpointState(project: ProjectLikeWithRequiremen
   const inspectableRequirements = (requirements?.technologyRequirements || []).filter((requirement) => INSPECTABLE_KINDS.has(requirement.kind));
   const unsupportedRequirements = (requirements?.technologyRequirements || []).filter((requirement) => !INSPECTABLE_KINDS.has(requirement.kind));
   const notes = compliance.notes || [];
-  const repoNotInspectable = !compliance.repoWorkspacePath || notes.some((note) => /package\.json not found|No repo workspace path found\./i.test(note));
+  const repoNotInspectable = notes.some((note) => /package\.json not found|No repo workspace path found\.|No GitHub repo URL found for remote inspection\.|Remote repo inspection unavailable:/i.test(note));
 
   let outcome: PreBuildCheckpointOutcome = "match";
   const reasons: string[] = [];

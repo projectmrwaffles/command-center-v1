@@ -270,8 +270,10 @@ function checkpointSummaryCopy(input: {
   switch (input.checkpointState.key) {
     case "awaiting_submission":
       return "No review packet has been submitted yet.";
-    case "awaiting_materials":
-      return "A submission exists, but the review materials are not complete yet.";
+    case "setup_required":
+      return "This checkpoint is blocked on repo setup, so review cannot start yet.";
+    case "awaiting_evidence":
+      return "A submission exists, but the review evidence is not complete yet.";
     case "changes_requested":
       return "This checkpoint is waiting on updates before it can be approved.";
     case "approved":
@@ -1013,8 +1015,7 @@ export default function ProjectDetailPage() {
 
   const handleCheckpointApprove = async (milestone: Milestone) => {
     const submissionId = milestone.reviewSummary?.latestSubmissionId || null;
-    const isManualPrebuildApproval = milestone.approvalGateStatus === "pending" && !submissionId && Boolean(milestone.preBuildCheckpoint);
-    if (!submissionId && !isManualPrebuildApproval) return;
+    if (!submissionId) return;
     setCheckpointActionLoading(`${milestone.id}:approve`);
     try {
       const note = checkpointDrafts[milestone.id]?.note?.trim() || null;
@@ -1554,16 +1555,18 @@ export default function ProjectDetailPage() {
                     const checkpointState = deriveReviewCheckpointState({
                       approvalGateStatus: milestone.approvalGateStatus,
                       reviewSummary: summary,
+                      preBuildCheckpoint: milestone.preBuildCheckpoint,
                     });
                     const evidenceRequirements = getCheckpointEvidenceRequirements(summary?.checkpointType || milestone.checkpointType, summary?.evidenceRequirements || milestone.checkpointEvidenceRequirements);
-                    const isManualPrebuildApproval = milestone.approvalGateStatus === "pending" && !summary?.latestSubmissionId && Boolean(milestone.preBuildCheckpoint);
-                    const canApprove = isManualPrebuildApproval || (checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready");
+                    const canApprove = checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready";
                     const approvalBlockedReason = !canApprove
                       ? checkpointState.key === "awaiting_submission"
                         ? "Approval is not available yet because this checkpoint does not have a review packet attached."
-                        : checkpointState.key === "awaiting_materials"
-                          ? "Approval is not available yet because the review materials are still incomplete."
-                          : null
+                        : checkpointState.key === "setup_required"
+                          ? "Approval is not available yet because this checkpoint is blocked on repo setup and cannot produce a review packet yet."
+                          : checkpointState.key === "awaiting_evidence"
+                            ? "Approval is not available yet because the review evidence is still incomplete."
+                            : null
                       : null;
                     return (
                       <div key={milestone.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">

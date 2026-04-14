@@ -105,6 +105,15 @@ export function buildProjectKickoffPlan(input: {
       status: "active",
       gateRequired: false,
       gateStatus: "not_requested",
+      checkpointType: "scope_approval",
+      checkpointEvidenceRequirements: {
+        screenshotRequired: false,
+        minScreenshotCount: 0,
+        captureMode: null,
+        requiredEvidenceKinds: ["doc", "checklist", "loom"],
+        requiredEvidenceKindsMode: "any",
+        captureHint: "Attach the actual scope artifact, such as a planning doc, checklist, or Loom walkthrough, before requesting scope approval.",
+      },
       tasks: [
         phaseTask("discovery_plan", `${input.projectName} scope, plan, and next-step recommendation`, {
           planning_mode: "define_scope",

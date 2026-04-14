@@ -159,6 +159,14 @@ export function getCheckpointEvidenceRequirements(checkpointType?: StageCheckpoi
         captureMode: "local_app",
         captureHint: "Attach at least one current screenshot from the local app capture flow before review.",
       }
+    : checkpointType === "scope_approval"
+      ? {
+          screenshotRequired: false,
+          minScreenshotCount: 0,
+          requiredEvidenceKinds: ["doc", "checklist", "loom"],
+          requiredEvidenceKindsMode: "any",
+          captureHint: "Attach the actual scope artifact, such as a planning doc, checklist, or Loom walkthrough, before requesting scope approval.",
+        }
     : checkpointType === "acceptance_review"
       ? {
           screenshotRequired: false,
@@ -227,6 +235,23 @@ export function deriveMilestoneEvidenceRequirements(input: {
   const isValidationMilestone = phaseKey === "validate"
     || /\bvalidate\b|\bqa\b|\bacceptance\b/.test(sprintName)
     || taskTypes.includes("qa_validation");
+  const isDiscoveryMilestone = phaseKey === "discover"
+    || /\bdiscover\b|\bscope\b|\bplan\b|\bbrief\b/.test(sprintName)
+    || taskTypes.includes("discovery_plan");
+
+  if (isDiscoveryMilestone && input.checkpointType == null) {
+    const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
+    requiredEvidenceKinds.add("doc");
+    requiredEvidenceKinds.add("checklist");
+    requiredEvidenceKinds.add("loom");
+
+    return {
+      ...base,
+      requiredEvidenceKinds: Array.from(requiredEvidenceKinds),
+      requiredEvidenceKindsMode: "any" as const,
+      captureHint: base.captureHint || "Attach the actual scope artifact, such as a planning doc, checklist, or Loom walkthrough, before requesting scope approval.",
+    } satisfies CheckpointEvidenceRequirements;
+  }
 
   if (!isValidationMilestone) return base;
 

@@ -1,6 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { buildReviewEventPayload, computeProofBundleCompletenessStatus, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, isProofItemKind, validateProofBundleRequirements } from "@/lib/milestone-review";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
     const [{ data: sprint, error: sprintError }, { data: activeSubmission, error: activeSubmissionError }] = await Promise.all([
-      db.from("sprints").select("id, project_id, name, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
+      db.from("sprints").select("id, project_id, name, phase_key, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
       db.from("milestone_submissions").select("id, status").eq("sprint_id", milestoneId).in("status", ["submitted", "under_review"]).maybeSingle(),
     ]);
 
@@ -58,10 +58,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .maybeSingle();
 
     const nextRevision = (lastSubmission?.revision_number || 0) + 1;
+    const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
+      checkpointType: sprint.checkpoint_type,
+      explicitRequirements: sprint.checkpoint_evidence_requirements,
+      sprintName: sprint.name,
+      phaseKey: sprint.phase_key,
+    });
 
     const proofValidation = validateProofBundleRequirements({
       checkpointType: sprint.checkpoint_type,
-      evidenceRequirements: sprint.checkpoint_evidence_requirements,
+      evidenceRequirements: generatedEvidenceRequirements,
       items: proofBundle.items,
     });
     if (!proofValidation.ok) {
@@ -89,7 +95,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const completenessStatus = computeProofBundleCompletenessStatus({
       checkpointType: sprint.checkpoint_type,
-      evidenceRequirements: sprint.checkpoint_evidence_requirements,
+      evidenceRequirements: generatedEvidenceRequirements,
       items: proofBundle.items,
     });
     const { data: bundle, error: bundleError } = await db

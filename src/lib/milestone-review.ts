@@ -231,10 +231,14 @@ export function resolveMilestoneCheckpointType(input: {
   const phaseKey = String(input.phaseKey || "").toLowerCase();
   const sprintName = String(input.sprintName || "").toLowerCase();
   const taskTypes = (input.taskTypes || []).map((value) => String(value || "").toLowerCase());
+  const isDiscoveryMilestone = phaseKey === "discover"
+    || /\bdiscover\b|\bscope\b|\bplan\b|\bbrief\b/.test(sprintName)
+    || taskTypes.includes("discovery_plan");
   const isContentMilestone = phaseKey === "message"
     || /\bmessage\b|\bmessaging\b|\bcontent\b|\bcopy\b/.test(sprintName)
     || taskTypes.includes("content_messaging");
 
+  if (isDiscoveryMilestone) return "scope_approval" satisfies StageCheckpointType;
   if (isContentMilestone) return "content_review" satisfies StageCheckpointType;
   return null;
 }
@@ -262,7 +266,7 @@ export function deriveMilestoneEvidenceRequirements(input: {
     || /\bmessage\b|\bmessaging\b|\bcontent\b|\bcopy\b/.test(sprintName)
     || taskTypes.includes("content_messaging");
 
-  if (isDiscoveryMilestone && resolvedCheckpointType == null) {
+  if (isDiscoveryMilestone && resolvedCheckpointType === "scope_approval") {
     const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
     requiredEvidenceKinds.add("doc");
     requiredEvidenceKinds.add("checklist");

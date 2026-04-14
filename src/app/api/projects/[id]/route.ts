@@ -6,6 +6,7 @@ import { sanitizeProjectLinks } from "@/lib/project-links";
 import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
 import { filterObsoleteAttachmentKickoffShellState } from "@/lib/project-attachment-finalize";
+import { deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from "@/lib/milestone-review";
 import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
@@ -308,6 +309,20 @@ export async function GET(
           .map((task: any) => completionEventsByTaskId.get(task.id))
           .filter(Boolean),
       });
+      const sprintTaskTypes = sprintTasks.map((task: any) => task.task_type);
+      const resolvedCheckpointType = resolveMilestoneCheckpointType({
+        checkpointType: sprint.checkpoint_type,
+        sprintName: sprint.name,
+        phaseKey: sprint.phase_key,
+        taskTypes: sprintTaskTypes,
+      }) || sprint.checkpoint_type || "delivery_review";
+      const resolvedCheckpointEvidenceRequirements = deriveMilestoneEvidenceRequirements({
+        checkpointType: resolvedCheckpointType,
+        explicitRequirements: sprint.checkpoint_evidence_requirements,
+        sprintName: sprint.name,
+        phaseKey: sprint.phase_key,
+        taskTypes: sprintTaskTypes,
+      });
       return {
         id: sprint.id,
         name: sprint.name,
@@ -319,8 +334,8 @@ export async function GET(
         category: sprintTruth.category,
         approvalGateRequired: sprint.approval_gate_required ?? false,
         approvalGateStatus: sprint.approval_gate_status ?? "not_requested",
-        checkpointType: sprint.checkpoint_type ?? "delivery_review",
-        checkpointEvidenceRequirements: sprint.checkpoint_evidence_requirements ?? null,
+        checkpointType: resolvedCheckpointType,
+        checkpointEvidenceRequirements: resolvedCheckpointEvidenceRequirements,
         totalTasks: sprintTruth.totalTasks,
         doneTasks: sprintTruth.doneTasks,
         queuedTasks: sprintTruth.queuedTasks,
@@ -343,8 +358,8 @@ export async function GET(
               latestSubmissionId: latestSubmission.id,
               latestSubmissionStatus: latestSubmission.status ?? null,
               latestRevisionNumber: latestSubmission.revision_number ?? null,
-              checkpointType: latestSubmission.checkpoint_type ?? sprint.checkpoint_type ?? "delivery_review",
-              evidenceRequirements: latestSubmission.evidence_requirements ?? sprint.checkpoint_evidence_requirements ?? null,
+              checkpointType: latestSubmission.checkpoint_type ?? resolvedCheckpointType,
+              evidenceRequirements: latestSubmission.evidence_requirements ?? resolvedCheckpointEvidenceRequirements,
               latestSubmissionSummary: latestSubmission.summary ?? null,
               latestDecision: latestSubmission.decision ?? null,
               latestDecisionNotes: latestSubmission.decision_notes ?? null,

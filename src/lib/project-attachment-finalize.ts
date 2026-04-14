@@ -1,9 +1,6 @@
 import type { ProjectIntake } from "@/lib/project-intake";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
 
-export const ATTACHMENT_INTAKE_SPRINT_NAME = "Attachment intake";
-export const ATTACHMENT_INTAKE_TASK_TITLE = "Process attached materials";
-
 export type AttachmentKickoffStage =
   | "waiting_for_attachment_requirements"
   | "upload_received"
@@ -81,7 +78,7 @@ export function getAttachmentKickoffState(intake?: ProjectIntake | Record<string
   if (!state || typeof state !== "object") return null;
   return state as {
     status?: AttachmentKickoffStage | string;
-    shellSeededAt?: string;
+    initializedAt?: string;
     finalizedAt?: string;
     updatedAt?: string;
     detail?: string;
@@ -119,11 +116,11 @@ export function buildAttachmentKickoffStageState<T extends Record<string, unknow
 
 export function buildAttachmentKickoffWaitingIntake<T extends Record<string, unknown> | null | undefined>(intake?: T) {
   return buildAttachmentKickoffStageState(intake, "waiting_for_attachment_requirements", {
-    shellSeededAt: new Date().toISOString(),
+    initializedAt: new Date().toISOString(),
   }) as (T extends null | undefined ? Record<string, unknown> : NonNullable<T>) & {
     attachmentKickoffState: {
       status: string;
-      shellSeededAt: string;
+      initializedAt: string;
     };
   };
 }
@@ -132,7 +129,7 @@ export function buildAttachmentKickoffReadyIntake<T extends Record<string, unkno
   return buildAttachmentKickoffStageState(intake, "requirements_ready") as (T extends null | undefined ? Record<string, unknown> : NonNullable<T>) & {
     attachmentKickoffState: {
       status: string;
-      shellSeededAt?: string;
+      initializedAt?: string;
       finalizedAt?: string;
     };
   };
@@ -144,13 +141,13 @@ export function buildAttachmentKickoffFinalizedIntake<T extends Record<string, u
   }) as (T extends null | undefined ? Record<string, unknown> : NonNullable<T>) & {
     attachmentKickoffState: {
       status: string;
-      shellSeededAt?: string;
+      initializedAt?: string;
       finalizedAt: string;
     };
   };
 }
 
-export function shouldSeedAttachmentKickoffShell(input: {
+export function shouldInitializeAttachmentWorkflow(input: {
   hasAttachments: boolean;
   intake?: ProjectIntake | null;
 }) {
@@ -164,11 +161,18 @@ export function shouldFinalizeAttachmentProjectNow(input: {
   return !input.hasAttachments || hasAttachmentDerivedRequirements(input.intake?.requirements);
 }
 
-export function isAttachmentKickoffShellSprint(sprint: { name?: string | null } | null | undefined) {
-  return (sprint?.name || "").trim().toLowerCase() === ATTACHMENT_INTAKE_SPRINT_NAME.toLowerCase();
+export function shouldFinalizeProjectAfterAttachmentUpload(input: {
+  sprintCount: number;
+  attachmentRequirementsReady: boolean;
+}) {
+  return input.attachmentRequirementsReady && input.sprintCount === 0;
 }
 
-export function filterObsoleteAttachmentKickoffShellState<
+export function isLegacyAttachmentShellSprint(sprint: { name?: string | null } | null | undefined) {
+  return (sprint?.name || "").trim().toLowerCase() === "attachment intake";
+}
+
+export function filterLegacyAttachmentShellState<
   TSprint extends { id?: string | null; name?: string | null },
   TTask extends { sprint_id?: string | null },
 >(input: {
@@ -179,27 +183,23 @@ export function filterObsoleteAttachmentKickoffShellState<
   const tasks = Array.isArray(input.tasks) ? input.tasks : [];
   const shellSprintIds = new Set(
     sprints
-      .filter((sprint) => isAttachmentKickoffShellSprint(sprint))
+      .filter((sprint) => isLegacyAttachmentShellSprint(sprint))
       .map((sprint) => sprint.id)
       .filter((id): id is string => Boolean(id))
   );
 
-  const hasRealSprint = sprints.some((sprint) => !isAttachmentKickoffShellSprint(sprint));
+  const hasRealSprint = sprints.some((sprint) => !isLegacyAttachmentShellSprint(sprint));
   if (!hasRealSprint || shellSprintIds.size === 0) {
     return { sprints, tasks, filtered: false } as const;
   }
 
   return {
-    sprints: sprints.filter((sprint) => !isAttachmentKickoffShellSprint(sprint)),
+    sprints: sprints.filter((sprint) => !isLegacyAttachmentShellSprint(sprint)),
     tasks: tasks.filter((task) => !task.sprint_id || !shellSprintIds.has(task.sprint_id)),
     filtered: true,
   } as const;
 }
 
-export function shouldFinalizeProjectAfterAttachmentUpload(input: {
-  sprintCount: number;
-  attachmentRequirementsReady: boolean;
-  hasAttachmentKickoffShell?: boolean;
-}) {
-  return input.attachmentRequirementsReady && (input.sprintCount === 0 || Boolean(input.hasAttachmentKickoffShell));
+export function hasOnlyLegacyAttachmentShellSprints(sprints?: Array<{ name?: string | null }> | null) {
+  return Boolean(sprints?.length) && (sprints || []).every((sprint) => isLegacyAttachmentShellSprint(sprint));
 }

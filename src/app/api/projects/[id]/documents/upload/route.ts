@@ -2,7 +2,7 @@ import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
-import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, isAttachmentKickoffShellSprint, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
 import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -201,13 +201,12 @@ export async function POST(
       }
 
       const effectiveSprintCount = sprintCount ?? 0;
-      const hasAttachmentKickoffShell = effectiveSprintCount > 0 && (sprintRows || []).every((sprint: { name?: string | null }) => isAttachmentKickoffShellSprint(sprint));
+      const hasLegacyAttachmentShell = hasOnlyLegacyAttachmentShellSprints(sprintRows || []);
 
       const shouldFinalize = shouldFinalizeProjectAfterAttachmentUpload({
         sprintCount: effectiveSprintCount,
         attachmentRequirementsReady,
-        hasAttachmentKickoffShell,
-      });
+      }) || (attachmentRequirementsReady && hasLegacyAttachmentShell);
 
       if (attachmentRequirementsReady) {
         currentIntake = await persistAttachmentKickoffStage(db, projectId, effectiveIntake as Record<string, unknown>, "requirements_ready", { fileCount: files.length });
@@ -218,7 +217,7 @@ export async function POST(
         intake: attachmentRequirementsReady ? buildAttachmentKickoffReadyIntake(effectiveIntake) : effectiveIntake,
       };
 
-      if (shouldFinalize && hasAttachmentKickoffShell && sprintRows?.length) {
+      if (shouldFinalize && hasLegacyAttachmentShell && sprintRows?.length) {
         const sprintIds = sprintRows.map((sprint: { id: string }) => sprint.id).filter(Boolean);
         if (sprintIds.length > 0) {
           const { error: deleteTasksError } = await db.from("sprint_items").delete().in("sprint_id", sprintIds);
@@ -284,7 +283,9 @@ export async function POST(
         kickoffStatus: shouldFinalize
           ? "finalized"
           : effectiveSprintCount > 0
-            ? "already_initialized"
+            ? hasLegacyAttachmentShell
+              ? "already_initialized"
+              : "workflow_waiting_for_attachments"
             : "waiting_for_attachment_requirements",
         attachmentKickoffState: getAttachmentKickoffState(persistedIntake),
       }, { status: 201 });

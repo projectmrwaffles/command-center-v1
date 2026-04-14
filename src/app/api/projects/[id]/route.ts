@@ -5,7 +5,7 @@ import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
-import { filterObsoleteAttachmentKickoffShellState } from "@/lib/project-attachment-finalize";
+import { filterLegacyAttachmentShellState } from "@/lib/project-attachment-finalize";
 import { deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from "@/lib/milestone-review";
 import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
@@ -184,7 +184,7 @@ export async function GET(
         .limit(100),
     ]);
     const events = eventsResult?.data || [];
-    const visibleProjectState = filterObsoleteAttachmentKickoffShellState({
+    const visibleProjectState = filterLegacyAttachmentShellState({
       sprints: sprints || [],
       tasks: tasks || [],
     });

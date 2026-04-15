@@ -161,9 +161,45 @@ function configurePdfParseWorker(PDFParse: { setWorker?: (workerSrc?: string) =>
   PDFParse.setWorker(pathToFileURL(workerPath).href);
 }
 
+async function extractPdfTextWithPdfJs(buffer: Buffer) {
+  try {
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      disableWorker: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+    } as any);
+    const pdf = await loadingTask.promise;
+
+    try {
+      const pages: string[] = [];
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        const text = normalizeWhitespace(
+          (content.items || [])
+            .map((item: any) => (typeof item?.str === "string" ? item.str : ""))
+            .join(" ")
+        );
+        if (text) pages.push(text);
+      }
+      return normalizeWhitespace(pages.join(" "));
+    } finally {
+      await pdf.destroy();
+    }
+  } catch (error) {
+    console.warn("[project-requirements] pdfjs PDF extraction failed", error);
+    return "";
+  }
+}
+
 async function extractPdfText(buffer: Buffer) {
   const pythonText = await extractPdfTextWithPython(buffer);
   if (pythonText) return pythonText;
+
+  const pdfJsText = await extractPdfTextWithPdfJs(buffer);
+  if (pdfJsText) return pdfJsText;
 
   let parser: { getText: () => Promise<{ text?: string | null }>; destroy: () => Promise<void> } | null = null;
 

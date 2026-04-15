@@ -260,7 +260,36 @@ async function getTeamIdByLane(db: KickoffDbClient, lane: TeamLane): Promise<str
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data?.id ?? null;
+  if (data?.id) return data.id;
+
+  const fallbackTeamNames = Array.from(new Set([
+    TEAM_NAME_BY_LANE.engineering,
+    TEAM_NAME_BY_LANE.product,
+    TEAM_NAME_BY_LANE.design,
+    TEAM_NAME_BY_LANE.qa,
+    TEAM_NAME_BY_LANE.marketing,
+  ].filter((candidate) => candidate !== teamName)));
+
+  for (const fallbackTeamName of fallbackTeamNames) {
+    const { data: fallbackTeam, error: fallbackError } = await db
+      .from("teams")
+      .select("id, name")
+      .ilike("name", fallbackTeamName)
+      .limit(1)
+      .maybeSingle();
+
+    if (fallbackError) throw new Error(fallbackError.message);
+    if (fallbackTeam?.id) return fallbackTeam.id;
+  }
+
+  const { data: anyTeam, error: anyTeamError } = await db
+    .from("teams")
+    .select("id, name")
+    .limit(1)
+    .maybeSingle();
+
+  if (anyTeamError) throw new Error(anyTeamError.message);
+  return anyTeam?.id ?? null;
 }
 
 async function getLeadAgentForTeam(db: KickoffDbClient, teamId: string | null): Promise<string | null> {

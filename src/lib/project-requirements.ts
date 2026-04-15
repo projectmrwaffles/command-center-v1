@@ -229,6 +229,8 @@ type OcrWorkerLike = {
   terminate: () => Promise<unknown>;
 };
 
+const SCANNED_PDF_OCR_PAGE_LIMIT = 10;
+
 let ocrWorkerPromise: Promise<OcrWorkerLike> | null = null;
 
 async function getOcrWorker() {
@@ -266,7 +268,7 @@ async function extractImageTextWithTesseract(image: Buffer) {
   }
 }
 
-async function renderPdfPagesToImages(buffer: Buffer, maxPages = 3) {
+async function renderPdfPagesToImages(buffer: Buffer, maxPages = SCANNED_PDF_OCR_PAGE_LIMIT) {
   try {
     const canvasModuleName = ["@napi-rs", "canvas"].join("/");
     const canvasModule = require(canvasModuleName) as {

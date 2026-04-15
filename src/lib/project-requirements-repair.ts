@@ -40,6 +40,10 @@ const ACTIVE_ATTACHMENT_RECOVERY_STATES = new Set([
   "starting_work",
 ]);
 
+const TERMINAL_ATTACHMENT_RECOVERY_STATES = new Set([
+  "failed",
+]);
+
 export function isStaleAttachmentRecoveryState(intake?: ProjectIntakeLike | null, now = Date.now()) {
   const state = getAttachmentKickoffState(intake as Record<string, unknown> | null | undefined);
   if (!state?.active || !state?.status || !ACTIVE_ATTACHMENT_RECOVERY_STATES.has(state.status)) {
@@ -52,6 +56,13 @@ export function isStaleAttachmentRecoveryState(intake?: ProjectIntakeLike | null
   }
 
   return (now - updatedAt) >= ATTACHMENT_RECOVERY_TIMEOUT_MS;
+}
+
+export function shouldAttemptAttachmentRecovery(intake?: ProjectIntakeLike | null, now = Date.now()) {
+  const state = getAttachmentKickoffState(intake as Record<string, unknown> | null | undefined);
+  if (!state?.status) return false;
+  if (TERMINAL_ATTACHMENT_RECOVERY_STATES.has(state.status)) return true;
+  return isStaleAttachmentRecoveryState(intake, now);
 }
 
 async function persistAttachmentRecoveryFailure(
@@ -190,7 +201,7 @@ export async function reconcileAttachmentBackedProjectCreate(
   }
 ) {
   const project = input.project;
-  const shouldAttemptRecovery = isStaleAttachmentRecoveryState(project.intake || null);
+  const shouldAttemptRecovery = shouldAttemptAttachmentRecovery(project.intake || null);
   const repaired = shouldAttemptRecovery
     ? await repairMissingPdfAttachmentRequirements(db, {
         projectId: project.id,

@@ -163,7 +163,7 @@ function requirements() {
   };
 }
 
-function projectRecord(id, repoUrl) {
+function projectRecord(id, repoUrl, overrides = {}) {
   return {
     id,
     name: id,
@@ -176,8 +176,9 @@ function projectRecord(id, repoUrl) {
       capabilities: ["frontend"],
       requirements: requirements(),
     },
-    links: { github: repoUrl },
-    github_repo_binding: { url: repoUrl },
+    links: repoUrl ? { github: repoUrl } : {},
+    github_repo_binding: repoUrl ? { url: repoUrl } : null,
+    ...overrides,
   };
 }
 
@@ -285,6 +286,27 @@ try {
   });
   assert.equal(stalePacketState.key, "awaiting_materials", "stale error-only pre-build packets must not present as ready for review");
   assert.equal(stalePacketState.actionable, false, "stale error-only pre-build packets must not be actionable");
+
+  const provisioningPendingDb = createDb(baseTables([
+    projectRecord("project-provisioning", null, {
+      intake: {
+        shape: "web-app",
+        capabilities: ["frontend"],
+        requirements: requirements(),
+        githubRepoProvisioning: {
+          status: "pending",
+          reason: "GitHub repo auto-provisioning has been queued for this net-new code-heavy project.",
+        },
+      },
+    }),
+  ]));
+  provisioningPendingDb.tables.sprints.push({ id: "s-provisioning", project_id: "project-provisioning", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: true, approval_gate_status: "pending" });
+  provisioningPendingDb.tables.milestone_submissions.push({ id: "ms-provisioning", sprint_id: "s-provisioning", checkpoint_type: "prebuild_checkpoint", revision_number: 1, summary: "stale", what_changed: "stale", status: "submitted" });
+  provisioningPendingDb.tables.proof_bundles.push({ id: "pb-provisioning", submission_id: "ms-provisioning", title: "stale", summary: "stale", completeness_status: "ready" });
+  await syncProjectPreBuildCheckpoint(provisioningPendingDb, { projectId: "project-provisioning", project: provisioningPendingDb.tables.projects[0] });
+  assert.equal(provisioningPendingDb.tables.sprints[0].approval_gate_required, false, "pending repo provisioning should not surface a Build checkpoint yet");
+  assert.equal(provisioningPendingDb.tables.sprints[0].approval_gate_status, "not_requested", "pending repo provisioning should keep the Build gate internal");
+  assert.equal(provisioningPendingDb.tables.milestone_submissions.length, 0, "pending provisioning should clear stale pre-build review packets");
 
   const blockedDb = createDb(baseTables([projectRecord("project-blocked", `https://github.com/acme/${mismatchSlug}`)]));
   blockedDb.tables.sprints.push({ id: "s-blocked", project_id: "project-blocked", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" });

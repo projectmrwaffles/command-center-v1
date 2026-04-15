@@ -359,7 +359,12 @@ export async function syncProjectPreBuildCheckpoint(db: DbClient, input: {
     await db.from("sprints").update(updatePayload).eq("id", sprint.id).eq("project_id", input.projectId);
     updatedSprintIds.push(sprint.id);
 
-    if (effectiveState.applicable && compliance) {
+    if (!effectiveState.applicable) {
+      await clearCheckpointSubmission(db, sprint.id);
+      continue;
+    }
+
+    if (compliance) {
       if (!shouldMaterializeCheckpointSubmission(effectiveState)) {
         await clearCheckpointSubmission(db, sprint.id);
       } else {

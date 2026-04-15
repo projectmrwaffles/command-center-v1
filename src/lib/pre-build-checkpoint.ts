@@ -57,21 +57,35 @@ function isBuildSprint(sprint: SprintRow) {
   return sprint.phase_key === "build" || /\bbuild\b/i.test(sprint.name || "");
 }
 
+function createNonApplicablePreBuildCheckpointState(): PreBuildCheckpointState {
+  return {
+    applicable: false,
+    outcome: null,
+    status: "not_requested",
+    title: null,
+    summary: null,
+    reasons: [],
+    detected: { frameworks: [], languages: [], styling: [], backends: [], runtimes: [], tooling: [], databases: [] },
+    repoWorkspacePath: null,
+    requirementsCount: 0,
+    inspectedRequirementCount: 0,
+    unsupportedRequirementCount: 0,
+  };
+}
+
 export function derivePreBuildCheckpointState(project: ProjectLikeWithRequirements): PreBuildCheckpointState {
   const requirements = project.intake?.requirements;
   if (!hasPrdDerivedRequirements(requirements)) {
+    return createNonApplicablePreBuildCheckpointState();
+  }
+
+  const provisioningStatus = project.intake && typeof project.intake === "object"
+    ? (project.intake as { githubRepoProvisioning?: { status?: string | null } | null }).githubRepoProvisioning?.status
+    : null;
+  if (provisioningStatus === "pending") {
     return {
-      applicable: false,
-      outcome: null,
-      status: "not_requested",
-      title: null,
-      summary: null,
-      reasons: [],
-      detected: { frameworks: [], languages: [], styling: [], backends: [], runtimes: [], tooling: [], databases: [] },
-      repoWorkspacePath: null,
-      requirementsCount: 0,
-      inspectedRequirementCount: 0,
-      unsupportedRequirementCount: 0,
+      ...createNonApplicablePreBuildCheckpointState(),
+      requirementsCount: requirements?.technologyRequirements?.length || 0,
     };
   }
 

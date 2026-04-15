@@ -109,19 +109,19 @@ export async function repairMissingPdfAttachmentRequirements(
     return { repaired: false, requirements: existingRequirements } as const;
   }
 
-  const { data: pdfDocuments, error: documentsError } = await db
+  const { data: attachmentDocuments, error: documentsError } = await db
     .from("project_documents")
     .select("title, type, mime_type, storage_path, created_at")
     .eq("project_id", input.projectId)
-    .eq("type", "prd_pdf")
+    .in("type", ["prd_pdf", "image"])
     .order("created_at", { ascending: true });
 
-  if (documentsError || !pdfDocuments?.length) {
+  if (documentsError || !attachmentDocuments?.length) {
     return { repaired: false, requirements: existingRequirements } as const;
   }
 
   const extractedDocuments: Array<{ title: string; type: string; text?: string | null }> = [];
-  for (const document of pdfDocuments) {
+  for (const document of attachmentDocuments) {
     if (!document?.storage_path) continue;
 
     try {

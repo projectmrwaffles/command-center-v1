@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 const currentModuleDir = path.dirname(new URL(import.meta.url).pathname);
+const require = createRequire(import.meta.url);
 import { execFile } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { promisify } from "node:util";
@@ -136,15 +138,24 @@ async function extractPdfTextWithPython(buffer: Buffer) {
   }
 }
 
-function configurePdfParseWorker(PDFParse: { setWorker?: (workerSrc?: string) => string }) {
-  if (typeof PDFParse?.setWorker !== "function") return;
-
+function resolvePdfParseWorkerPath() {
   const workerCandidates = [
     path.join(process.cwd(), "node_modules", "pdf-parse", "dist", "pdf-parse", "web", "pdf.worker.mjs"),
     path.join(currentModuleDir, "..", "..", "node_modules", "pdf-parse", "dist", "pdf-parse", "web", "pdf.worker.mjs"),
   ];
 
-  const workerPath = workerCandidates.find((candidate) => fs.existsSync(candidate));
+  try {
+    const pdfParseEntry = require.resolve("pdf-parse");
+    workerCandidates.unshift(path.join(path.dirname(pdfParseEntry), "..", "esm", "pdf.worker.mjs"));
+  } catch {}
+
+  return workerCandidates.find((candidate, index) => workerCandidates.indexOf(candidate) === index && fs.existsSync(candidate)) || null;
+}
+
+function configurePdfParseWorker(PDFParse: { setWorker?: (workerSrc?: string) => string }) {
+  if (typeof PDFParse?.setWorker !== "function") return;
+
+  const workerPath = resolvePdfParseWorkerPath();
   if (!workerPath) return;
 
   PDFParse.setWorker(pathToFileURL(workerPath).href);

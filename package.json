@@ -15,22 +15,28 @@
     "verify:review-packet-materialization": "node --experimental-strip-types scripts/verify-review-packet-materialization.mjs",
     "verify:phase-aware-checkpoint-readiness": "node --experimental-strip-types scripts/verify-phase-aware-checkpoint-readiness.mjs",
     "verify:attachment-upload-gating": "node --experimental-strip-types scripts/verify-attachment-upload-gating.mjs",
+    "verify:attachment-ocr-runtime": "node --experimental-strip-types scripts/verify-attachment-ocr-runtime.mjs",
     "verify:github-provisioning-readiness": "node --experimental-strip-types scripts/verify-github-provisioning-readiness.mjs",
     "verify:smoke": "node scripts/internal-ready-smoke.js",
     "verify:home-empty-openclaw-root": "node --experimental-strip-types scripts/verify-home-empty-openclaw-root.mjs"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.98",
     "@playwright/test": "^1.58.2",
     "@supabase/supabase-js": "^2.98.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "@types/pg": "^8.16.0",
     "dotenv": "^17.3.1",
     "lucide-react": "^0.576.0",
     "next": "16.1.6",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^5.6.205",
     "pg": "^8.19.0",
     "playwright": "^1.58.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "tesseract.js": "^7.0.0",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

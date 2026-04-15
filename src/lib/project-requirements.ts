@@ -146,6 +146,9 @@ function resolvePdfParseWorkerPath() {
 
   try {
     const pdfParseEntry = require.resolve("pdf-parse");
+    const pdfParseRoot = path.resolve(path.dirname(pdfParseEntry), "..");
+    workerCandidates.unshift(path.join(pdfParseRoot, "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs"));
+    workerCandidates.unshift(path.join(pdfParseRoot, "dist", "pdf-parse", "web", "pdf.worker.mjs"));
     workerCandidates.unshift(path.join(path.dirname(pdfParseEntry), "..", "esm", "pdf.worker.mjs"));
   } catch {}
 
@@ -194,7 +197,7 @@ async function extractPdfTextWithPdfJs(buffer: Buffer) {
   }
 }
 
-async function extractPdfText(buffer: Buffer) {
+async function extractPdfTextLayer(buffer: Buffer) {
   const pythonText = await extractPdfTextWithPython(buffer);
   if (pythonText) return pythonText;
 
@@ -221,6 +224,113 @@ async function extractPdfText(buffer: Buffer) {
   return extractPdfLikeTextFallback(buffer);
 }
 
+type OcrWorkerLike = {
+  recognize: (image: Buffer) => Promise<{ data?: { text?: string | null } | null }>;
+  terminate: () => Promise<unknown>;
+};
+
+let ocrWorkerPromise: Promise<OcrWorkerLike> | null = null;
+
+async function getOcrWorker() {
+  if (!ocrWorkerPromise) {
+    ocrWorkerPromise = (async () => {
+      const [{ createWorker }, { default: tesseractEnglish }] = await Promise.all([
+        import("tesseract.js"),
+        import("@tesseract.js-data/eng"),
+      ]);
+      const worker = await createWorker("eng", 1, {
+        langPath: tesseractEnglish.langPath,
+        gzip: tesseractEnglish.gzip,
+      });
+      return worker as OcrWorkerLike;
+    })().catch((error) => {
+      ocrWorkerPromise = null;
+      throw error;
+    });
+  }
+  return ocrWorkerPromise;
+}
+
+async function extractImageTextWithTesseract(image: Buffer) {
+  try {
+    const worker = await getOcrWorker();
+    const result = await worker.recognize(image);
+    return String(result.data?.text || "")
+      .split(/\r?\n/)
+      .map((line) => normalizeWhitespace(line))
+      .filter(Boolean)
+      .join("\n");
+  } catch (error) {
+    console.warn("[project-requirements] tesseract OCR failed", error);
+    return "";
+  }
+}
+
+async function renderPdfPagesToImages(buffer: Buffer, maxPages = 3) {
+  try {
+    const canvasModuleName = ["@napi-rs", "canvas"].join("/");
+    const canvasModule = require(canvasModuleName) as {
+      createCanvas: (width: number, height: number) => { getContext: (kind: string) => unknown; toBuffer: (mimeType: string) => Buffer };
+      DOMMatrix: unknown;
+      ImageData: unknown;
+      Path2D: unknown;
+    };
+    if (!(globalThis as any).DOMMatrix) (globalThis as any).DOMMatrix = canvasModule.DOMMatrix;
+    if (!(globalThis as any).ImageData) (globalThis as any).ImageData = canvasModule.ImageData;
+    if (!(globalThis as any).Path2D) (globalThis as any).Path2D = canvasModule.Path2D;
+
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      disableWorker: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+    } as any);
+    const pdf = await loadingTask.promise;
+
+    try {
+      const images: Buffer[] = [];
+      const pageLimit = Math.min(pdf.numPages, maxPages);
+      for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = canvasModule.createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+        const context = canvas.getContext("2d");
+        await page.render({ canvasContext: context as any, viewport } as any).promise;
+        images.push(canvas.toBuffer("image/png"));
+      }
+      return images;
+    } finally {
+      await pdf.destroy();
+    }
+  } catch (error) {
+    console.warn("[project-requirements] scanned PDF rasterization failed", error);
+    return [];
+  }
+}
+
+function looksLikeUsefulPdfText(text: string) {
+  const normalized = normalizeWhitespace(text);
+  if (normalized.length < 40) return false;
+  const alphaNumeric = (normalized.match(/[A-Za-z0-9]/g) || []).length;
+  const weird = (normalized.match(/[^\x09\x0A\x0D\x20-\x7E]/g) || []).length;
+  const wordLike = (normalized.match(/\b[A-Za-z]{2,}\b/g) || []).length;
+  return alphaNumeric / normalized.length > 0.55 && weird / normalized.length < 0.02 && wordLike >= 6;
+}
+
+async function extractPdfText(buffer: Buffer) {
+  const textLayer = await extractPdfTextLayer(buffer);
+  if (textLayer && looksLikeUsefulPdfText(textLayer)) return textLayer;
+
+  const scannedPageImages = await renderPdfPagesToImages(buffer);
+  if (scannedPageImages.length > 0) {
+    const ocrText = normalizeWhitespace((await Promise.all(scannedPageImages.map((image) => extractImageTextWithTesseract(image)))).join("\n"));
+    if (ocrText) return ocrText;
+  }
+
+  return textLayer;
+}
+
 const execFileAsync = promisify(execFile);
 
 function extensionForMimeType(mimeType?: string | null, title?: string | null) {
@@ -233,7 +343,7 @@ function extensionForMimeType(mimeType?: string | null, title?: string | null) {
   return ".img";
 }
 
-async function extractImageText(buffer: Buffer, mimeType?: string | null, title?: string | null) {
+async function extractImageTextWithSwiftVision(buffer: Buffer, mimeType?: string | null, title?: string | null) {
   if (!isHostDependentExtractionAllowed() || process.platform !== "darwin") return "";
 
   const scriptPath = path.join(process.cwd(), "scripts", "extract-image-text.swift");
@@ -260,6 +370,12 @@ async function extractImageText(buffer: Buffer, mimeType?: string | null, title?
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+async function extractImageText(buffer: Buffer, mimeType?: string | null, title?: string | null) {
+  const swiftVisionText = await extractImageTextWithSwiftVision(buffer, mimeType, title);
+  if (swiftVisionText) return swiftVisionText;
+  return extractImageTextWithTesseract(buffer);
 }
 
 async function extractTextFromBuffer(buffer: Buffer, mimeType?: string | null, title?: string | null) {
@@ -622,6 +738,18 @@ export async function extractRequirementsFromUploadedFile(input: { buffer: Buffe
     type: input.type || "other",
     text,
   };
+}
+
+export async function extractAttachmentTextForTesting(input: { buffer: Buffer; mimeType?: string | null; title?: string | null }) {
+  return extractTextFromBuffer(input.buffer, input.mimeType, input.title);
+}
+
+export async function terminateAttachmentOcrWorkerForTesting() {
+  const workerPromise = ocrWorkerPromise;
+  ocrWorkerPromise = null;
+  if (!workerPromise) return;
+  const worker = await workerPromise.catch(() => null);
+  await worker?.terminate().catch(() => undefined);
 }
 
 function resolveGithubRepoUrl(project: ProjectLikeWithRequirements) {

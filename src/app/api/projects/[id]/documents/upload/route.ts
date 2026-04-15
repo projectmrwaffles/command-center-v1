@@ -1,6 +1,6 @@
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
-import { repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
+import { recoverAttachmentUploadFailure, repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
 import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
 import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
@@ -294,11 +294,22 @@ export async function POST(
     } catch (error) {
       try {
         const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
-        await persistAttachmentKickoffStage(db, projectId, (project?.intake || {}) as Record<string, unknown>, "failed", {
-          error: error instanceof Error ? error.message : "Attachment processing failed",
-          detail: error instanceof Error ? error.message : "Attachment processing failed",
-          fileCount: files.length,
-        });
+        const recovered = persistedStoragePaths.size > 0
+          ? await recoverAttachmentUploadFailure(db, {
+              projectId,
+              intake: (project?.intake || {}) as Record<string, unknown>,
+              fileCount: files.length,
+              errorDetail: error instanceof Error ? error.message : "Attachment processing failed",
+            })
+          : { recovered: false };
+
+        if (!recovered.recovered) {
+          await persistAttachmentKickoffStage(db, projectId, (project?.intake || {}) as Record<string, unknown>, "failed", {
+            error: error instanceof Error ? error.message : "Attachment processing failed",
+            detail: error instanceof Error ? error.message : "Attachment processing failed",
+            fileCount: files.length,
+          });
+        }
       } catch {}
       const transientUploads = uploadedPaths.filter((path) => !persistedStoragePaths.has(path));
       if (transientUploads.length > 0) {

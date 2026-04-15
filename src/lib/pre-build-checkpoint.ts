@@ -73,6 +73,19 @@ function createNonApplicablePreBuildCheckpointState(): PreBuildCheckpointState {
   };
 }
 
+function isProvisionedRepoInspectionPending(project: ProjectLikeWithRequirements, notes: string[]) {
+  const bindingSource = project.github_repo_binding?.source;
+  const intakeProvisioningStatus = project.intake && typeof project.intake === "object"
+    ? (project.intake as { githubRepoProvisioning?: { status?: string | null } | null }).githubRepoProvisioning?.status
+    : null;
+  const bindingProvisioningStatus = project.github_repo_binding?.provisioning?.status;
+
+  if (bindingSource !== "provisioned") return false;
+  if (![bindingProvisioningStatus, intakeProvisioningStatus].some((status) => status === "ready")) return false;
+
+  return notes.some((note) => /Remote repo inspection unavailable: GitHub returned HTTP 404/i.test(note));
+}
+
 export function derivePreBuildCheckpointState(project: ProjectLikeWithRequirements): PreBuildCheckpointState {
   const requirements = project.intake?.requirements;
   if (!hasPrdDerivedRequirements(requirements)) {
@@ -93,6 +106,14 @@ export function derivePreBuildCheckpointState(project: ProjectLikeWithRequiremen
   const inspectableRequirements = (requirements?.technologyRequirements || []).filter((requirement) => INSPECTABLE_KINDS.has(requirement.kind));
   const unsupportedRequirements = (requirements?.technologyRequirements || []).filter((requirement) => !INSPECTABLE_KINDS.has(requirement.kind));
   const notes = compliance.notes || [];
+
+  if (isProvisionedRepoInspectionPending(project, notes)) {
+    return {
+      ...createNonApplicablePreBuildCheckpointState(),
+      requirementsCount: requirements?.technologyRequirements?.length || 0,
+    };
+  }
+
   const repoNotInspectable = notes.some((note) => /package\.json not found|No repo workspace path found\.|No GitHub repo URL found for remote inspection\.|Remote repo inspection unavailable:/i.test(note));
 
   let outcome: PreBuildCheckpointOutcome = "match";

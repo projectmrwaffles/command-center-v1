@@ -1,4 +1,4 @@
-import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints } from "@/lib/project-attachment-finalize";
 import type { ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
@@ -184,6 +184,57 @@ export async function repairMissingPdfAttachmentRequirements(
   }
 
   return { repaired: true, requirements: nextRequirements, intake: nextIntake } as const;
+}
+
+export async function recoverAttachmentUploadFailure(
+  db: DbClient,
+  input: {
+    projectId: string;
+    intake?: ProjectIntakeLike | null;
+    fileCount?: number;
+    errorDetail?: string;
+  }
+) {
+  const repaired = await repairMissingPdfAttachmentRequirements(db, {
+    projectId: input.projectId,
+    intake: input.intake || null,
+  });
+
+  const effectiveIntake = (repaired.intake || input.intake || {}) as ProjectIntakeLike;
+  const effectiveRequirements = repaired.requirements || getExistingRequirements(effectiveIntake);
+  if (!hasAttachmentDerivedRequirements(effectiveRequirements)) {
+    return {
+      recovered: false,
+      repaired: repaired.repaired,
+      requirements: effectiveRequirements,
+      intake: effectiveIntake,
+    } as const;
+  }
+
+  const nextIntake = buildAttachmentKickoffReadyIntake(effectiveIntake as Record<string, unknown>);
+  const detail = input.errorDetail || "Attachment upload can be recovered from stored files. Finalization will continue from the saved attachment.";
+  const recoveredIntake = buildAttachmentKickoffStageState(nextIntake as Record<string, unknown>, "requirements_ready", {
+    detail,
+    fileCount: input.fileCount,
+  });
+  const { error: updateError } = await db
+    .from("projects")
+    .update({
+      intake: recoveredIntake,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.projectId);
+
+  if (updateError) {
+    throw new Error(updateError.message || "Failed to persist recoverable attachment upload state");
+  }
+
+  return {
+    recovered: true,
+    repaired: repaired.repaired,
+    requirements: effectiveRequirements,
+    intake: recoveredIntake,
+  } as const;
 }
 
 export async function reconcileAttachmentBackedProjectCreate(

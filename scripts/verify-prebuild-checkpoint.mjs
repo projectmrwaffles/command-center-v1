@@ -308,6 +308,33 @@ try {
   assert.equal(provisioningPendingDb.tables.sprints[0].approval_gate_status, "not_requested", "pending repo provisioning should keep the Build gate internal");
   assert.equal(provisioningPendingDb.tables.milestone_submissions.length, 0, "pending provisioning should clear stale pre-build review packets");
 
+  const provisioned404Db = createDb(baseTables([
+    projectRecord("project-provisioned-404", "https://github.com/acme/nonexistent-repo-404-check", {
+      intake: {
+        shape: "web-app",
+        capabilities: ["frontend"],
+        requirements: requirements(),
+        githubRepoProvisioning: {
+          status: "ready",
+          reason: "GitHub repo acme/nonexistent-repo-404-check was provisioned automatically and attached to this project.",
+        },
+      },
+      github_repo_binding: {
+        url: "https://github.com/acme/nonexistent-repo-404-check",
+        source: "provisioned",
+        provisioning: { status: "ready", reason: "GitHub repository provisioned automatically during project submission." },
+      },
+      links: { github: "https://github.com/acme/nonexistent-repo-404-check" },
+    }),
+  ]));
+  provisioned404Db.tables.sprints.push({ id: "s-provisioned-404", project_id: "project-provisioned-404", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: true, approval_gate_status: "pending" });
+  provisioned404Db.tables.milestone_submissions.push({ id: "ms-provisioned-404", sprint_id: "s-provisioned-404", checkpoint_type: "prebuild_checkpoint", revision_number: 1, summary: "stale", what_changed: "stale", status: "submitted" });
+  provisioned404Db.tables.proof_bundles.push({ id: "pb-provisioned-404", submission_id: "ms-provisioned-404", title: "stale", summary: "stale", completeness_status: "ready" });
+  await syncProjectPreBuildCheckpoint(provisioned404Db, { projectId: "project-provisioned-404", project: provisioned404Db.tables.projects[0] });
+  assert.equal(provisioned404Db.tables.sprints[0].approval_gate_required, false, "fresh auto-provisioned repos with transient remote 404s should keep the Build gate internal");
+  assert.equal(provisioned404Db.tables.sprints[0].approval_gate_status, "not_requested", "fresh auto-provisioned repos with transient remote 404s should not surface manual review yet");
+  assert.equal(provisioned404Db.tables.milestone_submissions.length, 0, "transient remote 404s should clear stale pre-build review packets for fresh auto-provisioned repos");
+
   const blockedDb = createDb(baseTables([projectRecord("project-blocked", `https://github.com/acme/${mismatchSlug}`)]));
   blockedDb.tables.sprints.push({ id: "s-blocked", project_id: "project-blocked", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: false, approval_gate_status: "not_requested" });
   blockedDb.tables.sprint_items.push({ id: "t-blocked", project_id: "project-blocked", sprint_id: "s-blocked", title: "Implement slice", status: "todo", assignee_agent_id: "agent-eng", task_type: "build_implementation", owner_team_id: "team-eng" });

@@ -14,6 +14,9 @@ import { authorizeApiRequest } from "@/lib/server-auth";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { NextRequest, NextResponse } from "next/server";
 
+const PROJECT_DOCS_BUCKET = "project_docs";
+const STORAGE_LIST_PAGE_SIZE = 100;
+
 type TeamWithId = {
   id: string;
   name: string;
@@ -38,6 +41,53 @@ type RecentSignal = {
   timestamp: string;
   actorName?: string | null;
 };
+
+async function listStoragePathsRecursively(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, prefix: string): Promise<string[]> {
+  const paths: string[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await db.storage.from(PROJECT_DOCS_BUCKET).list(prefix, {
+      limit: STORAGE_LIST_PAGE_SIZE,
+      offset,
+      sortBy: { column: "name", order: "asc" },
+    });
+
+    if (error) {
+      if (error.statusCode === "404") return paths;
+      throw new Error(error.message || `Failed to list storage objects for ${prefix}`);
+    }
+
+    const entries = data ?? [];
+    for (const entry of entries) {
+      const childPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const isFolder = !entry.id && !entry.metadata;
+      if (isFolder) {
+        paths.push(...await listStoragePathsRecursively(db, childPath));
+      } else {
+        paths.push(childPath);
+      }
+    }
+
+    if (entries.length < STORAGE_LIST_PAGE_SIZE) break;
+    offset += entries.length;
+  }
+
+  return paths;
+}
+
+async function removeStoragePaths(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, paths: string[]) {
+  const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+  if (uniquePaths.length === 0) return;
+
+  for (let index = 0; index < uniquePaths.length; index += 100) {
+    const batch = uniquePaths.slice(index, index + 100);
+    const { error } = await db.storage.from(PROJECT_DOCS_BUCKET).remove(batch);
+    if (error && error.statusCode !== "404") {
+      throw new Error(error.message || "Failed to remove project storage objects");
+    }
+  }
+}
 
 function deriveCompatGithubBinding(project: {
   links?: { github?: string | null } | null;
@@ -675,10 +725,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const [sprintsRes, jobsRes] = await Promise.all([
+    const [sprintsRes, jobsRes, projectDocumentsRes, prdsResRaw] = await Promise.all([
       db.from("sprints").select("id").eq("project_id", projectId),
       db.from("jobs").select("id").eq("project_id", projectId),
+      db.from("project_documents").select("storage_path").eq("project_id", projectId),
+      db.from("prds").select("storage_path").eq("project_id", projectId),
     ]);
+
+    const prdsRes = prdsResRaw.error && (prdsResRaw.error.code === "42703" || prdsResRaw.error.code === "PGRST204" || prdsResRaw.error.code === "42P01" || prdsResRaw.error.code === "PGRST205" || prdsResRaw.error.message?.includes("column prds.storage_path does not exist") || prdsResRaw.error.message?.includes('relation "public.prds" does not exist') || prdsResRaw.error.message?.includes("Could not find the table 'public.prds'"))
+      ? { ...prdsResRaw, data: [], error: null }
+      : prdsResRaw;
 
     if (sprintsRes.error) {
       console.error("[API /projects/:id] failed to load sprints for delete:", sprintsRes.error);
@@ -690,8 +746,23 @@ export async function DELETE(
       return NextResponse.json({ error: jobsRes.error.message }, { status: 500 });
     }
 
+    if (projectDocumentsRes.error) {
+      console.error("[API /projects/:id] failed to load project documents for delete:", projectDocumentsRes.error);
+      return NextResponse.json({ error: projectDocumentsRes.error.message }, { status: 500 });
+    }
+
+    if (prdsRes.error) {
+      console.error("[API /projects/:id] failed to load prds for delete:", prdsRes.error);
+      return NextResponse.json({ error: prdsRes.error.message }, { status: 500 });
+    }
+
     const sprintIds = sprintsRes.data?.map((s) => s.id) ?? [];
     const jobIds = jobsRes.data?.map((j) => j.id) ?? [];
+    const explicitStoragePaths = [
+      ...(projectDocumentsRes.data ?? []).map((row) => row.storage_path).filter((value): value is string => Boolean(value)),
+      ...(prdsRes.data ?? []).map((row) => row.storage_path).filter((value): value is string => Boolean(value)),
+    ];
+    const prefixedStoragePaths = await listStoragePathsRecursively(db, projectId);
 
     const deleteStep = async (label: string, operation: any) => {
       const { error } = await Promise.resolve(operation);
@@ -702,6 +773,7 @@ export async function DELETE(
     };
 
     await deleteStep("approvals(project)", Promise.resolve(db.from("approvals").delete().eq("project_id", projectId)));
+    await deleteStep("project_documents", Promise.resolve(db.from("project_documents").delete().eq("project_id", projectId)));
 
     if (sprintIds.length > 0) {
       await deleteStep("approvals(sprint)", Promise.resolve(db.from("approvals").delete().in("sprint_id", sprintIds)));
@@ -716,14 +788,18 @@ export async function DELETE(
     if (jobIds.length > 0) {
       await deleteStep("approvals(job)", Promise.resolve(db.from("approvals").delete().in("job_id", jobIds)));
       await deleteStep("ai_usage(job)", Promise.resolve(db.from("ai_usage").delete().in("job_id", jobIds)));
+      await deleteStep("ai_usage_events(job)", Promise.resolve(db.from("ai_usage_events").delete().in("job_id", jobIds)));
       await deleteStep("agent_events(job)", Promise.resolve(db.from("agent_events").delete().in("job_id", jobIds)));
       await deleteStep("artifacts(job)", Promise.resolve(db.from("artifacts").delete().in("job_id", jobIds)));
       await deleteStep("jobs", Promise.resolve(db.from("jobs").delete().in("id", jobIds)));
     }
 
     await deleteStep("ai_usage(project)", Promise.resolve(db.from("ai_usage").delete().eq("project_id", projectId)));
+    await deleteStep("ai_usage_events(project)", Promise.resolve(db.from("ai_usage_events").delete().eq("project_id", projectId)));
+    await deleteStep("usage_rollup_minute(project)", Promise.resolve(db.from("usage_rollup_minute").delete().eq("project_id", projectId)));
     await deleteStep("agent_events(project)", Promise.resolve(db.from("agent_events").delete().eq("project_id", projectId)));
     await deleteStep("artifacts(project)", Promise.resolve(db.from("artifacts").delete().eq("project_id", projectId)));
+    await removeStoragePaths(db, [...explicitStoragePaths, ...prefixedStoragePaths]);
 
     const { data, error } = await db
       .from("projects")

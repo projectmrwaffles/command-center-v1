@@ -46,14 +46,17 @@ export function deriveProjectDetailHeaderState(input: {
   attachmentKickoffState?: AttachmentKickoffState | null;
 }) {
   const attachment = input.attachmentKickoffState;
-  if (attachment?.active) {
-    const progressPct = Math.max(0, Math.min(100, attachment.progressPct ?? 0));
+  if (attachment?.active || attachment?.status === "failed") {
+    const defaultProgress = attachment?.status === "failed" ? 100 : 0;
+    const progressPct = Math.max(0, Math.min(100, attachment.progressPct ?? defaultProgress));
     return {
-      key: "attachment_processing",
+      key: attachment?.status === "failed" ? "attachment_failed" : "attachment_processing",
       progressPct,
       badgeText: `${attachment.label || "Kickoff setup"} ${progressPct}%`,
-      headline: attachment.label || "Kickoff setup in progress",
-      summary: attachment.error || attachment.detail || "Attached materials are still being processed before kickoff can settle.",
+      headline: attachment.label || (attachment?.status === "failed" ? "Attachment processing failed" : "Kickoff setup in progress"),
+      summary: attachment.error || attachment.detail || (attachment?.status === "failed"
+        ? "Attachment intake hit an error and needs attention before kickoff can continue."
+        : "Attached materials are still being processed before kickoff can settle."),
     } as const;
   }
 

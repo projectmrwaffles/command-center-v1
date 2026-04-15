@@ -1237,6 +1237,8 @@ export default function ProjectDetailPage() {
   const executionBadgeTone =
     headerState.key === "attachment_processing"
       ? "border-sky-200 bg-sky-50 text-sky-700"
+      : headerState.key === "attachment_failed"
+        ? "border-red-200 bg-red-50 text-red-700"
       : executionSummary.key === "blocked"
       ? "border-red-200 bg-red-50 text-red-700"
       : executionSummary.key === "running"

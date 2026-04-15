@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const currentModuleDir = path.dirname(new URL(import.meta.url).pathname);
 import { execFile } from "node:child_process";
@@ -135,6 +136,20 @@ async function extractPdfTextWithPython(buffer: Buffer) {
   }
 }
 
+function configurePdfParseWorker(PDFParse: { setWorker?: (workerSrc?: string) => string }) {
+  if (typeof PDFParse?.setWorker !== "function") return;
+
+  const workerCandidates = [
+    path.join(process.cwd(), "node_modules", "pdf-parse", "dist", "pdf-parse", "web", "pdf.worker.mjs"),
+    path.join(currentModuleDir, "..", "..", "node_modules", "pdf-parse", "dist", "pdf-parse", "web", "pdf.worker.mjs"),
+  ];
+
+  const workerPath = workerCandidates.find((candidate) => fs.existsSync(candidate));
+  if (!workerPath) return;
+
+  PDFParse.setWorker(pathToFileURL(workerPath).href);
+}
+
 async function extractPdfText(buffer: Buffer) {
   const pythonText = await extractPdfTextWithPython(buffer);
   if (pythonText) return pythonText;
@@ -143,6 +158,7 @@ async function extractPdfText(buffer: Buffer) {
 
   try {
     const { PDFParse } = await import("pdf-parse");
+    configurePdfParseWorker(PDFParse);
     parser = new PDFParse({ data: buffer });
     const result = await parser.getText();
     const parsedText = normalizeWhitespace(result.text || "");

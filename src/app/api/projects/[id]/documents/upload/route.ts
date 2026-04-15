@@ -246,12 +246,16 @@ export async function POST(
       const kickoffStartingIntake = shouldFinalize
         ? buildAttachmentKickoffStageState(effectiveProjectForFinalize.intake, "starting_work", { fileCount: files.length })
         : effectiveProjectForFinalize.intake;
+      const existingAttachmentState = getAttachmentKickoffState(effectiveProjectForFinalize.intake);
+      const shouldPreserveFinalizedState = !shouldFinalize && attachmentRequirementsReady && Boolean(existingAttachmentState?.finalizedAt);
 
       const persistedIntake = shouldFinalize
         ? buildAttachmentKickoffFinalizedIntake(kickoffStartingIntake)
-        : attachmentRequirementsReady
-          ? buildAttachmentKickoffReadyIntake(effectiveProjectForFinalize.intake)
-          : effectiveProjectForFinalize.intake;
+        : shouldPreserveFinalizedState
+          ? buildAttachmentKickoffFinalizedIntake(effectiveProjectForFinalize.intake)
+          : attachmentRequirementsReady
+            ? buildAttachmentKickoffReadyIntake(effectiveProjectForFinalize.intake)
+            : effectiveProjectForFinalize.intake;
 
       const { error: persistKickoffStateError } = await db
         .from("projects")

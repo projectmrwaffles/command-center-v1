@@ -97,18 +97,24 @@ export function buildAttachmentKickoffStageState<T extends Record<string, unknow
 ) {
   const currentState = getAttachmentKickoffState(intake);
   const meta = ATTACHMENT_STAGE_METADATA[status];
+  const mergedState = {
+    ...(currentState || {}),
+    ...(extras || {}),
+    status,
+    label: meta.label,
+    detail: typeof extras?.detail === "string" ? extras.detail : meta.detail,
+    progressPct: meta.progressPct,
+    active: meta.active,
+    updatedAt: new Date().toISOString(),
+  } as Record<string, unknown>;
+
+  if (status !== "failed" && typeof extras?.error !== "string") {
+    delete mergedState.error;
+  }
+
   return {
     ...((intake || {}) as Record<string, unknown>),
-    attachmentKickoffState: {
-      ...(currentState || {}),
-      ...(extras || {}),
-      status,
-      label: meta.label,
-      detail: typeof extras?.detail === "string" ? extras.detail : meta.detail,
-      progressPct: meta.progressPct,
-      active: meta.active,
-      updatedAt: new Date().toISOString(),
-    },
+    attachmentKickoffState: mergedState,
   } as unknown as (T extends null | undefined ? Record<string, unknown> : NonNullable<T>) & {
     attachmentKickoffState: Record<string, unknown>;
   };

@@ -34,6 +34,7 @@ import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-boot
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
+import { deriveMilestoneDisplayState, deriveProjectDetailHeaderState } from "@/lib/project-detail-state";
 import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
@@ -1208,7 +1209,12 @@ export default function ProjectDetailPage() {
   const actionLabel = actionTargetStatus === "paused" ? "Pause" : actionTargetStatus === "active" ? "Resume" : null;
   const isStatusActionLoading = actionTargetStatus ? actionLoading === actionTargetStatus : false;
   const statusTone = getProjectStatusTone(project.status);
-  const progress = Math.max(0, Math.min(100, truth?.progressPct ?? project.progress_pct ?? 0));
+  const headerState = deriveProjectDetailHeaderState({
+    projectProgressPct: project.progress_pct,
+    truth,
+    attachmentKickoffState: attachmentProcessingState,
+  });
+  const progress = headerState.progressPct;
   const selectedTaskSnapshot = selectedTask ? tasks.find((task: any) => task.id === selectedTask.id) || selectedTask : null;
   const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
@@ -1219,6 +1225,7 @@ export default function ProjectDetailPage() {
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
   const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
+  const reviewingCheckpointDisplay = reviewingCheckpoint ? deriveMilestoneDisplayState(reviewingCheckpoint) : null;
 
   const selectedTaskMetadataEntries = selectedTaskTypeConfig
     ? selectedTaskTypeConfig.metadataFields
@@ -1228,7 +1235,9 @@ export default function ProjectDetailPage() {
 
   const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
   const executionBadgeTone =
-    executionSummary.key === "blocked"
+    headerState.key === "attachment_processing"
+      ? "border-sky-200 bg-sky-50 text-sky-700"
+      : executionSummary.key === "blocked"
       ? "border-red-200 bg-red-50 text-red-700"
       : executionSummary.key === "running"
         ? "border-blue-200 bg-blue-50 text-blue-700"
@@ -1334,8 +1343,8 @@ export default function ProjectDetailPage() {
                 ) : null}
                 <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
                   <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
-                    {progress}% complete</span>
-                  <span className="min-w-0 flex-1 text-zinc-600">{executionSummary.key === "completed" ? null : (truth?.headline || executionSummary.description)}</span>
+                    {headerState.badgeText}</span>
+                  <span className="min-w-0 flex-1 text-zinc-600">{headerState.key === "completed" ? null : headerState.headline}</span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-600">
@@ -1552,11 +1561,7 @@ export default function ProjectDetailPage() {
               <div className="space-y-3">
                 {reviewableMilestones.map((milestone) => {
                     const summary = milestone.reviewSummary;
-                    const checkpointState = deriveReviewCheckpointState({
-                      approvalGateStatus: milestone.approvalGateStatus,
-                      reviewSummary: summary,
-                      preBuildCheckpoint: milestone.preBuildCheckpoint,
-                    });
+                    const { checkpointState, showDecisionActions, showChangesRequestedActions } = deriveMilestoneDisplayState(milestone);
                     const evidenceRequirements = getCheckpointEvidenceRequirements(summary?.checkpointType || milestone.checkpointType, summary?.evidenceRequirements || milestone.checkpointEvidenceRequirements);
                     const canApprove = checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready";
                     const approvalBlockedReason = !canApprove
@@ -1630,7 +1635,7 @@ export default function ProjectDetailPage() {
                           ) : null}
 
                           <div className="space-y-3">
-                            {milestone.approvalGateStatus === "pending" ? (
+                            {showDecisionActions ? (
                               <div className="rounded-[28px] border border-zinc-200 bg-gradient-to-br from-white via-emerald-50/40 to-zinc-50 p-3 shadow-sm sm:p-4">
                                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
                                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
@@ -1718,7 +1723,7 @@ export default function ProjectDetailPage() {
                                   </div>
                                 </div>
                               </div>
-                            ) : milestone.approvalGateStatus === "rejected" ? (
+                            ) : showChangesRequestedActions ? (
                               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                                 <label className="block">
                                   <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Revision summary</span>
@@ -2068,7 +2073,7 @@ export default function ProjectDetailPage() {
                 </div>
               ) : null}
 
-              {reviewingCheckpoint.approvalGateStatus === "pending" ? (
+              {reviewingCheckpointDisplay?.showDecisionActions ? (
                 <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-red-700">Decision</div>
                   <p className="mt-2 text-sm leading-6 text-zinc-600">Approve this work or request changes with clear feedback.</p>
@@ -2093,7 +2098,7 @@ export default function ProjectDetailPage() {
                 </div>
               ) : null}
 
-              {reviewingCheckpoint.approvalGateStatus === "rejected" ? (
+              {reviewingCheckpointDisplay?.showChangesRequestedActions ? (
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Update status</div>
                   <p className="mt-2 text-sm leading-6 text-zinc-500">Changes were requested. Submit an updated version from the review panel when revisions are ready.</p>

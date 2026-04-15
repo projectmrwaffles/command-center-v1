@@ -138,35 +138,13 @@ async function extractPdfTextWithPython(buffer: Buffer) {
   }
 }
 
-function resolvePdfParseWorkerPath() {
-  const workerCandidates = [
-    path.join(process.cwd(), "node_modules", "pdf-parse", "dist", "pdf-parse", "web", "pdf.worker.mjs"),
-    path.join(currentModuleDir, "..", "..", "node_modules", "pdf-parse", "dist", "pdf-parse", "web", "pdf.worker.mjs"),
-  ];
-
-  try {
-    const pdfParseEntry = require.resolve("pdf-parse");
-    const pdfParseRoot = path.resolve(path.dirname(pdfParseEntry), "..");
-    workerCandidates.unshift(path.join(pdfParseRoot, "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs"));
-    workerCandidates.unshift(path.join(pdfParseRoot, "dist", "pdf-parse", "web", "pdf.worker.mjs"));
-    workerCandidates.unshift(path.join(path.dirname(pdfParseEntry), "..", "esm", "pdf.worker.mjs"));
-  } catch {}
-
-  return workerCandidates.find((candidate, index) => workerCandidates.indexOf(candidate) === index && fs.existsSync(candidate)) || null;
-}
-
-function configurePdfParseWorker(PDFParse: { setWorker?: (workerSrc?: string) => string }) {
-  if (typeof PDFParse?.setWorker !== "function") return;
-
-  const workerPath = resolvePdfParseWorkerPath();
-  if (!workerPath) return;
-
-  PDFParse.setWorker(pathToFileURL(workerPath).href);
+async function importPdfJsModule() {
+  return import("pdfjs-dist/legacy/build/pdf.mjs");
 }
 
 async function extractPdfTextWithPdfJs(buffer: Buffer) {
   try {
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdfjs = await importPdfJsModule();
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       disableWorker: true,
@@ -203,23 +181,6 @@ async function extractPdfTextLayer(buffer: Buffer) {
 
   const pdfJsText = await extractPdfTextWithPdfJs(buffer);
   if (pdfJsText) return pdfJsText;
-
-  let parser: { getText: () => Promise<{ text?: string | null }>; destroy: () => Promise<void> } | null = null;
-
-  try {
-    const { PDFParse } = await import("pdf-parse");
-    configurePdfParseWorker(PDFParse);
-    parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
-    const parsedText = normalizeWhitespace(result.text || "");
-    if (parsedText) return parsedText;
-  } catch (error) {
-    console.warn("[project-requirements] structured PDF extraction failed; falling back to raw parse", error);
-  } finally {
-    if (parser) {
-      await parser.destroy().catch(() => undefined);
-    }
-  }
 
   return extractPdfLikeTextFallback(buffer);
 }
@@ -281,7 +242,7 @@ async function renderPdfPagesToImages(buffer: Buffer, maxPages = SCANNED_PDF_OCR
     if (!(globalThis as any).ImageData) (globalThis as any).ImageData = canvasModule.ImageData;
     if (!(globalThis as any).Path2D) (globalThis as any).Path2D = canvasModule.Path2D;
 
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdfjs = await importPdfJsModule();
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       disableWorker: true,

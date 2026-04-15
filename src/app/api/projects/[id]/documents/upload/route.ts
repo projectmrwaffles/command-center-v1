@@ -91,16 +91,10 @@ export async function POST(
     }
 
     const uploadedPaths: string[] = [];
+    const persistedStoragePaths = new Set<string>();
 
     try {
-      const documents = [] as Array<{
-        project_id: string;
-        type: string;
-        title: string;
-        storage_path: string;
-        mime_type: string | null;
-        size_bytes: number;
-      }>;
+      const insertedDocumentRows: Array<Record<string, unknown>> = [];
       const extractedDocuments: Array<{ title: string; type: string; text?: string | null }> = [];
 
       const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
@@ -124,14 +118,22 @@ export async function POST(
         }
 
         uploadedPaths.push(objectName);
-        documents.push({
+        const documentRecord = {
           project_id: projectId,
           type: documentType,
           title: file.name || "Untitled upload",
           storage_path: objectName,
           mime_type: file.type || null,
           size_bytes: file.size,
-        });
+        };
+        const { data: insertedDocument, error: insertDocumentError } = await db.from("project_documents").insert(documentRecord).select().single();
+        if (insertDocumentError || !insertedDocument) {
+          await db.storage.from(STORAGE_BUCKET).remove([objectName]);
+          return NextResponse.json({ error: insertDocumentError?.message || "Failed to persist uploaded project document" }, { status: 500 });
+        }
+
+        persistedStoragePaths.add(objectName);
+        insertedDocumentRows.push(insertedDocument);
         currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "extracting_attachment_text", { fileCount: files.length, currentFileName: file.name || "Untitled upload" });
         extractedDocuments.push(await extractRequirementsFromUploadedFile({
           buffer,
@@ -141,11 +143,7 @@ export async function POST(
         }));
       }
 
-      const { data, error } = await db.from("project_documents").insert(documents).select();
-      if (error) {
-        await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
+      const data = insertedDocumentRows;
 
       currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "deriving_requirements", { fileCount: files.length });
       const nextRequirements = deriveProjectRequirements({
@@ -302,8 +300,9 @@ export async function POST(
           fileCount: files.length,
         });
       } catch {}
-      if (uploadedPaths.length > 0) {
-        await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);
+      const transientUploads = uploadedPaths.filter((path) => !persistedStoragePaths.has(path));
+      if (transientUploads.length > 0) {
+        await db.storage.from(STORAGE_BUCKET).remove(transientUploads);
       }
       throw error;
     }

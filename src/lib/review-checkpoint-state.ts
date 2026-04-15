@@ -45,11 +45,11 @@ export function deriveReviewCheckpointState(input: {
   const hasSubmission = Boolean(summary?.latestSubmissionId);
   const hasMaterials = summary?.proofCompletenessStatus === "ready" && Boolean((summary?.proofItemCount || 0) > 0);
   const nonReviewablePrebuildPacket = isNonReviewablePrebuildPacket(summary);
-  const setupBlockedPrebuild = !hasSubmission
-    && approvalGateStatus === "pending"
+  const setupBlockedReason = (input.preBuildCheckpoint?.reasons || []).some((reason) => /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(reason));
+  const setupBlockedPrebuild = approvalGateStatus === "pending"
     && input.preBuildCheckpoint?.status === "pending"
     && input.preBuildCheckpoint?.outcome === "manual_review"
-    && (isSetupBlockedPrebuildCheckpoint(summary) || (input.preBuildCheckpoint?.reasons || []).some((reason) => /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(reason)));
+    && (isSetupBlockedPrebuildCheckpoint(summary) || setupBlockedReason || nonReviewablePrebuildPacket);
 
   if (setupBlockedPrebuild) {
     return {

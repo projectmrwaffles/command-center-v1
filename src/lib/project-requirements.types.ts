@@ -32,19 +32,22 @@ export type ProjectRequirements = {
   technologyRequirements: TechnologyRequirement[];
 };
 
+import type { GitHubRepoBinding } from "./github-repo-binding.ts";
+
 export type ProjectLikeWithRequirements = {
   name?: string | null;
   intake?: {
     summary?: string | null;
     goals?: string | null;
     requirements?: ProjectRequirements | null;
+    githubRepoProvisioning?: {
+      status?: "pending" | "failed" | "ready" | null;
+    } | null;
   } | null;
   links?: {
     github?: string | null;
   } | null;
-  github_repo_binding?: {
-    url?: string | null;
-  } | null;
+  github_repo_binding?: Pick<GitHubRepoBinding, "url" | "source" | "provisioning"> | null;
 };
 
 export type RequirementCompliance = {

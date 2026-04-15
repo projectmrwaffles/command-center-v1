@@ -5,13 +5,18 @@ function buildCheckpointNotes(summary: {
   return [summary?.latestDecisionNotes, summary?.latestRejectionComment].filter(Boolean).join(" \n");
 }
 
+function isManualReviewSetupBlockedText(text: string) {
+  return /manual review required|setup blocked|setup-blocked|missing package\.json|package\.json/i.test(text);
+}
+
 function isNonReviewablePrebuildPacket(summary: {
   checkpointType?: string | null;
   latestDecisionNotes?: string | null;
   latestRejectionComment?: string | null;
 } | null) {
   if (summary?.checkpointType !== "prebuild_checkpoint") return false;
-  return /no repo workspace path found\./i.test(buildCheckpointNotes(summary));
+  const notes = buildCheckpointNotes(summary);
+  return /no repo workspace path found\./i.test(notes) || isManualReviewSetupBlockedText(notes);
 }
 
 function isSetupBlockedPrebuildCheckpoint(summary: {
@@ -20,7 +25,8 @@ function isSetupBlockedPrebuildCheckpoint(summary: {
   latestRejectionComment?: string | null;
 } | null) {
   if (summary?.checkpointType !== "prebuild_checkpoint") return false;
-  return /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(buildCheckpointNotes(summary));
+  const notes = buildCheckpointNotes(summary);
+  return /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(notes) || isManualReviewSetupBlockedText(notes);
 }
 
 export function deriveReviewCheckpointState(input: {
@@ -45,7 +51,7 @@ export function deriveReviewCheckpointState(input: {
   const hasSubmission = Boolean(summary?.latestSubmissionId);
   const hasMaterials = summary?.proofCompletenessStatus === "ready" && Boolean((summary?.proofItemCount || 0) > 0);
   const nonReviewablePrebuildPacket = isNonReviewablePrebuildPacket(summary);
-  const setupBlockedReason = (input.preBuildCheckpoint?.reasons || []).some((reason) => /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(reason));
+  const setupBlockedReason = (input.preBuildCheckpoint?.reasons || []).some((reason) => /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(reason) || isManualReviewSetupBlockedText(reason));
   const setupBlockedPrebuild = approvalGateStatus === "pending"
     && input.preBuildCheckpoint?.status === "pending"
     && input.preBuildCheckpoint?.outcome === "manual_review"
@@ -92,7 +98,7 @@ export function deriveReviewCheckpointState(input: {
   }
 
   return {
-    key: "awaiting_evidence",
+    key: nonReviewablePrebuildPacket ? "awaiting_materials" : "awaiting_evidence",
     label: nonReviewablePrebuildPacket ? "Manual setup required" : "Awaiting evidence",
     actionable: false,
   } as const;

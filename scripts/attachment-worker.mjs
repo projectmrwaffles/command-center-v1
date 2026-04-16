@@ -1,3 +1,4 @@
+import './register-ts-aliases.mjs';
 import path from 'node:path';
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';

@@ -73,8 +73,9 @@ try {
     type: 'prd_pdf',
   });
   assert.equal(typeof extractedScannedPdf.text, 'string', 'scanned PDFs should degrade gracefully without crashing when canvas is unavailable');
+  assert.ok((extractedScannedPdf.text || '').length < 80, 'scanned PDFs should degrade cleanly instead of attempting runtime OCR branches');
 
-  console.log('PASS serverless-safe PDF extraction keeps text PDFs working and scanned PDFs non-fatal without canvas');
+  console.log('PASS serverless-safe PDF extraction keeps text PDFs working and scanned PDFs deterministic without canvas');
 } finally {
   Module._load = originalLoad;
   Module._resolveFilename = originalResolveFilename;

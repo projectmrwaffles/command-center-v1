@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
+import zlib from "node:zlib";
 
 const currentModuleDir = path.dirname(new URL(import.meta.url).pathname);
 const require = createRequire(import.meta.url);
@@ -92,13 +93,71 @@ function sentenceSplit(text: string) {
     .filter(Boolean);
 }
 
+function decodePdfLiteralString(value: string) {
+  return value
+    .replace(/\\([nrtbf()\\])/g, (_match, escaped: string) => {
+      switch (escaped) {
+        case "n": return "\n";
+        case "r": return "\r";
+        case "t": return "\t";
+        case "b": return "\b";
+        case "f": return "\f";
+        default: return escaped;
+      }
+    })
+    .replace(/\\\d{1,3}/g, " ");
+}
+
+function decodePdfHexString(value: string) {
+  const normalized = value.length % 2 === 0 ? value : `${value}0`;
+  return Buffer.from(normalized, "hex").toString("utf8");
+}
+
+function extractPdfTextFromDecodedStream(decoded: string) {
+  const matches = [
+    ...[...decoded.matchAll(/\(([^()]*)\)\s*Tj/g)].map((match) => decodePdfLiteralString(match[1] || "")),
+    ...[...decoded.matchAll(/<([0-9A-Fa-f\s]+)>\s*Tj/g)].map((match) => decodePdfHexString((match[1] || "").replace(/\s+/g, ""))),
+    ...[...decoded.matchAll(/\[([\s\S]*?)\]\s*TJ/g)].flatMap((match) => {
+      const segment = match[1] || "";
+      return [
+        ...[...segment.matchAll(/\(([^()]*)\)/g)].map((entry) => decodePdfLiteralString(entry[1] || "")),
+        ...[...segment.matchAll(/<([0-9A-Fa-f\s]+)>/g)].map((entry) => decodePdfHexString((entry[1] || "").replace(/\s+/g, ""))),
+      ];
+    }),
+  ];
+
+  return normalizeWhitespace(matches.filter((entry) => /[A-Za-z]/.test(entry)).join(" "));
+}
+
 function extractPdfLikeTextFallback(buffer: Buffer) {
   const raw = buffer.toString("latin1");
-  const matches = [...raw.matchAll(/\(([^()]{3,400})\)/g)].map((match) => normalizeWhitespace(match[1] || ""));
-  const cleaned = matches
-    .map((entry) => entry.replace(/\\[nrtbf()\\]/g, " "))
-    .filter((entry) => /[A-Za-z]/.test(entry));
-  return cleaned.join("\n");
+  const streams: string[] = [];
+  let cursor = 0;
+
+  while (cursor >= 0 && cursor < raw.length) {
+    const streamIndex = raw.indexOf("stream", cursor);
+    if (streamIndex < 0) break;
+    let start = streamIndex + 6;
+    if (raw[start] === "\r" && raw[start + 1] === "\n") start += 2;
+    else if (raw[start] === "\n") start += 1;
+    const end = raw.indexOf("endstream", start);
+    if (end < 0) break;
+
+    const streamBuffer = buffer.subarray(start, end);
+    const candidates = [streamBuffer];
+    try {
+      candidates.unshift(zlib.inflateSync(streamBuffer));
+    } catch {}
+
+    for (const candidate of candidates) {
+      const extracted = extractPdfTextFromDecodedStream(candidate.toString("latin1"));
+      if (extracted) streams.push(extracted);
+    }
+
+    cursor = end + 9;
+  }
+
+  return normalizeWhitespace(streams.join(" "));
 }
 
 async function extractPdfTextWithPython(buffer: Buffer) {
@@ -288,15 +347,6 @@ async function extractPdfTextWithPdfJs(buffer: Buffer) {
 }
 
 async function extractPdfTextLayer(buffer: Buffer) {
-  const pythonText = await extractPdfTextWithPython(buffer);
-  if (pythonText) return pythonText;
-
-  const pdfParseText = await extractPdfTextWithPdfParse(buffer);
-  if (pdfParseText) return pdfParseText;
-
-  const pdfJsText = await extractPdfTextWithPdfJs(buffer);
-  if (pdfJsText) return pdfJsText;
-
   return extractPdfLikeTextFallback(buffer);
 }
 
@@ -403,13 +453,13 @@ async function extractPdfText(buffer: Buffer) {
   const textLayer = await extractPdfTextLayer(buffer);
   if (textLayer && looksLikeUsefulPdfText(textLayer)) return textLayer;
 
-  const scannedPageImages = await renderPdfPagesToImages(buffer);
-  if (scannedPageImages.length > 0) {
-    const ocrText = normalizeWhitespace((await Promise.all(scannedPageImages.map((image) => extractImageTextWithTesseract(image)))).join("\n"));
-    if (ocrText) return ocrText;
+  if (textLayer) {
+    console.warn("[project-requirements] PDF text extraction returned weak text, dropping it and skipping scanned-PDF OCR in runtime");
+  } else {
+    console.warn("[project-requirements] PDF text extraction produced no usable text, returning empty text instead of attempting scanned-PDF OCR in runtime");
   }
 
-  return textLayer;
+  return "";
 }
 
 const execFileAsync = promisify(execFile);

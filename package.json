@@ -17,7 +17,7 @@
     "verify:attachment-upload-gating": "node --experimental-strip-types scripts/verify-attachment-upload-gating.mjs",
     "verify:attachment-ocr-runtime": "node --experimental-strip-types scripts/verify-attachment-ocr-runtime.mjs",
     "verify:attachment-pdf-serverless": "node --experimental-strip-types scripts/verify-attachment-pdf-serverless.mjs",
-    "verify:attachment-processing-workflow": "node --experimental-strip-types scripts/verify-attachment-processing-workflow.mjs",
+    "verify:attachment-processing-workflow": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-attachment-processing-workflow.mjs",
     "verify:github-provisioning-readiness": "node --experimental-strip-types scripts/verify-github-provisioning-readiness.mjs",
     "verify:smoke": "node scripts/internal-ready-smoke.js",
     "verify:home-empty-openclaw-root": "node --experimental-strip-types scripts/verify-home-empty-openclaw-root.mjs"

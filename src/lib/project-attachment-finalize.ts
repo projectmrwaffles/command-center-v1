@@ -9,6 +9,7 @@ export type AttachmentKickoffStage =
   | "requirements_ready"
   | "seeding_kickoff"
   | "starting_work"
+  | "retryable_failure"
   | "finalized"
   | "failed";
 
@@ -55,6 +56,12 @@ const ATTACHMENT_STAGE_METADATA: Record<AttachmentKickoffStage, { label: string;
     progressPct: 96,
     active: true,
   },
+  retryable_failure: {
+    label: "Attachment processing paused",
+    detail: "Attachment intake hit a recoverable error. The saved files can be retried without recreating the project.",
+    progressPct: 100,
+    active: false,
+  },
   finalized: {
     label: "Kickoff ready",
     detail: "Attachment intake is complete and the project has moved into normal kickoff/workflow state.",
@@ -87,6 +94,8 @@ export function getAttachmentKickoffState(intake?: ProjectIntake | Record<string
     active?: boolean;
     fileCount?: number;
     error?: string;
+    recoverable?: boolean;
+    retryable?: boolean;
   };
 }
 
@@ -108,7 +117,7 @@ export function buildAttachmentKickoffStageState<T extends Record<string, unknow
     updatedAt: new Date().toISOString(),
   } as Record<string, unknown>;
 
-  if (status !== "failed" && typeof extras?.error !== "string") {
+  if (status !== "failed" && status !== "retryable_failure" && typeof extras?.error !== "string") {
     delete mergedState.error;
   }
 

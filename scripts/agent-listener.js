@@ -12,7 +12,7 @@
  */
 
 const { createClient } = require("@supabase/supabase-js");
-const { exec } = require("child_process");
+const { exec, spawn, spawnSync } = require("child_process");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -58,6 +58,40 @@ function resolveOpenClawRoot() {
 const DEFAULT_OPENCLAW_BIN = path.join(resolveOpenClawRoot(), '..', ".npm-global/bin/openclaw");
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || (fs.existsSync(DEFAULT_OPENCLAW_BIN) ? DEFAULT_OPENCLAW_BIN : "openclaw");
 const LOCK_DIR = process.env.AGENT_LISTENER_LOCK_DIR || "/tmp/command-center-agent-listeners";
+const BOOT_GIT_HEAD = readGitHead();
+
+function readGitHead() {
+  const result = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (result.status !== 0) return null;
+  const value = String(result.stdout || "").trim();
+  return value || null;
+}
+
+function restartForUpdatedSource(reason) {
+  const agentArgIndex = process.argv.indexOf("--agent-name");
+  const agentLabel = agentArgIndex >= 0 ? (process.argv[agentArgIndex + 1] || "listener") : "listener";
+  console.log(`[Listener] Restarting ${agentLabel}: ${reason}`);
+  const child = spawn(process.execPath, process.argv.slice(1), {
+    cwd: REPO_ROOT,
+    env: process.env,
+    stdio: "inherit",
+    detached: true,
+  });
+  child.unref();
+  process.exit(0);
+}
+
+function restartIfRepoCodeChanged() {
+  if (!BOOT_GIT_HEAD) return false;
+  const currentHead = readGitHead();
+  if (!currentHead || currentHead === BOOT_GIT_HEAD) return false;
+  restartForUpdatedSource(`repo HEAD changed from ${BOOT_GIT_HEAD.slice(0, 7)} to ${currentHead.slice(0, 7)}`);
+  return true;
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -842,6 +876,7 @@ async function startListener() {
 
     try {
       while (taskQueue.length > 0) {
+        if (restartIfRepoCodeChanged()) return;
         const nextTask = taskQueue.shift();
         if (!nextTask) continue;
 

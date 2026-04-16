@@ -1,9 +1,27 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import Module from 'node:module';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
+import process from 'node:process';
 import { createCanvas } from '@napi-rs/canvas';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
+
+dotenv.config({ path: '.env.local' });
+
+const { runAttachmentWorkerOnce } = await import('./attachment-worker.mjs');
+
+const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!baseUrl || !serviceRoleKey) {
+  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+}
+
+const db = createClient(baseUrl, serviceRoleKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 async function buildTextPdfFixture() {
   const pdfDoc = await PDFDocument.create();
@@ -39,83 +57,153 @@ async function buildScannedPdfFixture() {
   return Buffer.from(await pdfDoc.save());
 }
 
-function loadBuiltProjectRequirementsModule() {
-  const routeFsPath = path.join(process.cwd(), '.next/server/app/api/projects/[id]/documents/upload/route.js');
-  if (!fs.existsSync(routeFsPath)) {
-    throw new Error('Built route artifact missing. Run `next build` before built-runtime PDF verification.');
-  }
-
-  const routeRuntimePath = 'server/app/api/projects/[id]/documents/upload/route.js';
-  const routeSource = fs.readFileSync(routeFsPath, 'utf8');
-  const runtime = require('./../.next/server/chunks/[turbopack]_runtime.js')(routeRuntimePath);
-
-  for (const match of routeSource.matchAll(/R\.c\("([^"]+)"\)/g)) {
-    runtime.c(match[1]);
-  }
-
-  const projectRequirementsChunk = routeSource.match(/R\.c\("(server\/chunks\/src_lib_project-requirements_ts_[^"]+\._\.js)"\)/)?.[1];
-  if (!projectRequirementsChunk) {
-    throw new Error('Could not locate built project-requirements chunk from the built route artifact.');
-  }
-
-  const chunkSource = fs.readFileSync(path.join(process.cwd(), '.next', projectRequirementsChunk), 'utf8');
-  const moduleId = Number(chunkSource.match(/^module\.exports=\[(\d+),/)?.[1]);
-  if (!Number.isFinite(moduleId)) {
-    throw new Error('Could not resolve built project-requirements module id.');
-  }
-
-  return runtime.m(moduleId).exports;
+async function must(label, promise) {
+  const result = await promise;
+  if (result.error) throw new Error(`${label}: ${result.error.message}`);
+  return result.data;
 }
 
-const require = Module.createRequire(import.meta.url);
-const originalVercel = process.env.VERCEL;
-process.env.VERCEL = '1';
+async function waitForServer(origin, timeoutMs = 30000) {
+  const startedAt = Date.now();
+  let lastError = null;
+  while ((Date.now() - startedAt) < timeoutMs) {
+    try {
+      const response = await fetch(origin, { redirect: 'manual' });
+      if (response.status < 500) return;
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(500);
+  }
+  throw new Error(`Timed out waiting for built server at ${origin}: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
 
-const originalLoad = Module._load;
-const originalResolveFilename = Module._resolveFilename;
-const missingCanvasError = () => {
-  const error = new Error("Cannot find module '@napi-rs/canvas'");
-  error.code = 'MODULE_NOT_FOUND';
-  return error;
-};
-Module._resolveFilename = function patchedResolve(request, parent, isMain, options) {
-  if (request === '@napi-rs/canvas') throw missingCanvasError();
-  return originalResolveFilename.call(this, request, parent, isMain, options);
-};
-Module._load = function patchedLoad(request, parent, isMain) {
-  if (request === '@napi-rs/canvas') throw missingCanvasError();
-  return originalLoad.call(this, request, parent, isMain);
-};
+function startBuiltServer(port) {
+  const child = spawn('node_modules/.bin/next', ['start', '-H', '127.0.0.1', '-p', String(port)], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env },
+  });
+  let logs = '';
+  child.stdout.on('data', (chunk) => {
+    logs += chunk.toString();
+  });
+  child.stderr.on('data', (chunk) => {
+    logs += chunk.toString();
+  });
+  return { child, getLogs: () => logs };
+}
 
-try {
+async function stopBuiltServer(server) {
+  if (!server || server.killed) return;
+  server.kill('SIGTERM');
+  await Promise.race([
+    once(server, 'exit').catch(() => {}),
+    delay(5000).then(() => {
+      if (!server.killed) server.kill('SIGKILL');
+    }),
+  ]);
+}
+
+async function main() {
+  const stamp = `built-runtime-worker-${Date.now()}`;
+  const port = 3300 + Math.floor(Math.random() * 200);
+  const origin = `http://127.0.0.1:${port}`;
   const textPdfFixture = await buildTextPdfFixture();
   const scannedPdfFixture = await buildScannedPdfFixture();
-  const { extractRequirementsFromUploadedFile, deriveProjectRequirements } = loadBuiltProjectRequirementsModule();
+  const createdProject = await must(
+    'insert project fixture',
+    db.from('projects').insert({
+      name: `Built Runtime Worker Fixture ${stamp}`,
+      status: 'active',
+      type: 'product_build',
+      intake: {
+        summary: 'Use uploaded documents to derive implementation requirements.',
+      },
+    }).select('id,name').single(),
+  );
 
-  const extractedTextPdf = await extractRequirementsFromUploadedFile({
-    buffer: textPdfFixture,
-    mimeType: 'application/pdf',
-    title: 'built-runtime-text.pdf',
-    type: 'prd_pdf',
-  });
-  assert.match(extractedTextPdf.text || '', /next\.js/i, 'built server artifact should extract text PDFs under Vercel-style runtime');
+  const server = startBuiltServer(port);
 
-  const requirements = deriveProjectRequirements({ documents: [extractedTextPdf] });
-  assert.ok(requirements.summary.some((line) => /tailwind/i.test(line)), 'built server artifact should preserve extracted PDF evidence');
+  try {
+    await waitForServer(origin);
 
-  const extractedScannedPdf = await extractRequirementsFromUploadedFile({
-    buffer: scannedPdfFixture,
-    mimeType: 'application/pdf',
-    title: 'built-runtime-scanned.pdf',
-    type: 'prd_pdf',
-  });
-  assert.equal(typeof extractedScannedPdf.text, 'string', 'built server artifact should return a string for scanned PDFs');
-  assert.ok((extractedScannedPdf.text || '').length < 80, 'built server artifact should degrade cleanly for scanned PDFs instead of doing runtime OCR roulette');
+    const formData = new FormData();
+    formData.append('files', new File([textPdfFixture], 'built-runtime-text.pdf', { type: 'application/pdf' }));
+    formData.append('files', new File([scannedPdfFixture], 'built-runtime-scanned.pdf', { type: 'application/pdf' }));
 
-  console.log('PASS built server artifact keeps PDF extraction deterministic in Vercel-style runtime');
-} finally {
-  Module._load = originalLoad;
-  Module._resolveFilename = originalResolveFilename;
-  if (originalVercel === undefined) delete process.env.VERCEL;
-  else process.env.VERCEL = originalVercel;
+    const uploadResponse = await fetch(`${origin}/api/projects/${createdProject.id}/documents/upload`, {
+      method: 'POST',
+      headers: {
+        origin,
+        referer: `${origin}/projects/${createdProject.id}`,
+      },
+      body: formData,
+    });
+    const uploadJson = await uploadResponse.json();
+    assert.equal(uploadResponse.status, 201, `upload failed: ${JSON.stringify(uploadJson)}`);
+    assert.equal(uploadJson.intakeRequirementStatus, 'queued_for_worker_processing');
+    assert.equal(uploadJson.kickoffStatus, 'queued_for_worker_processing');
+    assert.equal(uploadJson.attachmentKickoffState?.status, 'upload_received');
+    assert.ok(uploadJson.attachmentJob?.jobId, 'upload should enqueue a durable worker job');
+
+    const queuedJob = await must(
+      'load queued attachment job',
+      db.from('jobs').select('id,status,summary,project_id').eq('id', uploadJson.attachmentJob.jobId).single(),
+    );
+    assert.equal(queuedJob.status, 'queued');
+    assert.equal(queuedJob.project_id, createdProject.id);
+
+    const workerResults = await runAttachmentWorkerOnce();
+    const workerResult = workerResults.find((entry) => entry.projectId === createdProject.id);
+    assert.ok(workerResult, 'worker should claim and process the queued upload job');
+    assert.equal(workerResult.status, 'completed');
+    assert.equal(workerResult.attachmentRequirementsReady, true);
+
+    const processedProject = await must(
+      'load processed project',
+      db.from('projects').select('id,intake').eq('id', createdProject.id).single(),
+    );
+    const requirements = processedProject.intake?.requirements;
+    assert.ok(Array.isArray(requirements?.summary), 'worker should persist derived requirements');
+    assert.ok(requirements.summary.some((line) => /next\.js/i.test(line)), 'derived requirements should preserve Next.js evidence');
+    assert.ok(requirements.summary.some((line) => /tailwind/i.test(line)), 'derived requirements should preserve Tailwind evidence');
+
+    const processedJob = await must(
+      'load completed job',
+      db.from('jobs').select('id,status').eq('id', queuedJob.id).single(),
+    );
+    assert.equal(processedJob.status, 'completed');
+
+    const sprintCountResult = await db.from('sprints').select('id', { count: 'exact', head: true }).eq('project_id', createdProject.id);
+    if (sprintCountResult.error) throw new Error(`load sprint count: ${sprintCountResult.error.message}`);
+    assert.ok((sprintCountResult.count || 0) > 0, 'processed project should have kickoff sprints after worker finalization');
+
+    console.log('PASS built Next runtime queues attachment jobs and the attachment worker processes them end-to-end');
+    console.log(JSON.stringify({
+      projectId: createdProject.id,
+      queuedJobId: queuedJob.id,
+      workerResult,
+      attachmentKickoffState: processedProject.intake?.attachmentKickoffState || null,
+      requirementsSummary: requirements?.summary || [],
+      sprintCount: sprintCountResult.count || 0,
+      origin,
+    }, null, 2));
+  } finally {
+    try {
+      await fetch(`${origin}/api/projects/${createdProject.id}`, {
+        method: 'DELETE',
+        headers: {
+          origin,
+          referer: `${origin}/projects/${createdProject.id}`,
+        },
+      });
+    } catch {}
+    await stopBuiltServer(server.child);
+  }
 }
+
+main().catch((error) => {
+  console.error(error.stack || error.message || String(error));
+  process.exit(1);
+});

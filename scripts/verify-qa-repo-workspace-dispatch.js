@@ -28,6 +28,14 @@ const assertions = [
       listener.includes("Use the exact repo workspace path above when you inspect or change implementation files; do not work in a separate scratch workspace."),
     detail: "prevents the exact Task App V6 failure where build work landed outside the repo-bound workspace and QA reviewed an empty repo",
   },
+  {
+    name: "listener self-restarts after repo code changes",
+    ok:
+      listener.includes("const BOOT_GIT_HEAD = readGitHead();") &&
+      listener.includes("function restartIfRepoCodeChanged()") &&
+      listener.includes("repo HEAD changed from"),
+    detail: "long-lived listeners should not keep dispatching stale task prompts after a workspace-path fix lands in git",
+  },
 ];
 
 let failed = false;

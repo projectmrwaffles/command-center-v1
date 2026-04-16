@@ -1269,9 +1269,11 @@ export default function ProjectDetailPage() {
     : null;
   const attachmentProcessingTone = attachmentProcessingState?.status === "failed"
     ? "border-red-200 bg-red-50 text-red-900"
-    : attachmentProcessingState?.active
-      ? "border-sky-200 bg-sky-50 text-sky-900"
-      : "border-emerald-200 bg-emerald-50 text-emerald-900";
+    : attachmentProcessingState?.status === "retryable_failure"
+      ? "border-amber-200 bg-amber-50 text-amber-900"
+      : attachmentProcessingState?.active
+        ? "border-sky-200 bg-sky-50 text-sky-900"
+        : "border-emerald-200 bg-emerald-50 text-emerald-900";
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden pb-10 md:space-y-8">

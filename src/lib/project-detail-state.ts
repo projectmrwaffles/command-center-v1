@@ -7,6 +7,8 @@ type AttachmentKickoffState = {
   progressPct?: number;
   active?: boolean;
   error?: string;
+  recoverable?: boolean;
+  retryable?: boolean;
 };
 
 type TruthExecutionState = {
@@ -46,16 +48,19 @@ export function deriveProjectDetailHeaderState(input: {
   attachmentKickoffState?: AttachmentKickoffState | null;
 }) {
   const attachment = input.attachmentKickoffState;
-  if (attachment?.active || attachment?.status === "failed") {
-    const defaultProgress = attachment?.status === "failed" ? 100 : 0;
+  const hasAttachmentIssue = attachment?.status === "failed" || attachment?.status === "retryable_failure";
+  if (attachment?.active || hasAttachmentIssue) {
+    const defaultProgress = hasAttachmentIssue ? 100 : 0;
     const progressPct = Math.max(0, Math.min(100, attachment.progressPct ?? defaultProgress));
     return {
-      key: attachment?.status === "failed" ? "attachment_failed" : "attachment_processing",
+      key: hasAttachmentIssue ? "attachment_failed" : "attachment_processing",
       progressPct,
-      badgeText: attachment?.status === "failed" ? "Attachment issue" : "Attachment processing",
-      headline: attachment?.status === "failed" ? "Attachment processing failed" : "Kickoff setup in progress",
-      summary: attachment.error || attachment.detail || (attachment?.status === "failed"
-        ? "Attachment intake hit an error and needs attention before kickoff can continue."
+      badgeText: hasAttachmentIssue ? "Attachment issue" : "Attachment processing",
+      headline: attachment?.status === "retryable_failure" ? "Attachment processing paused" : hasAttachmentIssue ? "Attachment processing failed" : "Kickoff setup in progress",
+      summary: attachment.error || attachment.detail || (hasAttachmentIssue
+        ? attachment?.status === "retryable_failure"
+          ? "Attachment intake can be retried from saved files before kickoff continues."
+          : "Attachment intake hit an error and needs attention before kickoff can continue."
         : "Attached materials are still being processed before kickoff can settle."),
     } as const;
   }

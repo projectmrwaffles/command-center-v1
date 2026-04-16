@@ -1,8 +1,5 @@
-import { finalizeProjectCreate } from "@/lib/project-create-finalize";
-import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
-import { recoverAttachmentUploadFailure, repairMissingPdfAttachmentRequirements } from "@/lib/project-requirements-repair";
-import type { ProjectRequirements } from "@/lib/project-requirements.types";
-import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
+import { processAttachmentBackedProject } from "@/lib/project-requirements-repair";
+import { getAttachmentKickoffState, hasAttachmentDerivedRequirements } from "@/lib/project-attachment-finalize";
 import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -17,6 +14,7 @@ function storageNotConfiguredMessage() {
 type ProjectDb = NonNullable<ReturnType<typeof createRouteHandlerClient>>;
 
 async function persistAttachmentKickoffStage(db: ProjectDb, projectId: string, intake: Record<string, unknown> | null | undefined, status: any, extras?: Record<string, unknown>) {
+  const { buildAttachmentKickoffStageState } = await import("@/lib/project-attachment-finalize");
   const nextIntake = buildAttachmentKickoffStageState(intake, status, extras);
   const { error } = await db
     .from("projects")
@@ -95,9 +93,7 @@ export async function POST(
 
     try {
       const insertedDocumentRows: Array<Record<string, unknown>> = [];
-      const extractedDocuments: Array<{ title: string; type: string; text?: string | null }> = [];
-
-      const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
+      const { data: project } = await db.from("projects").select("id, name, type, team_id, intake, links, github_repo_binding").eq("id", projectId).maybeSingle();
       let currentIntake = (project?.intake || {}) as Record<string, unknown>;
       currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "upload_received", { fileCount: files.length });
 
@@ -134,176 +130,62 @@ export async function POST(
 
         persistedStoragePaths.add(objectName);
         insertedDocumentRows.push(insertedDocument);
-        currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "extracting_attachment_text", { fileCount: files.length, currentFileName: file.name || "Untitled upload" });
-        extractedDocuments.push(await extractRequirementsFromUploadedFile({
-          buffer,
-          mimeType: file.type || null,
-          title: file.name || "Untitled upload",
-          type: documentType,
-        }));
       }
 
-      const data = insertedDocumentRows;
-
-      currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "deriving_requirements", { fileCount: files.length });
-      const nextRequirements = deriveProjectRequirements({
-        intakeSummary: typeof currentIntake.summary === "string" ? currentIntake.summary : null,
-        intakeGoals: typeof currentIntake.goals === "string" ? currentIntake.goals : null,
-        existing: (currentIntake.requirements as any) || null,
-        documents: extractedDocuments,
-      });
-
-      const nextIntake = {
-        ...currentIntake,
-        requirements: nextRequirements,
+      const refreshedProject = {
+        ...(project || { id: projectId }),
+        intake: currentIntake,
       };
 
-      const { data: updatedProject, error: updateError } = await db
-        .from("projects")
-        .update({
-          intake: nextIntake,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", projectId)
-        .select("id, name, type, team_id, intake, links, github_repo_binding")
-        .single();
-
-      if (updateError || !updatedProject) {
-        throw new Error(updateError?.message || "Failed to persist attachment-derived requirements");
-      }
-
-      const repaired = await repairMissingPdfAttachmentRequirements(db, {
-        projectId,
-        intake: updatedProject.intake || nextIntake,
+      const processed = await processAttachmentBackedProject(db as any, {
+        project: refreshedProject,
+        forceProcessing: true,
+        fileCount: files.length,
       });
-      const effectiveIntake = repaired.intake || updatedProject.intake || nextIntake;
-      const effectiveRequirements = repaired.requirements || (effectiveIntake.requirements as ProjectRequirements | null | undefined) || nextRequirements;
+
+      const effectiveProject = processed.project;
+      const effectiveRequirements = processed.requirements;
       const attachmentRequirementsReady = hasAttachmentDerivedRequirements(effectiveRequirements);
+      const attachmentKickoffState = getAttachmentKickoffState(effectiveProject.intake);
 
-      const { count: sprintCount, error: sprintCountError } = await db
-        .from("sprints")
-        .select("id", { count: "exact", head: true })
-        .eq("project_id", projectId);
-
-      if (sprintCountError) {
-        throw new Error(sprintCountError.message);
-      }
-
-      const { data: sprintRows, error: sprintRowsError } = await db
-        .from("sprints")
-        .select("id, name")
-        .eq("project_id", projectId);
-
-      if (sprintRowsError) {
-        throw new Error(sprintRowsError.message);
-      }
-
-      const effectiveSprintCount = sprintCount ?? 0;
-      const hasLegacyAttachmentShell = hasOnlyLegacyAttachmentShellSprints(sprintRows || []);
-
-      const shouldFinalize = shouldFinalizeProjectAfterAttachmentUpload({
-        sprintCount: effectiveSprintCount,
-        attachmentRequirementsReady,
-      }) || (attachmentRequirementsReady && hasLegacyAttachmentShell);
-
-      if (attachmentRequirementsReady) {
-        currentIntake = await persistAttachmentKickoffStage(db, projectId, effectiveIntake as Record<string, unknown>, "requirements_ready", { fileCount: files.length });
-      }
-
-      const effectiveProjectForFinalize = {
-        ...updatedProject,
-        intake: attachmentRequirementsReady ? buildAttachmentKickoffReadyIntake(effectiveIntake) : effectiveIntake,
-      };
-
-      if (shouldFinalize && hasLegacyAttachmentShell && sprintRows?.length) {
-        const sprintIds = sprintRows.map((sprint: { id: string }) => sprint.id).filter(Boolean);
-        if (sprintIds.length > 0) {
-          const { error: deleteTasksError } = await db.from("sprint_items").delete().in("sprint_id", sprintIds);
-          if (deleteTasksError) throw new Error(deleteTasksError.message);
-          const { error: deleteSprintsError } = await db.from("sprints").delete().in("id", sprintIds);
-          if (deleteSprintsError) throw new Error(deleteSprintsError.message);
-        }
-      }
-
-      if (shouldFinalize) {
-        currentIntake = await persistAttachmentKickoffStage(db, projectId, effectiveProjectForFinalize.intake as Record<string, unknown>, "seeding_kickoff", { fileCount: files.length });
-      }
-
-      const dispatchResults = shouldFinalize
-        ? await finalizeProjectCreate(db, {
-            project: effectiveProjectForFinalize,
-            name: updatedProject.name || "Untitled project",
-            type: updatedProject.type || "other",
-            intake: buildAttachmentKickoffFinalizedIntake(effectiveProjectForFinalize.intake),
-            links: updatedProject.links || null,
-            githubRepoBinding: updatedProject.github_repo_binding || null,
-            teamId: updatedProject.team_id || null,
-          })
-        : [];
-
-      const kickoffStartingIntake = shouldFinalize
-        ? buildAttachmentKickoffStageState(effectiveProjectForFinalize.intake, "starting_work", { fileCount: files.length })
-        : effectiveProjectForFinalize.intake;
-      const existingAttachmentState = getAttachmentKickoffState(effectiveProjectForFinalize.intake);
-      const shouldPreserveFinalizedState = !shouldFinalize && attachmentRequirementsReady && Boolean(existingAttachmentState?.finalizedAt);
-
-      const persistedIntake = shouldFinalize
-        ? buildAttachmentKickoffFinalizedIntake(kickoffStartingIntake)
-        : shouldPreserveFinalizedState
-          ? buildAttachmentKickoffFinalizedIntake(effectiveProjectForFinalize.intake)
-          : attachmentRequirementsReady
-            ? buildAttachmentKickoffReadyIntake(effectiveProjectForFinalize.intake)
-            : effectiveProjectForFinalize.intake;
-
-      const { error: persistKickoffStateError } = await db
-        .from("projects")
-        .update({
-          intake: persistedIntake,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", projectId);
-
-      if (persistKickoffStateError) {
-        throw new Error(persistKickoffStateError.message);
-      }
-
-      if ((shouldFinalize ? 1 : effectiveSprintCount) > 0) {
+      if (processed.finalized || attachmentRequirementsReady) {
         await syncProjectPreBuildCheckpoint(db, {
           projectId,
           project: {
-            ...updatedProject,
-            intake: persistedIntake,
+            ...effectiveProject,
+            intake: effectiveProject.intake || null,
+            links: effectiveProject.links || null,
+            github_repo_binding: effectiveProject.github_repo_binding || null,
           },
         });
       }
 
       return NextResponse.json({
-        documents: data,
+        documents: insertedDocumentRows,
         requirements: effectiveRequirements,
-        dispatch: dispatchResults,
+        dispatch: processed.finalized ? [{ dispatched: true }] : [],
         intakeRequirementStatus: attachmentRequirementsReady ? "ready" : "missing_attachment_requirements",
-        kickoffStatus: shouldFinalize
+        kickoffStatus: processed.finalized
           ? "finalized"
-          : effectiveSprintCount > 0
-            ? hasLegacyAttachmentShell
-              ? "already_initialized"
-              : "workflow_waiting_for_attachments"
+          : attachmentRequirementsReady
+            ? "workflow_waiting_for_attachments"
             : "waiting_for_attachment_requirements",
-        attachmentKickoffState: getAttachmentKickoffState(persistedIntake),
+        attachmentKickoffState,
       }, { status: 201 });
     } catch (error) {
       try {
-        const { data: project } = await db.from("projects").select("intake").eq("id", projectId).maybeSingle();
-        const recovered = persistedStoragePaths.size > 0
-          ? await recoverAttachmentUploadFailure(db, {
-              projectId,
+        const { data: project } = await db.from("projects").select("id, intake").eq("id", projectId).maybeSingle();
+        if (persistedStoragePaths.size > 0) {
+          await processAttachmentBackedProject(db as any, {
+            project: {
+              id: projectId,
               intake: (project?.intake || {}) as Record<string, unknown>,
-              fileCount: files.length,
-              errorDetail: error instanceof Error ? error.message : "Attachment processing failed",
-            })
-          : { recovered: false };
-
-        if (!recovered.recovered) {
+            },
+            forceProcessing: true,
+            fileCount: files.length,
+            failureDetail: error instanceof Error ? error.message : "Attachment processing failed",
+          });
+        } else {
           await persistAttachmentKickoffStage(db, projectId, (project?.intake || {}) as Record<string, unknown>, "failed", {
             error: error instanceof Error ? error.message : "Attachment processing failed",
             detail: error instanceof Error ? error.message : "Attachment processing failed",

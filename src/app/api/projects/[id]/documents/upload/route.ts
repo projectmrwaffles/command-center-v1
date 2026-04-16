@@ -1,6 +1,5 @@
-import { processAttachmentBackedProject } from "@/lib/project-requirements-repair";
-import { getAttachmentKickoffState, hasAttachmentDerivedRequirements } from "@/lib/project-attachment-finalize";
-import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
+import { enqueueAttachmentProcessingJob, persistAttachmentQueuedState } from "@/lib/attachment-processing-jobs";
+import { getAttachmentKickoffState } from "@/lib/project-attachment-finalize";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -12,21 +11,6 @@ function storageNotConfiguredMessage() {
 }
 
 type ProjectDb = NonNullable<ReturnType<typeof createRouteHandlerClient>>;
-
-async function persistAttachmentKickoffStage(db: ProjectDb, projectId: string, intake: Record<string, unknown> | null | undefined, status: any, extras?: Record<string, unknown>) {
-  const { buildAttachmentKickoffStageState } = await import("@/lib/project-attachment-finalize");
-  const nextIntake = buildAttachmentKickoffStageState(intake, status, extras);
-  const { error } = await db
-    .from("projects")
-    .update({
-      intake: nextIntake,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", projectId);
-
-  if (error) throw new Error(error.message || `Failed to persist attachment stage ${status}`);
-  return nextIntake;
-}
 
 async function projectExists(db: ProjectDb, projectId: string) {
   const { data, error } = await db.from("projects").select("id").eq("id", projectId).single();
@@ -95,7 +79,6 @@ export async function POST(
       const insertedDocumentRows: Array<Record<string, unknown>> = [];
       const { data: project } = await db.from("projects").select("id, name, type, team_id, intake, links, github_repo_binding").eq("id", projectId).maybeSingle();
       let currentIntake = (project?.intake || {}) as Record<string, unknown>;
-      currentIntake = await persistAttachmentKickoffStage(db, projectId, currentIntake, "upload_received", { fileCount: files.length });
 
       for (const file of files) {
         const objectName = buildObjectName(projectId, file.name || "upload.bin");
@@ -132,63 +115,34 @@ export async function POST(
         insertedDocumentRows.push(insertedDocument);
       }
 
-      const refreshedProject = {
-        ...(project || { id: projectId }),
+      currentIntake = await persistAttachmentQueuedState(db, {
+        projectId,
         intake: currentIntake,
-      };
-
-      const processed = await processAttachmentBackedProject(db as any, {
-        project: refreshedProject,
-        forceProcessing: true,
         fileCount: files.length,
       });
-
-      const effectiveProject = processed.project;
-      const effectiveRequirements = processed.requirements;
-      const attachmentRequirementsReady = hasAttachmentDerivedRequirements(effectiveRequirements);
-      const attachmentKickoffState = getAttachmentKickoffState(effectiveProject.intake);
-
-      if (processed.finalized || attachmentRequirementsReady) {
-        await syncProjectPreBuildCheckpoint(db, {
-          projectId,
-          project: {
-            ...effectiveProject,
-            intake: effectiveProject.intake || null,
-            links: effectiveProject.links || null,
-            github_repo_binding: effectiveProject.github_repo_binding || null,
-          },
-        });
-      }
+      const queuedJob = await enqueueAttachmentProcessingJob(db, {
+        projectId,
+        projectName: project?.name || null,
+        fileCount: files.length,
+      });
+      const attachmentKickoffState = getAttachmentKickoffState(currentIntake);
 
       return NextResponse.json({
         documents: insertedDocumentRows,
-        requirements: effectiveRequirements,
-        dispatch: processed.finalized ? [{ dispatched: true }] : [],
-        intakeRequirementStatus: attachmentRequirementsReady ? "ready" : "missing_attachment_requirements",
-        kickoffStatus: processed.finalized
-          ? "finalized"
-          : attachmentRequirementsReady
-            ? "workflow_waiting_for_attachments"
-            : "waiting_for_attachment_requirements",
+        requirements: null,
+        dispatch: [],
+        intakeRequirementStatus: "queued_for_worker_processing",
+        kickoffStatus: "queued_for_worker_processing",
         attachmentKickoffState,
+        attachmentJob: queuedJob,
       }, { status: 201 });
     } catch (error) {
       try {
         const { data: project } = await db.from("projects").select("id, intake").eq("id", projectId).maybeSingle();
         if (persistedStoragePaths.size > 0) {
-          await processAttachmentBackedProject(db as any, {
-            project: {
-              id: projectId,
-              intake: (project?.intake || {}) as Record<string, unknown>,
-            },
-            forceProcessing: true,
-            fileCount: files.length,
-            failureDetail: error instanceof Error ? error.message : "Attachment processing failed",
-          });
-        } else {
-          await persistAttachmentKickoffStage(db, projectId, (project?.intake || {}) as Record<string, unknown>, "failed", {
-            error: error instanceof Error ? error.message : "Attachment processing failed",
-            detail: error instanceof Error ? error.message : "Attachment processing failed",
+          await persistAttachmentQueuedState(db, {
+            projectId,
+            intake: (project?.intake || {}) as Record<string, unknown>,
             fileCount: files.length,
           });
         }

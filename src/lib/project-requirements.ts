@@ -291,19 +291,11 @@ async function extractPdfTextLayer(buffer: Buffer) {
   const pythonText = await extractPdfTextWithPython(buffer);
   if (pythonText) return pythonText;
 
-  const preferBundledPdfJs = !isHostDependentExtractionAllowed();
-  if (preferBundledPdfJs) {
-    const pdfJsText = await extractPdfTextWithPdfJs(buffer);
-    if (pdfJsText) return pdfJsText;
-  }
-
   const pdfParseText = await extractPdfTextWithPdfParse(buffer);
   if (pdfParseText) return pdfParseText;
 
-  if (!preferBundledPdfJs) {
-    const pdfJsText = await extractPdfTextWithPdfJs(buffer);
-    if (pdfJsText) return pdfJsText;
-  }
+  const pdfJsText = await extractPdfTextWithPdfJs(buffer);
+  if (pdfJsText) return pdfJsText;
 
   return extractPdfLikeTextFallback(buffer);
 }

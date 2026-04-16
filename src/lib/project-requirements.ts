@@ -138,8 +138,26 @@ async function extractPdfTextWithPython(buffer: Buffer) {
   }
 }
 
+async function ensurePdfCanvasPolyfills() {
+  if ((globalThis as any).DOMMatrix && (globalThis as any).ImageData && (globalThis as any).Path2D) {
+    return;
+  }
+
+  const canvasModuleName = ["@napi-rs", "canvas"].join("/");
+  const canvasModule = require(canvasModuleName) as {
+    DOMMatrix?: unknown;
+    ImageData?: unknown;
+    Path2D?: unknown;
+  };
+
+  if (!(globalThis as any).DOMMatrix && canvasModule.DOMMatrix) (globalThis as any).DOMMatrix = canvasModule.DOMMatrix;
+  if (!(globalThis as any).ImageData && canvasModule.ImageData) (globalThis as any).ImageData = canvasModule.ImageData;
+  if (!(globalThis as any).Path2D && canvasModule.Path2D) (globalThis as any).Path2D = canvasModule.Path2D;
+}
+
 async function extractPdfTextWithPdfParse(buffer: Buffer) {
   try {
+    await ensurePdfCanvasPolyfills();
     const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: new Uint8Array(buffer) });
     try {
@@ -155,6 +173,7 @@ async function extractPdfTextWithPdfParse(buffer: Buffer) {
 }
 
 async function importPdfJsModule() {
+  await ensurePdfCanvasPolyfills();
   return import("pdfjs-dist/legacy/build/pdf.mjs");
 }
 
@@ -250,6 +269,7 @@ async function extractImageTextWithTesseract(image: Buffer) {
 
 async function renderPdfPagesToImages(buffer: Buffer, maxPages = SCANNED_PDF_OCR_PAGE_LIMIT) {
   try {
+    await ensurePdfCanvasPolyfills();
     const canvasModuleName = ["@napi-rs", "canvas"].join("/");
     const canvasModule = require(canvasModuleName) as {
       createCanvas: (width: number, height: number) => { getContext: (kind: string) => unknown; toBuffer: (mimeType: string) => Buffer };
@@ -257,9 +277,6 @@ async function renderPdfPagesToImages(buffer: Buffer, maxPages = SCANNED_PDF_OCR
       ImageData: unknown;
       Path2D: unknown;
     };
-    if (!(globalThis as any).DOMMatrix) (globalThis as any).DOMMatrix = canvasModule.DOMMatrix;
-    if (!(globalThis as any).ImageData) (globalThis as any).ImageData = canvasModule.ImageData;
-    if (!(globalThis as any).Path2D) (globalThis as any).Path2D = canvasModule.Path2D;
 
     const pdfjs = await importPdfJsModule();
     const loadingTask = pdfjs.getDocument({

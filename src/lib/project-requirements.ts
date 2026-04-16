@@ -138,43 +138,102 @@ async function extractPdfTextWithPython(buffer: Buffer) {
   }
 }
 
-async function ensurePdfCanvasPolyfills() {
-  if ((globalThis as any).DOMMatrix && (globalThis as any).ImageData && (globalThis as any).Path2D) {
-    return;
-  }
+function getOptionalCanvasModuleName() {
+  return String.fromCharCode(64, 110, 97, 112, 105, 45, 114, 115, 47, 99, 97, 110, 118, 97, 115);
+}
 
-  const canvasModuleName = ["@napi-rs", "canvas"].join("/");
-  const canvasModule = require(canvasModuleName) as {
+function loadOptionalCanvasModule() {
+  return require(getOptionalCanvasModuleName()) as {
+    createCanvas?: (width: number, height: number) => { getContext: (kind: string) => unknown; toBuffer: (mimeType: string) => Buffer };
     DOMMatrix?: unknown;
     ImageData?: unknown;
     Path2D?: unknown;
   };
+}
 
+class MinimalDOMMatrix {
+  a = 1;
+  b = 0;
+  c = 0;
+  d = 1;
+  e = 0;
+  f = 0;
+  m11 = 1;
+  m12 = 0;
+  m13 = 0;
+  m14 = 0;
+  m21 = 0;
+  m22 = 1;
+  m23 = 0;
+  m24 = 0;
+  m31 = 0;
+  m32 = 0;
+  m33 = 1;
+  m34 = 0;
+  m41 = 0;
+  m42 = 0;
+  m43 = 0;
+  m44 = 1;
+  is2D = true;
+  isIdentity = true;
+
+  constructor(init?: number[]) {
+    if (Array.isArray(init) && init.length >= 6) {
+      [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+      this.m11 = this.a;
+      this.m12 = this.b;
+      this.m21 = this.c;
+      this.m22 = this.d;
+      this.m41 = this.e;
+      this.m42 = this.f;
+      this.isIdentity = false;
+    }
+  }
+
+  multiplySelf() { return this; }
+  preMultiplySelf() { return this; }
+  translateSelf() { return this; }
+  scaleSelf() { return this; }
+  rotateSelf() { return this; }
+  invertSelf() { return this; }
+  clone() { return new MinimalDOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f]); }
+}
+
+function ensurePdfJsTextPolyfills() {
+  if (!(globalThis as any).DOMMatrix) (globalThis as any).DOMMatrix = MinimalDOMMatrix;
+  if (!(globalThis as any).ImageData) (globalThis as any).ImageData = class ImageDataMock {};
+  if (!(globalThis as any).Path2D) (globalThis as any).Path2D = class Path2DMock {};
+}
+
+async function ensurePdfCanvasPolyfills() {
+  ensurePdfJsTextPolyfills();
+  const canvasModule = loadOptionalCanvasModule();
   if (!(globalThis as any).DOMMatrix && canvasModule.DOMMatrix) (globalThis as any).DOMMatrix = canvasModule.DOMMatrix;
   if (!(globalThis as any).ImageData && canvasModule.ImageData) (globalThis as any).ImageData = canvasModule.ImageData;
   if (!(globalThis as any).Path2D && canvasModule.Path2D) (globalThis as any).Path2D = canvasModule.Path2D;
 }
 
-async function extractPdfTextWithPdfParse(buffer: Buffer) {
+function canRasterizePdfPages() {
   try {
-    await ensurePdfCanvasPolyfills();
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    try {
-      const result = await parser.getText();
-      return normalizeWhitespace(String(result?.text || ""));
-    } finally {
-      await parser.destroy();
-    }
-  } catch (error) {
-    console.warn("[project-requirements] pdf-parse PDF extraction failed", error);
-    return "";
+    require.resolve(getOptionalCanvasModuleName());
+    return true;
+  } catch {
+    return false;
   }
 }
 
 async function importPdfJsModule() {
-  await ensurePdfCanvasPolyfills();
+  ensurePdfJsTextPolyfills();
   return import("pdfjs-dist/legacy/build/pdf.mjs");
+}
+
+function getPdfJsStandardFontDataUrl() {
+  try {
+    const packageJsonPath = require.resolve("pdfjs-dist/package.json");
+    return `${pathToFileURL(path.join(path.dirname(packageJsonPath), "standard_fonts")).href}/`;
+  } catch {
+    return undefined;
+  }
 }
 
 async function extractPdfTextWithPdfJs(buffer: Buffer) {
@@ -185,6 +244,7 @@ async function extractPdfTextWithPdfJs(buffer: Buffer) {
       disableWorker: true,
       useWorkerFetch: false,
       isEvalSupported: false,
+      standardFontDataUrl: getPdfJsStandardFontDataUrl(),
     } as any);
     const pdf = await loadingTask.promise;
 
@@ -213,9 +273,6 @@ async function extractPdfTextWithPdfJs(buffer: Buffer) {
 async function extractPdfTextLayer(buffer: Buffer) {
   const pythonText = await extractPdfTextWithPython(buffer);
   if (pythonText) return pythonText;
-
-  const pdfParseText = await extractPdfTextWithPdfParse(buffer);
-  if (pdfParseText) return pdfParseText;
 
   const pdfJsText = await extractPdfTextWithPdfJs(buffer);
   if (pdfJsText) return pdfJsText;
@@ -268,10 +325,14 @@ async function extractImageTextWithTesseract(image: Buffer) {
 }
 
 async function renderPdfPagesToImages(buffer: Buffer, maxPages = SCANNED_PDF_OCR_PAGE_LIMIT) {
+  if (!canRasterizePdfPages()) {
+    console.warn("[project-requirements] scanned PDF rasterization skipped because @napi-rs/canvas is unavailable");
+    return [];
+  }
+
   try {
     await ensurePdfCanvasPolyfills();
-    const canvasModuleName = ["@napi-rs", "canvas"].join("/");
-    const canvasModule = require(canvasModuleName) as {
+    const canvasModule = loadOptionalCanvasModule() as {
       createCanvas: (width: number, height: number) => { getContext: (kind: string) => unknown; toBuffer: (mimeType: string) => Buffer };
       DOMMatrix: unknown;
       ImageData: unknown;
@@ -284,6 +345,7 @@ async function renderPdfPagesToImages(buffer: Buffer, maxPages = SCANNED_PDF_OCR
       disableWorker: true,
       useWorkerFetch: false,
       isEvalSupported: false,
+      standardFontDataUrl: getPdfJsStandardFontDataUrl(),
     } as any);
     const pdf = await loadingTask.promise;
 

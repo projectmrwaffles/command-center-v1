@@ -347,6 +347,15 @@ async function extractPdfTextWithPdfJs(buffer: Buffer) {
 }
 
 async function extractPdfTextLayer(buffer: Buffer) {
+  const pdfParseText = await extractPdfTextWithPdfParse(buffer);
+  if (pdfParseText) return pdfParseText;
+
+  const pdfJsText = await extractPdfTextWithPdfJs(buffer);
+  if (pdfJsText) return pdfJsText;
+
+  const pythonText = await extractPdfTextWithPython(buffer);
+  if (pythonText) return pythonText;
+
   return extractPdfLikeTextFallback(buffer);
 }
 

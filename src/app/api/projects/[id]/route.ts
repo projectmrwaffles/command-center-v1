@@ -7,7 +7,6 @@ import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/
 import { deriveReviewArtifacts } from "@/lib/review-requests";
 import { filterLegacyAttachmentShellState } from "@/lib/project-attachment-finalize";
 import { deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from "@/lib/milestone-review";
-import { reconcileAttachmentBackedProjectCreate } from "@/lib/project-requirements-repair";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -174,16 +173,12 @@ export async function GET(
       links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
     };
 
-    const attachmentReconciled = await reconcileAttachmentBackedProjectCreate(db as any, {
-      project: {
-        ...projectWithDerivedArtifacts,
-        intake: projectWithDerivedArtifacts.intake || null,
-        links: projectWithDerivedArtifacts.links || null,
-        github_repo_binding: projectWithDerivedArtifacts.github_repo_binding || null,
-      },
-    });
-
-    const effectiveProject: any = attachmentReconciled.project;
+    const effectiveProject: any = {
+      ...projectWithDerivedArtifacts,
+      intake: projectWithDerivedArtifacts.intake || null,
+      links: projectWithDerivedArtifacts.links || null,
+      github_repo_binding: projectWithDerivedArtifacts.github_repo_binding || null,
+    };
 
     await syncProjectPreBuildCheckpoint(db as any, {
       projectId,

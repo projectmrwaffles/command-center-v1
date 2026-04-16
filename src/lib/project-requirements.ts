@@ -222,6 +222,23 @@ function canRasterizePdfPages() {
   }
 }
 
+async function extractPdfTextWithPdfParse(buffer: Buffer) {
+  try {
+    ensurePdfJsTextPolyfills();
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    try {
+      const result = await parser.getText();
+      return normalizeWhitespace(String(result?.text || ""));
+    } finally {
+      await parser.destroy();
+    }
+  } catch (error) {
+    console.warn("[project-requirements] pdf-parse PDF extraction failed", error);
+    return "";
+  }
+}
+
 async function importPdfJsModule() {
   ensurePdfJsTextPolyfills();
   return import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -273,6 +290,9 @@ async function extractPdfTextWithPdfJs(buffer: Buffer) {
 async function extractPdfTextLayer(buffer: Buffer) {
   const pythonText = await extractPdfTextWithPython(buffer);
   if (pythonText) return pythonText;
+
+  const pdfParseText = await extractPdfTextWithPdfParse(buffer);
+  if (pdfParseText) return pdfParseText;
 
   const pdfJsText = await extractPdfTextWithPdfJs(buffer);
   if (pdfJsText) return pdfJsText;

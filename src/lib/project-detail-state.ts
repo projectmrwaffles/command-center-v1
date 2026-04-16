@@ -52,8 +52,8 @@ export function deriveProjectDetailHeaderState(input: {
     return {
       key: attachment?.status === "failed" ? "attachment_failed" : "attachment_processing",
       progressPct,
-      badgeText: `${attachment.label || "Kickoff setup"} ${progressPct}%`,
-      headline: attachment.label || (attachment?.status === "failed" ? "Attachment processing failed" : "Kickoff setup in progress"),
+      badgeText: attachment?.status === "failed" ? "Attachment issue" : "Attachment processing",
+      headline: attachment?.status === "failed" ? "Attachment processing failed" : "Kickoff setup in progress",
       summary: attachment.error || attachment.detail || (attachment?.status === "failed"
         ? "Attachment intake hit an error and needs attention before kickoff can continue."
         : "Attached materials are still being processed before kickoff can settle."),

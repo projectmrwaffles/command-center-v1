@@ -1331,23 +1331,27 @@ export default function ProjectDetailPage() {
                   <div className={cn("rounded-2xl border px-3 py-3", attachmentProcessingTone)}>
                     <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
                       <span>{attachmentProcessingState.label || "Attachment processing"}</span>
-                      {typeof attachmentProcessingState.progressPct === "number" ? <span>{attachmentProcessingState.progressPct}%</span> : null}
                       {attachmentProcessingState.fileCount ? <span>· {attachmentProcessingState.fileCount} file{attachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
                     </div>
                     <p className="mt-1 text-sm leading-6">{attachmentProcessingState.error || attachmentProcessingState.detail || "Attached materials are still being processed."}</p>
                     {attachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(attachmentProcessingState.updatedAt)}</p> : null}
                     {attachmentProcessingState.active && typeof attachmentProcessingState.progressPct === "number" ? (
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/70">
-                        <div className="h-full rounded-full bg-sky-500 transition-all duration-500" style={{ width: `${Math.max(8, attachmentProcessingState.progressPct)}%` }} />
+                      <div className="mt-3 space-y-1.5">
+                        <div className="h-2 overflow-hidden rounded-full bg-white/70">
+                          <div className="h-full rounded-full bg-sky-500 transition-all duration-500" style={{ width: `${Math.max(8, attachmentProcessingState.progressPct)}%` }} />
+                        </div>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-current/70">Estimated progress</p>
                       </div>
                     ) : null}
                   </div>
                 ) : null}
-                <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
-                  <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
-                    {headerState.badgeText}</span>
-                  <span className="min-w-0 flex-1 text-zinc-600">{headerState.key === "completed" ? null : headerState.headline}</span>
-                </div>
+                {!attachmentProcessingState ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
+                    <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
+                      {headerState.badgeText}</span>
+                    <span className="min-w-0 flex-1 text-zinc-600">{headerState.key === "completed" ? null : headerState.headline}</span>
+                  </div>
+                ) : null}
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-600">
                   {operationalDetails.map((item, index) => (

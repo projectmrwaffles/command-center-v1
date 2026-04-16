@@ -248,9 +248,47 @@ function getRepoSlugFromUrl(url) {
   return match?.[2] || null;
 }
 
+function getGitHubToken() {
+  return process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
+}
+
+function hydrateRepoWorkspaceFromGitHub(repoUrl, targetDir) {
+  if (!repoUrl || !targetDir) return false;
+  const normalized = String(repoUrl).trim().replace(/\.git$/i, "");
+  const match = normalized.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)$/i);
+  if (!match) return false;
+
+  const [, owner, repo] = match;
+  const token = getGitHubToken();
+  const authenticatedUrl = token
+    ? `https://${encodeURIComponent(owner)}:${encodeURIComponent(token)}@github.com/${owner}/${repo}.git`
+    : null;
+
+  fs.rmSync(targetDir, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(targetDir), { recursive: true });
+
+  if (authenticatedUrl) {
+    const cloneResult = require("child_process").spawnSync("git", ["clone", authenticatedUrl, targetDir], {
+      encoding: "utf8",
+      timeout: 120000,
+    });
+    if (cloneResult.status === 0) return true;
+    console.warn("[Listener] Failed to hydrate repo workspace from GitHub:", cloneResult.stderr || cloneResult.stdout || "git clone failed");
+  }
+
+  fs.mkdirSync(targetDir, { recursive: true });
+  try {
+    require("child_process").spawnSync("git", ["init", "-b", "main"], { cwd: targetDir, encoding: "utf8", timeout: 30000 });
+    require("child_process").spawnSync("git", ["remote", "add", "origin", `${normalized}.git`], { cwd: targetDir, encoding: "utf8", timeout: 30000 });
+  } catch (error) {
+    console.warn("[Listener] Failed to initialize fallback repo workspace:", error);
+  }
+  return true;
+}
 
 function resolveRepoWorkspacePath(project) {
-  const repoSlug = getRepoSlugFromUrl(resolveGithubRepoUrl(project));
+  const repoUrl = resolveGithubRepoUrl(project);
+  const repoSlug = getRepoSlugFromUrl(repoUrl);
   if (!repoSlug) return null;
 
   const openClawRoot = resolveOpenClawRoot();
@@ -262,6 +300,11 @@ function resolveRepoWorkspacePath(project) {
 
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
+  }
+
+  const preferredTarget = candidates[1] || candidates[0] || null;
+  if (preferredTarget && hydrateRepoWorkspaceFromGitHub(repoUrl, preferredTarget) && fs.existsSync(preferredTarget)) {
+    return preferredTarget;
   }
 
   return null;

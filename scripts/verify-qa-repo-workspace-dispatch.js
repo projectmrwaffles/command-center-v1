@@ -17,6 +17,11 @@ const assertions = [
     detail: "dispatch should provide the actual local repo clone path instead of a vague workspace instruction",
   },
   {
+    name: "listener hydrates a missing repo workspace before dispatch",
+    ok: listener.includes("function hydrateRepoWorkspaceFromGitHub(repoUrl, targetDir)") && listener.includes('git", ["clone", authenticatedUrl, targetDir]'),
+    detail: "fresh auto-provisioned repos created on Vercel should still materialize a concrete local workspace before discovery/build agents are told to use it",
+  },
+  {
     name: "agent message includes repo workspace path and forbids scratch workspaces",
     ok:
       listener.includes("Repo workspace path:") &&

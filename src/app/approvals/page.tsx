@@ -21,6 +21,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
 import { getProjectLinkEntries, type ProjectLinks } from "@/lib/project-links";
 import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
+import { resolveSprintReviewSurface } from "@/lib/review-request-guards";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -126,7 +127,7 @@ async function handleApproval(formData: FormData) {
 
   const { data: existingApproval } = await db
     .from("approvals")
-    .select("id, project_id, job_id, agent_id, summary, status, sprint_id")
+    .select("id, project_id, job_id, agent_id, summary, status, sprint_id, approval_type")
     .eq("id", id)
     .single();
 
@@ -150,10 +151,14 @@ async function handleApproval(formData: FormData) {
   }
 
   if (existingApproval?.sprint_id) {
+    const sprintSurface = resolveSprintReviewSurface({
+      checkpointType: existingApproval.approval_type,
+      phaseKey: existingApproval.approval_type === "delivery_review" ? "build" : null,
+    });
     await db
       .from("sprints")
       .update({
-        approval_gate_status: decision === "approve" ? "approved" : "rejected",
+        [sprintSurface.reviewKind === "delivery_review" ? "delivery_review_status" : "approval_gate_status"]: decision === "approve" ? "approved" : "rejected",
         updated_at: new Date().toISOString(),
       })
       .eq("id", existingApproval.sprint_id);

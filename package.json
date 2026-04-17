@@ -24,6 +24,7 @@
     "worker:attachment": "node scripts/attachment-worker-runner.mjs",
     "worker:attachment:install-launchd": "./scripts/install-attachment-worker-launchd.sh",
     "verify:github-provisioning-readiness": "node --experimental-strip-types scripts/verify-github-provisioning-readiness.mjs",
+    "verify:framework-version-guard": "node scripts/verify-framework-version-guard.mjs",
     "verify:smoke": "node scripts/internal-ready-smoke.js",
     "verify:home-empty-openclaw-root": "node --experimental-strip-types scripts/verify-home-empty-openclaw-root.mjs"
   },

@@ -16,6 +16,10 @@ const { exec, spawn, spawnSync } = require("child_process");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
+const {
+  inspectRepoFrameworkVersionPolicy,
+  formatFrameworkVersionViolations,
+} = require("./framework-version-guard.js");
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 const RECONCILE_INTERVAL_MS = 15 * 1000;
@@ -989,22 +993,36 @@ async function startListener() {
           if (result.taskStatus === "done" && taskContext?.task_type === "build_implementation") {
             const repoWorkspacePath = resolveRepoWorkspacePath(project);
             if (repoWorkspacePath) {
-              const testContract = inspectRepoTestContract(repoWorkspacePath);
-              if (testContract.hasBrokenTestContract) {
-                const toolingDetail = testContract.declaredTooling.length
-                  ? ` Tooling found: ${testContract.declaredTooling.join(", ")}.`
-                  : "";
-                const scriptDetail = testContract.testScript
-                  ? ` Test script: ${testContract.testScript}.`
-                  : "";
+              const frameworkVersionPolicy = inspectRepoFrameworkVersionPolicy(repoWorkspacePath);
+              if (!frameworkVersionPolicy.ok) {
                 result = {
                   ...result,
                   status: "blocked",
                   taskStatus: "blocked",
-                  summary: "Build output leaves test tooling or a test script without any real app test files in the repo.",
-                  raw: `${result.raw}\n\n[listener-validation] No *.test.* or *.spec.* files were found under src/app/tests/test/server/lib, but the repo still declares test tooling.${scriptDetail}${toolingDetail} Remove the broken test stack or add at least one real app test before marking this done.`,
+                  summary: "Build output uses a blocked framework package version and cannot ship.",
+                  raw: `${result.raw}\n\n[listener-validation] Blocked framework package version detected: ${formatFrameworkVersionViolations(frameworkVersionPolicy.violations)}. Replace the banned/stale version before marking this done.`,
                   hasRealBlockerSignal: true,
                 };
+              }
+
+              if (result.taskStatus === "done") {
+                const testContract = inspectRepoTestContract(repoWorkspacePath);
+                if (testContract.hasBrokenTestContract) {
+                  const toolingDetail = testContract.declaredTooling.length
+                    ? ` Tooling found: ${testContract.declaredTooling.join(", ")}.`
+                    : "";
+                  const scriptDetail = testContract.testScript
+                    ? ` Test script: ${testContract.testScript}.`
+                    : "";
+                  result = {
+                    ...result,
+                    status: "blocked",
+                    taskStatus: "blocked",
+                    summary: "Build output leaves test tooling or a test script without any real app test files in the repo.",
+                    raw: `${result.raw}\n\n[listener-validation] No *.test.* or *.spec.* files were found under src/app/tests/test/server/lib, but the repo still declares test tooling.${scriptDetail}${toolingDetail} Remove the broken test stack or add at least one real app test before marking this done.`,
+                    hasRealBlockerSignal: true,
+                  };
+                }
               }
             }
           }

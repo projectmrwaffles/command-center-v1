@@ -69,7 +69,7 @@ function resolveOpenClawRoot() {
 const DEFAULT_OPENCLAW_BIN = path.join(resolveOpenClawRoot(), '..', ".npm-global/bin/openclaw");
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || (fs.existsSync(DEFAULT_OPENCLAW_BIN) ? DEFAULT_OPENCLAW_BIN : "openclaw");
 const LOCK_DIR = process.env.AGENT_LISTENER_LOCK_DIR || "/tmp/command-center-agent-listeners";
-const BOOT_GIT_HEAD = readGitHead();
+const BOOT_GIT_HEAD = readGitHead(REPO_ROOT);
 let activeListenerLock = null;
 
 function restartForUpdatedSource(reason) {

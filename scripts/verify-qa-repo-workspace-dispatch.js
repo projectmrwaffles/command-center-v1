@@ -3,7 +3,9 @@ const path = require("node:path");
 
 const repoRoot = process.cwd();
 const listenerPath = path.join(repoRoot, "scripts", "agent-listener.js");
+const hardeningPath = path.join(repoRoot, "scripts", "runtime-hardening.js");
 const listener = fs.readFileSync(listenerPath, "utf8");
+const hardening = fs.readFileSync(hardeningPath, "utf8");
 
 const assertions = [
   {
@@ -29,12 +31,18 @@ const assertions = [
     detail: "prevents the exact Task App V6 failure where build work landed outside the repo-bound workspace and QA reviewed an empty repo",
   },
   {
-    name: "listener self-restarts after repo code changes",
+    name: "listener boot git head is pinned to repo root for self-restart freshness checks",
     ok:
-      listener.includes("const BOOT_GIT_HEAD = readGitHead();") &&
+      listener.includes("const REPO_ROOT = path.resolve(__dirname, \"..\");") &&
+      listener.includes("const BOOT_GIT_HEAD = readGitHead(REPO_ROOT);") &&
+      !listener.includes("const BOOT_GIT_HEAD = readGitHead();") &&
       listener.includes("function restartIfRepoCodeChanged()") &&
-      listener.includes("repo HEAD changed from"),
-    detail: "long-lived listeners should not keep dispatching stale task prompts after a workspace-path fix lands in git",
+      listener.includes("repoRoot: REPO_ROOT") &&
+      hardening.includes("function readGitHead(repoRoot)") &&
+      hardening.includes("cwd: repoRoot") &&
+      hardening.includes("const currentHead = readGitHead(repoRoot);") &&
+      hardening.includes("repo HEAD changed from"),
+    detail: "long-lived listeners must capture git HEAD from the actual repo root so stale-code restart protection still works when launched outside the repo cwd",
   },
 ];
 

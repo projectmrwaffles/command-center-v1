@@ -59,6 +59,7 @@ const DEFAULT_OPENCLAW_BIN = path.join(resolveOpenClawRoot(), '..', ".npm-global
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || (fs.existsSync(DEFAULT_OPENCLAW_BIN) ? DEFAULT_OPENCLAW_BIN : "openclaw");
 const LOCK_DIR = process.env.AGENT_LISTENER_LOCK_DIR || "/tmp/command-center-agent-listeners";
 const BOOT_GIT_HEAD = readGitHead();
+let activeListenerLock = null;
 
 function readGitHead() {
   const result = spawnSync("git", ["rev-parse", "HEAD"], {
@@ -75,6 +76,13 @@ function restartForUpdatedSource(reason) {
   const agentArgIndex = process.argv.indexOf("--agent-name");
   const agentLabel = agentArgIndex >= 0 ? (process.argv[agentArgIndex + 1] || "listener") : "listener";
   console.log(`[Listener] Restarting ${agentLabel}: ${reason}`);
+  try {
+    activeListenerLock?.release?.();
+  } catch (error) {
+    console.warn(`[Listener] Failed to release listener lock before restart:`, error?.message || error);
+  } finally {
+    activeListenerLock = null;
+  }
   const child = spawn(process.execPath, process.argv.slice(1), {
     cwd: REPO_ROOT,
     env: process.env,
@@ -752,26 +760,48 @@ function ensureLockDir() {
 function acquireListenerLock(agentName) {
   ensureLockDir();
   const lockPath = path.join(LOCK_DIR, `${agentName}.lock`);
-  try {
-    const fd = fs.openSync(lockPath, "wx");
-    fs.writeFileSync(fd, String(process.pid));
-    return {
-      lockPath,
-      release() {
-        try {
-          fs.closeSync(fd);
-        } catch {}
-        try {
-          fs.unlinkSync(lockPath);
-        } catch {}
-      },
-    };
-  } catch (error) {
-    if (error && error.code === "EEXIST") {
+
+  while (true) {
+    try {
+      const fd = fs.openSync(lockPath, "wx");
+      fs.writeFileSync(fd, String(process.pid));
+      let released = false;
+      return {
+        lockPath,
+        release() {
+          if (released) return;
+          released = true;
+          try {
+            fs.closeSync(fd);
+          } catch {}
+          try {
+            fs.unlinkSync(lockPath);
+          } catch {}
+        },
+      };
+    } catch (error) {
+      if (!error || error.code !== "EEXIST") throw error;
       const ownerPid = fs.existsSync(lockPath) ? fs.readFileSync(lockPath, "utf8").trim() : "unknown";
-      throw new Error(`Listener lock already held for ${agentName} (pid ${ownerPid || "unknown"})`);
+      const ownerPidNum = Number.parseInt(ownerPid, 10);
+      const ownerAlive = Number.isInteger(ownerPidNum) && ownerPidNum > 0 && (() => {
+        try {
+          process.kill(ownerPidNum, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      if (ownerAlive) {
+        throw new Error(`Listener lock already held for ${agentName} (pid ${ownerPid || "unknown"})`);
+      }
+      try {
+        fs.unlinkSync(lockPath);
+        console.warn(`[Listener] Removed stale lock for ${agentName}${ownerPid ? ` (pid ${ownerPid})` : ""}`);
+        continue;
+      } catch (unlinkError) {
+        throw unlinkError;
+      }
     }
-    throw error;
   }
 }
 
@@ -791,6 +821,16 @@ async function fetchPendingTasks(adminSupabase, agentId) {
   return data || [];
 }
 
+async function fetchRecoverableInProgressTasks(adminSupabase, agentId) {
+  if (!adminSupabase || !agentId) return [];
+  const { data, error } = await withRetry(`fetchRecoverableInProgressTasks(${agentId})`, () => adminSupabase.from("sprint_items").select("id, project_id, sprint_id, title, status, assignee_agent_id, created_at, updated_at").eq("assignee_agent_id", agentId).eq("status", "in_progress").order("updated_at", { ascending: true }).limit(25));
+  if (error) {
+    console.error(`[Listener] Failed to fetch in-progress tasks for agent ${agentId}:`, error);
+    return [];
+  }
+  return data || [];
+}
+
 async function isRunnableTask(adminSupabase, task) {
   if (!adminSupabase || !task?.sprint_id) return true;
   const { data, error } = await adminSupabase.from("sprints").select("status").eq("id", task.sprint_id).maybeSingle();
@@ -802,12 +842,28 @@ async function isRunnableTask(adminSupabase, task) {
 }
 
 async function reconcilePendingTasks(adminSupabase, realtimeSupabase, agentId, agentName, processedTasks, enqueueTask) {
+  const recoverableTasks = await fetchRecoverableInProgressTasks(adminSupabase, agentId);
   const pendingTasks = await fetchPendingTasks(adminSupabase, agentId);
-  if (!pendingTasks.length) {
-    console.log(`[Listener] No existing todo tasks to reconcile for ${agentName}`);
+  if (!recoverableTasks.length && !pendingTasks.length) {
+    console.log(`[Listener] No existing todo or in-progress tasks to reconcile for ${agentName}`);
     return;
   }
 
+  if (recoverableTasks.length) {
+    console.log(`[Listener] Recovering ${recoverableTasks.length} existing in-progress task(s) for ${agentName}`);
+    for (const task of recoverableTasks) {
+      if (processedTasks.has(task.id)) continue;
+      if (!(await isRunnableTask(adminSupabase, task))) {
+        console.log(`[Listener] Skipping non-runnable in-progress future-sprint task ${task.id} for ${agentName}`);
+        continue;
+      }
+      processedTasks.add(task.id);
+      const project = await getProjectExecutionContext(adminSupabase || realtimeSupabase, task.project_id);
+      enqueueTask(project, task.title, task.id, task.project_id);
+    }
+  }
+
+  if (!pendingTasks.length) return;
   console.log(`[Listener] Reconciling ${pendingTasks.length} existing todo task(s) for ${agentName}`);
   for (const task of pendingTasks) {
     if (processedTasks.has(task.id)) continue;
@@ -865,6 +921,7 @@ async function startListener() {
   console.log(`[Listener] Connecting to Supabase: ${supabaseUrl}`);
 
   const listenerLock = acquireListenerLock(agentName);
+  activeListenerLock = listenerLock;
   const processedTasks = new Set();
   const queuedTasks = new Set();
   const taskQueue = [];
@@ -1028,6 +1085,7 @@ async function startListener() {
     supabase.removeChannel(channel);
     supabase.removeChannel(broadcastChannel);
     listenerLock.release();
+    activeListenerLock = null;
     process.exit(0);
   };
   process.on("SIGINT", shutdown);

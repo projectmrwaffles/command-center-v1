@@ -161,6 +161,73 @@ assert.equal(skipped.seeded, true);
 assert.equal(skipped.reason, "repaired-provisioned-requirement-seed");
 assert.equal(putCount, 6);
 
+let racePutAttempts = 0;
+let raceTsconfigGetCount = 0;
+installFetchMock({
+  "GET /repos/acme-inc/notes-vault-5-5/contents?ref=main": async () => ({ status: 200, body: [{ path: "package.json" }] }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/package.json?ref=main": async () => ({ status: 200, body: {
+    sha: "pkg-sha-2",
+    encoding: "base64",
+    content: Buffer.from(packageSeed.content, "utf8").toString("base64"),
+  } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/tsconfig.json?ref=main": async () => {
+    raceTsconfigGetCount += 1;
+    return raceTsconfigGetCount === 1
+      ? { status: 404, body: { message: "Not Found" } }
+      : { status: 200, body: { sha: "race-sha", encoding: "base64", content: Buffer.from("{}", "utf8").toString("base64") } };
+  },
+  "GET /repos/acme-inc/notes-vault-5-5/contents/next-env.d.ts?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/app/layout.tsx?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/app/page.tsx?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/README.md?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/.gitignore?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/postcss.config.mjs?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/app/globals.css?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/components.json?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/lib/utils.ts?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "GET /repos/acme-inc/notes-vault-5-5/contents/components/ui/button.tsx?ref=main": async () => ({ status: 404, body: { message: "Not Found" } }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/tsconfig.json": async ({ init }) => {
+    const payload = JSON.parse(init.body);
+    racePutAttempts += 1;
+    if (racePutAttempts === 1) {
+      assert.equal(payload.sha, undefined);
+      return { status: 422, body: { message: "Invalid request.", errors: [{ message: "\"sha\" wasn't supplied." }] } };
+    }
+    assert.equal(payload.sha, "race-sha");
+    return { status: 200, body: {} };
+  },
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/next-env.d.ts": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/app/layout.tsx": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/app/page.tsx": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/README.md": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/.gitignore": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/postcss.config.mjs": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/app/globals.css": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/components.json": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/lib/utils.ts": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-5-5/contents/components/ui/button.tsx": async () => ({ status: 201, body: {} }),
+});
+
+const raced = await ensureProvisionedRepoMatchesRequirements({
+  projectName: "Notes Vault 5.5",
+  requirements,
+  githubRepoBinding: {
+    provider: "github",
+    owner: "acme-inc",
+    repo: "notes-vault-5-5",
+    fullName: "acme-inc/notes-vault-5-5",
+    url: "https://github.com/acme-inc/notes-vault-5-5",
+    source: "provisioned",
+    linkedAt: new Date().toISOString(),
+    defaultBranch: "main",
+    projectLinkKey: "github",
+    provisioning: { status: "ready", reason: "Provisioned" },
+  },
+});
+
+assert.equal(raced.seeded, true);
+assert.equal(racePutAttempts, 2, "expected sha-less race to retry with fetched sha");
+
 process.env = originalEnv;
 globalThis.fetch = originalFetch;
 console.log("verify-provisioned-repo-backfill: ok");

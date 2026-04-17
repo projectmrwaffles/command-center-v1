@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { buildProjectKickoffPlan, seedProjectKickoffPlan } from "../src/lib/project-kickoff.ts";
 
 class MockDb {
-  constructor() {
+  constructor(options = {}) {
+    this.options = options;
     this.tables = {
       teams: [
         { id: "team-product", name: "Product" },
@@ -72,6 +73,19 @@ class MockQuery {
 
   async single() {
     if (this.insertRows) {
+      if (this.table === "sprints" && this.db.options.missingDeliveryReviewColumns) {
+        const offendingRow = this.insertRows.find((row) => "delivery_review_required" in row || "delivery_review_status" in row);
+        if (offendingRow) {
+          return {
+            data: null,
+            error: {
+              code: "PGRST204",
+              message: "Could not find the 'delivery_review_required' column of 'sprints' in the schema cache",
+            },
+          };
+        }
+      }
+
       const created = this.insertRows.map((row) => ({ id: `${this.table}-${this.db.tables[this.table].length + 1}`, ...row }));
       this.db.tables[this.table].push(...created);
       return { data: created[0], error: null };
@@ -150,6 +164,20 @@ assert.ok(db.tables.sprint_items.every((task) => task.task_type));
 assert.ok(db.tables.sprint_items.every((task) => task.owner_team_id));
 assert.ok(db.tables.sprint_items.every((task) => task.task_metadata.phase_key));
 assert.ok(db.tables.sprint_items.some((task) => task.assignee_agent_id === "agent-engineering"));
+
+const compatDb = new MockDb({ missingDeliveryReviewColumns: true });
+const compatSeeded = await seedProjectKickoffPlan(compatDb, {
+  projectId: "project-compat",
+  projectName: "Command Center V1",
+  type: "product_build",
+  intake,
+  startPosition: 1,
+});
+
+assert.equal(compatSeeded.phases.length, plan.length);
+assert.equal(compatDb.tables.sprints.length, plan.length);
+assert.ok(compatDb.tables.sprints.every((phase) => !Object.prototype.hasOwnProperty.call(phase, "delivery_review_required")));
+assert.ok(compatDb.tables.sprint_items.some((task) => task.assignee_agent_id === "agent-engineering"));
 
 console.log("verify-project-kickoff: ok", {
   phases: db.tables.sprints.map((phase) => ({ name: phase.name, status: phase.status, gate: phase.approval_gate_status })),

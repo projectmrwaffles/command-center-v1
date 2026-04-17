@@ -187,6 +187,9 @@ const db = new MockDb({
   jobs: [],
   agents: [],
   agent_events: [],
+  milestone_submissions: [],
+  proof_bundles: [],
+  proof_items: [],
 });
 
 const artifactIntegrity = getProjectArtifactIntegrity(db.tables.projects[0], db.tables.sprint_items.filter((row) => row.sprint_id === "build-1"));
@@ -211,4 +214,53 @@ assert.equal(result.progression?.advanced, true, "checkpoint approval should tri
 assert.equal(result.progression?.previousSprintId, "build-1");
 assert.equal(result.progression?.nextSprintId, "validate-1");
 
+const buildPrecheckDb = new MockDb({
+  projects: [{ id: "project-2", name: "Build precheck", type: "web_app", intake: {}, links: {}, github_repo_binding: null }],
+  sprints: [
+    {
+      id: "build-precheck",
+      project_id: "project-2",
+      name: "Phase 2 · Build",
+      status: "active",
+      phase_key: "build",
+      checkpoint_type: "prebuild_checkpoint",
+      approval_gate_required: true,
+      approval_gate_status: "pending",
+      delivery_review_required: true,
+      delivery_review_status: "not_requested",
+      created_at: "2026-04-09T00:00:00.000Z",
+    },
+  ],
+  sprint_items: [
+    {
+      id: "task-precheck-review",
+      project_id: "project-2",
+      sprint_id: "build-precheck",
+      title: "Build precheck review",
+      status: "done",
+      review_required: true,
+      review_status: "pending",
+      position: 1,
+    },
+  ],
+  jobs: [],
+  agents: [],
+  agent_events: [],
+  milestone_submissions: [],
+  proof_bundles: [],
+  proof_items: [],
+});
+
+await finalizeCheckpointApproval(buildPrecheckDb, {
+  projectId: "project-2",
+  milestoneId: "build-precheck",
+  decidedAt: "2026-04-09T21:45:00.000Z",
+  reviewKind: "approval_gate",
+});
+
+const buildPrecheckSprint = buildPrecheckDb.tables.sprints.find((row) => row.id === "build-precheck");
+assert.equal(buildPrecheckSprint.approval_gate_status, "approved", "pre-build checkpoint should approve the approval gate status");
+assert.equal(buildPrecheckSprint.delivery_review_status, "not_requested", "pre-build checkpoint approval must not mutate delivery review status");
+
 console.log("PASS checkpoint approval advances the next sprint after PRD-gated build approval");
+console.log("PASS build pre-build checkpoint approval stays separate from delivery review status");

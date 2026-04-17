@@ -347,7 +347,7 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
       .select("id, name")
       .single();
 
-    if (isMissingColumnError(sprintResult.error, ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status", "checkpoint_type", "checkpoint_evidence_requirements"])) {
+    if (isMissingColumnError(sprintResult.error, ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status", "delivery_review_required", "delivery_review_status", "checkpoint_type", "checkpoint_evidence_requirements"])) {
       sprintResult = await db
         .from("sprints")
         .insert({

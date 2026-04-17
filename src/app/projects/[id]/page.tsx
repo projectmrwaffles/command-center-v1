@@ -287,6 +287,14 @@ function checkpointSummaryCopy(input: {
   }
 }
 
+function isCheckpointApproved(summary?: MilestoneReviewSummary | null, approvalGateStatus?: string | null) {
+  return summary?.latestDecision === "approve" || approvalGateStatus === "approved";
+}
+
+function shouldShowCheckpointDecisionMetadata(summary?: MilestoneReviewSummary | null, approvalGateStatus?: string | null) {
+  return !isCheckpointApproved(summary, approvalGateStatus);
+}
+
 function formatCheckpointReason(reason?: string | null) {
   if (!reason) return null;
 
@@ -1588,14 +1596,16 @@ export default function ProjectDetailPage() {
                       milestone.preBuildCheckpoint?.reasons?.length
                       && milestone.preBuildCheckpoint?.status !== "approved"
                     );
+                    const showDecisionMetadata = shouldShowCheckpointDecisionMetadata(summary, milestone.approvalGateStatus);
                     const showLatestRejectionComment = Boolean(
-                      summary?.latestRejectionComment
+                      showDecisionMetadata
+                      && summary?.latestRejectionComment
                       && (summary?.latestDecision === "reject" || milestone.approvalGateStatus === "rejected")
                     );
                     const showLatestDecisionNote = Boolean(
-                      summary?.latestDecisionNotes
+                      showDecisionMetadata
+                      && summary?.latestDecisionNotes
                       && !showLatestRejectionComment
-                      && (summary?.latestDecision !== "approve" || milestone.approvalGateStatus !== "approved")
                     );
                     return (
                       <div key={milestone.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
@@ -2077,7 +2087,9 @@ export default function ProjectDetailPage() {
                   <div className="mt-2 space-y-2 text-sm text-zinc-700">
                     <p><span className="font-medium text-zinc-900">Gate state:</span> {formatMilestoneGateLabel(reviewingCheckpoint.approvalGateStatus)}</p>
                     <p><span className="font-medium text-zinc-900">Materials status:</span> {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "No materials yet"}</p>
-                    <p><span className="font-medium text-zinc-900">Latest decision:</span> {reviewingCheckpoint.reviewSummary?.latestDecision ? reviewingCheckpoint.reviewSummary.latestDecision.replace(/_/g, " ") : "Not decided"}</p>
+                    {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.approvalGateStatus) ? (
+                      <p><span className="font-medium text-zinc-900">Latest decision:</span> {reviewingCheckpoint.reviewSummary?.latestDecision ? reviewingCheckpoint.reviewSummary.latestDecision.replace(/_/g, " ") : "Not decided"}</p>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -2087,11 +2099,13 @@ export default function ProjectDetailPage() {
                 <ul className="mt-3 space-y-2 text-sm text-zinc-700">
                   <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Summary captured: {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary ? "Yes" : "No"}</li>
                   <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Materials attached: {(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) > 0 ? "Yes" : "No"}</li>
-                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Decision note present: {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? "Yes" : "No"}</li>
+                  {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.approvalGateStatus) ? (
+                    <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Decision note present: {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? "Yes" : "No"}</li>
+                  ) : null}
                 </ul>
               </div>
 
-              {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
+              {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.approvalGateStatus) && reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
                   <span className="font-medium">Latest note:</span> {reviewingCheckpoint.reviewSummary.latestDecisionNotes}
                 </div>

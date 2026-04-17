@@ -306,6 +306,17 @@ async function seedProvisionedRepo(input: { owner: string; repo: string; branch:
   }
 }
 
+async function repoHasAnyContent(input: { owner: string; repo: string; branch: string }) {
+  const contents = await githubRequest<Array<{ path?: string }> | { path?: string }>(
+    `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents?ref=${encodeURIComponent(input.branch)}`,
+    { allow404: true }
+  );
+
+  if (!contents) return false;
+  if (Array.isArray(contents)) return contents.length > 0;
+  return Boolean(contents.path);
+}
+
 function writeSeedFilesToWorkspace(targetDir: string, files: RepoSeedFile[]) {
   for (const file of files) {
     const filePath = path.join(targetDir, file.path);
@@ -397,6 +408,38 @@ function syncProvisionedRepoToWorkspace(input: { owner: string; repo: string; br
   }
 
   return primaryTargetDir;
+}
+
+export async function ensureProvisionedRepoMatchesRequirements(input: {
+  projectName: string;
+  requirements?: ProjectRequirements | null;
+  githubRepoBinding?: GitHubRepoBinding | null;
+}) {
+  const binding = input.githubRepoBinding;
+  if (!binding || binding.provider !== "github" || binding.source !== "provisioned") {
+    return { seeded: false, reason: "not-provisioned", filesSeeded: 0 } as const;
+  }
+
+  const seedFiles = deriveRepoSeedFiles({ projectName: input.projectName, requirements: input.requirements });
+  if (seedFiles.length === 0) {
+    return { seeded: false, reason: "no-required-seed", filesSeeded: 0 } as const;
+  }
+
+  const owner = binding.owner;
+  const repo = binding.repo;
+  const branch = binding.defaultBranch || "main";
+  const hasContent = await repoHasAnyContent({ owner, repo, branch });
+
+  if (hasContent) {
+    return { seeded: false, reason: "repo-not-empty", filesSeeded: 0 } as const;
+  }
+
+  await seedProvisionedRepo({ owner, repo, branch, files: seedFiles });
+  if (shouldHydrateProvisionedRepoWorkspace()) {
+    syncProvisionedRepoToWorkspace({ owner, repo, branch, files: seedFiles });
+  }
+
+  return { seeded: true, reason: "seeded-empty-provisioned-repo", filesSeeded: seedFiles.length } as const;
 }
 
 export async function provisionGitHubRepoForProject(input: {

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const { data: sprint, error: sprintError } = await db
       .from("sprints")
-      .select("id, project_id, name, phase_key, approval_gate_status, delivery_review_status")
+      .select("id, project_id, name, phase_key, checkpoint_type, approval_gate_status, delivery_review_status")
       .eq("id", milestoneId)
       .eq("project_id", projectId)
       .single();
@@ -64,7 +64,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const now = new Date().toISOString();
-    const isBuildDeliveryReview = Boolean(submission?.checkpoint_type === "delivery_review" && sprint.phase_key === "build");
+    const checkpointType = submission?.checkpoint_type || sprint.checkpoint_type || null;
+    const reviewKind = checkpointType === "delivery_review" && sprint.phase_key === "build"
+      ? "delivery_review"
+      : "approval_gate";
 
     if (submission) {
       if (!["submitted", "under_review"].includes(submission.status)) {
@@ -128,7 +131,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         }),
       });
     } else {
-      const currentGateStatus = sprint.phase_key === "build" ? (sprint.delivery_review_status || "not_requested") : (sprint.approval_gate_status || "not_requested");
+      const currentGateStatus = reviewKind === "delivery_review"
+        ? (sprint.delivery_review_status || "not_requested")
+        : (sprint.approval_gate_status || "not_requested");
       if (currentGateStatus !== "pending") {
         return NextResponse.json({ error: "Only pending checkpoints can be approved" }, { status: 409 });
       }
@@ -150,7 +155,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       projectId,
       milestoneId,
       decidedAt: now,
-      useDeliveryReviewStatus: isBuildDeliveryReview || sprint.phase_key === "build",
+      reviewKind,
     });
 
     return NextResponse.json({ ok: true, submissionId: submissionId || null, progression: approvalResult.progression });

@@ -1,18 +1,20 @@
 import { reconcileProjectPhaseProgression } from "./project-handoff.ts";
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
+type CheckpointReviewKind = "approval_gate" | "delivery_review";
 
 export async function finalizeCheckpointApproval(db: DbClient, input: {
   projectId: string;
   milestoneId: string;
   decidedAt?: string;
-  useDeliveryReviewStatus?: boolean;
+  reviewKind?: CheckpointReviewKind;
 }) {
   const now = input.decidedAt || new Date().toISOString();
+  const reviewKind = input.reviewKind || "approval_gate";
 
   const sprintUpdate = await db
     .from("sprints")
-    .update(input.useDeliveryReviewStatus
+    .update(reviewKind === "delivery_review"
       ? { delivery_review_required: true, delivery_review_status: "approved", updated_at: now }
       : { approval_gate_status: "approved", updated_at: now })
     .eq("id", input.milestoneId)

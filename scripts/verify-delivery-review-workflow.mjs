@@ -104,7 +104,7 @@ const pendingDeliveryReviewStatus = db.tables.sprints[0].delivery_review_status;
 const statePending = await syncProjectState(db, "p1");
 
 await db.from("milestone_submissions").update({ checkpoint_type: "delivery_review", status: "submitted" }).eq("id", submission.id).eq("sprint_id", "build-1");
-await finalizeCheckpointApproval(db, { projectId: "p1", milestoneId: "build-1", decidedAt: now, useDeliveryReviewStatus: true });
+await finalizeCheckpointApproval(db, { projectId: "p1", milestoneId: "build-1", decidedAt: now, reviewKind: "delivery_review" });
 await reconcileProjectPhaseProgression(db, { projectId: "p1" });
 const stateApproved = await syncProjectState(db, "p1");
 

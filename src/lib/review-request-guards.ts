@@ -1,6 +1,10 @@
 type SprintReviewGuardInput = {
   approvalGateRequired?: boolean | null;
   approvalGateStatus?: string | null;
+  deliveryReviewRequired?: boolean | null;
+  deliveryReviewStatus?: string | null;
+  checkpointType?: string | null;
+  phaseKey?: string | null;
   taskStatuses?: Array<string | null | undefined> | null;
 };
 
@@ -11,20 +15,39 @@ export type SprintReviewEligibility =
 const DONE_LIKE = new Set(["done", "cancelled"]);
 const ACTIVE_REVIEW_BLOCKERS = new Set(["todo", "in_progress", "blocked"]);
 
+export function resolveSprintReviewSurface(input: Omit<SprintReviewGuardInput, "taskStatuses">) {
+  const checkpointType = typeof input.checkpointType === "string" ? input.checkpointType : null;
+  const phaseKey = typeof input.phaseKey === "string" ? input.phaseKey : null;
+  const isDeliveryReview = checkpointType === "delivery_review" || (!checkpointType && phaseKey === "build" && input.deliveryReviewStatus != null);
+
+  return isDeliveryReview
+    ? {
+        reviewKind: "delivery_review" as const,
+        required: input.deliveryReviewRequired ?? phaseKey === "build",
+        status: input.deliveryReviewStatus ?? "not_requested",
+      }
+    : {
+        reviewKind: "approval_gate" as const,
+        required: input.approvalGateRequired ?? false,
+        status: input.approvalGateStatus ?? "not_requested",
+      };
+}
+
 export function getSprintReviewEligibility(input: SprintReviewGuardInput): SprintReviewEligibility {
   const taskStatuses = (input.taskStatuses || []).filter((status): status is string => typeof status === "string");
   const totalTasks = taskStatuses.length;
   const doneTasks = taskStatuses.filter((status) => DONE_LIKE.has(status)).length;
+  const reviewSurface = resolveSprintReviewSurface(input);
 
-  if (!input.approvalGateRequired) {
+  if (!reviewSurface.required) {
     return { ok: false, reason: "Milestone is not review-gated", totalTasks, doneTasks };
   }
 
-  if (input.approvalGateStatus === "pending") {
+  if (reviewSurface.status === "pending") {
     return { ok: false, reason: "Review request already pending for this milestone", totalTasks, doneTasks };
   }
 
-  if (input.approvalGateStatus === "approved") {
+  if (reviewSurface.status === "approved") {
     return { ok: false, reason: "Milestone has already been approved", totalTasks, doneTasks };
   }
 

@@ -1,6 +1,6 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
 import { getProjectRequirementCompliance } from "@/lib/project-requirements";
-import { getSprintReviewEligibility } from "@/lib/review-request-guards";
+import { getSprintReviewEligibility, resolveSprintReviewSurface } from "@/lib/review-request-guards";
 import { mergeProjectLinks, buildReviewRequestContext, buildReviewRequestSummary, deriveReviewArtifacts } from "@/lib/review-requests";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const [{ data: project, error: projectError }, { data: sprint, error: sprintError }, { data: sprintTasks, error: sprintTasksError }, { data: pendingApproval, error: pendingApprovalError }, { data: sprintReviewTasks }, { data: completionEvents }] = await Promise.all([
       selectProjectWithArtifactCompat(db, projectId, "id, name, type, intake, links, github_repo_binding"),
-      db.from("sprints").select("id, project_id, name, approval_gate_required, approval_gate_status").eq("id", sprintId).eq("project_id", projectId).single(),
+      db.from("sprints").select("id, project_id, name, phase_key, checkpoint_type, approval_gate_required, approval_gate_status, delivery_review_required, delivery_review_status").eq("id", sprintId).eq("project_id", projectId).single(),
       selectSprintTasksForReviewCompat(db, projectId, sprintId),
       db.from("approvals").select("id").eq("project_id", projectId).eq("sprint_id", sprintId).eq("status", "pending").maybeSingle(),
       db.from("sprint_items").select("id, title").eq("project_id", projectId).eq("sprint_id", sprintId).eq("review_required", true),
@@ -105,16 +105,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (sprintTasksError) return NextResponse.json({ error: sprintTasksError.message || "Failed to inspect milestone tasks" }, { status: 500 });
     if (pendingApprovalError) return NextResponse.json({ error: pendingApprovalError.message || "Failed to inspect milestone review state" }, { status: 500 });
 
-    const effectiveApprovalGateStatus = pendingApproval?.id
-      ? sprint.approval_gate_status
-      : sprint.approval_gate_status === "pending"
+    const reviewSurface = resolveSprintReviewSurface({
+      approvalGateRequired: sprint.approval_gate_required,
+      approvalGateStatus: sprint.approval_gate_status,
+      deliveryReviewRequired: sprint.delivery_review_required,
+      deliveryReviewStatus: sprint.delivery_review_status,
+      checkpointType: sprint.checkpoint_type,
+      phaseKey: sprint.phase_key,
+    });
+    const reviewStatusColumn = reviewSurface.reviewKind === "delivery_review" ? "delivery_review_status" : "approval_gate_status";
+    const reviewStatus = reviewSurface.status;
+    const effectiveReviewStatus = pendingApproval?.id
+      ? reviewStatus
+      : reviewStatus === "pending"
         ? "not_requested"
-        : sprint.approval_gate_status;
+        : reviewStatus;
 
-    if (!pendingApproval?.id && sprint.approval_gate_status === "pending") {
+    if (!pendingApproval?.id && reviewStatus === "pending") {
+      const repairPayload = reviewSurface.reviewKind === "delivery_review"
+        ? { delivery_review_status: "not_requested", updated_at: new Date().toISOString() }
+        : { approval_gate_status: "not_requested", updated_at: new Date().toISOString() };
       const { error: sprintRepairError } = await db
         .from("sprints")
-        .update({ approval_gate_status: "not_requested", updated_at: new Date().toISOString() })
+        .update(repairPayload)
         .eq("id", sprintId)
         .eq("project_id", projectId);
 
@@ -122,12 +135,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         return NextResponse.json({ error: sprintRepairError.message || "Failed to repair milestone review state" }, { status: 500 });
       }
 
-      sprint.approval_gate_status = "not_requested";
+      sprint[reviewStatusColumn] = "not_requested";
     }
 
     const eligibility = getSprintReviewEligibility({
       approvalGateRequired: sprint.approval_gate_required,
-      approvalGateStatus: effectiveApprovalGateStatus,
+      approvalGateStatus: reviewSurface.reviewKind === "approval_gate" ? effectiveReviewStatus : sprint.approval_gate_status,
+      deliveryReviewRequired: sprint.delivery_review_required,
+      deliveryReviewStatus: reviewSurface.reviewKind === "delivery_review" ? effectiveReviewStatus : sprint.delivery_review_status,
+      checkpointType: sprint.checkpoint_type,
+      phaseKey: sprint.phase_key,
       taskStatuses: (sprintTasks || []).map((task: any) => task.status),
     });
 
@@ -197,6 +214,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (rpcError || !Array.isArray(rpcResult) || !rpcResult[0]) {
       const mapped = mapReviewRequestError(rpcError?.message);
       return NextResponse.json({ error: mapped.error }, { status: mapped.status });
+    }
+
+    if (reviewSurface.reviewKind === "delivery_review") {
+      const { error: sprintStateError } = await db
+        .from("sprints")
+        .update({
+          approval_gate_status: sprint.approval_gate_status,
+          delivery_review_required: true,
+          delivery_review_status: "pending",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sprintId)
+        .eq("project_id", projectId);
+
+      if (sprintStateError) {
+        return NextResponse.json({ error: sprintStateError.message || "Failed to persist delivery review state" }, { status: 500 });
+      }
     }
 
     const created = rpcResult[0] as {

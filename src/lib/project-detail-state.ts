@@ -26,6 +26,7 @@ type ProjectTruthLike = {
 
 type MilestoneLike = {
   approvalGateStatus?: string | null;
+  deliveryReviewStatus?: string | null;
   reviewSummary?: {
     latestSubmissionId?: string | null;
     proofItemCount?: number | null;
@@ -77,7 +78,7 @@ export function deriveProjectDetailHeaderState(input: {
 
 export function deriveMilestoneDisplayState(milestone: MilestoneLike) {
   const checkpointState = deriveReviewCheckpointState({
-    approvalGateStatus: milestone.approvalGateStatus,
+    approvalGateStatus: milestone.deliveryReviewStatus || milestone.approvalGateStatus,
     reviewSummary: milestone.reviewSummary,
     preBuildCheckpoint: milestone.preBuildCheckpoint,
   });

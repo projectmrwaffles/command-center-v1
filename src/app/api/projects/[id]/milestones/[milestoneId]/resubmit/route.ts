@@ -133,7 +133,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (itemsError) return NextResponse.json({ error: itemsError.message || "Failed to create proof items" }, { status: 500 });
 
-    await db.from("sprints").update({ approval_gate_status: "pending", updated_at: now }).eq("id", milestoneId).eq("project_id", projectId);
+    const isBuildDeliveryReview = checkpointType === "delivery_review" && sprint.phase_key === "build";
+    await db.from("sprints").update(isBuildDeliveryReview
+      ? { delivery_review_required: true, delivery_review_status: "pending", updated_at: now }
+      : { approval_gate_status: "pending", updated_at: now }).eq("id", milestoneId).eq("project_id", projectId);
     await db.from("sprint_items").update({ review_status: "ready_for_rereview", status: "done", updated_at: now }).eq("project_id", projectId).eq("sprint_id", milestoneId).eq("review_required", true);
 
     await db.from("agent_events").insert({

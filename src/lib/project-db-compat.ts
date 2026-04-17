@@ -127,11 +127,11 @@ export async function selectProjectSummaryTasksWithCompat(db: DbClient, projectI
 }
 
 export async function selectProjectSummarySprintsWithCompat(db: DbClient, projectIds: string[]) {
-  const fullSelect = "id, project_id, name, auto_generated, phase_key, approval_gate_required, approval_gate_status";
+  const fullSelect = "id, project_id, name, auto_generated, phase_key, approval_gate_required, approval_gate_status, delivery_review_required, delivery_review_status";
   const fallbackSelect = "id, project_id, name";
 
   const first = await db.from("sprints").select(fullSelect).in("project_id", projectIds);
-  if (!areMissingColumns(first.error, ["auto_generated", "phase_key", "approval_gate_required", "approval_gate_status"], "sprints")) {
+  if (!areMissingColumns(first.error, ["auto_generated", "phase_key", "approval_gate_required", "approval_gate_status", "delivery_review_required", "delivery_review_status"], "sprints")) {
     return first;
   }
 
@@ -145,6 +145,8 @@ export async function selectProjectSummarySprintsWithCompat(db: DbClient, projec
       phase_key: null,
       approval_gate_required: false,
       approval_gate_status: "not_requested",
+      delivery_review_required: false,
+      delivery_review_status: "not_requested",
     })),
   };
 }

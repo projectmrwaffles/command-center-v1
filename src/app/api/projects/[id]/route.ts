@@ -379,6 +379,8 @@ export async function GET(
         category: sprintTruth.category,
         approvalGateRequired: sprint.approval_gate_required ?? false,
         approvalGateStatus: sprint.approval_gate_status ?? "not_requested",
+        deliveryReviewRequired: sprint.delivery_review_required ?? (sprint.phase_key === "build"),
+        deliveryReviewStatus: sprint.delivery_review_status ?? (sprint.phase_key === "build" ? "not_requested" : null),
         checkpointType: resolvedCheckpointType,
         checkpointEvidenceRequirements: resolvedCheckpointEvidenceRequirements,
         totalTasks: sprintTruth.totalTasks,

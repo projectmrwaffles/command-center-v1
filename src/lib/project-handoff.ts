@@ -11,8 +11,11 @@ type SprintRow = {
   status: string;
   created_at?: string | null;
   phase_order?: number | null;
+  phase_key?: string | null;
   approval_gate_required?: boolean | null;
   approval_gate_status?: string | null;
+  delivery_review_required?: boolean | null;
+  delivery_review_status?: string | null;
 };
 
 type TaskRow = {
@@ -67,7 +70,12 @@ function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRo
   const sprintStillActive = sprintTasks.some((task) => ACTIVE_LIKE.has(task.status));
   const sprintComplete = sprintTasks.length > 0 && sprintTasks.every((task) => DONE_LIKE.has(task.status));
   const artifactIntegrity = getProjectArtifactIntegrity(project || {}, sprintTasks);
-  const gateBlocked = Boolean(sprint.approval_gate_required && sprint.approval_gate_status !== "approved");
+  const deliveryReviewBlocked = (sprint.phase_key === "build" || sprint.delivery_review_required)
+    && sprint.delivery_review_status !== "approved";
+  const gateBlocked = Boolean(
+    (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
+    || deliveryReviewBlocked
+  );
 
   return {
     sprintTasks,
@@ -124,7 +132,10 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
       return { advanced: false, reason: "required_artifacts_missing", advancedTransitions };
     }
 
-    if (currentSprint.approval_gate_required && currentSprint.approval_gate_status !== "approved") {
+    const buildDeliveryReviewPending = (currentSprint.phase_key === "build" || currentSprint.delivery_review_required)
+      && currentSprint.delivery_review_status !== "approved";
+
+    if (buildDeliveryReviewPending || (currentSprint.approval_gate_required && currentSprint.approval_gate_status !== "approved")) {
       const submission = await ensureMilestoneReviewSubmission(db as any, {
         projectId: input.projectId,
         sprintId: currentSprint.id,

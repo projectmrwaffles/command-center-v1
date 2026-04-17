@@ -33,12 +33,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const db = createRouteHandlerClient();
     if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
-    const { data: submission, error: submissionError } = await db
-      .from("milestone_submissions")
-      .select("id, sprint_id, revision_number, status, approval_id, summary")
-      .eq("id", submissionId)
-      .eq("sprint_id", milestoneId)
-      .single();
+    const [{ data: submission, error: submissionError }, { data: sprint }] = await Promise.all([
+      db
+        .from("milestone_submissions")
+        .select("id, sprint_id, revision_number, status, approval_id, summary, checkpoint_type")
+        .eq("id", submissionId)
+        .eq("sprint_id", milestoneId)
+        .single(),
+      db.from("sprints").select("id, phase_key").eq("id", milestoneId).eq("project_id", projectId).maybeSingle(),
+    ]);
 
     if (submissionError || !submission) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
     if (!["submitted", "under_review"].includes(submission.status)) {
@@ -72,7 +75,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (feedbackError) return NextResponse.json({ error: feedbackError.message || "Failed to create feedback items" }, { status: 500 });
 
-    await db.from("sprints").update({ approval_gate_status: "rejected", updated_at: now }).eq("id", milestoneId).eq("project_id", projectId);
+    const isBuildDeliveryReview = submission.checkpoint_type === "delivery_review" && sprint?.phase_key === "build";
+    await db.from("sprints").update(isBuildDeliveryReview
+      ? { delivery_review_required: true, delivery_review_status: "rejected", updated_at: now }
+      : { approval_gate_status: "rejected", updated_at: now }).eq("id", milestoneId).eq("project_id", projectId);
 
     if (submission.approval_id) {
       await db.from("approvals").update({ status: "changes_requested", note: decisionNotes, decided_at: now }).eq("id", submission.approval_id);

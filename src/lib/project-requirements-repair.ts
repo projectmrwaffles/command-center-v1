@@ -1,6 +1,7 @@
 import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
 import type { ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
+import { ensureProvisionedRepoMatchesRequirements } from "@/lib/github-provisioning";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
 
@@ -294,6 +295,14 @@ export async function processAttachmentBackedProject(
   let resolvedIntake = (repaired.intake || project.intake || null) as ProjectIntakeLike | null;
   const effectiveRequirements = repaired.requirements || getExistingRequirements(resolvedIntake);
   const attachmentRequirementsReady = hasAttachmentDerivedRequirements(effectiveRequirements);
+
+  if (attachmentRequirementsReady) {
+    await ensureProvisionedRepoMatchesRequirements({
+      projectName: project.name || "Untitled project",
+      requirements: effectiveRequirements,
+      githubRepoBinding: project.github_repo_binding || null,
+    });
+  }
 
   const { count: sprintCount, error: sprintCountError } = await db
     .from("sprints")

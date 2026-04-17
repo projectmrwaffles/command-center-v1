@@ -1584,6 +1584,19 @@ export default function ProjectDetailPage() {
                             ? "Approval is not available yet because the review evidence is still incomplete."
                             : null
                       : null;
+                    const showApprovalReason = Boolean(
+                      milestone.preBuildCheckpoint?.reasons?.length
+                      && milestone.preBuildCheckpoint?.status !== "approved"
+                    );
+                    const showLatestRejectionComment = Boolean(
+                      summary?.latestRejectionComment
+                      && (summary?.latestDecision === "reject" || milestone.approvalGateStatus === "rejected")
+                    );
+                    const showLatestDecisionNote = Boolean(
+                      summary?.latestDecisionNotes
+                      && !showLatestRejectionComment
+                      && (summary?.latestDecision !== "approve" || milestone.approvalGateStatus !== "approved")
+                    );
                     return (
                       <div key={milestone.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
                         <div className="flex flex-col gap-3">
@@ -1629,19 +1642,19 @@ export default function ProjectDetailPage() {
                             </div>
                           </div>
 
-                          {milestone.preBuildCheckpoint?.reasons?.length ? (
+                          {showApprovalReason ? (
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm leading-6 text-zinc-700">
-                              <span className="font-medium">Why approval is needed:</span> {formatCheckpointReason(milestone.preBuildCheckpoint.reasons[0])}
+                              <span className="font-medium">Why approval is needed:</span> {formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0])}
                             </div>
                           ) : null}
 
-                          {summary?.latestRejectionComment ? (
+                          {showLatestRejectionComment ? (
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
-                              <span className="font-medium">Latest reject comment:</span> {summary.latestRejectionComment}
+                              <span className="font-medium">Latest reject comment:</span> {summary?.latestRejectionComment}
                             </div>
-                          ) : summary?.latestDecisionNotes ? (
+                          ) : showLatestDecisionNote ? (
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
-                              <span className="font-medium">Latest note:</span> {summary.latestDecisionNotes}
+                              <span className="font-medium">Latest note:</span> {summary?.latestDecisionNotes}
                             </div>
                           ) : null}
 

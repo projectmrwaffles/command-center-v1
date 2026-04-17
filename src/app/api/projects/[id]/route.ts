@@ -408,7 +408,7 @@ export async function GET(
               latestSubmissionSummary: latestSubmission.summary ?? null,
               latestDecision: latestSubmission.decision ?? null,
               latestDecisionNotes: latestSubmission.decision_notes ?? null,
-              latestRejectionComment: latestSubmission.rejection_comment ?? latestSubmission.decision_notes ?? null,
+              latestRejectionComment: latestSubmission.rejection_comment ?? null,
               latestSubmittedAt: latestSubmission.submitted_at ?? null,
               proofBundleId: latestBundle?.id ?? null,
               proofBundleTitle: latestBundle?.title ?? null,

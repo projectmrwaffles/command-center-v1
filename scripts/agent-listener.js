@@ -386,6 +386,18 @@ function loadPackageJson(repoWorkspacePath) {
   }
 }
 
+function readProvisionedNextJsSeedVersion() {
+  const provisioningPath = path.join(REPO_ROOT, "src", "lib", "github-provisioning.ts");
+  if (!fs.existsSync(provisioningPath)) return null;
+  try {
+    const source = fs.readFileSync(provisioningPath, "utf8");
+    const match = source.match(/const\s+NEXTJS_SEED_VERSION\s*=\s*"([^"]+)"/);
+    return match?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 function inspectRepoTestContract(repoWorkspacePath) {
   const pkg = loadPackageJson(repoWorkspacePath);
   const testScript = typeof pkg?.scripts?.test === "string" ? pkg.scripts.test : null;
@@ -433,6 +445,19 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
   const requiredFrameworks = Array.isArray(requirements?.requiredFrameworks) ? requirements.requiredFrameworks : [];
   const repoFrameworks = readRepoFrameworks(repoWorkspacePath);
   const requirementViolations = requiredFrameworks.filter((framework) => !repoFrameworks.includes(framework));
+  const repoPackage = loadPackageJson(repoWorkspacePath);
+  const repoDependencies = {
+    ...(repoPackage?.dependencies || {}),
+    ...(repoPackage?.devDependencies || {}),
+  };
+  const nextJsSeedVersion = readProvisionedNextJsSeedVersion();
+  const nextVersionGuidance = requiredFrameworks.includes("nextjs")
+    ? (repoDependencies.next
+        ? `Existing repo package.json already pins next@${repoDependencies.next} and eslint-config-next@${repoDependencies["eslint-config-next"] || "(missing)"}. Preserve or intentionally upgrade from that baseline, do not invent or downgrade versions.`
+        : nextJsSeedVersion
+          ? `If you need to scaffold Next.js in this repo, pin next and eslint-config-next to ${nextJsSeedVersion} to match the current provisioning seed.`
+          : null)
+    : null;
   const formattedTechnologyContract = technologyRequirements.length
     ? technologyRequirements.slice(0, 8).map((requirement) => {
         const labels = Array.isArray(requirement?.choices) ? requirement.choices.map((choice) => choice?.label || choice?.slug).filter(Boolean).join(" or ") : "unspecified";
@@ -464,6 +489,9 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     codeHeavy ? "Verify the remote push succeeded. Include the pushed commit hash and the exact git/gh commands you ran in DETAILS when you make tracked changes." : null,
     taskType === "build_implementation" ? "Validation contract: do not leave behind placeholder test tooling. If the repo declares a test script or adds Vitest/jsdom/testing-library config, it must also include at least one real matching app test file. Setup files and config alone do not count. If you do not add tests, remove the unused test script and test-only tooling before marking the task done." : null,
     taskType === "build_implementation" && requirements?.summary?.length ? "Treat the project requirements above as a hard contract for implementation. Required choices must be present, allowed choices define the acceptable option set, and forbidden technologies must not be introduced. If the repo or your plan conflicts with that contract, align the implementation or call out the blocker explicitly." : null,
+    taskType === "build_implementation" && nextVersionGuidance ? nextVersionGuidance : null,
+    taskType === "build_implementation" ? "Do not copy scaffolds, package versions, or docs forward from an older project repo. Start from the current repo state and the stated contract for this specific project only." : null,
+    taskType === "build_implementation" ? `Before you commit, verify any repo title, README, docs, task-status, and package name/version references match ${projectName} and not another project.` : null,
     taskType === "discovery_plan" && requirements?.summary?.length ? "Discovery must convert the PRD/spec requirements above into an explicit implementation contract. Preserve required choices, allowed alternatives, and forbidden technologies instead of collapsing them into generic notes." : null,
     "Do the work now. Do not stop after acknowledging or saying you started.",
     "Continue until you reach a real stop condition: done, blocked, awaiting approval, or awaiting confirmation.",

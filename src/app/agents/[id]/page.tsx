@@ -22,6 +22,8 @@ type Agent = { id: string; name: string; type: string; status: string; last_seen
 
 type AgentEvent = { id: string; event_type: string; payload: Record<string, unknown>; timestamp: string };
 
+const RECENT_ACTIVITY_WINDOW_DAYS = 7;
+
 export default async function AgentDetailPage({
   params,
 }: {
@@ -59,7 +61,7 @@ export default async function AgentDetailPage({
       .select("id, event_type, payload, timestamp")
       .eq("agent_id", id)
       .order("timestamp", { ascending: false })
-      .limit(20);
+      .limit(50);
     events = (eventsRes.data ?? []) as AgentEvent[];
   } catch (err) {
     error = {
@@ -91,6 +93,10 @@ export default async function AgentDetailPage({
       <span className="font-medium">Demo mode</span> – backend not connected.
     </div>
   ) : null;
+
+  const recentCutoffMs = Date.now() - RECENT_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const recentEvents = events.filter((event) => new Date(event.timestamp).getTime() >= recentCutoffMs);
+  const historicalEvents = events.filter((event) => new Date(event.timestamp).getTime() < recentCutoffMs);
 
   return (
     <div className="space-y-6">
@@ -153,8 +159,8 @@ export default async function AgentDetailPage({
                 <Activity className="h-4 w-4 text-red-500" />
                 Events
               </div>
-              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{events.length}</div>
-              <p className="mt-1 text-xs text-zinc-500">Most recent timeline entries shown below.</p>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{recentEvents.length}</div>
+              <p className="mt-1 text-xs text-zinc-500">Timeline entries from the last {RECENT_ACTIVITY_WINDOW_DAYS} days.</p>
             </PageHeroStat>
           </div>
         </div>
@@ -169,21 +175,21 @@ export default async function AgentDetailPage({
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Events timeline</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Latest execution and reporting events for this agent, preserving the same timeline data as before.
+                Recent execution and reporting events. Older audit history is retained separately so stale tasks do not read like current work.
               </p>
             </div>
           </div>
 
-          {events.length === 0 ? (
+          {recentEvents.length === 0 ? (
             <BrandedEmptyState
               icon={<Activity className="h-8 w-8 text-red-600" />}
-              title="No events yet"
-              description="This agent has not reported any timeline events yet. When it does, the latest entries will appear here."
+              title="No recent events"
+              description={historicalEvents.length > 0 ? `No activity has been reported in the last ${RECENT_ACTIVITY_WINDOW_DAYS} days. Older history is preserved below.` : "This agent has not reported any timeline events yet. When it does, recent entries will appear here."}
               className="px-5 py-12"
             />
           ) : (
             <div className="space-y-3">
-              {events.map((event) => (
+              {recentEvents.map((event) => (
                 <div
                   key={event.id}
                   className="rounded-[22px] border border-zinc-200 bg-white/90 p-4 shadow-sm"
@@ -209,6 +215,43 @@ export default async function AgentDetailPage({
               ))}
             </div>
           )}
+
+          {historicalEvents.length > 0 ? (
+            <div className="space-y-3 border-t border-zinc-200 pt-5">
+              <div>
+                <h3 className="text-sm font-semibold tracking-tight text-zinc-900">Older activity history</h3>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Retained for auditability, but separated from the active timeline.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {historicalEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="rounded-[22px] border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="inline-flex w-fit items-center rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">
+                          {formatEventType(event.event_type)}
+                        </div>
+                        {event.payload && Object.keys(event.payload).length > 0 ? (
+                          <pre className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200 bg-white/90 p-3 text-xs leading-5 text-zinc-600">
+                            {JSON.stringify(event.payload, null, 2)}
+                          </pre>
+                        ) : (
+                          <p className="mt-3 text-sm text-zinc-500">No payload captured for this event.</p>
+                        )}
+                      </div>
+                      <div className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-500 shadow-sm">
+                        {new Date(event.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

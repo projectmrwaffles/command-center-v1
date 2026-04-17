@@ -781,6 +781,7 @@ export async function DELETE(
     }
 
     if (jobIds.length > 0) {
+      await deleteStep("agents(current_job_id)", Promise.resolve(db.from("agents").update({ current_job_id: null }).in("current_job_id", jobIds)));
       await deleteStep("approvals(job)", Promise.resolve(db.from("approvals").delete().in("job_id", jobIds)));
       await deleteStep("ai_usage(job)", Promise.resolve(db.from("ai_usage").delete().in("job_id", jobIds)));
       await deleteStep("ai_usage_events(job)", Promise.resolve(db.from("ai_usage_events").delete().in("job_id", jobIds)));

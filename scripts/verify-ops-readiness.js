@@ -31,7 +31,7 @@ async function main() {
   const [jobsRes, tasksRes, agentsRes] = await Promise.all([
     db.from("jobs").select("id, summary, status, updated_at, created_at, owner_agent_id").order("updated_at", { ascending: false }),
     db.from("sprint_items").select("id, status, assignee_agent_id"),
-    db.from("agents").select("id, last_seen"),
+    db.from("agents").select("id, last_seen, current_job_id"),
   ]);
   if (jobsRes.error) throw jobsRes.error;
   if (tasksRes.error) throw tasksRes.error;
@@ -41,6 +41,7 @@ async function main() {
   const tasks = tasksRes.data || [];
   const agents = agentsRes.data || [];
   const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const jobIds = new Set(jobs.map((job) => job.id));
 
   let duplicateGroups = 0;
   const seen = new Map();
@@ -54,6 +55,7 @@ async function main() {
   let orphanHistoryJobs = 0;
   let mismatchedJobs = 0;
   let staleQueuedJobs = 0;
+  let orphanCurrentJobRefs = 0;
   for (const job of jobs) {
     if (job.status === "queued") {
       const age = minutesSince(job.updated_at || job.created_at);
@@ -69,6 +71,12 @@ async function main() {
     }
     if (job.status !== normalizeStatus(task.status) || job.owner_agent_id !== task.assignee_agent_id) {
       mismatchedJobs += 1;
+    }
+  }
+
+  for (const agent of agents) {
+    if (agent.current_job_id && !jobIds.has(agent.current_job_id)) {
+      orphanCurrentJobRefs += 1;
     }
   }
 
@@ -89,6 +97,7 @@ async function main() {
   if (orphanTaskJobs > orphanHistoryJobs) failures.push(`active orphan task jobs=${orphanTaskJobs - orphanHistoryJobs}`);
   if (mismatchedJobs > 0) failures.push(`mismatched jobs=${mismatchedJobs}`);
   if (staleQueuedJobs > 0) failures.push(`stale queued jobs=${staleQueuedJobs}`);
+  if (orphanCurrentJobRefs > 0) failures.push(`orphan current_job_id refs=${orphanCurrentJobRefs}`);
   if (!openclawStatus?.gatewayService?.installed || !openclawStatus?.nodeService?.installed) failures.push("openclaw services not confirmed installed");
   if (!String(openclawStatus?.gatewayService?.runtimeShort || "").includes("running") || !String(openclawStatus?.nodeService?.runtimeShort || "").includes("running")) {
     failures.push("openclaw services not healthy/running");
@@ -101,6 +110,7 @@ async function main() {
     orphanHistoryJobs,
     mismatchedJobs,
     staleQueuedJobs,
+    orphanCurrentJobRefs,
     recentAgents,
     gatewayService: openclawStatus?.gatewayService?.runtimeShort || null,
     nodeService: openclawStatus?.nodeService?.runtimeShort || null,

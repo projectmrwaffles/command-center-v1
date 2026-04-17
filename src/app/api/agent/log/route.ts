@@ -15,6 +15,34 @@ type TaskScope = {
   assignee_agent_id: string | null;
 };
 
+async function resolveCurrentJobId(
+  db: NonNullable<ReturnType<typeof createRouteHandlerClient>>,
+  agentId: string,
+  jobId: string | null | undefined
+): Promise<string | null> {
+  if (!jobId) return null;
+
+  const { data, error } = await db
+    .from("jobs")
+    .select("id, owner_agent_id")
+    .eq("id", jobId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data?.id) {
+    return null;
+  }
+
+  if (data.owner_agent_id && data.owner_agent_id !== agentId) {
+    throw new Error("Job does not belong to the provided agent");
+  }
+
+  return data.id;
+}
+
 async function getTaskScope(
   db: NonNullable<ReturnType<typeof createRouteHandlerClient>>,
   taskId: string
@@ -131,9 +159,10 @@ export async function POST(req: NextRequest) {
         if (!ALLOWED_AGENT_STATUSES.has(status)) {
           return NextResponse.json({ error: "Invalid agent status" }, { status: 400 });
         }
+        const resolvedJobId = await resolveCurrentJobId(db, agent_id, job_id);
         const { error } = await db
           .from("agents")
-          .update({ status, last_seen: new Date().toISOString(), current_job_id: job_id || null })
+          .update({ status, last_seen: new Date().toISOString(), current_job_id: status === "active" ? resolvedJobId : null })
           .eq("id", agent_id);
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         return NextResponse.json({ success: true });

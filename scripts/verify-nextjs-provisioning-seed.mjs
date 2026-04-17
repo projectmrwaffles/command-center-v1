@@ -21,17 +21,31 @@ function installFetchMock(routes) {
 
 const requirements = {
   derivedAt: new Date().toISOString(),
-  summary: ["Must use Next.js (framework)."],
+  summary: ["Must use Next.js (framework).", "Must use Tailwind CSS (styling).", "Must use shadcn/ui (tooling)."],
   constraints: [],
   requiredFrameworks: ["nextjs"],
   sourceCount: 1,
-  sources: [{ title: "Spec.pdf", type: "attachment", evidence: ["Next.js + React"] }],
+  sources: [{ title: "Spec.pdf", type: "attachment", evidence: ["Next.js + React with Tailwind CSS and shadcn/ui"] }],
   technologyRequirements: [
     {
       directive: "required",
       kind: "framework",
       rationale: "Use Next.js.",
       choices: [{ slug: "nextjs", label: "Next.js", aliases: ["nextjs", "next.js", "next"], kind: "framework" }],
+      sourceTitles: ["Spec.pdf"],
+    },
+    {
+      directive: "required",
+      kind: "styling",
+      rationale: "Use Tailwind CSS.",
+      choices: [{ slug: "tailwind", label: "Tailwind CSS", aliases: ["tailwind", "tailwindcss", "tailwind css"], kind: "styling" }],
+      sourceTitles: ["Spec.pdf"],
+    },
+    {
+      directive: "required",
+      kind: "tooling",
+      rationale: "Use shadcn/ui.",
+      choices: [{ slug: "shadcn-ui", label: "shadcn/ui", aliases: ["shadcn", "shadcn/ui"], kind: "tooling" }],
       sourceTitles: ["Spec.pdf"],
     },
   ],
@@ -44,7 +58,14 @@ const pkg = JSON.parse(packageSeed.content);
 assert.equal(pkg.scripts.dev, "next dev");
 assert.equal(pkg.dependencies.next, "15.5.15");
 assert.equal(pkg.dependencies.react, "19.0.0");
+assert.equal(pkg.devDependencies.tailwindcss, "^4");
+assert.equal(pkg.devDependencies["@tailwindcss/postcss"], "^4");
+assert.equal(pkg.dependencies["class-variance-authority"], "^0.7.1");
 assert.ok(!pkg.devDependencies?.vite, "seed must not include vite");
+assert(seedFiles.some((file) => file.path === "postcss.config.mjs"), "expected Tailwind postcss config to be seeded");
+assert(seedFiles.some((file) => file.path === "app/globals.css"), "expected Tailwind globals.css to be seeded");
+assert(seedFiles.some((file) => file.path === "components.json"), "expected shadcn components.json to be seeded");
+assert(seedFiles.some((file) => file.path === "components/ui/button.tsx"), "expected sample shadcn component to be seeded");
 
 installFetchMock({
   "GET /users/acme-inc": async () => ({ body: { login: "acme-inc", type: "Organization" } }),
@@ -66,6 +87,9 @@ installFetchMock({
     const packageJson = JSON.parse(decoded);
     assert.equal(payload.branch, "main");
     assert.equal(packageJson.scripts.dev, "next dev");
+    assert.equal(packageJson.devDependencies.tailwindcss, "^4");
+    assert.equal(packageJson.devDependencies["@tailwindcss/postcss"], "^4");
+    assert.equal(packageJson.dependencies["class-variance-authority"], "^0.7.1");
     assert.ok(!packageJson.devDependencies?.vite);
     return { status: 201, body: { content: { path: "package.json" } } };
   },
@@ -85,6 +109,36 @@ installFetchMock({
   },
   "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/README.md": async () => ({ status: 201, body: {} }),
   "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/.gitignore": async () => ({ status: 201, body: {} }),
+  "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/postcss.config.mjs": async ({ init }) => {
+    const payload = JSON.parse(init.body);
+    const decoded = Buffer.from(payload.content, "base64").toString("utf8");
+    assert.match(decoded, /@tailwindcss\/postcss/);
+    return { status: 201, body: {} };
+  },
+  "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/app/globals.css": async ({ init }) => {
+    const payload = JSON.parse(init.body);
+    const decoded = Buffer.from(payload.content, "base64").toString("utf8");
+    assert.match(decoded, /tailwindcss/);
+    return { status: 201, body: {} };
+  },
+  "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/components.json": async ({ init }) => {
+    const payload = JSON.parse(init.body);
+    const decoded = Buffer.from(payload.content, "base64").toString("utf8");
+    assert.match(decoded, /shadcn/);
+    return { status: 201, body: {} };
+  },
+  "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/lib/utils.ts": async ({ init }) => {
+    const payload = JSON.parse(init.body);
+    const decoded = Buffer.from(payload.content, "base64").toString("utf8");
+    assert.match(decoded, /tailwind-merge/);
+    return { status: 201, body: {} };
+  },
+  "PUT /repos/acme-inc/notes-vault-1-3-123456/contents/components/ui/button.tsx": async ({ init }) => {
+    const payload = JSON.parse(init.body);
+    const decoded = Buffer.from(payload.content, "base64").toString("utf8");
+    assert.match(decoded, /class-variance-authority/);
+    return { status: 201, body: {} };
+  },
 });
 
 process.env = {

@@ -201,7 +201,15 @@ async function chooseRepoName(owner: string, projectName: string, projectId: str
   return `${base}-${Date.now().toString(36)}`;
 }
 
-function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
+function buildNextJsRepoSeed(projectName: string, requirements?: ProjectRequirements | null): RepoSeedFile[] {
+  const requiredSlugs = new Set(
+    (requirements?.technologyRequirements || [])
+      .filter((requirement) => requirement.directive === "required")
+      .flatMap((requirement) => requirement.choices.map((choice) => String(choice.slug || "").toLowerCase()))
+  );
+  const includeTailwind = requiredSlugs.has("tailwind") || requiredSlugs.has("shadcn-ui");
+  const includeShadcn = requiredSlugs.has("shadcn-ui");
+
   const packageJson = {
     name: slugifyRepoName(projectName),
     private: true,
@@ -216,6 +224,14 @@ function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
       next: NEXTJS_SEED_VERSION,
       react: "19.0.0",
       "react-dom": "19.0.0",
+      ...(includeShadcn
+        ? {
+            "class-variance-authority": "^0.7.1",
+            clsx: "^2.1.1",
+            "lucide-react": "^0.542.0",
+            "tailwind-merge": "^3.3.1",
+          }
+        : {}),
     },
     devDependencies: {
       typescript: "^5.8.3",
@@ -224,6 +240,12 @@ function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
       "@types/react-dom": "^19.0.4",
       eslint: "^9.24.0",
       "eslint-config-next": NEXTJS_SEED_VERSION,
+      ...(includeTailwind
+        ? {
+            "@tailwindcss/postcss": "^4",
+            tailwindcss: "^4",
+          }
+        : {}),
     },
   };
 
@@ -265,7 +287,7 @@ function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
     {
       path: "app/layout.tsx",
       message: "chore: seed required Next.js scaffold",
-      content: `export default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang=\"en\">\n      <body>{children}</body>\n    </html>\n  );\n}\n`,
+      content: `${includeTailwind ? "import \"./globals.css\";\n\n" : ""}export default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang=\"en\">\n      <body>{children}</body>\n    </html>\n  );\n}\n`,
     },
     {
       path: "app/page.tsx",
@@ -282,27 +304,93 @@ function buildNextJsRepoSeed(projectName: string): RepoSeedFile[] {
       message: "chore: seed required Next.js scaffold",
       content: "node_modules\n.next\nout\n.env\n.env.local\n.DS_Store\n",
     },
+    ...(includeTailwind
+      ? [
+          {
+            path: "postcss.config.mjs",
+            message: "chore: seed required Next.js scaffold",
+            content: "const config = {\n  plugins: {\n    \"@tailwindcss/postcss\": {},\n  },\n};\n\nexport default config;\n",
+          },
+          {
+            path: "app/globals.css",
+            message: "chore: seed required Next.js scaffold",
+            content: "@import \"tailwindcss\";\n\n:root {\n  color-scheme: light;\n}\n\nbody {\n  margin: 0;\n  min-height: 100vh;\n  background: #fafafa;\n  color: #111827;\n  font-family: Arial, Helvetica, sans-serif;\n}\n",
+          },
+        ]
+      : []),
+    ...(includeShadcn
+      ? [
+          {
+            path: "components.json",
+            message: "chore: seed required Next.js scaffold",
+            content: `${JSON.stringify({
+              "$schema": "https://ui.shadcn.com/schema.json",
+              style: "default",
+              rsc: true,
+              tsx: true,
+              tailwind: {
+                config: "",
+                css: "app/globals.css",
+                baseColor: "zinc",
+                cssVariables: true,
+                prefix: "",
+              },
+              aliases: {
+                components: "@/components",
+                utils: "@/lib/utils",
+              },
+              iconLibrary: "lucide",
+            }, null, 2)}\n`,
+          },
+          {
+            path: "lib/utils.ts",
+            message: "chore: seed required Next.js scaffold",
+            content: "import { clsx, type ClassValue } from \"clsx\";\nimport { twMerge } from \"tailwind-merge\";\n\nexport function cn(...inputs: ClassValue[]) {\n  return twMerge(clsx(inputs));\n}\n",
+          },
+          {
+            path: "components/ui/button.tsx",
+            message: "chore: seed required Next.js scaffold",
+            content: "import * as React from \"react\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\n\nimport { cn } from \"@/lib/utils\";\n\nconst buttonVariants = cva(\n  \"inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:pointer-events-none disabled:opacity-50 bg-zinc-900 text-zinc-50 hover:bg-zinc-900/90\",\n  {\n    variants: {\n      variant: {\n        default: \"\",\n      },\n      size: {\n        default: \"h-9 px-4 py-2\",\n      },\n    },\n    defaultVariants: {\n      variant: \"default\",\n      size: \"default\",\n    },\n  },\n);\n\nexport interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}\n\nconst Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, ...props }, ref) => (\n  <button ref={ref} className={cn(buttonVariants({ variant, size, className }))} {...props} />\n));\nButton.displayName = \"Button\";\n\nexport { Button, buttonVariants };\n",
+          },
+        ]
+      : []),
   ];
 }
 
 export function deriveRepoSeedFiles(input: { projectName: string; requirements?: ProjectRequirements | null }) {
   const requiredFrameworks = (input.requirements?.requiredFrameworks || []).map((value) => String(value).toLowerCase());
   if (requiredFrameworks.includes("nextjs")) {
-    return buildNextJsRepoSeed(input.projectName);
+    return buildNextJsRepoSeed(input.projectName, input.requirements);
   }
   return [] as RepoSeedFile[];
 }
 
+type GitHubContentFile = { sha?: string; content?: string; encoding?: string; path?: string };
+
+async function upsertProvisionedRepoFile(input: { owner: string; repo: string; branch: string; file: RepoSeedFile; sha?: string | null }) {
+  await githubRequest(`/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${input.file.path.split("/").map(encodeURIComponent).join("/")}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      message: input.file.message,
+      content: Buffer.from(input.file.content, "utf8").toString("base64"),
+      branch: input.branch,
+      ...(input.sha ? { sha: input.sha } : {}),
+    }),
+  });
+}
+
+async function getRepoFile(input: { owner: string; repo: string; branch: string; filePath: string }) {
+  const response = await githubRequest<GitHubContentFile>(`/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${input.filePath.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(input.branch)}`, { allow404: true });
+  if (!response) return null;
+  const content = response.encoding === "base64" && response.content
+    ? Buffer.from(response.content.replace(/\n/g, ""), "base64").toString("utf8")
+    : null;
+  return { sha: response.sha || null, content };
+}
+
 async function seedProvisionedRepo(input: { owner: string; repo: string; branch: string; files: RepoSeedFile[] }) {
   for (const file of input.files) {
-    await githubRequest(`/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${file.path.split("/").map(encodeURIComponent).join("/")}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        message: file.message,
-        content: Buffer.from(file.content, "utf8").toString("base64"),
-        branch: input.branch,
-      }),
-    });
+    await upsertProvisionedRepoFile({ ...input, file });
   }
 }
 
@@ -410,6 +498,19 @@ function syncProvisionedRepoToWorkspace(input: { owner: string; repo: string; br
   return primaryTargetDir;
 }
 
+function packageJsonNeedsSeedPackage(existingContent: string | null, seedPackageContent: string) {
+  if (!existingContent) return true;
+  try {
+    const existing = JSON.parse(existingContent) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+    const seeded = JSON.parse(seedPackageContent) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+    const existingDeps = { ...(existing.dependencies || {}), ...(existing.devDependencies || {}) };
+    const seedDeps = { ...(seeded.dependencies || {}), ...(seeded.devDependencies || {}) };
+    return Object.keys(seedDeps).some((name) => existingDeps[name] !== seedDeps[name]);
+  } catch {
+    return false;
+  }
+}
+
 export async function ensureProvisionedRepoMatchesRequirements(input: {
   projectName: string;
   requirements?: ProjectRequirements | null;
@@ -430,16 +531,38 @@ export async function ensureProvisionedRepoMatchesRequirements(input: {
   const branch = binding.defaultBranch || "main";
   const hasContent = await repoHasAnyContent({ owner, repo, branch });
 
-  if (hasContent) {
+  if (!hasContent) {
+    await seedProvisionedRepo({ owner, repo, branch, files: seedFiles });
+    if (shouldHydrateProvisionedRepoWorkspace()) {
+      syncProvisionedRepoToWorkspace({ owner, repo, branch, files: seedFiles });
+    }
+    return { seeded: true, reason: "seeded-empty-provisioned-repo", filesSeeded: seedFiles.length } as const;
+  }
+
+  const filesToRepair: Array<{ file: RepoSeedFile; sha?: string | null }> = [];
+  for (const file of seedFiles) {
+    const remoteFile = await getRepoFile({ owner, repo, branch, filePath: file.path });
+    if (file.path === "package.json") {
+      if (packageJsonNeedsSeedPackage(remoteFile?.content || null, file.content)) {
+        filesToRepair.push({ file, sha: remoteFile?.sha || null });
+      }
+      continue;
+    }
+    if (!remoteFile) filesToRepair.push({ file, sha: null });
+  }
+
+  if (filesToRepair.length === 0) {
     return { seeded: false, reason: "repo-not-empty", filesSeeded: 0 } as const;
   }
 
-  await seedProvisionedRepo({ owner, repo, branch, files: seedFiles });
+  for (const entry of filesToRepair) {
+    await upsertProvisionedRepoFile({ owner, repo, branch, file: entry.file, sha: entry.sha });
+  }
   if (shouldHydrateProvisionedRepoWorkspace()) {
     syncProvisionedRepoToWorkspace({ owner, repo, branch, files: seedFiles });
   }
 
-  return { seeded: true, reason: "seeded-empty-provisioned-repo", filesSeeded: seedFiles.length } as const;
+  return { seeded: true, reason: "repaired-provisioned-requirement-seed", filesSeeded: filesToRepair.length } as const;
 }
 
 export async function provisionGitHubRepoForProject(input: {

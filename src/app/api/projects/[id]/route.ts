@@ -720,9 +720,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const [sprintsRes, jobsRes, projectDocumentsRes, prdsResRaw] = await Promise.all([
+    const [sprintsRes, jobsRes, tasksRes, projectDocumentsRes, prdsResRaw] = await Promise.all([
       db.from("sprints").select("id").eq("project_id", projectId),
       db.from("jobs").select("id").eq("project_id", projectId),
+      db.from("sprint_items").select("id").eq("project_id", projectId),
       db.from("project_documents").select("storage_path").eq("project_id", projectId),
       db.from("prds").select("storage_path").eq("project_id", projectId),
     ]);
@@ -741,6 +742,11 @@ export async function DELETE(
       return NextResponse.json({ error: jobsRes.error.message }, { status: 500 });
     }
 
+    if (tasksRes.error) {
+      console.error("[API /projects/:id] failed to load sprint items for delete:", tasksRes.error);
+      return NextResponse.json({ error: tasksRes.error.message }, { status: 500 });
+    }
+
     if (projectDocumentsRes.error) {
       console.error("[API /projects/:id] failed to load project documents for delete:", projectDocumentsRes.error);
       return NextResponse.json({ error: projectDocumentsRes.error.message }, { status: 500 });
@@ -752,7 +758,21 @@ export async function DELETE(
     }
 
     const sprintIds = sprintsRes.data?.map((s) => s.id) ?? [];
-    const jobIds = jobsRes.data?.map((j) => j.id) ?? [];
+    const taskIds = tasksRes.data?.map((task) => task.id) ?? [];
+    const taskSummaryKeys = taskIds.map((taskId) => `task:${taskId}`);
+    const linkedTaskJobsRes = taskSummaryKeys.length > 0
+      ? await db.from("jobs").select("id").in("summary", taskSummaryKeys)
+      : { data: [], error: null };
+
+    if (linkedTaskJobsRes.error) {
+      console.error("[API /projects/:id] failed to load task-linked jobs for delete:", linkedTaskJobsRes.error);
+      return NextResponse.json({ error: linkedTaskJobsRes.error.message }, { status: 500 });
+    }
+
+    const jobIds = Array.from(new Set([
+      ...(jobsRes.data?.map((j) => j.id) ?? []),
+      ...(linkedTaskJobsRes.data?.map((j) => j.id) ?? []),
+    ]));
     const explicitStoragePaths = [
       ...(projectDocumentsRes.data ?? []).map((row) => row.storage_path).filter((value): value is string => Boolean(value)),
       ...(prdsRes.data ?? []).map((row) => row.storage_path).filter((value): value is string => Boolean(value)),

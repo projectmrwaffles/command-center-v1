@@ -12,7 +12,7 @@
  */
 
 const { createClient } = require("@supabase/supabase-js");
-const { exec, spawn, spawnSync } = require("child_process");
+const { exec, spawn } = require("child_process");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -20,6 +20,13 @@ const {
   inspectRepoFrameworkVersionPolicy,
   formatFrameworkVersionViolations,
 } = require("./framework-version-guard.js");
+const {
+  acquireProcessLock,
+  createScratchScope,
+  maybeRestartForUpdatedSource,
+  pruneRuntimeState,
+  readGitHead,
+} = require("./runtime-hardening.js");
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 const RECONCILE_INTERVAL_MS = 15 * 1000;
@@ -65,17 +72,6 @@ const LOCK_DIR = process.env.AGENT_LISTENER_LOCK_DIR || "/tmp/command-center-age
 const BOOT_GIT_HEAD = readGitHead();
 let activeListenerLock = null;
 
-function readGitHead() {
-  const result = spawnSync("git", ["rev-parse", "HEAD"], {
-    cwd: REPO_ROOT,
-    encoding: "utf8",
-    timeout: 5000,
-  });
-  if (result.status !== 0) return null;
-  const value = String(result.stdout || "").trim();
-  return value || null;
-}
-
 function restartForUpdatedSource(reason) {
   const agentArgIndex = process.argv.indexOf("--agent-name");
   const agentLabel = agentArgIndex >= 0 ? (process.argv[agentArgIndex + 1] || "listener") : "listener";
@@ -98,11 +94,16 @@ function restartForUpdatedSource(reason) {
 }
 
 function restartIfRepoCodeChanged() {
-  if (!BOOT_GIT_HEAD) return false;
-  const currentHead = readGitHead();
-  if (!currentHead || currentHead === BOOT_GIT_HEAD) return false;
-  restartForUpdatedSource(`repo HEAD changed from ${BOOT_GIT_HEAD.slice(0, 7)} to ${currentHead.slice(0, 7)}`);
-  return true;
+  return maybeRestartForUpdatedSource({
+    repoRoot: REPO_ROOT,
+    bootGitHead: BOOT_GIT_HEAD,
+    spawnArgs: process.argv.slice(1),
+    reasonLabel: "Listener",
+    beforeExit: () => {
+      activeListenerLock?.release?.();
+      activeListenerLock = null;
+    },
+  });
 }
 
 function parseArgs() {
@@ -600,7 +601,8 @@ async function runAgentUntilStopCondition(agentName, initialMessage) {
   let latestResult = null;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const logPath = `/tmp/agent-${agentName}-${Date.now()}-${attempt}.log`;
+    const runScope = createScratchScope(REPO_ROOT, `agent-${agentName}`, `attempt-${attempt}`);
+    const logPath = path.join(runScope.dir, `agent-${agentName}.log`);
     const message = attempt === 1 ? initialMessage : [
       "You have not reached a valid stop condition yet.",
       "Continue the same task now. Actually perform the work before replying.",
@@ -614,13 +616,17 @@ async function runAgentUntilStopCondition(agentName, initialMessage) {
     if (sessionId) parts.push(`--session-id ${sessionId}`);
     const command = `${parts.join(" ")} > ${shellQuote(logPath)} 2>&1`;
 
-    await runExec(command);
+    try {
+      await runExec(command);
 
-    const parsedLog = JSON.parse(fs.readFileSync(logPath, "utf8"));
-    sessionId = parsedLog?.result?.meta?.agentMeta?.sessionId || sessionId;
-    const text = parsedLog?.result?.payloads?.[0]?.text || "";
-    latestResult = parseAgentResult(text);
-    if (latestResult.isTerminal) return latestResult;
+      const parsedLog = JSON.parse(fs.readFileSync(logPath, "utf8"));
+      sessionId = parsedLog?.result?.meta?.agentMeta?.sessionId || sessionId;
+      const text = parsedLog?.result?.payloads?.[0]?.text || "";
+      latestResult = parseAgentResult(text);
+      if (latestResult.isTerminal) return latestResult;
+    } finally {
+      runScope.cleanup();
+    }
   }
 
   return {
@@ -785,56 +791,12 @@ async function markNotificationDelivered(adminSupabase, agentId, taskId) {
   }
 }
 
-function ensureLockDir() {
-  fs.mkdirSync(LOCK_DIR, { recursive: true });
-}
-
 function acquireListenerLock(agentName) {
-  ensureLockDir();
-  const lockPath = path.join(LOCK_DIR, `${agentName}.lock`);
-
-  while (true) {
-    try {
-      const fd = fs.openSync(lockPath, "wx");
-      fs.writeFileSync(fd, String(process.pid));
-      let released = false;
-      return {
-        lockPath,
-        release() {
-          if (released) return;
-          released = true;
-          try {
-            fs.closeSync(fd);
-          } catch {}
-          try {
-            fs.unlinkSync(lockPath);
-          } catch {}
-        },
-      };
-    } catch (error) {
-      if (!error || error.code !== "EEXIST") throw error;
-      const ownerPid = fs.existsSync(lockPath) ? fs.readFileSync(lockPath, "utf8").trim() : "unknown";
-      const ownerPidNum = Number.parseInt(ownerPid, 10);
-      const ownerAlive = Number.isInteger(ownerPidNum) && ownerPidNum > 0 && (() => {
-        try {
-          process.kill(ownerPidNum, 0);
-          return true;
-        } catch {
-          return false;
-        }
-      })();
-      if (ownerAlive) {
-        throw new Error(`Listener lock already held for ${agentName} (pid ${ownerPid || "unknown"})`);
-      }
-      try {
-        fs.unlinkSync(lockPath);
-        console.warn(`[Listener] Removed stale lock for ${agentName}${ownerPid ? ` (pid ${ownerPid})` : ""}`);
-        continue;
-      } catch (unlinkError) {
-        throw unlinkError;
-      }
-    }
+  const lock = acquireProcessLock(LOCK_DIR, agentName);
+  if (lock.staleCleared) {
+    console.warn(`[Listener] Removed stale lock for ${agentName}`);
   }
+  return lock;
 }
 
 async function heartbeatAgent(adminSupabase, agentId) {
@@ -952,6 +914,10 @@ async function startListener() {
   console.log(`[Listener] Starting agent listener for: ${agentName} (${agentId})`);
   console.log(`[Listener] Connecting to Supabase: ${supabaseUrl}`);
 
+  pruneRuntimeState(REPO_ROOT, {
+    maxAgeMs: Math.max(1, Number(process.env.RUNTIME_STATE_MAX_AGE_HOURS || "24")) * 60 * 60 * 1000,
+  });
+  fs.mkdirSync(LOCK_DIR, { recursive: true });
   const listenerLock = acquireListenerLock(agentName);
   activeListenerLock = listenerLock;
   const processedTasks = new Set();

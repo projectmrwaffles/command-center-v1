@@ -368,15 +368,34 @@ export function deriveRepoSeedFiles(input: { projectName: string; requirements?:
 type GitHubContentFile = { sha?: string; content?: string; encoding?: string; path?: string };
 
 async function upsertProvisionedRepoFile(input: { owner: string; repo: string; branch: string; file: RepoSeedFile; sha?: string | null }) {
-  await githubRequest(`/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${input.file.path.split("/").map(encodeURIComponent).join("/")}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      message: input.file.message,
-      content: Buffer.from(input.file.content, "utf8").toString("base64"),
-      branch: input.branch,
-      ...(input.sha ? { sha: input.sha } : {}),
-    }),
-  });
+  const requestPath = `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${input.file.path.split("/").map(encodeURIComponent).join("/")}`;
+  const submit = async (sha?: string | null) => {
+    await githubRequest(requestPath, {
+      method: "PUT",
+      body: JSON.stringify({
+        message: input.file.message,
+        content: Buffer.from(input.file.content, "utf8").toString("base64"),
+        branch: input.branch,
+        ...(sha ? { sha } : {}),
+      }),
+    });
+  };
+
+  try {
+    await submit(input.sha);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "");
+    if (input.sha || !/sha.+wasn['"]?t supplied|already exists|must match blob sha/i.test(message)) {
+      throw error;
+    }
+
+    const remoteFile = await getRepoFile({ owner: input.owner, repo: input.repo, branch: input.branch, filePath: input.file.path });
+    if (!remoteFile?.sha) {
+      throw error;
+    }
+
+    await submit(remoteFile.sha);
+  }
 }
 
 async function getRepoFile(input: { owner: string; repo: string; branch: string; filePath: string }) {

@@ -1,3 +1,4 @@
+import { ensureProvisionedRepoMatchesRequirements } from "./github-provisioning.ts";
 import { buildReviewEventPayload } from "./milestone-review.ts";
 import { getProjectRequirementCompliance } from "./project-requirements.ts";
 import type { ProjectLikeWithRequirements, ProjectRequirements, RequirementCompliance } from "./project-requirements.types.ts";
@@ -357,6 +358,15 @@ export async function syncProjectPreBuildCheckpoint(db: DbClient, input: {
 }) {
   const project = input.project || (await db.from("projects").select("id, name, intake, links, github_repo_binding").eq("id", input.projectId).single()).data;
   if (!project) throw new Error("Project not found for pre-build checkpoint sync");
+
+  const requirements = project.intake?.requirements;
+  if (hasPrdDerivedRequirements(requirements)) {
+    await ensureProvisionedRepoMatchesRequirements({
+      projectName: project.name || "Untitled project",
+      requirements,
+      githubRepoBinding: project.github_repo_binding || null,
+    });
+  }
 
   const state = derivePreBuildCheckpointState(project);
   const { data: sprintRows, error: sprintsError } = await db.from("sprints").select("id, project_id, name, status, phase_key, approval_gate_required, approval_gate_status").eq("project_id", input.projectId);

@@ -15,6 +15,8 @@ export type TruthSprintLike = {
   auto_generated?: boolean | null;
   phase_key?: string | null;
   status?: string | null;
+  delivery_review_required?: boolean | null;
+  delivery_review_status?: string | null;
 };
 
 function isRunningStatus(status?: string | null) {
@@ -69,8 +71,8 @@ export function deriveExecutionState(input: {
   if (input.acceptancePending) {
     return {
       key: "acceptance_pending",
-      label: "Awaiting acceptance",
-      description: "Implementation is complete, and a final acceptance checkpoint is waiting for decision.",
+      label: "Awaiting delivery review",
+      description: "Implementation is complete, and a post-build delivery review is waiting for decision.",
     } as const;
   }
 
@@ -148,7 +150,7 @@ export function deriveExecutionState(input: {
 export function deriveProjectTruth(input: {
   project?: { id: string; type?: string | null; intake?: any; links?: Record<string, string> | null; github_repo_binding?: any } | null;
   tasks?: (TruthTaskLike & { title?: string | null; project_id?: string | null; assignee_agent_id?: string | null; owner_team_id?: string | null; review_required?: boolean | null; review_status?: string | null })[] | null;
-  sprints?: (TruthSprintLike & { name?: string | null; approval_gate_required?: boolean | null; approval_gate_status?: string | null })[] | null;
+  sprints?: (TruthSprintLike & { name?: string | null; approval_gate_required?: boolean | null; approval_gate_status?: string | null; delivery_review_required?: boolean | null; delivery_review_status?: string | null })[] | null;
   jobs?: Array<{ id?: string | null; status?: string | null; updated_at?: string | null; owner_agent_id?: string | null; summary?: string | null }> | null;
   agents?: Array<{ id?: string | null; status?: string | null; current_job_id?: string | null }> | null;
 }) {
@@ -196,7 +198,13 @@ export function deriveProjectTruth(input: {
     const title = String((task as any).title || '').toLowerCase();
     return (task.status === 'todo' || task.status === 'blocked') && /acceptance|qa|validate|review/.test(title);
   });
-  const acceptancePending = Boolean(pendingFinalValidationTask && (pendingFinalValidationTask as any).review_required);
+  const pendingDeliveryReview = sprints.some((sprint) => {
+    const isBuildSprint = sprint.phase_key === "build";
+    const deliveryReviewRequired = sprint.delivery_review_required === true || isBuildSprint;
+    const deliveryReviewStatus = sprint.delivery_review_status ?? "not_requested";
+    return deliveryReviewRequired && deliveryReviewStatus !== "approved";
+  });
+  const acceptancePending = Boolean(pendingDeliveryReview || (pendingFinalValidationTask && (pendingFinalValidationTask as any).review_required));
   const validationPending = Boolean(pendingFinalValidationTask && !(pendingFinalValidationTask as any).review_required && doneDeliveryTasks > 0 && runningDeliveryTasks === 0);
   if ((acceptancePending || validationPending) && progressPct >= 100) {
     progressPct = 90;
@@ -226,7 +234,7 @@ export function deriveProjectTruth(input: {
       : execution.key === "stale_running"
         ? "Work needs an update"
         : execution.key === "acceptance_pending"
-          ? "Awaiting acceptance"
+          ? pendingDeliveryReview ? "Awaiting delivery review" : "Awaiting acceptance"
           : execution.key === "validation_pending"
             ? "Awaiting validation"
           : execution.key === "queued"
@@ -248,7 +256,9 @@ export function deriveProjectTruth(input: {
     ? execution.key === "stale_running"
       ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} marked in progress, but there has been no recent execution update.`
       : execution.key === "acceptance_pending"
-        ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and a final acceptance checkpoint is waiting for decision.`
+        ? pendingDeliveryReview
+          ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Build output is ready, but delivery review still needs a decision or revisions.`
+          : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and a final acceptance checkpoint is waiting for decision.`
         : execution.key === "validation_pending"
           ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, but the final validation step has not started yet.`
         : doneBootstrapTasks > 0

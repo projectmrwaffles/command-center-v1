@@ -335,6 +335,8 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
       auto_generated: true,
       approval_gate_required: phase.gateRequired,
       approval_gate_status: phase.gateStatus,
+      delivery_review_required: phase.key === "build",
+      delivery_review_status: phase.key === "build" ? "not_requested" : null,
       checkpoint_type: phase.checkpointType ?? null,
       checkpoint_evidence_requirements: phase.checkpointEvidenceRequirements ?? {},
     };

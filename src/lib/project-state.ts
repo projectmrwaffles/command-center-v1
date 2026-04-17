@@ -104,14 +104,30 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
   progressPct: number;
   projectStatus?: string;
 }> {
-  const { data: tasks, error: tasksError } = await db
-    .from("sprint_items")
-    .select("status, task_metadata")
-    .eq("project_id", projectId);
+  const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }] = await Promise.all([
+    db
+      .from("sprint_items")
+      .select("status, task_metadata")
+      .eq("project_id", projectId),
+    db
+      .from("sprints")
+      .select("phase_key, delivery_review_required, delivery_review_status")
+      .eq("project_id", projectId),
+  ]);
 
   if (tasksError) {
     throw new Error(tasksError.message);
   }
+  if (sprintsError) {
+    throw new Error(sprintsError.message);
+  }
+
+  const pendingDeliveryReview = (sprints || []).some((sprint: any) => {
+    const isBuildSprint = sprint?.phase_key === "build";
+    const deliveryReviewRequired = sprint?.delivery_review_required === true || isBuildSprint;
+    const deliveryReviewStatus = sprint?.delivery_review_status ?? "not_requested";
+    return deliveryReviewRequired && deliveryReviewStatus !== "approved";
+  });
 
   const progressTasks = getProgressTaskSlice((tasks || []) as Array<{ status: string; task_metadata?: Record<string, unknown> | null }>);
   const totalTasks = progressTasks.length;
@@ -136,9 +152,9 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
       : progressPct;
   let nextStatus = project?.status as string | undefined;
 
-  if (totalTasks > 0 && doneTasks === totalTasks && !artifactIntegrity.completionBlocked) {
+  if (totalTasks > 0 && doneTasks === totalTasks && !artifactIntegrity.completionBlocked && !pendingDeliveryReview) {
     nextStatus = "completed";
-  } else if (nextStatus === "completed" && (hasActiveTasks || artifactIntegrity.completionBlocked)) {
+  } else if (nextStatus === "completed" && (hasActiveTasks || artifactIntegrity.completionBlocked || pendingDeliveryReview)) {
     nextStatus = "active";
   }
 

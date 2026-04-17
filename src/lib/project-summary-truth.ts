@@ -27,6 +27,8 @@ type SprintRow = {
   phase_key?: string | null;
   approval_gate_required?: boolean | null;
   approval_gate_status?: string | null;
+  delivery_review_required?: boolean | null;
+  delivery_review_status?: string | null;
 };
 
 type JobRow = {

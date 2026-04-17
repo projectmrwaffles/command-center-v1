@@ -6,12 +6,15 @@ export async function finalizeCheckpointApproval(db: DbClient, input: {
   projectId: string;
   milestoneId: string;
   decidedAt?: string;
+  useDeliveryReviewStatus?: boolean;
 }) {
   const now = input.decidedAt || new Date().toISOString();
 
   const sprintUpdate = await db
     .from("sprints")
-    .update({ approval_gate_status: "approved", updated_at: now })
+    .update(input.useDeliveryReviewStatus
+      ? { delivery_review_required: true, delivery_review_status: "approved", updated_at: now }
+      : { approval_gate_status: "approved", updated_at: now })
     .eq("id", input.milestoneId)
     .eq("project_id", input.projectId);
 

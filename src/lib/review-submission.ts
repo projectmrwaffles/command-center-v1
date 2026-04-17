@@ -19,12 +19,15 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 }) {
   const [{ data: activeSubmission, error: activeSubmissionError }, { data: sprint, error: sprintError }] = await Promise.all([
     db.from('milestone_submissions').select('id, status').eq('sprint_id', input.sprintId).in('status', ['submitted', 'under_review']).maybeSingle(),
-    db.from('sprints').select('id, name, phase_key, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
+    db.from('sprints').select('id, name, phase_key, approval_gate_required, delivery_review_required, delivery_review_status, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
   ]);
 
   if (activeSubmissionError) throw activeSubmissionError;
   if (sprintError) throw sprintError;
-  if (!sprint?.approval_gate_required) return null;
+  if (!sprint) return null;
+  const isBuildSprint = sprint.phase_key === 'build';
+  const requiresReview = Boolean(sprint.approval_gate_required || sprint.delivery_review_required || isBuildSprint);
+  if (!requiresReview) return null;
   if (activeSubmission?.id) return activeSubmission;
 
   const { data: lastSubmission } = await db
@@ -112,7 +115,10 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     if (itemsError) throw itemsError;
   }
 
-  await db.from('sprints').update({ approval_gate_status: 'pending', updated_at: new Date().toISOString() }).eq('id', input.sprintId).eq('project_id', input.projectId);
+  const sprintStatusUpdate = checkpointType === 'delivery_review' && isBuildSprint
+    ? { delivery_review_required: true, delivery_review_status: 'pending', updated_at: new Date().toISOString() }
+    : { approval_gate_status: 'pending', updated_at: new Date().toISOString() };
+  await db.from('sprints').update(sprintStatusUpdate).eq('id', input.sprintId).eq('project_id', input.projectId);
 
   await db.from('agent_events').insert({
     agent_id: null,

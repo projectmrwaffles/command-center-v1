@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const { data: sprint, error: sprintError } = await db
       .from("sprints")
-      .select("id, project_id, name, approval_gate_status")
+      .select("id, project_id, name, phase_key, approval_gate_status, delivery_review_status")
       .eq("id", milestoneId)
       .eq("project_id", projectId)
       .single();
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const now = new Date().toISOString();
+    const isBuildDeliveryReview = Boolean(submission?.checkpoint_type === "delivery_review" && sprint.phase_key === "build");
 
     if (submission) {
       if (!["submitted", "under_review"].includes(submission.status)) {
@@ -127,7 +128,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         }),
       });
     } else {
-      if (sprint.approval_gate_status !== "pending") {
+      const currentGateStatus = sprint.phase_key === "build" ? (sprint.delivery_review_status || "not_requested") : (sprint.approval_gate_status || "not_requested");
+      if (currentGateStatus !== "pending") {
         return NextResponse.json({ error: "Only pending checkpoints can be approved" }, { status: 409 });
       }
 
@@ -148,6 +150,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       projectId,
       milestoneId,
       decidedAt: now,
+      useDeliveryReviewStatus: isBuildDeliveryReview || sprint.phase_key === "build",
     });
 
     return NextResponse.json({ ok: true, submissionId: submissionId || null, progression: approvalResult.progression });

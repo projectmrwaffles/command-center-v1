@@ -97,6 +97,8 @@ type Milestone = {
   category?: "bootstrap" | "delivery";
   approvalGateRequired?: boolean;
   approvalGateStatus?: string;
+  deliveryReviewRequired?: boolean;
+  deliveryReviewStatus?: string | null;
   checkpointType?: string | null;
   checkpointEvidenceRequirements?: Record<string, unknown> | null;
   totalTasks: number;
@@ -1231,7 +1233,7 @@ export default function ProjectDetailPage() {
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
   const reviewableMilestones = milestones.filter((milestone) => (
-    (milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId)) && !isBlockerOnlyCheckpoint(milestone)
+    (milestone.deliveryReviewRequired || milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId)) && !isBlockerOnlyCheckpoint(milestone)
   ));
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
@@ -1506,7 +1508,7 @@ export default function ProjectDetailPage() {
                                     <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                     {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                     {task.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                    {checkpointState ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointState.approvalGateStatus))}>{checkpointState.name}: {formatMilestoneGateLabel(checkpointState.approvalGateStatus)}</span> : null}
+                                    {checkpointState ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus))}>{checkpointState.name}: {formatMilestoneGateLabel(checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus)}</span> : null}
                                   </div>
                                   {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                     <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
@@ -1580,7 +1582,8 @@ export default function ProjectDetailPage() {
               <div className="space-y-3">
                 {reviewableMilestones.map((milestone) => {
                     const summary = milestone.reviewSummary;
-                    const { checkpointState, showDecisionActions, showChangesRequestedActions } = deriveMilestoneDisplayState(milestone);
+                    const milestoneForDisplay = { ...milestone, approvalGateStatus: milestone.deliveryReviewStatus || milestone.approvalGateStatus };
+                    const { checkpointState, showDecisionActions, showChangesRequestedActions } = deriveMilestoneDisplayState(milestoneForDisplay);
                     const evidenceRequirements = getCheckpointEvidenceRequirements(summary?.checkpointType || milestone.checkpointType, summary?.evidenceRequirements || milestone.checkpointEvidenceRequirements);
                     const canApprove = checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready";
                     const approvalBlockedReason = !canApprove
@@ -1596,11 +1599,11 @@ export default function ProjectDetailPage() {
                       milestone.preBuildCheckpoint?.reasons?.length
                       && milestone.preBuildCheckpoint?.status !== "approved"
                     );
-                    const showDecisionMetadata = shouldShowCheckpointDecisionMetadata(summary, milestone.approvalGateStatus);
+                    const showDecisionMetadata = shouldShowCheckpointDecisionMetadata(summary, milestone.deliveryReviewStatus || milestone.approvalGateStatus);
                     const showLatestRejectionComment = Boolean(
                       showDecisionMetadata
                       && summary?.latestRejectionComment
-                      && (summary?.latestDecision === "reject" || milestone.approvalGateStatus === "rejected")
+                      && (summary?.latestDecision === "reject" || milestone.deliveryReviewStatus === "rejected" || milestone.approvalGateStatus === "rejected")
                     );
                     const showLatestDecisionNote = Boolean(
                       showDecisionMetadata
@@ -1626,8 +1629,8 @@ export default function ProjectDetailPage() {
                               <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">
                                 {formatCheckpointTypeLabel(summary?.checkpointType || milestone.checkpointType)}
                               </span>
-                              <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(milestone.approvalGateStatus))}>
-                                {formatMilestoneGateLabel(milestone.approvalGateStatus)}
+                              <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(milestone.deliveryReviewStatus || milestone.approvalGateStatus))}>
+                                {formatMilestoneGateLabel(milestone.deliveryReviewStatus || milestone.approvalGateStatus)}
                               </span>
                               {summary?.proofCompletenessStatus ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(summary.proofCompletenessStatus))}>Proof {summary.proofCompletenessStatus.replace(/_/g, " ")}</span> : null}
                               {evidenceRequirements.screenshotRequired ? <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">Screenshot evidence required</span> : null}
@@ -1840,7 +1843,7 @@ export default function ProjectDetailPage() {
                                   Review details
                                 </Button>
                               ) : null}
-                              {milestone.approvalGateStatus === "rejected" ? (
+                              {milestone.deliveryReviewStatus === "rejected" || milestone.approvalGateStatus === "rejected" ? (
                                 <Button
                                   onClick={() => handleCheckpointResubmit(milestone)}
                                   disabled={checkpointActionLoading === `${milestone.id}:resubmit`}
@@ -2021,8 +2024,8 @@ export default function ProjectDetailPage() {
 
             <div className="mt-4 space-y-5">
               <div className="flex flex-wrap gap-2">
-                <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(reviewingCheckpoint.approvalGateStatus))}>
-                  {formatMilestoneGateLabel(reviewingCheckpoint.approvalGateStatus)}
+                <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus))}>
+                  {formatMilestoneGateLabel(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus)}
                 </span>
                 {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? (
                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(reviewingCheckpoint.reviewSummary.proofCompletenessStatus))}>
@@ -2085,9 +2088,9 @@ export default function ProjectDetailPage() {
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review status</div>
                   <div className="mt-2 space-y-2 text-sm text-zinc-700">
-                    <p><span className="font-medium text-zinc-900">Gate state:</span> {formatMilestoneGateLabel(reviewingCheckpoint.approvalGateStatus)}</p>
+                    <p><span className="font-medium text-zinc-900">Delivery review state:</span> {formatMilestoneGateLabel(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus)}</p>
                     <p><span className="font-medium text-zinc-900">Materials status:</span> {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "No materials yet"}</p>
-                    {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.approvalGateStatus) ? (
+                    {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus) ? (
                       <p><span className="font-medium text-zinc-900">Latest decision:</span> {reviewingCheckpoint.reviewSummary?.latestDecision ? reviewingCheckpoint.reviewSummary.latestDecision.replace(/_/g, " ") : "Not decided"}</p>
                     ) : null}
                   </div>
@@ -2099,13 +2102,13 @@ export default function ProjectDetailPage() {
                 <ul className="mt-3 space-y-2 text-sm text-zinc-700">
                   <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Summary captured: {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary ? "Yes" : "No"}</li>
                   <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Materials attached: {(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) > 0 ? "Yes" : "No"}</li>
-                  {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.approvalGateStatus) ? (
+                  {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus) ? (
                     <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Decision note present: {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? "Yes" : "No"}</li>
                   ) : null}
                 </ul>
               </div>
 
-              {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.approvalGateStatus) && reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
+              {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus) && reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
                   <span className="font-medium">Latest note:</span> {reviewingCheckpoint.reviewSummary.latestDecisionNotes}
                 </div>

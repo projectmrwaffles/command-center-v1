@@ -254,7 +254,10 @@ function proofTone(value?: string | null) {
 
 function isBlockerOnlyCheckpoint(milestone: Milestone) {
   const checkpointType = milestone.reviewSummary?.checkpointType || milestone.checkpointType;
-  return checkpointType === "prebuild_checkpoint" && Boolean(milestone.preBuildCheckpoint?.outcome) && !milestone.reviewRequest;
+  return checkpointType === "prebuild_checkpoint"
+    && milestone.preBuildCheckpoint?.outcome != null
+    && milestone.preBuildCheckpoint.outcome !== "match"
+    && !milestone.reviewRequest;
 }
 
 function checkpointSummaryCopy(input: {

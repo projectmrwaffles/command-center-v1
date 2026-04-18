@@ -272,11 +272,11 @@ export async function GET(
         .not("name", "like", "_archived_%"),
       db
         .from("agent_events")
-        .select("event_type, payload")
+        .select("event_type, payload, timestamp")
         .eq("project_id", projectId)
-        .eq("event_type", "task_completed")
+        .in("event_type", ["task_completed", "task_progress", "task_status_changed", "task_dispatched"])
         .order("timestamp", { ascending: false })
-        .limit(100),
+        .limit(200),
     ]);
     const events = eventsResult?.data || [];
     const visibleProjectState = filterLegacyAttachmentShellState({
@@ -286,10 +286,20 @@ export async function GET(
     const visibleSprints = visibleProjectState.sprints;
     const visibleTasks = visibleProjectState.tasks;
 
+    const projectEventsByTaskId = new Map<string, any[]>();
+    for (const event of completionEvents || []) {
+      const taskId = typeof event.payload?.task_id === "string" ? event.payload.task_id : null;
+      if (!taskId) continue;
+      const bucket = projectEventsByTaskId.get(taskId) || [];
+      bucket.push(event);
+      projectEventsByTaskId.set(taskId, bucket);
+    }
+
     const completionEventsByTaskId = new Map(
-      (completionEvents || [])
-        .map((event: any) => [typeof event.payload?.task_id === "string" ? event.payload.task_id : null, event] as const)
-        .filter((entry): entry is [string, any] => Boolean(entry[0]))
+      Array.from(projectEventsByTaskId.entries()).map(([taskId, events]) => {
+        const completionEvent = events.find((event: any) => event.event_type === "task_completed") || events[0];
+        return [taskId, completionEvent] as const;
+      })
     );
 
     const assignedAgentIds = Array.from(
@@ -637,7 +647,23 @@ export async function GET(
       teams: teamsWithStats,
       milestones,
       sprints: visibleSprints || [],
-      tasks: visibleTasks || [],
+      tasks: (visibleTasks || []).map((task: any) => {
+        const taskEvents = projectEventsByTaskId.get(task.id) || [];
+        const latestProgressEvent = taskEvents.find((event: any) => event.event_type === "task_progress" && typeof event.payload?.progress_pct === "number");
+        const derivedProgress = typeof latestProgressEvent?.payload?.progress_pct === "number"
+          ? Math.max(0, Math.min(100, latestProgressEvent.payload.progress_pct))
+          : task.status === "done"
+            ? 100
+            : task.status === "in_progress"
+              ? 15
+              : typeof task.progress_pct === "number"
+                ? task.progress_pct
+                : null;
+        return {
+          ...task,
+          progress_pct: derivedProgress,
+        };
+      }),
       events: events || [],
       recentSignals,
       truth: {

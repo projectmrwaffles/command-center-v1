@@ -171,12 +171,14 @@ export function buildProjectKickoffPlan(input: {
       gateStatus: "not_requested",
       checkpointType: "delivery_review",
       checkpointEvidenceRequirements: {
-        screenshotRequired: false,
-        minScreenshotCount: 0,
-        captureMode: null,
+        screenshotRequired: hasCapability(intake, "frontend") || hasCapability(intake, "ux-ui") || ["website", "web-app", "native-app", "launch-campaign"].includes(intake?.shape || ""),
+        minScreenshotCount: hasCapability(intake, "frontend") || hasCapability(intake, "ux-ui") || ["website", "web-app", "native-app", "launch-campaign"].includes(intake?.shape || "") ? 1 : 0,
+        captureMode: hasCapability(intake, "frontend") || hasCapability(intake, "ux-ui") || ["website", "web-app", "native-app", "launch-campaign"].includes(intake?.shape || "") ? "local_app" : null,
         requiredEvidenceKinds: ["screenshot", "staging_url", "github_pr", "commit", "loom"],
         requiredEvidenceKindsMode: "any",
-        captureHint: "Attach at least one concrete build artifact, such as a screenshot, preview URL, PR, commit, or Loom walkthrough, before requesting review.",
+        captureHint: hasCapability(intake, "frontend") || hasCapability(intake, "ux-ui") || ["website", "web-app", "native-app", "launch-campaign"].includes(intake?.shape || "")
+          ? "Attach at least one real screenshot from the running UI before requesting build delivery review. Build success alone is not enough for UI work."
+          : "Attach at least one concrete build artifact, such as a screenshot, preview URL, PR, commit, or Loom walkthrough, before requesting review.",
       },
       tasks: [
         phaseTask("build_implementation", `${input.projectName} initial delivery slice`, {

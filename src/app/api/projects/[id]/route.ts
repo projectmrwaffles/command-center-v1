@@ -367,6 +367,8 @@ export async function GET(
         sprintName: sprint.name,
         phaseKey: sprint.phase_key,
         taskTypes: sprintTaskTypes,
+        projectType: effectiveProject.type || null,
+        projectIntake: effectiveProject.intake || null,
       });
       return {
         id: sprint.id,

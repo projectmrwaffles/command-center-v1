@@ -40,13 +40,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const db = createRouteHandlerClient();
     if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
-    const [{ data: sprint, error: sprintError }, { data: activeSubmission, error: activeSubmissionError }] = await Promise.all([
+    const [{ data: sprint, error: sprintError }, { data: activeSubmission, error: activeSubmissionError }, { data: project, error: projectError }] = await Promise.all([
       db.from("sprints").select("id, project_id, name, phase_key, approval_gate_required, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
       db.from("milestone_submissions").select("id, status").eq("sprint_id", milestoneId).in("status", ["submitted", "under_review"]).maybeSingle(),
+      db.from("projects").select("id, type, intake").eq("id", projectId).single(),
     ]);
 
     if (sprintError || !sprint) return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
     if (activeSubmissionError) return NextResponse.json({ error: activeSubmissionError.message || "Failed to inspect milestone state" }, { status: 500 });
+    if (projectError || !project) return NextResponse.json({ error: projectError?.message || "Project not found" }, { status: 404 });
     if (activeSubmission?.id) return NextResponse.json({ error: "An active submission already exists for this milestone" }, { status: 409 });
 
     const { data: lastSubmission } = await db
@@ -68,6 +70,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       explicitRequirements: sprint.checkpoint_evidence_requirements,
       sprintName: sprint.name,
       phaseKey: sprint.phase_key,
+      projectType: project.type || null,
+      projectIntake: project.intake || null,
     });
 
     const proofValidation = validateProofBundleRequirements({

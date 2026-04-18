@@ -82,7 +82,7 @@ type MilestoneReviewSummary = {
 };
 
 type ReviewArtifact = {
-  kind: "workspace_file" | "git_commit";
+  kind: "preview_url" | "workspace_file" | "git_commit";
   label: string;
   value: string;
   sourceTaskId?: string;

@@ -383,6 +383,7 @@ export async function GET(
         completionEvents: reviewTasks
           .map((task: any) => completionEventsByTaskId.get(task.id))
           .filter(Boolean),
+        links: effectiveProject.links || effectiveProject.intake?.links || null,
       });
       const sprintTaskTypes = sprintTasks.map((task: any) => task.task_type);
       const resolvedCheckpointType = resolveMilestoneCheckpointType({

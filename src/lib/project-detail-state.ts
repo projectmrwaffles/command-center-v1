@@ -33,6 +33,7 @@ type MilestoneLike = {
     proofCompletenessStatus?: string | null;
     feedbackItemCount?: number | null;
     checkpointType?: string | null;
+    latestSubmissionSummary?: string | null;
     latestDecisionNotes?: string | null;
     latestRejectionComment?: string | null;
   } | null;

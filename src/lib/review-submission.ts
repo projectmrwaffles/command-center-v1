@@ -51,8 +51,9 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   const derivedArtifacts = deriveReviewArtifacts({
     reviewTasks: input.tasks,
     completionEvents: input.completionEvents || [],
+    links: (project as any)?.links || (project as any)?.intake?.links || null,
   });
-  const reviewableArtifacts = derivedArtifacts.filter((artifact) => artifact.kind === 'git_commit');
+  const reviewableArtifacts = derivedArtifacts.filter((artifact) => artifact.kind === 'preview_url' || artifact.kind === 'git_commit');
   if (completedTasks.length === 0 || reviewableArtifacts.length === 0) return null;
   const summary = `${input.sprintName || 'Checkpoint'} is ready for review.`;
   const whatChanged = completedTasks.length
@@ -99,12 +100,14 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   const proofItemsPayload = reviewableArtifacts.map((artifact, index) => {
     const artifactKind = artifact.kind;
     let kind: 'artifact' | 'staging_url' | 'commit' | 'note' = 'note';
-    const url: string | null = null;
+    const url: string | null = artifactKind === 'preview_url' ? artifact.value : null;
     let storagePath: string | null = null;
 
     if (artifactKind === 'workspace_file') {
       kind = 'artifact';
       storagePath = artifact.value;
+    } else if (artifactKind === 'preview_url') {
+      kind = 'staging_url';
     } else if (artifactKind === 'git_commit') {
       kind = 'commit';
     }

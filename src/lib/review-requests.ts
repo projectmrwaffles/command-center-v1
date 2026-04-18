@@ -1,7 +1,7 @@
 import { sanitizeProjectLinks, type ProjectLinks } from "@/lib/project-links";
 
 export type ReviewArtifact = {
-  kind: "workspace_file" | "git_commit";
+  kind: "preview_url" | "workspace_file" | "git_commit";
   label: string;
   value: string;
   sourceTaskId?: string;
@@ -48,10 +48,22 @@ function normalizeCommit(value: string) {
 export function deriveReviewArtifacts(input: {
   reviewTasks?: Array<{ id: string; title?: string | null }>;
   completionEvents?: Array<{ payload?: Record<string, unknown> | null }>;
+  links?: ProjectLinks | null;
 }) {
   const taskMeta = new Map((input.reviewTasks || []).map((task) => [task.id, task]));
   const artifacts: ReviewArtifact[] = [];
   const seen = new Set<string>();
+
+  const previewUrl = input.links?.preview || input.links?.production || null;
+  if (previewUrl) {
+    const dedupeKey = `preview_url:${previewUrl}`;
+    seen.add(dedupeKey);
+    artifacts.push({
+      kind: "preview_url",
+      label: input.links?.preview ? "Preview deployment" : "Production deployment",
+      value: previewUrl,
+    });
+  }
 
   for (const event of input.completionEvents || []) {
     const payload = event.payload || {};

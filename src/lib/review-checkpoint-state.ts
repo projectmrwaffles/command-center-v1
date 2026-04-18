@@ -13,10 +13,13 @@ function isNonReviewablePrebuildPacket(summary: {
   checkpointType?: string | null;
   latestDecisionNotes?: string | null;
   latestRejectionComment?: string | null;
+  latestSubmissionSummary?: string | null;
 } | null) {
   if (summary?.checkpointType !== "prebuild_checkpoint") return false;
   const notes = buildCheckpointNotes(summary);
-  return /no repo workspace path found\./i.test(notes) || isManualReviewSetupBlockedText(notes);
+  return /no repo workspace path found\./i.test(notes)
+    || isManualReviewSetupBlockedText(notes)
+    || /pre-build stack checkpoint auto-cleared/i.test(summary?.latestSubmissionSummary || "");
 }
 
 function isSetupBlockedPrebuildCheckpoint(summary: {
@@ -37,6 +40,7 @@ export function deriveReviewCheckpointState(input: {
     proofCompletenessStatus?: string | null;
     feedbackItemCount?: number | null;
     checkpointType?: string | null;
+    latestSubmissionSummary?: string | null;
     latestDecisionNotes?: string | null;
     latestRejectionComment?: string | null;
   } | null;

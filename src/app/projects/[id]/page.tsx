@@ -1263,6 +1263,10 @@ export default function ProjectDetailPage() {
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
   const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
   const reviewingCheckpointDisplay = reviewingCheckpoint ? deriveMilestoneDisplayState(reviewingCheckpoint) : null;
+  const reviewingCheckpointIsNonReviewablePrebuild = Boolean(
+    reviewingCheckpoint?.reviewSummary?.checkpointType === "prebuild_checkpoint"
+    && /pre-build stack checkpoint auto-cleared/i.test(reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "")
+  );
 
   const selectedTaskMetadataEntries = selectedTaskTypeConfig
     ? selectedTaskTypeConfig.metadataFields
@@ -1668,31 +1672,28 @@ export default function ProjectDetailPage() {
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Stage progress</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{milestone.doneTasks}/{milestone.totalTasks} done</div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setReviewingCheckpointId(milestone.id)}
-                              className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-left transition hover:border-red-200 hover:bg-white"
-                            >
+                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
                                   <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || 0} item{(summary?.proofItemCount || 0) === 1 ? "" : "s"}</div>
                                   {evidenceRequirements.screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {summary?.screenshotItemCount || 0}/{evidenceRequirements.minScreenshotCount}</div> : null}
                                 </div>
-                                <span className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Open</span>
                               </div>
-                            </button>
+                            </div>
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requested changes</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.feedbackItemCount || 0} open/requested</div>
                             </div>
                           </div>
 
-                          <div className="flex justify-end">
-                            <Button onClick={() => setReviewingCheckpointId(milestone.id)} variant="outline" className="rounded-xl">
-                              Open review details
-                            </Button>
-                          </div>
+                          {!((summary?.checkpointType || milestone.checkpointType) === "prebuild_checkpoint" && /pre-build stack checkpoint auto-cleared/i.test(summary?.latestSubmissionSummary || "")) ? (
+                            <div className="flex justify-end">
+                              <Button onClick={() => setReviewingCheckpointId(milestone.id)} variant="outline" className="rounded-xl">
+                                Open review details
+                              </Button>
+                            </div>
+                          ) : null}
 
                           {evidenceRequirements.screenshotRequired && (summary?.screenshotItemCount || 0) < evidenceRequirements.minScreenshotCount ? (
                             <div className="rounded-2xl border border-purple-200 bg-purple-50 px-3 py-3 text-sm leading-6 text-purple-950">
@@ -2068,6 +2069,11 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className="mt-4 space-y-5">
+              {reviewingCheckpointIsNonReviewablePrebuild ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950">
+                  This is an auto-cleared pre-build stack check. It confirms the repo matched the PRD stack contract, but it is not a human review packet and does not need a manual approve or request-changes decision.
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus))}>
                   {formatMilestoneGateLabel(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus)}
@@ -2193,7 +2199,7 @@ export default function ProjectDetailPage() {
                 </div>
               ) : null}
 
-              {reviewingCheckpointDisplay?.showDecisionActions ? (
+              {!reviewingCheckpointIsNonReviewablePrebuild && reviewingCheckpointDisplay?.showDecisionActions ? (
                 <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-red-700">Decision</div>
                   <p className="mt-2 text-sm leading-6 text-zinc-600">Approve this work or request changes with clear feedback.</p>
@@ -2218,7 +2224,7 @@ export default function ProjectDetailPage() {
                 </div>
               ) : null}
 
-              {reviewingCheckpointDisplay?.showChangesRequestedActions ? (
+              {!reviewingCheckpointIsNonReviewablePrebuild && reviewingCheckpointDisplay?.showChangesRequestedActions ? (
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Update status</div>
                   <p className="mt-2 text-sm leading-6 text-zinc-500">Changes were requested. Submit an updated version from the review panel when revisions are ready.</p>

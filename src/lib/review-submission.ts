@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from './milestone-review.ts';
+import { deriveReviewArtifacts } from './review-requests.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
 
@@ -11,11 +12,16 @@ type TaskLike = {
   updated_at?: string | null;
 };
 
+type CompletionEventLike = {
+  payload?: Record<string, unknown> | null;
+};
+
 export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   projectId: string;
   sprintId: string;
   sprintName?: string | null;
   tasks: TaskLike[];
+  completionEvents?: CompletionEventLike[];
 }) {
   const [{ data: activeSubmission, error: activeSubmissionError }, { data: sprint, error: sprintError }, { data: project, error: projectError }] = await Promise.all([
     db.from('milestone_submissions').select('id, status').eq('sprint_id', input.sprintId).in('status', ['submitted', 'under_review']).maybeSingle(),
@@ -42,6 +48,11 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
   const nextRevision = (lastSubmission?.revision_number || 0) + 1;
   const completedTasks = input.tasks.filter((task) => task.status === 'done');
+  const derivedArtifacts = deriveReviewArtifacts({
+    reviewTasks: input.tasks,
+    completionEvents: input.completionEvents || [],
+  });
+  if (completedTasks.length === 0 || derivedArtifacts.length === 0) return null;
   const summary = `${input.sprintName || 'Checkpoint'} is ready for review.`;
   const whatChanged = completedTasks.length
     ? `Completed: ${completedTasks.map((task) => task.title).join('; ')}`
@@ -84,10 +95,40 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
   if (submissionError || !submission) throw submissionError || new Error('Failed to create submission');
 
+  const proofItemsPayload = derivedArtifacts.map((artifact, index) => {
+    const artifactKind = artifact.kind;
+    let kind: 'artifact' | 'staging_url' | 'commit' | 'note' = 'note';
+    const url: string | null = null;
+    let storagePath: string | null = null;
+
+    if (artifactKind === 'workspace_file') {
+      kind = 'artifact';
+      storagePath = artifact.value;
+    } else if (artifactKind === 'git_commit') {
+      kind = 'commit';
+    }
+
+    return {
+      kind,
+      label: artifact.label,
+      url,
+      storage_path: storagePath,
+      notes: artifact.sourceTaskTitle ? `Source task: ${artifact.sourceTaskTitle}` : null,
+      metadata: {
+        artifactKind,
+        artifactValue: artifact.value,
+        sourceTaskId: artifact.sourceTaskId || null,
+        sourceTaskTitle: artifact.sourceTaskTitle || null,
+        reviewGuidance,
+      },
+      sort_order: index,
+    };
+  });
+
   const bundleCompletenessStatus = computeProofBundleCompletenessStatus({
     checkpointType,
     evidenceRequirements: generatedEvidenceRequirements,
-    items: completedTasks.map(() => ({ kind: 'note' })),
+    items: proofItemsPayload,
   });
 
   const { data: bundle, error: bundleError } = await db
@@ -103,19 +144,17 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
   if (bundleError || !bundle) throw bundleError || new Error('Failed to create proof bundle');
 
-  const proofItemsPayload = completedTasks.map((task, index) => ({
-    proof_bundle_id: bundle.id,
-    kind: 'note',
-    label: task.title,
-    url: null,
-    storage_path: null,
-    notes: `${task.title}\n\nTask id: ${task.id}\nUpdated: ${task.updated_at || 'unknown'}\n\nReviewer guidance: ${reviewGuidance}`,
-    metadata: { taskId: task.id, updatedAt: task.updated_at || null, reviewGuidance },
-    sort_order: index,
-  }));
-
   if (proofItemsPayload.length > 0) {
-    const { error: itemsError } = await db.from('proof_items').insert(proofItemsPayload);
+    const { error: itemsError } = await db.from('proof_items').insert(proofItemsPayload.map((item) => ({
+      proof_bundle_id: bundle.id,
+      kind: item.kind,
+      label: item.label,
+      url: item.url,
+      storage_path: item.storage_path,
+      notes: item.notes,
+      metadata: item.metadata,
+      sort_order: item.sort_order,
+    })));
     if (itemsError) throw itemsError;
   }
 

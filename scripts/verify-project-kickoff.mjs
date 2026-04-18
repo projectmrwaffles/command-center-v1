@@ -73,14 +73,14 @@ class MockQuery {
 
   async single() {
     if (this.insertRows) {
-      if (this.table === "sprints" && this.db.options.missingDeliveryReviewColumns) {
-        const offendingRow = this.insertRows.find((row) => "delivery_review_required" in row || "delivery_review_status" in row);
-        if (offendingRow) {
+      if (this.table === "sprints" && Array.isArray(this.db.options.missingSprintColumns) && this.db.options.missingSprintColumns.length > 0) {
+        const missingColumn = this.db.options.missingSprintColumns.find((column) => this.insertRows.some((row) => Object.prototype.hasOwnProperty.call(row, column)));
+        if (missingColumn) {
           return {
             data: null,
             error: {
               code: "PGRST204",
-              message: "Could not find the 'delivery_review_required' column of 'sprints' in the schema cache",
+              message: `Could not find the '${missingColumn}' column of 'sprints' in the schema cache`,
             },
           };
         }
@@ -165,7 +165,7 @@ assert.ok(db.tables.sprint_items.every((task) => task.owner_team_id));
 assert.ok(db.tables.sprint_items.every((task) => task.task_metadata.phase_key));
 assert.ok(db.tables.sprint_items.some((task) => task.assignee_agent_id === "agent-engineering"));
 
-const compatDb = new MockDb({ missingDeliveryReviewColumns: true });
+const compatDb = new MockDb({ missingSprintColumns: ["delivery_review_required", "delivery_review_status", "checkpoint_type", "checkpoint_evidence_requirements"] });
 const compatSeeded = await seedProjectKickoffPlan(compatDb, {
   projectId: "project-compat",
   projectName: "Command Center V1",
@@ -176,6 +176,9 @@ const compatSeeded = await seedProjectKickoffPlan(compatDb, {
 
 assert.equal(compatSeeded.phases.length, plan.length);
 assert.equal(compatDb.tables.sprints.length, plan.length);
+assert.ok(compatDb.tables.sprints.every((phase) => phase.phase_key));
+assert.ok(compatDb.tables.sprints.every((phase) => typeof phase.phase_order === "number"));
+assert.ok(compatDb.tables.sprints.every((phase) => phase.auto_generated === true));
 assert.ok(compatDb.tables.sprints.every((phase) => !Object.prototype.hasOwnProperty.call(phase, "delivery_review_required")));
 assert.ok(compatDb.tables.sprint_items.some((task) => task.assignee_agent_id === "agent-engineering"));
 

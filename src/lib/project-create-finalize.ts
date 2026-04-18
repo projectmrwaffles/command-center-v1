@@ -3,6 +3,7 @@ import { dispatchEligibleProjectTasks } from "@/lib/project-execution";
 import { getAutoRouteTeamIdsFromIntake, type ProjectIntake } from "@/lib/project-intake";
 import { seedProjectKickoffPlan } from "@/lib/project-kickoff";
 import { syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
+import { reconcileProjectPhaseProgression } from "@/lib/project-handoff";
 
 type ProjectDb = any;
 
@@ -140,7 +141,7 @@ export async function finalizeProjectCreate(db: ProjectDb, input: {
     db.from("agents").select("id, status, current_job_id").not("name", "like", "_archived_%"),
   ]);
 
-  return dispatchEligibleProjectTasks(db as any, {
+  const dispatchResults = await dispatchEligibleProjectTasks(db as any, {
     project: {
       ...input.project,
       intake: input.intake || input.project?.intake || null,
@@ -152,4 +153,11 @@ export async function finalizeProjectCreate(db: ProjectDb, input: {
     jobs: (jobs ?? []) as any,
     agents: (agents ?? []) as any,
   });
+
+  await reconcileProjectPhaseProgression(db as any, {
+    projectId: input.project.id,
+    projectName: input.name,
+  });
+
+  return dispatchResults;
 }

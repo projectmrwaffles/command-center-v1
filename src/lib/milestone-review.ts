@@ -338,18 +338,26 @@ export function deriveMilestoneEvidenceRequirements(input: {
     || /\bbuild\b|\bimplementation\b|\bship\b/.test(sprintName)
     || taskTypes.includes("build_implementation");
 
-  if (resolvedCheckpointType === "delivery_review" && isBuildMilestone && isUiBearingDeliveryProject(input)) {
+  if (resolvedCheckpointType === "delivery_review" && isBuildMilestone) {
     const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
     requiredEvidenceKinds.add("screenshot");
+    requiredEvidenceKinds.add("staging_url");
+    requiredEvidenceKinds.add("github_pr");
+    requiredEvidenceKinds.add("commit");
+    requiredEvidenceKinds.add("loom");
+
+    const uiBearing = isUiBearingDeliveryProject(input);
 
     return {
       ...base,
-      screenshotRequired: true,
-      minScreenshotCount: Math.max(base.minScreenshotCount || 0, 1),
-      captureMode: base.captureMode || "local_app",
+      screenshotRequired: uiBearing,
+      minScreenshotCount: uiBearing ? Math.max(base.minScreenshotCount || 0, 1) : 0,
+      captureMode: uiBearing ? (base.captureMode || "local_app") : (base.captureMode ?? null),
       requiredEvidenceKinds: Array.from(requiredEvidenceKinds),
       requiredEvidenceKindsMode: base.requiredEvidenceKindsMode || "any",
-      captureHint: "Attach at least one real screenshot from the running UI before requesting build delivery review. Build success alone is not enough for UI work.",
+      captureHint: uiBearing
+        ? "Attach at least one real screenshot from the running UI before requesting build delivery review. Build success alone is not enough for UI work."
+        : (base.captureHint || "Attach at least one concrete build artifact, such as a screenshot, preview URL, PR, commit, or Loom walkthrough, before requesting review."),
     } satisfies CheckpointEvidenceRequirements;
   }
 

@@ -1263,10 +1263,30 @@ export default function ProjectDetailPage() {
   const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
-  const reviewableMilestones = milestones.filter((milestone) => {
-    if (isPrebuildCheckpointMilestone(milestone)) return false;
-    return (milestone.deliveryReviewRequired || milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId)) && !isBlockerOnlyCheckpoint(milestone);
-  });
+  const reviewableMilestones = milestones
+    .filter((milestone) => {
+      if (isPrebuildCheckpointMilestone(milestone)) return false;
+      return (milestone.deliveryReviewRequired || milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId)) && !isBlockerOnlyCheckpoint(milestone);
+    })
+    .sort((a, b) => {
+      const aHasSubmission = Boolean(a.reviewSummary?.latestSubmissionId);
+      const bHasSubmission = Boolean(b.reviewSummary?.latestSubmissionId);
+      if (aHasSubmission !== bHasSubmission) return aHasSubmission ? -1 : 1;
+
+      const aHasMaterials = (a.reviewSummary?.proofItemCount || 0) > 0 || (a.reviewArtifacts?.length || 0) > 0;
+      const bHasMaterials = (b.reviewSummary?.proofItemCount || 0) > 0 || (b.reviewArtifacts?.length || 0) > 0;
+      if (aHasMaterials !== bHasMaterials) return aHasMaterials ? -1 : 1;
+
+      const aCompleted = a.totalTasks > 0 && a.doneTasks >= a.totalTasks;
+      const bCompleted = b.totalTasks > 0 && b.doneTasks >= b.totalTasks;
+      if (aCompleted !== bCompleted) return aCompleted ? -1 : 1;
+
+      const aInReview = (a.deliveryReviewStatus === "pending" || a.approvalGateStatus === "pending");
+      const bInReview = (b.deliveryReviewStatus === "pending" || b.approvalGateStatus === "pending");
+      if (aInReview !== bInReview) return aInReview ? -1 : 1;
+
+      return (a.phaseOrder ?? Number.MAX_SAFE_INTEGER) - (b.phaseOrder ?? Number.MAX_SAFE_INTEGER);
+    });
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
   const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;

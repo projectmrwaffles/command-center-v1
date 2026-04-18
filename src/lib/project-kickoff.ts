@@ -128,6 +128,7 @@ export function buildProjectKickoffPlan(input: {
   intake?: ProjectIntake;
 }): KickoffPhaseTemplate[] {
   const bootstrapPhaseOptions = { reviewRequired: false };
+  const signoffPhaseOptions = { reviewRequired: true };
   const intake = input.intake;
   const readiness = intake ? inferIntakeReadiness(intake) : { stage: "planning", confidence: "somewhat-clear" };
   const phaseTemplates: KickoffPhaseTemplate[] = [];
@@ -199,7 +200,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("design", `${input.projectName} core user flow and interface direction`, {
           design_output_type: "wireframes",
           surface: intake?.shape === "native-app" ? "mobile" : intake?.shape === "website" ? "web" : "dashboard",
-        }, { ...bootstrapPhaseOptions, projectRequirements }),
+        }, { ...signoffPhaseOptions, projectRequirements }),
       ],
     });
   }
@@ -228,7 +229,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("build_implementation", `${input.projectName} initial delivery slice`, {
           implementation_kind: hasCapability(intake, "backend-data") ? "backend_or_api" : intake?.shape === "website" ? "website_page" : "frontend_feature",
           target_environment: intake?.shape === "website" ? "marketing_site" : intake?.shape === "ops-system" ? "internal_ops" : intake?.shape === "native-app" ? "mobile_app" : "web_app",
-        }, { ...bootstrapPhaseOptions, projectRequirements }),
+        }, { ...signoffPhaseOptions, projectRequirements }),
       ],
     });
   }
@@ -255,7 +256,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("content_messaging", `${input.projectName} launch-ready messaging`, {
           content_type: "launch_messaging",
           channel_or_surface: intake?.shape === "launch-campaign" ? "ads" : "site",
-        }, { ...bootstrapPhaseOptions, projectRequirements }),
+        }, { ...signoffPhaseOptions, projectRequirements }),
       ],
     });
   }
@@ -282,7 +283,7 @@ export function buildProjectKickoffPlan(input: {
         phaseTask("qa_validation", `${input.projectName} kickoff deliverables`, {
           qa_mode: "acceptance_review",
           subject_ref: needsBuild ? "new_feature" : needsContent ? "landing_page" : "other",
-        }, { ...bootstrapPhaseOptions, projectRequirements }),
+        }, { ...signoffPhaseOptions, projectRequirements }),
       ],
     });
   }

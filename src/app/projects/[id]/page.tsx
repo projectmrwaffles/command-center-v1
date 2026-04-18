@@ -1528,6 +1528,21 @@ export default function ProjectDetailPage() {
                           const taskProgress = taskProgressValue(task);
                           const taskMilestone = task.sprint_id ? milestones.find((milestone) => milestone.id === task.sprint_id) : null;
                           const checkpointState = taskMilestone?.approvalGateRequired || taskMilestone?.reviewSummary?.latestSubmissionId ? taskMilestone : null;
+                          const showTaskReviewBadge = Boolean(
+                            task.review_required
+                            && task.status !== "in_progress"
+                            && task.status !== "review"
+                            && task.review_status
+                            && task.review_status !== "not_requested"
+                            && task.review_status !== "approved"
+                          );
+                          const showCheckpointBadge = Boolean(
+                            checkpointState
+                            && task.status !== "in_progress"
+                            && !(task.review_required && task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved")
+                            && (checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus)
+                            && (checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus) !== "not_requested"
+                          );
                           return (
                             <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
                               <div className="flex items-start justify-between gap-3">
@@ -1540,8 +1555,8 @@ export default function ProjectDetailPage() {
                                   <div className="mt-2 flex flex-wrap gap-2">
                                     <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                     {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
-                                    {task.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                    {checkpointState ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus))}>{checkpointState.name}: {formatMilestoneGateLabel(checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus)}</span> : null}
+                                    {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
+                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointState?.deliveryReviewStatus || checkpointState?.approvalGateStatus))}>{taskMilestone?.name}: {formatMilestoneGateLabel(checkpointState?.deliveryReviewStatus || checkpointState?.approvalGateStatus)}</span> : null}
                                   </div>
                                   {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                     <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">

@@ -14,6 +14,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { NextRequest, NextResponse } from "next/server";
+import { captureReviewScreenshot } from "@/lib/review-screenshot";
 
 const PROJECT_DOCS_BUCKET = "project_docs";
 const STORAGE_LIST_PAGE_SIZE = 100;
@@ -86,6 +87,39 @@ async function listStoragePathsRecursively(db: NonNullable<ReturnType<typeof cre
   }
 
   return paths;
+}
+
+async function ensureReviewScreenshot(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, input: { projectId: string; sprintId: string; previewUrl?: string | null; proofBundleId: string; existingProofItems: any[] }) {
+  const previewUrl = input.previewUrl?.trim();
+  if (!previewUrl) return null;
+  if (input.existingProofItems.some((item) => item.kind === "screenshot" && (item.url || item.storage_path))) return null;
+
+  try {
+    const bytes = await captureReviewScreenshot({ url: previewUrl });
+    if (!bytes?.length) return null;
+
+    const storagePath = `${input.projectId}/review-screenshots/${input.sprintId}.png`;
+    const upload = await db.storage.from(PROJECT_DOCS_BUCKET).upload(storagePath, bytes, {
+      contentType: "image/png",
+      upsert: true,
+    });
+    if (upload.error) throw new Error(upload.error.message || "Failed to upload review screenshot");
+
+    const signed = await db.storage.from(PROJECT_DOCS_BUCKET).createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+    if (signed.error) throw new Error(signed.error.message || "Failed to sign review screenshot");
+
+    return {
+      kind: "screenshot",
+      label: "Preview screenshot",
+      url: signed.data?.signedUrl || null,
+      storage_path: storagePath,
+      notes: `Captured from ${previewUrl}`,
+      metadata: { previewUrl, autoCaptured: true },
+    };
+  } catch (error) {
+    console.error("[API /projects/:id] review screenshot capture failed:", error);
+    return null;
+  }
 }
 
 async function removeStoragePaths(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, paths: string[]) {
@@ -352,6 +386,37 @@ export async function GET(
     const feedbackRows = submissionIds.length > 0
       ? ((await db.from("submission_feedback_items").select("*").in("submission_id", submissionIds)).data || [])
       : [];
+
+    for (const sprint of visibleSprints || []) {
+      const sprintSubmissions = submissionRows.filter((submission: any) => submission.sprint_id === sprint.id);
+      const latestSubmission = sprintSubmissions[0] || null;
+      if (!latestSubmission) continue;
+      const latestBundle = proofBundleRows.find((bundle: any) => bundle.submission_id === latestSubmission.id) || null;
+      if (!latestBundle) continue;
+      const existingProofItems = proofItemRows.filter((item: any) => item.proof_bundle_id === latestBundle.id);
+      const previewUrl = effectiveProject.links?.preview || effectiveProject.links?.production || effectiveProject.intake?.links?.preview || effectiveProject.intake?.links?.production || null;
+      const screenshotProof = await ensureReviewScreenshot(db as any, {
+        projectId,
+        sprintId: sprint.id,
+        previewUrl,
+        proofBundleId: latestBundle.id,
+        existingProofItems,
+      });
+      if (!screenshotProof) continue;
+      const { data: insertedProofItem } = await db.from("proof_items").insert({
+        proof_bundle_id: latestBundle.id,
+        kind: screenshotProof.kind,
+        label: screenshotProof.label,
+        url: screenshotProof.url,
+        storage_path: screenshotProof.storage_path,
+        notes: screenshotProof.notes,
+        metadata: screenshotProof.metadata,
+        sort_order: existingProofItems.length,
+      }).select().single();
+      if (insertedProofItem) {
+        proofItemRows.push(insertedProofItem);
+      }
+    }
 
     const artifactIntegrity = getProjectArtifactIntegrity(effectiveProject, visibleTasks || []);
     const preBuildCheckpoint = derivePreBuildCheckpointState(effectiveProject);

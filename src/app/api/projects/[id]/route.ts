@@ -402,7 +402,12 @@ export async function GET(
         proofBundleId: latestBundle.id,
         existingProofItems,
       });
-      if (!screenshotProof) continue;
+      if (!screenshotProof) {
+        if (previewUrl && !existingProofItems.some((item: any) => item.kind === "screenshot")) {
+          console.warn(`[API /projects/:id] screenshot proof missing for sprint ${sprint.id} with preview ${previewUrl}`);
+        }
+        continue;
+      }
       const { data: insertedProofItem } = await db.from("proof_items").insert({
         proof_bundle_id: latestBundle.id,
         kind: screenshotProof.kind,

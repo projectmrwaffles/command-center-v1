@@ -48,10 +48,54 @@ function hasPrdDrivenRequirements(intake: ProjectIntake | undefined) {
   );
 }
 
-function isMissingColumnError(error: { code?: string; message?: string } | null | undefined, columns: string[]) {
-  if (!error) return false;
+function getMissingColumn(error: { code?: string; message?: string } | null | undefined, columns: string[]) {
+  if (!error) return null;
   const message = error.message || "";
-  return error.code === "PGRST204" && columns.some((column) => message.includes(`'${column}' column`));
+  if (error.code !== "PGRST204") return null;
+  return columns.find((column) => message.includes(`'${column}' column`)) ?? null;
+}
+
+function isMissingColumnError(error: { code?: string; message?: string } | null | undefined, columns: string[]) {
+  return getMissingColumn(error, columns) !== null;
+}
+
+async function insertSprintWithCompat(
+  db: KickoffDbClient,
+  sprintInsert: Record<string, unknown>,
+) {
+  const compatibilityTiers = [
+    ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status", "delivery_review_required", "delivery_review_status", "checkpoint_type", "checkpoint_evidence_requirements"],
+    ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status", "checkpoint_type", "checkpoint_evidence_requirements"],
+    ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status"],
+    [],
+  ] as const;
+
+  let attemptedResult: any = null;
+  for (let index = 0; index < compatibilityTiers.length; index += 1) {
+    const allowedColumns = compatibilityTiers[index];
+    const payload = {
+      project_id: sprintInsert.project_id,
+      name: sprintInsert.name,
+      goal: sprintInsert.goal,
+      status: sprintInsert.status,
+      ...Object.fromEntries(allowedColumns.map((column) => [column, sprintInsert[column]])),
+    };
+
+    const result = await db
+      .from("sprints")
+      .insert(payload)
+      .select("id, name")
+      .single();
+
+    attemptedResult = result;
+    const nextTier = compatibilityTiers[index + 1];
+    if (!nextTier) return result;
+
+    const missingColumn = getMissingColumn(result.error, Array.from(allowedColumns));
+    if (!missingColumn) return result;
+  }
+
+  return attemptedResult;
 }
 
 function phaseTask(taskType: TaskType, taskGoal: string, metadata: Record<string, string>, options?: { reviewRequired?: boolean; projectRequirements?: string[] }): KickoffPhaseTemplate["tasks"][number] {
@@ -343,24 +387,7 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
       checkpoint_evidence_requirements: phase.checkpointEvidenceRequirements ?? {},
     };
 
-    let sprintResult = await db
-      .from("sprints")
-      .insert(sprintInsert)
-      .select("id, name")
-      .single();
-
-    if (isMissingColumnError(sprintResult.error, ["phase_key", "phase_order", "auto_generated", "approval_gate_required", "approval_gate_status", "delivery_review_required", "delivery_review_status", "checkpoint_type", "checkpoint_evidence_requirements"])) {
-      sprintResult = await db
-        .from("sprints")
-        .insert({
-          project_id: input.projectId,
-          name: phase.name,
-          goal: phase.goal,
-          status: phase.status,
-        })
-        .select("id, name")
-        .single();
-    }
+    const sprintResult = await insertSprintWithCompat(db, sprintInsert);
 
     const sprint = sprintResult.data;
     const sprintError = sprintResult.error;

@@ -206,13 +206,46 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
       const state = getSprintCompletionState(project, currentSprint, taskRows);
       if (state.sprintStillActive) return { advanced: false, reason: "current_sprint_still_has_active_tasks", advancedTransitions };
       if (!state.sprintComplete) return { advanced: false, reason: "current_sprint_not_complete", advancedTransitions };
+
       const nextSprint = sprintRows.slice(sprintRows.findIndex((sprint) => sprint.id === currentSprint.id) + 1).find((sprint) => sprint.status !== "completed" && sprint.status !== "archived");
       if (!nextSprint) {
         await completeSprint(db, currentSprint);
         return { advanced: false, reason: "final_sprint_completed", advancedTransitions };
       }
+
+      if ((currentSprint.phase_key === "build" || currentSprint.delivery_review_required) && currentSprint.delivery_review_status !== "approved") {
+        const submission = await ensureMilestoneReviewSubmission(db as any, {
+          projectId: input.projectId,
+          sprintId: currentSprint.id,
+          sprintName: currentSprint.name,
+          tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, updated_at: null })),
+        });
+        if (submission?.id) {
+          await db.from("agent_events").insert({
+            agent_id: null,
+            project_id: input.projectId,
+            event_type: "project_review_ready",
+            payload: {
+              sprint_id: currentSprint.id,
+              sprint_name: currentSprint.name,
+              submission_id: submission.id,
+              reconciliation: "task_completion_fallback",
+            },
+          });
+          return { advanced: false, reason: "review_submission_created", advancedTransitions };
+        }
+      }
+
+      await completeSprint(db, currentSprint);
+      if (nextSprint.status !== "active") {
+        const nextUpdate = await db.from("sprints").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", nextSprint.id);
+        if (nextUpdate.error) throw new Error(nextUpdate.error.message);
+        nextSprint.status = "active";
+      }
+      const dispatchedTaskIds = await dispatchSprintTodoTasks(db, nextSprint, taskRows, project, sprintRows);
+      advancedTransitions.push({ previousSprintId: currentSprint.id, nextSprintId: nextSprint.id, dispatchedTaskIds });
     }
-    return { advanced: false, reason: "no_phase_change_needed", advancedTransitions };
+    if (advancedTransitions.length === 0) return { advanced: false, reason: "no_phase_change_needed", advancedTransitions };
   }
 
   const latestTransition = advancedTransitions[advancedTransitions.length - 1];

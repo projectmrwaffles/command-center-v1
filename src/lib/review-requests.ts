@@ -35,6 +35,8 @@ function normalizeWorkspacePath(value: string) {
   if (!trimmed.includes("/")) return null;
   if (/^https?:\/\//i.test(trimmed)) return null;
   if (/\s{2,}/.test(trimmed)) return null;
+  if (/[\*\{\}]/.test(trimmed)) return null;
+  if (!/\.(png|jpe?g|gif|webp|pdf|mp4|mov|txt|md|json)$/i.test(trimmed)) return null;
   return trimmed;
 }
 

@@ -2162,6 +2162,7 @@ export default function ProjectDetailPage() {
                   {(reviewingCheckpoint.reviewSummary?.proofItems || []).length > 0 ? (
                     reviewingCheckpoint.reviewSummary?.proofItems?.map((item) => {
                       const href = item.url || null;
+                      const actionLabel = item.kind === "screenshot" ? "View screenshot" : "Open";
                       return (
                         <div key={item.id} className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
                           <div className="flex items-start justify-between gap-3">
@@ -2178,7 +2179,7 @@ export default function ProjectDetailPage() {
                                 rel="noreferrer"
                                 className="shrink-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-900 transition hover:border-red-200 hover:bg-white"
                               >
-                                Open
+                                {actionLabel}
                               </a>
                             ) : null}
                           </div>

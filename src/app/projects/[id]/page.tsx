@@ -1532,6 +1532,7 @@ export default function ProjectDetailPage() {
                             task.review_required
                             && task.status !== "in_progress"
                             && task.status !== "review"
+                            && task.status !== "done"
                             && task.review_status
                             && task.review_status !== "not_requested"
                             && task.review_status !== "approved"

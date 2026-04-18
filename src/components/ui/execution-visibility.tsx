@@ -43,6 +43,14 @@ export function getExecutionTone(input: {
   approvalCount?: number | null;
   stale?: boolean | null;
 }) {
+  const reviewState = input.reviewStatus || null;
+  const reviewPending = Boolean(
+    input.reviewRequired
+    && reviewState
+    && reviewState !== "not_requested"
+    && reviewState !== "approved"
+  );
+  const reviewActive = input.status === "review" || reviewState === "in_review" || reviewState === "revision_requested" || reviewState === "in_revision";
   if (input.blocked || input.status === "blocked") {
     return {
       label: "Blocked",
@@ -60,7 +68,7 @@ export function getExecutionTone(input: {
   }
 
   if (input.status === "done") {
-    if (input.reviewRequired && input.reviewStatus !== "approved") {
+    if (reviewPending) {
       return {
         label: "Awaiting review",
         badgeClassName: "border-purple-200 bg-purple-50 text-purple-700",
@@ -75,11 +83,11 @@ export function getExecutionTone(input: {
     } satisfies ExecutionTone;
   }
 
-  if (input.status === "review" || (input.reviewRequired && input.reviewStatus && input.reviewStatus !== "not_requested" && input.reviewStatus !== "approved")) {
+  if (reviewActive) {
     return {
-      label: input.reviewStatus === "revision_requested" || input.reviewStatus === "in_revision" ? "In revision" : "In review",
+      label: reviewState === "revision_requested" || reviewState === "in_revision" ? "In revision" : "In review",
       badgeClassName: "border-purple-200 bg-purple-50 text-purple-700",
-      description: "Execution is in a review loop using the current review fields.",
+      description: "Execution is in an active review loop.",
     } satisfies ExecutionTone;
   }
 
@@ -104,6 +112,14 @@ export function getExecutionTone(input: {
       label: "Paused",
       badgeClassName: "border-amber-200 bg-amber-50 text-amber-700",
       description: "Execution is paused right now.",
+    } satisfies ExecutionTone;
+  }
+
+  if (reviewPending) {
+    return {
+      label: "Awaiting review",
+      badgeClassName: "border-purple-200 bg-purple-50 text-purple-700",
+      description: "This task is queued behind an outstanding review step.",
     } satisfies ExecutionTone;
   }
 

@@ -381,20 +381,35 @@ async function upsertProvisionedRepoFile(input: { owner: string; repo: string; b
     });
   };
 
+  let resolvedSha = input.sha;
+  if (resolvedSha === undefined) {
+    resolvedSha = await resolveRepoFileSha({
+      owner: input.owner,
+      repo: input.repo,
+      branch: input.branch,
+      filePath: input.file.path,
+    });
+  }
+
   try {
-    await submit(input.sha);
+    await submit(resolvedSha);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error || "");
-    if (input.sha || !/sha.+wasn['"]?t supplied|already exists|must match blob sha/i.test(message)) {
+    if (!/sha.+wasn['"]?t supplied|already exists|must match blob sha/i.test(message)) {
       throw error;
     }
 
-    const remoteFile = await getRepoFile({ owner: input.owner, repo: input.repo, branch: input.branch, filePath: input.file.path });
-    if (!remoteFile?.sha) {
+    const latestSha = await resolveRepoFileSha({
+      owner: input.owner,
+      repo: input.repo,
+      branch: input.branch,
+      filePath: input.file.path,
+    });
+    if (!latestSha || latestSha === resolvedSha) {
       throw error;
     }
 
-    await submit(remoteFile.sha);
+    await submit(latestSha);
   }
 }
 
@@ -405,6 +420,11 @@ async function getRepoFile(input: { owner: string; repo: string; branch: string;
     ? Buffer.from(response.content.replace(/\n/g, ""), "base64").toString("utf8")
     : null;
   return { sha: response.sha || null, content };
+}
+
+async function resolveRepoFileSha(input: { owner: string; repo: string; branch: string; filePath: string }) {
+  const remoteFile = await getRepoFile(input);
+  return remoteFile?.sha || null;
 }
 
 async function seedProvisionedRepo(input: { owner: string; repo: string; branch: string; files: RepoSeedFile[] }) {

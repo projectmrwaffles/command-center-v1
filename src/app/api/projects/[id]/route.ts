@@ -452,6 +452,11 @@ export async function GET(
       const latestProofItems = latestBundle ? proofItemRows.filter((item: any) => item.proof_bundle_id === latestBundle.id) : [];
       const latestFeedbackItems = latestSubmission ? feedbackRows.filter((item: any) => item.submission_id === latestSubmission.id) : [];
       const reviewTasks = sprintTasks.filter((task: any) => task.review_required);
+      const inferredDeliveryReviewRequired = Boolean(
+        sprint.delivery_review_required
+        || sprint.phase_key === "build"
+        || reviewTasks.length > 0
+      );
       const derivedArtifacts = deriveReviewArtifacts({
         reviewTasks,
         completionEvents: reviewTasks
@@ -486,8 +491,8 @@ export async function GET(
         category: sprintTruth.category,
         approvalGateRequired: sprint.approval_gate_required ?? false,
         approvalGateStatus: sprint.approval_gate_status ?? "not_requested",
-        deliveryReviewRequired: sprint.delivery_review_required ?? (sprint.phase_key === "build"),
-        deliveryReviewStatus: sprint.delivery_review_status ?? (sprint.phase_key === "build" ? "not_requested" : null),
+        deliveryReviewRequired: inferredDeliveryReviewRequired,
+        deliveryReviewStatus: sprint.delivery_review_status ?? (inferredDeliveryReviewRequired ? "not_requested" : null),
         checkpointType: resolvedCheckpointType,
         checkpointEvidenceRequirements: resolvedCheckpointEvidenceRequirements,
         totalTasks: sprintTruth.totalTasks,

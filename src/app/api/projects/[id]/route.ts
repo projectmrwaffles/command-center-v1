@@ -41,6 +41,17 @@ type RecentSignal = {
   actorName?: string | null;
 };
 
+type ProofItemView = {
+  id: string;
+  kind: string;
+  label: string;
+  url: string | null;
+  storagePath: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown> | null;
+  sortOrder: number;
+};
+
 async function listStoragePathsRecursively(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, prefix: string): Promise<string[]> {
   const paths: string[] = [];
   let offset = 0;
@@ -421,6 +432,18 @@ export async function GET(
               proofItemCount: latestProofItems.length,
               screenshotItemCount: latestProofItems.filter((item: any) => item.kind === "screenshot").length,
               feedbackItemCount: latestFeedbackItems.length,
+              proofItems: latestProofItems
+                .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                .map((item: any) => ({
+                  id: item.id,
+                  kind: item.kind,
+                  label: item.label,
+                  url: item.url ?? null,
+                  storagePath: item.storage_path ?? null,
+                  notes: item.notes ?? null,
+                  metadata: item.metadata && typeof item.metadata === "object" ? item.metadata : null,
+                  sortOrder: item.sort_order ?? 0,
+                } satisfies ProofItemView)),
             }
           : null,
         preBuildCheckpoint: sprint.phase_key === "build" || /\bbuild\b/i.test(sprint.name || "") ? preBuildCheckpoint : null,

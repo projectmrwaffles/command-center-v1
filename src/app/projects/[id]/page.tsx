@@ -1266,7 +1266,6 @@ export default function ProjectDetailPage() {
   });
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
-  const informationalPrebuildMilestones = milestones.filter((milestone) => isPrebuildCheckpointMilestone(milestone) && !isBlockerOnlyCheckpoint(milestone));
   const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
   const reviewingCheckpointDisplay = reviewingCheckpoint ? deriveMilestoneDisplayState(reviewingCheckpoint) : null;
   const reviewingCheckpointIsNonReviewablePrebuild = Boolean(
@@ -1576,32 +1575,6 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="space-y-4">
-
-          {informationalPrebuildMilestones.length > 0 ? (
-            <Section title="Pre-build validation" description="Automated repo and stack checks before human milestone sign-off begins.">
-              <div className="space-y-3">
-                {informationalPrebuildMilestones.map((milestone) => {
-                  const reason = formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || milestone.preBuildCheckpoint?.summary || "Repo stack matches the PRD contract.";
-                  const outcomeLabel = milestone.preBuildCheckpoint?.outcome === "match" ? "Stack match" : milestone.preBuildCheckpoint?.outcome === "manual_review" ? "Needs manual check" : milestone.preBuildCheckpoint?.outcome === "mismatch" ? "Mismatch" : "Pre-build check";
-                  return (
-                    <div key={`${milestone.id}-prebuild-info`} className="rounded-[24px] border border-sky-200 bg-sky-50 p-4 shadow-sm">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-sky-700">Automated gate</div>
-                          <h3 className="mt-1 text-base font-semibold text-sky-950">{milestone.name}</h3>
-                          <p className="mt-2 text-sm leading-6 text-sky-950">{reason}</p>
-                        </div>
-                        <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-700">{outcomeLabel}</span>
-                      </div>
-                      <div className="mt-3 rounded-2xl border border-sky-200 bg-white px-3 py-3 text-sm leading-6 text-sky-900">
-                        This is an automated pre-build gate, not a human sign-off milestone. Design and functionality approvals will appear separately once real review checkpoints are submitted.
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Section>
-          ) : null}
 
           <Section title="Review checkpoints" description="Human sign-off milestones for design, functionality, and delivery.">
             {blockerOnlyMilestones.length > 0 ? (

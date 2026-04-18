@@ -1644,15 +1644,30 @@ export default function ProjectDetailPage() {
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Stage progress</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{milestone.doneTasks}/{milestone.totalTasks} done</div>
                             </div>
-                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
-                              <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || 0} item{(summary?.proofItemCount || 0) === 1 ? "" : "s"}</div>
-                              {evidenceRequirements.screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {summary?.screenshotItemCount || 0}/{evidenceRequirements.minScreenshotCount}</div> : null}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setReviewingCheckpointId(milestone.id)}
+                              className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-left transition hover:border-red-200 hover:bg-white"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
+                                  <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || 0} item{(summary?.proofItemCount || 0) === 1 ? "" : "s"}</div>
+                                  {evidenceRequirements.screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {summary?.screenshotItemCount || 0}/{evidenceRequirements.minScreenshotCount}</div> : null}
+                                </div>
+                                <span className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Open</span>
+                              </div>
+                            </button>
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
                               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requested changes</div>
                               <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.feedbackItemCount || 0} open/requested</div>
                             </div>
+                          </div>
+
+                          <div className="flex justify-end">
+                            <Button onClick={() => setReviewingCheckpointId(milestone.id)} variant="outline" className="rounded-xl">
+                              Open review details
+                            </Button>
                           </div>
 
                           {evidenceRequirements.screenshotRequired && (summary?.screenshotItemCount || 0) < evidenceRequirements.minScreenshotCount ? (

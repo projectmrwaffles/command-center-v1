@@ -1266,7 +1266,14 @@ export default function ProjectDetailPage() {
   const reviewableMilestones = milestones
     .filter((milestone) => {
       if (isPrebuildCheckpointMilestone(milestone)) return false;
-      return (milestone.deliveryReviewRequired || milestone.approvalGateRequired || Boolean(milestone.reviewSummary?.latestSubmissionId)) && !isBlockerOnlyCheckpoint(milestone);
+      if (isBlockerOnlyCheckpoint(milestone)) return false;
+
+      const hasSubmission = Boolean(milestone.reviewSummary?.latestSubmissionId);
+      const hasMaterials = (milestone.reviewSummary?.proofItemCount || 0) > 0 || (milestone.reviewArtifacts?.length || 0) > 0;
+      const isActionablePhase = milestone.status === "active" || milestone.status === "completed";
+
+      return (milestone.deliveryReviewRequired || milestone.approvalGateRequired || hasSubmission)
+        && (isActionablePhase || hasSubmission || hasMaterials);
     })
     .sort((a, b) => {
       const aHasSubmission = Boolean(a.reviewSummary?.latestSubmissionId);

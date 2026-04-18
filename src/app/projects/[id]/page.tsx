@@ -294,6 +294,7 @@ function checkpointSummaryCopy(input: {
   summary?: MilestoneReviewSummary | null;
   preBuildCheckpoint?: PreBuildCheckpointView | null;
   checkpointState: ReturnType<typeof deriveReviewCheckpointState>;
+  fallbackArtifactsCount?: number;
 }) {
   if (input.preBuildCheckpoint?.outcome && input.preBuildCheckpoint.outcome !== "match") {
     return input.preBuildCheckpoint.summary || input.summary?.latestSubmissionSummary || "Build is blocked until the repo and stack contract are resolved.";
@@ -303,7 +304,9 @@ function checkpointSummaryCopy(input: {
 
   switch (input.checkpointState.key) {
     case "awaiting_submission":
-      return "No review packet has been submitted yet.";
+      return input.fallbackArtifactsCount && input.fallbackArtifactsCount > 0
+        ? "Work is ready for sign-off, but the formal review packet has not been created yet. Open details to inspect the available artifacts."
+        : "No review packet has been submitted yet.";
     case "setup_required":
       return "This checkpoint is blocked on repo setup, so review cannot start yet.";
     case "awaiting_evidence":
@@ -1631,6 +1634,7 @@ export default function ProjectDetailPage() {
               <div className="space-y-3">
                 {reviewableMilestones.map((milestone) => {
                     const summary = milestone.reviewSummary;
+                    const fallbackArtifactsCount = milestone.reviewArtifacts?.length || 0;
                     const milestoneForDisplay = { ...milestone, approvalGateStatus: milestone.deliveryReviewStatus || milestone.approvalGateStatus };
                     const { checkpointState, showDecisionActions, showChangesRequestedActions } = deriveMilestoneDisplayState(milestoneForDisplay);
                     const evidenceRequirements = getCheckpointEvidenceRequirements(summary?.checkpointType || milestone.checkpointType, summary?.evidenceRequirements || milestone.checkpointEvidenceRequirements);
@@ -1671,6 +1675,7 @@ export default function ProjectDetailPage() {
                                   summary,
                                   preBuildCheckpoint: milestone.preBuildCheckpoint,
                                   checkpointState,
+                                  fallbackArtifactsCount,
                                 })}
                               </p>
                             </div>
@@ -1697,7 +1702,7 @@ export default function ProjectDetailPage() {
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
-                                  <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || 0} item{(summary?.proofItemCount || 0) === 1 ? "" : "s"}</div>
+                                  <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || fallbackArtifactsCount} item{(summary?.proofItemCount || fallbackArtifactsCount) === 1 ? "" : "s"}</div>
                                   {evidenceRequirements.screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {summary?.screenshotItemCount || 0}/{evidenceRequirements.minScreenshotCount}</div> : null}
                                 </div>
                               </div>
@@ -1709,10 +1714,16 @@ export default function ProjectDetailPage() {
                           </div>
 
                           {!((summary?.checkpointType || milestone.checkpointType) === "prebuild_checkpoint" && /pre-build stack checkpoint auto-cleared/i.test(summary?.latestSubmissionSummary || "")) ? (
-                            <div className="flex justify-end">
-                              <Button onClick={() => setReviewingCheckpointId(milestone.id)} variant="outline" className="rounded-xl">
-                                Open review details
-                              </Button>
+                             <div className="flex justify-end">
+                               <Button onClick={() => setReviewingCheckpointId(milestone.id)} variant="outline" className="rounded-xl">
+                                 Open review details
+                               </Button>
+                             </div>
+                           ) : null}
+
+                          {checkpointState.key === "awaiting_submission" && fallbackArtifactsCount > 0 ? (
+                            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm leading-6 text-sky-950">
+                              <span className="font-medium">Available now:</span> review artifacts are attached below even though the formal checkpoint packet has not been created yet.
                             </div>
                           ) : null}
 

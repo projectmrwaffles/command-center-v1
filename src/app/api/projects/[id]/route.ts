@@ -8,6 +8,7 @@ import { deriveReviewArtifacts } from "@/lib/review-requests";
 import { filterLegacyAttachmentShellState } from "@/lib/project-attachment-finalize";
 import { deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from "@/lib/milestone-review";
 import { repairKickoffSignoffTasks } from "@/lib/kickoff-signoff-repair";
+import { ensureMilestoneReviewSubmission } from "@/lib/review-submission";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -321,6 +322,20 @@ export async function GET(
         members: members.map((member) => member.agents).filter(Boolean),
       };
     });
+
+    for (const sprint of visibleSprints || []) {
+      const sprintTasks = (visibleTasks || []).filter((task: any) => task.sprint_id === sprint.id && task.review_required);
+      const completionEvents = sprintTasks
+        .map((task: any) => completionEventsByTaskId.get(task.id))
+        .filter(Boolean);
+      await ensureMilestoneReviewSubmission(db as any, {
+        projectId,
+        sprintId: sprint.id,
+        sprintName: sprint.name || null,
+        tasks: sprintTasks,
+        completionEvents,
+      });
+    }
 
     const sprintIds = (sprints || []).map((s: any) => s.id).filter(Boolean);
     const submissionRows = sprintIds.length > 0

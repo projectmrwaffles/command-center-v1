@@ -113,6 +113,39 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
 }
 
 {
+  const legacyBuildCheckpointType = resolveMilestoneCheckpointType({
+    checkpointType: null,
+    sprintName: "Phase 2 · Build",
+    phaseKey: "build",
+    taskTypes: ["build_implementation"],
+  });
+  assert.equal(legacyBuildCheckpointType, null, "legacy build milestones still rely on phase-aware delivery defaults instead of renamed checkpoint inference");
+
+  const legacyBuildPolicy = deriveMilestoneEvidenceRequirements({
+    checkpointType: "delivery_review",
+    sprintName: "Phase 2 · Build",
+    phaseKey: "build",
+    taskTypes: ["build_implementation"],
+    projectType: "product_build",
+    projectIntake: { shape: "web-app", capabilities: ["frontend"] },
+  });
+  assert.equal(legacyBuildPolicy.screenshotRequired, true);
+  assert.equal(legacyBuildPolicy.minScreenshotCount, 1);
+  assert.deepEqual(legacyBuildPolicy.requiredEvidenceKinds, ["screenshot", "staging_url", "github_pr", "commit", "loom"]);
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: "delivery_review",
+    evidenceRequirements: legacyBuildPolicy,
+    items: [{ kind: "github_pr" }],
+  }).ok, false, "legacy build milestones should stay awaiting evidence until a real UI screenshot exists for UI work");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: "delivery_review",
+    evidenceRequirements: legacyBuildPolicy,
+    items: [{ kind: "screenshot" }],
+  }).ok, true, "legacy build milestones should become ready once screenshot-backed delivery evidence exists");
+  console.log("PASS legacy build milestones now infer metadata-driven delivery-review evidence policy");
+}
+
+{
   const legacyMessageCheckpointType = resolveMilestoneCheckpointType({
     checkpointType: null,
     sprintName: "Phase 2 · Message",
@@ -291,7 +324,12 @@ import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.
     checkpointType: buildPhase.checkpointType,
     evidenceRequirements: seededBuildPolicy,
     items: [{ kind: "github_pr" }],
-  }).ok, true, "build review should accept seeded metadata-approved delivery evidence");
+  }).ok, false, "UI-bearing build review should still require a screenshot even when other delivery evidence exists");
+  assert.equal(validateProofBundleRequirements({
+    checkpointType: buildPhase.checkpointType,
+    evidenceRequirements: seededBuildPolicy,
+    items: [{ kind: "github_pr" }, { kind: "screenshot" }],
+  }).ok, true, "build review should accept seeded metadata-approved delivery evidence once screenshot-backed UI proof exists");
 
   const messagePhase = kickoffPlan.find((phase) => phase.key === "message");
   assert.ok(messagePhase, "kickoff should seed a message phase");

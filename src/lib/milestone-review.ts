@@ -246,12 +246,36 @@ export function resolveMilestoneCheckpointType(input: {
   return null;
 }
 
+type DeliveryReviewProjectSignals = {
+  projectType?: string | null;
+  projectIntake?: {
+    shape?: string | null;
+    capabilities?: string[] | null;
+  } | null;
+};
+
+function isUiBearingDeliveryProject(input: DeliveryReviewProjectSignals) {
+  const projectType = String(input.projectType || "").toLowerCase();
+  const shape = String(input.projectIntake?.shape || "").toLowerCase();
+  const capabilities = (input.projectIntake?.capabilities || []).map((value) => String(value || "").toLowerCase());
+
+  if (capabilities.includes("frontend") || capabilities.includes("ux-ui")) return true;
+  if (["website", "web-app", "native-app", "launch-campaign"].includes(shape)) return true;
+  if (["web_app", "native_app", "marketing", "marketing_growth"].includes(projectType)) return true;
+  return false;
+}
+
 export function deriveMilestoneEvidenceRequirements(input: {
   checkpointType?: StageCheckpointType | string | null;
   explicitRequirements?: unknown;
   sprintName?: string | null;
   phaseKey?: string | null;
   taskTypes?: Array<string | null | undefined> | null;
+  projectType?: string | null;
+  projectIntake?: {
+    shape?: string | null;
+    capabilities?: string[] | null;
+  } | null;
 }) {
   const resolvedCheckpointType = resolveMilestoneCheckpointType(input) || input.checkpointType;
   const base = getCheckpointEvidenceRequirements(resolvedCheckpointType, input.explicitRequirements);
@@ -307,6 +331,21 @@ export function deriveMilestoneEvidenceRequirements(input: {
       requiredEvidenceKinds: ["staging_url"],
       requiredEvidenceKindsMode: "all" as const,
       captureHint: base.captureHint || "Attach the launch-ready staging or live candidate URL before requesting launch approval.",
+    } satisfies CheckpointEvidenceRequirements;
+  }
+
+  if (resolvedCheckpointType === "delivery_review" && isUiBearingDeliveryProject(input)) {
+    const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
+    requiredEvidenceKinds.add("screenshot");
+
+    return {
+      ...base,
+      screenshotRequired: true,
+      minScreenshotCount: Math.max(base.minScreenshotCount || 0, 1),
+      captureMode: base.captureMode || "local_app",
+      requiredEvidenceKinds: Array.from(requiredEvidenceKinds),
+      requiredEvidenceKindsMode: base.requiredEvidenceKindsMode || "any",
+      captureHint: "Attach at least one real screenshot from the running UI before requesting build delivery review. Build success alone is not enough for UI work.",
     } satisfies CheckpointEvidenceRequirements;
   }
 
@@ -375,7 +414,9 @@ export function validateProofBundleRequirements(input: {
       ok: false,
       message: requirements.minScreenshotCount > 1
         ? `This ${formatCheckpointTypeLabel(input.checkpointType).toLowerCase()} requires at least ${requirements.minScreenshotCount} screenshots before review.`
-        : `This ${formatCheckpointTypeLabel(input.checkpointType).toLowerCase()} requires at least one screenshot before review.`,
+        : input.checkpointType === "delivery_review"
+          ? "This UI delivery review requires at least one real screenshot from the running app before review can proceed."
+          : `This ${formatCheckpointTypeLabel(input.checkpointType).toLowerCase()} requires at least one screenshot before review.`,
       requirements,
       screenshotCount,
       deliverableEvidenceCount,

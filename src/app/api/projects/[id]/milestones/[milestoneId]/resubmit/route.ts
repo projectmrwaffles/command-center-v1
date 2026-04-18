@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const db = createRouteHandlerClient();
     if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
-    const [{ data: priorSubmission, error: priorError }, { data: sprint, error: sprintError }] = await Promise.all([
+    const [{ data: priorSubmission, error: priorError }, { data: sprint, error: sprintError }, { data: project, error: projectError }] = await Promise.all([
       db
         .from("milestone_submissions")
         .select("id, sprint_id, revision_number, status, summary, checkpoint_type, evidence_requirements, rejection_comment")
@@ -45,10 +45,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         .eq("sprint_id", milestoneId)
         .single(),
       db.from("sprints").select("id, project_id, name, phase_key, checkpoint_type, checkpoint_evidence_requirements").eq("id", milestoneId).eq("project_id", projectId).single(),
+      db.from("projects").select("id, type, intake").eq("id", projectId).single(),
     ]);
 
     if (priorError || !priorSubmission) return NextResponse.json({ error: "Prior submission not found" }, { status: 404 });
     if (sprintError || !sprint) return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
+    if (projectError || !project) return NextResponse.json({ error: projectError?.message || "Project not found" }, { status: 404 });
     if (priorSubmission.status !== "changes_requested") {
       return NextResponse.json({ error: "Only changes-requested submissions can be resubmitted" }, { status: 409 });
     }
@@ -65,6 +67,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       explicitRequirements: sprint.checkpoint_evidence_requirements || priorSubmission.evidence_requirements,
       sprintName: sprint.name,
       phaseKey: sprint.phase_key,
+      projectType: project.type || null,
+      projectIntake: project.intake || null,
     });
 
     const proofValidation = validateProofBundleRequirements({

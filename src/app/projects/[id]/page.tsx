@@ -1655,6 +1655,12 @@ export default function ProjectDetailPage() {
                             </div>
                           </div>
 
+                          {evidenceRequirements.screenshotRequired && (summary?.screenshotItemCount || 0) < evidenceRequirements.minScreenshotCount ? (
+                            <div className="rounded-2xl border border-purple-200 bg-purple-50 px-3 py-3 text-sm leading-6 text-purple-950">
+                              <span className="font-medium">Review blocked:</span> {evidenceRequirements.captureHint || "Attach current screenshots from the running UI before this build can be treated as reviewable."}
+                            </div>
+                          ) : null}
+
                           {showApprovalReason ? (
                             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm leading-6 text-zinc-700">
                               <span className="font-medium">Why approval is needed:</span> {formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0])}
@@ -2068,6 +2074,7 @@ export default function ProjectDetailPage() {
                   <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
                     <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Files & links</div>
                     <div className="mt-1 font-medium text-zinc-900">{reviewingCheckpoint.reviewSummary?.proofItemCount || 0}</div>
+                    {getCheckpointEvidenceRequirements(reviewingCheckpoint.reviewSummary?.checkpointType || reviewingCheckpoint.checkpointType, reviewingCheckpoint.reviewSummary?.evidenceRequirements || reviewingCheckpoint.checkpointEvidenceRequirements).screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {reviewingCheckpoint.reviewSummary?.screenshotItemCount || 0}/{getCheckpointEvidenceRequirements(reviewingCheckpoint.reviewSummary?.checkpointType || reviewingCheckpoint.checkpointType, reviewingCheckpoint.reviewSummary?.evidenceRequirements || reviewingCheckpoint.checkpointEvidenceRequirements).minScreenshotCount}</div> : null}
                   </div>
                   <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
                     <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Latest submission</div>

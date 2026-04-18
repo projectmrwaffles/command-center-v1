@@ -17,13 +17,15 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   sprintName?: string | null;
   tasks: TaskLike[];
 }) {
-  const [{ data: activeSubmission, error: activeSubmissionError }, { data: sprint, error: sprintError }] = await Promise.all([
+  const [{ data: activeSubmission, error: activeSubmissionError }, { data: sprint, error: sprintError }, { data: project, error: projectError }] = await Promise.all([
     db.from('milestone_submissions').select('id, status').eq('sprint_id', input.sprintId).in('status', ['submitted', 'under_review']).maybeSingle(),
     db.from('sprints').select('id, name, phase_key, approval_gate_required, delivery_review_required, delivery_review_status, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
+    db.from('projects').select('id, type, intake').eq('id', input.projectId).maybeSingle(),
   ]);
 
   if (activeSubmissionError) throw activeSubmissionError;
   if (sprintError) throw sprintError;
+  if (projectError) throw projectError;
   if (!sprint) return null;
   const isBuildSprint = sprint.phase_key === 'build';
   const requiresReview = Boolean(sprint.approval_gate_required || sprint.delivery_review_required || isBuildSprint);
@@ -61,6 +63,8 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     sprintName: sprint.name || input.sprintName || null,
     phaseKey: sprint.phase_key || null,
     taskTypes: input.tasks.map((task) => task.task_type),
+    projectType: project?.type || null,
+    projectIntake: project?.intake || null,
   });
 
   const { data: submission, error: submissionError } = await db

@@ -334,7 +334,11 @@ export function deriveMilestoneEvidenceRequirements(input: {
     } satisfies CheckpointEvidenceRequirements;
   }
 
-  if (resolvedCheckpointType === "delivery_review" && isUiBearingDeliveryProject(input)) {
+  const isBuildMilestone = phaseKey === "build"
+    || /\bbuild\b|\bimplementation\b|\bship\b/.test(sprintName)
+    || taskTypes.includes("build_implementation");
+
+  if (resolvedCheckpointType === "delivery_review" && isBuildMilestone && isUiBearingDeliveryProject(input)) {
     const requiredEvidenceKinds = new Set<ProofItemKind>(base.requiredEvidenceKinds || []);
     requiredEvidenceKinds.add("screenshot");
 

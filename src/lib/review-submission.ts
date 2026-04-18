@@ -45,8 +45,8 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     completionEvents: input.completionEvents || [],
     links: (project as any)?.links || (project as any)?.intake?.links || null,
   });
-  const reviewableArtifacts = derivedArtifacts.filter((artifact) => artifact.kind === 'preview_url' || artifact.kind === 'git_commit');
-  if (completedTasks.length === 0 || reviewableArtifacts.length === 0) return null;
+  const reviewableArtifacts = derivedArtifacts.filter((artifact) => artifact.kind === 'preview_url' || artifact.kind === 'git_commit' || artifact.kind === 'workspace_file');
+  if (completedTasks.length === 0) return null;
   const summary = `${input.sprintName || 'Checkpoint'} is ready for review.`;
   const whatChanged = completedTasks.length
     ? `Completed: ${completedTasks.map((task) => task.title).join('; ')}`
@@ -89,7 +89,16 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
   if (submissionError || !submission) throw submissionError || new Error('Failed to create submission');
 
-  const proofItemsPayload = reviewableArtifacts.map((artifact, index) => {
+  const proofItemsPayload = (reviewableArtifacts.length > 0
+    ? reviewableArtifacts
+    : completedTasks.map((task) => ({
+        kind: 'workspace_file' as const,
+        label: task.title,
+        value: '',
+        sourceTaskId: task.id,
+        sourceTaskTitle: task.title,
+      }))
+  ).map((artifact, index) => {
     const artifactKind = artifact.kind;
     let kind: 'artifact' | 'staging_url' | 'commit' | 'note' = 'note';
     const url: string | null = artifactKind === 'preview_url' ? artifact.value : null;

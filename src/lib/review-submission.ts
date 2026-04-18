@@ -23,30 +23,22 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   tasks: TaskLike[];
   completionEvents?: CompletionEventLike[];
 }) {
-  const [{ data: activeSubmission, error: activeSubmissionError }, { data: sprint, error: sprintError }, { data: project, error: projectError }] = await Promise.all([
-    db.from('milestone_submissions').select('id, status').eq('sprint_id', input.sprintId).in('status', ['submitted', 'under_review']).maybeSingle(),
+  const [{ data: latestSubmission, error: latestSubmissionError }, { data: sprint, error: sprintError }, { data: project, error: projectError }] = await Promise.all([
+    db.from('milestone_submissions').select('id, status, revision_number').eq('sprint_id', input.sprintId).order('revision_number', { ascending: false }).limit(1).maybeSingle(),
     db.from('sprints').select('id, name, phase_key, approval_gate_required, delivery_review_required, delivery_review_status, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
-    db.from('projects').select('id, type, intake').eq('id', input.projectId).maybeSingle(),
+    db.from('projects').select('id, type, intake, links').eq('id', input.projectId).maybeSingle(),
   ]);
 
-  if (activeSubmissionError) throw activeSubmissionError;
+  if (latestSubmissionError) throw latestSubmissionError;
   if (sprintError) throw sprintError;
   if (projectError) throw projectError;
   if (!sprint) return null;
   const isBuildSprint = sprint.phase_key === 'build';
   const requiresReview = Boolean(sprint.approval_gate_required || sprint.delivery_review_required || isBuildSprint);
   if (!requiresReview) return null;
-  if (activeSubmission?.id) return activeSubmission;
+  if (latestSubmission?.id) return latestSubmission;
 
-  const { data: lastSubmission } = await db
-    .from('milestone_submissions')
-    .select('revision_number')
-    .eq('sprint_id', input.sprintId)
-    .order('revision_number', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const nextRevision = (lastSubmission?.revision_number || 0) + 1;
+  const nextRevision = (latestSubmission?.revision_number || 0) + 1;
   const completedTasks = input.tasks.filter((task) => task.status === 'done');
   const derivedArtifacts = deriveReviewArtifacts({
     reviewTasks: input.tasks,

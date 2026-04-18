@@ -408,7 +408,7 @@ export async function GET(
         }
         continue;
       }
-      const { data: insertedProofItem } = await db.from("proof_items").insert({
+      const { data: insertedProofItem, error: insertedProofItemError } = await db.from("proof_items").insert({
         proof_bundle_id: latestBundle.id,
         kind: screenshotProof.kind,
         label: screenshotProof.label,
@@ -418,6 +418,10 @@ export async function GET(
         metadata: screenshotProof.metadata,
         sort_order: existingProofItems.length,
       }).select().single();
+      if (insertedProofItemError) {
+        console.error(`[API /projects/:id] failed to insert screenshot proof item for sprint ${sprint.id}:`, insertedProofItemError);
+        throw new Error(insertedProofItemError.message || "Failed to insert screenshot proof item");
+      }
       if (insertedProofItem) {
         proofItemRows.push(insertedProofItem);
       }

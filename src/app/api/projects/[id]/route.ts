@@ -188,6 +188,7 @@ export async function GET(
         links: effectiveProject.links || null,
         github_repo_binding: effectiveProject.github_repo_binding || null,
       },
+      repairProvisionedRepo: false,
     });
 
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
@@ -689,6 +690,7 @@ export async function PATCH(
           links: data?.links || null,
           github_repo_binding: data?.github_repo_binding || null,
         },
+        repairProvisionedRepo: true,
       });
       await reconcileProjectPhaseProgression(db as any, {
         projectId,

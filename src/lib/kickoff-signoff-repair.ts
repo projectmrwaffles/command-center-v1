@@ -40,7 +40,7 @@ export async function repairKickoffSignoffTasks(db: DbClient, input: { projectId
     .from('sprint_items')
     .update({
       review_required: true,
-      review_status: 'awaiting_review',
+      review_status: 'not_requested',
     })
     .in('id', ids);
 

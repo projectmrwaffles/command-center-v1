@@ -58,5 +58,5 @@ assert.equal(result.repaired, 2);
 assert.equal(updates.length, 1);
 assert.deepEqual(updates[0].ids.sort(), ['build-1', 'design-1']);
 assert.equal(updates[0].payload.review_required, true);
-assert.equal(updates[0].payload.review_status, 'awaiting_review');
+assert.equal(updates[0].payload.review_status, 'not_requested');
 console.log('verify-kickoff-signoff-repair: ok');

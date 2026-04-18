@@ -420,7 +420,7 @@ export async function seedProjectKickoffPlan(db: KickoffDbClient, input: {
           phase_key: phase.key,
           auto_generated: true,
         },
-        review_status: task.reviewRequired ? "awaiting_review" : "not_requested",
+        review_status: "not_requested",
       };
 
       let taskResult = await db

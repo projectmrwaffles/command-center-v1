@@ -5,6 +5,8 @@ import type { ProjectLikeWithRequirements, ProjectRequirements, RequirementCompl
 
 type DbClient = { from: (table: string) => any } & Record<string, any>;
 
+type EnsureProvisionedRepoMatchesRequirementsFn = typeof ensureProvisionedRepoMatchesRequirements;
+
 type SprintRow = {
   id: string;
   project_id: string;
@@ -355,13 +357,16 @@ async function ensureCheckpointSubmission(db: DbClient, input: {
 export async function syncProjectPreBuildCheckpoint(db: DbClient, input: {
   projectId: string;
   project?: (ProjectLikeWithRequirements & { id?: string | null }) | null;
+  repairProvisionedRepo?: boolean;
+  ensureProvisionedRepoMatchesRequirementsFn?: EnsureProvisionedRepoMatchesRequirementsFn;
 }) {
   const project = input.project || (await db.from("projects").select("id, name, intake, links, github_repo_binding").eq("id", input.projectId).single()).data;
   if (!project) throw new Error("Project not found for pre-build checkpoint sync");
 
   const requirements = project.intake?.requirements;
-  if (hasPrdDerivedRequirements(requirements)) {
-    await ensureProvisionedRepoMatchesRequirements({
+  if (input.repairProvisionedRepo && hasPrdDerivedRequirements(requirements)) {
+    const ensureRepoMatchesRequirements = input.ensureProvisionedRepoMatchesRequirementsFn || ensureProvisionedRepoMatchesRequirements;
+    await ensureRepoMatchesRequirements({
       projectName: project.name || "Untitled project",
       requirements,
       githubRepoBinding: project.github_repo_binding || null,

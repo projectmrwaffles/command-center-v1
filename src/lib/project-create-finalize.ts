@@ -128,6 +128,7 @@ export async function finalizeProjectCreate(db: ProjectDb, input: {
       links: input.links || input.project?.links || null,
       github_repo_binding: input.githubRepoBinding || input.project?.github_repo_binding || null,
     },
+    repairProvisionedRepo: true,
   });
 
   await syncProjectState(db, input.project.id);

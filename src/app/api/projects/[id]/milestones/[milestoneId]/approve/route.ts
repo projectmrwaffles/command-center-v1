@@ -131,9 +131,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         }),
       });
     } else {
-      const currentGateStatus = reviewKind === "delivery_review"
-        ? (sprint.delivery_review_status || "not_requested")
-        : (sprint.approval_gate_status || "not_requested");
+      if (reviewKind === "delivery_review") {
+        return NextResponse.json({ error: "Build delivery review cannot be approved without a submitted proof bundle that satisfies screenshot requirements" }, { status: 409 });
+      }
+
+      const currentGateStatus = sprint.approval_gate_status || "not_requested";
       if (currentGateStatus !== "pending") {
         return NextResponse.json({ error: "Only pending checkpoints can be approved" }, { status: 409 });
       }

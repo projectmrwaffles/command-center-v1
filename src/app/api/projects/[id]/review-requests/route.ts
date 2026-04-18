@@ -1,4 +1,5 @@
 import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements";
+import { validateProofBundleRequirements } from "@/lib/milestone-review";
 import { getProjectRequirementCompliance } from "@/lib/project-requirements";
 import { getSprintReviewEligibility, resolveSprintReviewSurface } from "@/lib/review-request-guards";
 import { mergeProjectLinks, buildReviewRequestContext, buildReviewRequestSummary, deriveReviewArtifacts } from "@/lib/review-requests";
@@ -177,6 +178,58 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (requirementCompliance.violations.length > 0) {
       return NextResponse.json({ error: `Review blocked: ${requirementCompliance.violations.join(" ")}` }, { status: 400 });
+    }
+
+    if (reviewSurface.reviewKind === "delivery_review") {
+      const { data: activeSubmission, error: activeSubmissionError } = await db
+        .from("milestone_submissions")
+        .select("id, status, checkpoint_type, evidence_requirements")
+        .eq("sprint_id", sprintId)
+        .in("status", ["submitted", "under_review"])
+        .order("revision_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeSubmissionError) {
+        return NextResponse.json({ error: activeSubmissionError.message || "Failed to inspect review submission state" }, { status: 500 });
+      }
+
+      if (!activeSubmission?.id) {
+        return NextResponse.json({ error: "Build delivery review must be submitted with screenshot proof before a review request can be created" }, { status: 409 });
+      }
+
+      const { data: proofBundle, error: proofBundleError } = await db
+        .from("proof_bundles")
+        .select("id, completeness_status")
+        .eq("submission_id", activeSubmission.id)
+        .maybeSingle();
+
+      if (proofBundleError) {
+        return NextResponse.json({ error: proofBundleError.message || "Failed to inspect review proof bundle" }, { status: 500 });
+      }
+
+      if (!proofBundle?.id || proofBundle.completeness_status !== "ready") {
+        return NextResponse.json({ error: "Build delivery review requires a ready proof bundle with screenshot evidence before review can be requested" }, { status: 409 });
+      }
+
+      const { data: proofItems, error: proofItemsError } = await db
+        .from("proof_items")
+        .select("kind")
+        .eq("proof_bundle_id", proofBundle.id);
+
+      if (proofItemsError) {
+        return NextResponse.json({ error: proofItemsError.message || "Failed to inspect review proof items" }, { status: 500 });
+      }
+
+      const proofValidation = validateProofBundleRequirements({
+        checkpointType: activeSubmission.checkpoint_type,
+        evidenceRequirements: activeSubmission.evidence_requirements,
+        items: proofItems || [],
+      });
+
+      if (!proofValidation.ok) {
+        return NextResponse.json({ error: proofValidation.message, evidenceRequirements: proofValidation.requirements, screenshotCount: proofValidation.screenshotCount }, { status: 409 });
+      }
     }
 
     const ownerAgentId = await resolveReviewOwner(db, projectId, sprintId);

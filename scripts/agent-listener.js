@@ -741,6 +741,7 @@ async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTi
 
   if (projectId) {
     try {
+      await import(path.join(REPO_ROOT, 'scripts/register-ts-aliases.mjs'));
       const [{ syncProjectState }, { maybeAdvanceProjectAfterTaskDone }] = await Promise.all([
         import(path.join(REPO_ROOT, 'src/lib/project-state.ts')),
         import(path.join(REPO_ROOT, 'src/lib/project-handoff.ts')),

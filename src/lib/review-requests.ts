@@ -30,6 +30,23 @@ function extractBacktickedValues(text?: string | null) {
   return [...text.matchAll(/`([^`]+)`/g)].map((match) => match[1]?.trim()).filter(Boolean) as string[];
 }
 
+function extractLooseUrls(text?: string | null) {
+  if (!text) return [] as string[];
+  return [...text.matchAll(/https?:\/\/[^\s)\]>"']+/gi)].map((match) => match[0]?.trim()).filter(Boolean) as string[];
+}
+
+function extractLooseCommitHashes(text?: string | null) {
+  if (!text) return [] as string[];
+  return [...text.matchAll(/\b[0-9a-f]{7,40}\b/gi)].map((match) => match[0]?.trim()).filter(Boolean) as string[];
+}
+
+function extractLooseWorkspacePaths(text?: string | null) {
+  if (!text) return [] as string[];
+  return [...text.matchAll(/(?:\/Users\/[^\s)\]>"']+|\.\/?[^\s)\]>"']+\.(?:png|jpe?g|gif|webp|pdf|mp4|mov|txt|md|json))/gi)]
+    .map((match) => match[0]?.trim())
+    .filter(Boolean) as string[];
+}
+
 function normalizeWorkspacePath(value: string) {
   const trimmed = value.trim();
   if (!trimmed.includes("/")) return null;
@@ -74,7 +91,16 @@ export function deriveReviewArtifacts(input: {
     const sourceTaskTitle = task?.title || (typeof payload.title === "string" ? payload.title : undefined);
     const rawResult = typeof payload.raw_result === "string" ? payload.raw_result : "";
     const message = typeof payload.message === "string" ? payload.message : "";
-    const values = [...extractBacktickedValues(rawResult), ...extractBacktickedValues(message)];
+    const values = [
+      ...extractBacktickedValues(rawResult),
+      ...extractBacktickedValues(message),
+      ...extractLooseUrls(rawResult),
+      ...extractLooseUrls(message),
+      ...extractLooseCommitHashes(rawResult),
+      ...extractLooseCommitHashes(message),
+      ...extractLooseWorkspacePaths(rawResult),
+      ...extractLooseWorkspacePaths(message),
+    ];
 
     for (const value of values) {
       const workspacePath = normalizeWorkspacePath(value);

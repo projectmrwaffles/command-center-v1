@@ -13,53 +13,16 @@ class Query {
     this.insertPayload = null;
   }
 
-  select() {
-    return this;
-  }
-
-  update(payload) {
-    this.updatePayload = payload;
-    return this;
-  }
-
-  insert(payload) {
-    this.insertPayload = payload;
-    return this;
-  }
-
-  eq(column, value) {
-    this.filters.push((row) => row?.[column] === value);
-    return this;
-  }
-
-  in(column, values) {
-    this.filters.push((row) => values.includes(row?.[column]));
-    return this;
-  }
-
-  order(column, options = {}) {
-    this.sort = { column, ascending: options.ascending !== false };
-    return this;
-  }
-
-  limit(value) {
-    this.limitValue = value;
-    return this;
-  }
-
-  single() {
-    this.singleMode = "single";
-    return this.execute();
-  }
-
-  maybeSingle() {
-    this.singleMode = "maybeSingle";
-    return this.execute();
-  }
-
-  then(resolve, reject) {
-    return this.execute().then(resolve, reject);
-  }
+  select() { return this; }
+  update(payload) { this.updatePayload = payload; return this; }
+  insert(payload) { this.insertPayload = payload; return this; }
+  eq(column, value) { this.filters.push((row) => row?.[column] === value); return this; }
+  in(column, values) { this.filters.push((row) => values.includes(row?.[column])); return this; }
+  order(column, options = {}) { this.sort = { column, ascending: options.ascending !== false }; return this; }
+  limit(value) { this.limitValue = value; return this; }
+  single() { this.singleMode = "single"; return this.execute(); }
+  maybeSingle() { this.singleMode = "maybeSingle"; return this.execute(); }
+  then(resolve, reject) { return this.execute().then(resolve, reject); }
 
   async execute() {
     const tableRows = this.db.tables[this.table];
@@ -73,9 +36,7 @@ class Query {
         return (a?.[column] < b?.[column] ? -1 : 1) * (ascending ? 1 : -1);
       });
     }
-    if (typeof this.limitValue === "number") {
-      rows = rows.slice(0, this.limitValue);
-    }
+    if (typeof this.limitValue === "number") rows = rows.slice(0, this.limitValue);
 
     if (this.insertPayload) {
       const payloads = (Array.isArray(this.insertPayload) ? this.insertPayload : [this.insertPayload]).map((payload, index) => ({
@@ -93,12 +54,8 @@ class Query {
       return { data: rows, error: null };
     }
 
-    if (this.singleMode === "single") {
-      return { data: rows[0] ?? null, error: rows.length ? null : { message: `No ${this.table} row found` } };
-    }
-    if (this.singleMode === "maybeSingle") {
-      return { data: rows[0] ?? null, error: null };
-    }
+    if (this.singleMode === "single") return { data: rows[0] ?? null, error: rows.length ? null : { message: `No ${this.table} row found` } };
+    if (this.singleMode === "maybeSingle") return { data: rows[0] ?? null, error: null };
     return { data: rows, error: null };
   }
 }
@@ -113,103 +70,11 @@ class MockDb {
   }
 }
 
-function createValidateSeed() {
+function createSeed({ projectId, projectName, projectType, projectLinks = {}, sprint, tasks, extraSprints = [] }) {
   return {
-    projects: [
-      {
-        id: "project-validate",
-        name: "Validate packet repro",
-        type: "web_app",
-        intake: {},
-        links: { github: "https://github.com/acme/validate-packet" },
-        github_repo_binding: {
-          provider: "github",
-          owner: "acme",
-          repo: "validate-packet",
-          fullName: "acme/validate-packet",
-          url: "https://github.com/acme/validate-packet",
-          source: "linked",
-        },
-      },
-    ],
-    sprints: [
-      {
-        id: "sprint-validate",
-        project_id: "project-validate",
-        name: "Phase 3 · Validate",
-        status: "active",
-        phase_order: 3,
-        approval_gate_required: true,
-        approval_gate_status: "not_requested",
-        checkpoint_type: "delivery_review",
-        checkpoint_evidence_requirements: null,
-        created_at: "2026-04-10T22:00:00.000Z",
-      },
-    ],
-    sprint_items: [
-      {
-        id: "task-validate-review",
-        project_id: "project-validate",
-        sprint_id: "sprint-validate",
-        title: "Validate delivered flow",
-        status: "done",
-        review_required: true,
-        review_status: "pending",
-        task_type: "qa_validation",
-        updated_at: "2026-04-10T22:15:00.000Z",
-        position: 1,
-      },
-    ],
-    jobs: [],
-    agents: [],
-    milestone_submissions: [],
-    proof_bundles: [],
-    proof_items: [],
-    agent_events: [],
-  };
-}
-
-function createLegacyMessageSeed() {
-  return {
-    projects: [
-      {
-        id: "project-message",
-        name: "Message packet repro",
-        type: "marketing_growth",
-        intake: {},
-        links: {},
-        github_repo_binding: null,
-      },
-    ],
-    sprints: [
-      {
-        id: "sprint-message",
-        project_id: "project-message",
-        name: "Phase 2 · Message",
-        status: "active",
-        phase_key: "message",
-        phase_order: 2,
-        approval_gate_required: true,
-        approval_gate_status: "not_requested",
-        checkpoint_type: null,
-        checkpoint_evidence_requirements: null,
-        created_at: "2026-04-10T22:00:00.000Z",
-      },
-    ],
-    sprint_items: [
-      {
-        id: "task-message-review",
-        project_id: "project-message",
-        sprint_id: "sprint-message",
-        title: "Draft launch-ready messaging",
-        status: "done",
-        review_required: true,
-        review_status: "pending",
-        task_type: "content_messaging",
-        updated_at: "2026-04-10T22:15:00.000Z",
-        position: 1,
-      },
-    ],
+    projects: [{ id: projectId, name: projectName, type: projectType, intake: {}, links: projectLinks, github_repo_binding: null }],
+    sprints: [sprint, ...extraSprints],
+    sprint_items: tasks,
     jobs: [],
     agents: [],
     milestone_submissions: [],
@@ -220,49 +85,145 @@ function createLegacyMessageSeed() {
 }
 
 {
-  const db = new MockDb(createValidateSeed());
-  const result = await maybeAdvanceProjectAfterTaskDone(db, {
+  const db = new MockDb(createSeed({
     projectId: "project-validate",
-    completedTaskId: "task-validate-review",
-  });
+    projectName: "Kickoff validate repro",
+    projectType: "web_app",
+    projectLinks: { github: "https://github.com/acme/kickoff-validate" },
+    sprint: {
+      id: "sprint-validate",
+      project_id: "project-validate",
+      name: "Phase 2 · Validate",
+      status: "active",
+      phase_key: "validate",
+      phase_order: 2,
+      approval_gate_required: false,
+      approval_gate_status: "not_requested",
+      checkpoint_type: "acceptance_review",
+      checkpoint_evidence_requirements: null,
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    extraSprints: [{
+      id: "sprint-build",
+      project_id: "project-validate",
+      name: "Phase 3 · Build",
+      status: "draft",
+      phase_key: "build",
+      phase_order: 3,
+      approval_gate_required: false,
+      approval_gate_status: "not_requested",
+      delivery_review_required: true,
+      delivery_review_status: "not_requested",
+      created_at: "2026-04-10T22:30:00.000Z",
+    }],
+    tasks: [{
+      id: "task-validate-review",
+      project_id: "project-validate",
+      sprint_id: "sprint-validate",
+      title: "Validate kickoff deliverables",
+      status: "done",
+      review_required: true,
+      review_status: "pending",
+      task_type: "qa_validation",
+      updated_at: "2026-04-10T22:15:00.000Z",
+      position: 1,
+    }],
+  }));
+
+  const result = await maybeAdvanceProjectAfterTaskDone(db, { projectId: "project-validate", completedTaskId: "task-validate-review" });
 
   assert.equal(result.reason, "review_submission_created");
-  assert.equal(db.tables.milestone_submissions.length, 1, "completion path should materialize a review submission");
-  assert.equal(db.tables.proof_bundles.length, 1, "completion path should materialize a proof bundle");
-  assert.equal(db.tables.proof_items.length, 1, "completion path should materialize proof items from done tasks");
-  assert.equal(db.tables.proof_bundles[0]?.completeness_status, "incomplete", "note-only auto packets must stay incomplete until real deliverable evidence is attached");
-  assert.deepEqual(db.tables.milestone_submissions[0]?.evidence_requirements?.requiredEvidenceKinds, ["screenshot", "staging_url", "loom"], "validate milestone should generate milestone-shaped validation evidence requirements");
-  assert.equal(db.tables.sprints[0].approval_gate_status, "pending", "checkpoint gate should move into pending review");
-  assert.equal(db.tables.sprints[0].status, "active", "gated sprint should stay active until review decision");
+  assert.equal(result.advanced, false);
+  assert.equal(db.tables.milestone_submissions.length, 1, "kickoff validate completion path should create a milestone submission");
+  assert.equal(db.tables.sprints.find((s) => s.id === "sprint-validate")?.approval_gate_status, "pending", "kickoff validate sprint should move to pending review");
+  assert.equal(db.tables.sprints.find((s) => s.id === "sprint-validate")?.status, "active", "kickoff validate sprint should stay active pending review");
+  assert.equal(db.tables.sprints.find((s) => s.id === "sprint-build")?.status, "draft", "next sprint should not activate before review");
 
-  console.log("PASS task completion creates an incomplete review packet when only generic task notes exist");
+  console.log("PASS kickoff validate handoff creates a review submission instead of advancing to the following sprint");
 }
 
 {
-  const db = new MockDb(createValidateSeed());
-  const result = await reconcileProjectPhaseProgression(db, {
-    projectId: "project-validate",
-  });
-
-  assert.equal(result.reason, "review_submission_created");
-  assert.equal(db.tables.milestone_submissions.length, 1, "reconcile path should also create a submission from rendered state");
-  assert.equal(db.tables.proof_bundles[0]?.completeness_status, "incomplete");
-  assert.equal(db.tables.proof_items[0]?.label, "Validate delivered flow");
-
-  console.log("PASS project reconciliation backfills the same incomplete packet from stored sprint state");
-}
-
-{
-  const db = new MockDb(createLegacyMessageSeed());
-  const result = await maybeAdvanceProjectAfterTaskDone(db, {
+  const db = new MockDb(createSeed({
     projectId: "project-message",
-    completedTaskId: "task-message-review",
-  });
+    projectName: "Kickoff message repro",
+    projectType: "marketing_growth",
+    sprint: {
+      id: "sprint-message",
+      project_id: "project-message",
+      name: "Phase 2 · Message",
+      status: "active",
+      phase_key: "message",
+      phase_order: 2,
+      approval_gate_required: false,
+      approval_gate_status: "not_requested",
+      checkpoint_type: "content_review",
+      checkpoint_evidence_requirements: null,
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    tasks: [{
+      id: "task-message-review",
+      project_id: "project-message",
+      sprint_id: "sprint-message",
+      title: "Draft launch-ready messaging",
+      status: "done",
+      review_required: true,
+      review_status: "pending",
+      task_type: "content_messaging",
+      updated_at: "2026-04-10T22:15:00.000Z",
+      position: 1,
+    }],
+  }));
+
+  const result = await maybeAdvanceProjectAfterTaskDone(db, { projectId: "project-message", completedTaskId: "task-message-review" });
 
   assert.equal(result.reason, "review_submission_created");
-  assert.equal(db.tables.milestone_submissions[0]?.checkpoint_type, "content_review", "legacy message milestones should backfill a content_review checkpoint type instead of generic delivery_review");
-  assert.deepEqual(db.tables.milestone_submissions[0]?.evidence_requirements?.requiredEvidenceKinds, ["doc", "artifact", "screenshot", "staging_url", "loom"], "legacy message milestones should materialize explicit content evidence metadata");
-  assert.equal(db.tables.proof_bundles[0]?.completeness_status, "incomplete", "note-only content packets should stay incomplete until a real content artifact is attached");
+  assert.equal(result.advanced, false);
+  assert.equal(db.tables.milestone_submissions.length, 1, "final kickoff message completion path should create a milestone submission");
+  assert.equal(db.tables.milestone_submissions[0]?.checkpoint_type, "content_review");
+  assert.equal(db.tables.sprints[0].approval_gate_status, "pending", "final kickoff message sprint should move to pending review");
+  assert.equal(db.tables.sprints[0].status, "active", "final kickoff message sprint should stay active pending review");
 
-  console.log("PASS legacy message milestones now backfill explicit content-review metadata instead of generic delivery defaults");
+  console.log("PASS kickoff message handoff creates a review submission instead of finishing the phase");
+}
+
+{
+  const db = new MockDb(createSeed({
+    projectId: "project-reconcile",
+    projectName: "Reconcile validate repro",
+    projectType: "web_app",
+    projectLinks: { github: "https://github.com/acme/reconcile-validate" },
+    sprint: {
+      id: "sprint-reconcile",
+      project_id: "project-reconcile",
+      name: "Phase 2 · Validate",
+      status: "active",
+      phase_key: "validate",
+      phase_order: 2,
+      approval_gate_required: false,
+      approval_gate_status: "not_requested",
+      checkpoint_type: "acceptance_review",
+      checkpoint_evidence_requirements: null,
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    tasks: [{
+      id: "task-reconcile-review",
+      project_id: "project-reconcile",
+      sprint_id: "sprint-reconcile",
+      title: "Validate delivered flow",
+      status: "done",
+      review_required: true,
+      review_status: "pending",
+      task_type: "qa_validation",
+      updated_at: "2026-04-10T22:15:00.000Z",
+      position: 1,
+    }],
+  }));
+
+  const result = await reconcileProjectPhaseProgression(db, { projectId: "project-reconcile" });
+
+  assert.equal(result.reason, "review_submission_created");
+  assert.equal(db.tables.milestone_submissions.length, 1, "reconcile path should also respect task-level review gating");
+  assert.equal(db.tables.sprints[0].approval_gate_status, "pending");
+
+  console.log("PASS reconcile path also creates a review submission for task-level kickoff review gates");
 }

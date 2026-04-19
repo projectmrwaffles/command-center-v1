@@ -73,6 +73,7 @@ function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRo
   const artifactIntegrity = getProjectArtifactIntegrity(project || {}, sprintTasks);
   const deliveryReviewBlocked = (sprint.phase_key === "build" || sprint.delivery_review_required)
     && sprint.delivery_review_status !== "approved";
+  const hasReviewRequiredTasks = sprintTasks.some((task) => task.review_required === true);
   const gateBlocked = Boolean(
     (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
     || deliveryReviewBlocked
@@ -83,8 +84,18 @@ function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRo
     sprintStillActive,
     sprintComplete,
     artifactIntegrity,
+    hasReviewRequiredTasks,
     gateBlocked,
   };
+}
+
+function sprintNeedsReviewSubmission(sprint: SprintRow, state: ReturnType<typeof getSprintCompletionState>) {
+  const buildDeliveryReviewPending = (sprint.phase_key === "build" || sprint.delivery_review_required)
+    && sprint.delivery_review_status !== "approved";
+
+  return buildDeliveryReviewPending
+    || (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
+    || state.hasReviewRequiredTasks;
 }
 
 async function dispatchSprintTodoTasks(db: DbClient, sprint: SprintRow, taskRows: TaskRow[], project: ProjectRow, sprintRows: SprintRow[]) {
@@ -133,10 +144,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
       return { advanced: false, reason: "required_artifacts_missing", advancedTransitions };
     }
 
-    const buildDeliveryReviewPending = (currentSprint.phase_key === "build" || currentSprint.delivery_review_required)
-      && currentSprint.delivery_review_status !== "approved";
-
-    if (buildDeliveryReviewPending || (currentSprint.approval_gate_required && currentSprint.approval_gate_status !== "approved")) {
+    if (sprintNeedsReviewSubmission(currentSprint, state)) {
       const submission = await ensureMilestoneReviewSubmission(db as any, {
         projectId: input.projectId,
         sprintId: currentSprint.id,
@@ -214,7 +222,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
         return { advanced: false, reason: "final_sprint_completed", advancedTransitions };
       }
 
-      if ((currentSprint.phase_key === "build" || currentSprint.delivery_review_required) && currentSprint.delivery_review_status !== "approved") {
+      if (sprintNeedsReviewSubmission(currentSprint, state)) {
         const submission = await ensureMilestoneReviewSubmission(db as any, {
           projectId: input.projectId,
           sprintId: currentSprint.id,

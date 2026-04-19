@@ -94,7 +94,8 @@ export default async function AgentDetailPage({
     </div>
   ) : null;
 
-  const recentCutoffMs = Date.now() - RECENT_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const nowMs = new Date().getTime();
+  const recentCutoffMs = nowMs - RECENT_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const recentEvents = events.filter((event) => new Date(event.timestamp).getTime() >= recentCutoffMs);
   const historicalEvents = events.filter((event) => new Date(event.timestamp).getTime() < recentCutoffMs);
 

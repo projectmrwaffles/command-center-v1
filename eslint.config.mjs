@@ -25,7 +25,9 @@ const eslintConfig = defineConfig([
 
     // Local-only tooling/scripts (not shipped):
     "scripts/**",
-  ]),
+    "tmp-*.js",
+    "tmp-*.mjs",
+    ]),
 ]);
 
 export default eslintConfig;

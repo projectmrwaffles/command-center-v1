@@ -38,7 +38,7 @@ type ProjectRow = {
 };
 
 const DONE_LIKE = new Set(["done", "cancelled"]);
-const ACTIVE_LIKE = new Set(["todo", "in_progress", "blocked"]);
+const ACTIVE_LIKE = new Set(["in_progress", "blocked"]);
 
 function sortSprints(a: SprintRow, b: SprintRow) {
   const ao = a.phase_order ?? Number.MAX_SAFE_INTEGER;

@@ -250,6 +250,7 @@ async function ensureCheckpointSubmission(db: DbClient, input: {
     .from("milestone_submissions")
     .select("id, approval_id, revision_number, status")
     .eq("sprint_id", input.sprint.id)
+    .eq("checkpoint_type", "prebuild_checkpoint")
     .in("status", ["submitted", "under_review", "approved"])
     .order("revision_number", { ascending: false })
     .limit(1)

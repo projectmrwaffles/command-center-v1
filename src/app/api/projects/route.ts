@@ -5,7 +5,7 @@ import { buildAttachmentKickoffWaitingIntake, filterLegacyAttachmentShellState, 
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { getGitHubProvisioningReadiness, provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
-import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat, selectProjectsListWithCompat, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
+import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat, selectProjectsListWithCompat } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -53,19 +53,19 @@ export async function GET(req: NextRequest) {
     }
 
     const initial = await selectProjectsListWithCompat(db, type);
-    let projects: any[] = initial.data ?? [];
-    let error = initial.error;
+    const projects: any[] = initial.data ?? [];
+    const error = initial.error;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    let projectIds = projects.map((project) => project.id).filter(Boolean);
+    const projectIds = projects.map((project) => project.id).filter(Boolean);
     if (projectIds.length === 0) {
       return NextResponse.json({ projects });
     }
 
-    let [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
+    const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
       selectProjectSummaryTasksWithCompat(db, projectIds),
       selectProjectSummarySprintsWithCompat(db, projectIds),
       selectProjectSummaryJobsWithCompat(db, projectIds),

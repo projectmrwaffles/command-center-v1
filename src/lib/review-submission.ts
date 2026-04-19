@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from './milestone-review.ts';
+import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType, validateProofBundleRequirements } from './milestone-review.ts';
 import { deriveReviewArtifacts } from './review-requests.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
@@ -130,11 +130,20 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     };
   });
 
+  const proofValidation = validateProofBundleRequirements({
+    checkpointType,
+    evidenceRequirements: generatedEvidenceRequirements,
+    items: proofItemsPayload,
+  });
   const bundleCompletenessStatus = computeProofBundleCompletenessStatus({
     checkpointType,
     evidenceRequirements: generatedEvidenceRequirements,
     items: proofItemsPayload,
   });
+
+  if (checkpointType === 'delivery_review' && !proofValidation.ok) {
+    throw new Error(proofValidation.message || 'Delivery review evidence is incomplete');
+  }
 
   const { data: bundle, error: bundleError } = await db
     .from('proof_bundles')

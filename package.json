@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "verify:checkpoint-approval": "node --experimental-strip-types scripts/verify-checkpoint-approval-progression.mjs",
+    "verify:phase-progression-guardrails": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-phase-progression-guardrails.mjs",
     "verify:delivery-review-workflow": "node --experimental-strip-types scripts/verify-delivery-review-workflow.mjs",
     "verify:ui-screenshot-review-gate": "node --experimental-strip-types scripts/verify-ui-screenshot-review-gate.mjs",
     "verify:prebuild-checkpoint": "node scripts/verify-prebuild-checkpoint.mjs",

@@ -1,5 +1,5 @@
-import { getBootstrapSprintIds, isBootstrapTask, matchesBootstrapTruth } from "./project-bootstrap";
-import { getTaskExecutionBlocker } from "./project-execution";
+import { getBootstrapSprintIds, isBootstrapTask, matchesBootstrapTruth } from "./project-bootstrap.ts";
+import { getTaskExecutionBlocker } from "./project-execution.ts";
 import { isStaleExecutionTimestamp } from "@/components/ui/execution-visibility";
 
 export type TruthTaskLike = {
@@ -12,11 +12,23 @@ export type TruthTaskLike = {
 
 export type TruthSprintLike = {
   id: string;
+  name?: string | null;
   auto_generated?: boolean | null;
   phase_key?: string | null;
   status?: string | null;
+  approval_gate_required?: boolean | null;
+  approval_gate_status?: string | null;
   delivery_review_required?: boolean | null;
   delivery_review_status?: string | null;
+};
+
+type StuckWorkflowGuardrail = {
+  activeSprintId: string;
+  activeSprintName: string;
+  nextSprintId: string;
+  nextSprintName: string;
+  reason: "phase_complete_not_advanced";
+  detail: string;
 };
 
 function isRunningStatus(status?: string | null) {
@@ -206,11 +218,45 @@ export function deriveProjectTruth(input: {
   });
   const acceptancePending = Boolean(pendingDeliveryReview || (pendingFinalValidationTask && (pendingFinalValidationTask as any).review_required));
   const validationPending = Boolean(pendingFinalValidationTask && !(pendingFinalValidationTask as any).review_required && doneDeliveryTasks > 0 && runningDeliveryTasks === 0);
+  const stuckWorkflowGuardrail = sprints.reduce<StuckWorkflowGuardrail | null>((match, sprint, index) => {
+    if (match || sprint.status !== "active") return match;
+    const sprintTasks = tasks.filter((task) => task.sprint_id === sprint.id);
+    if (!sprintTasks.length) return match;
+    const effectivelyComplete = sprintTasks.every((task) => task.status === "done" || task.status === "cancelled");
+    if (!effectivelyComplete) return match;
+
+    const gateBlocked = Boolean(
+      (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
+      || ((sprint.phase_key === "build" || sprint.delivery_review_required) && sprint.delivery_review_status !== "approved")
+    );
+    if (gateBlocked) return match;
+
+    const nextSprint = sprints.slice(index + 1).find((candidate) => candidate.status !== "completed" && candidate.status !== "archived");
+    if (!nextSprint || nextSprint.status === "active") return match;
+
+    const nextSprintHasQueuedWork = tasks.some((task) => task.sprint_id === nextSprint.id && task.status === "todo");
+    if (!nextSprintHasQueuedWork) return match;
+
+    return {
+      activeSprintId: sprint.id,
+      activeSprintName: sprint.name || "Current phase",
+      nextSprintId: nextSprint.id,
+      nextSprintName: nextSprint.name || "Next phase",
+      reason: "phase_complete_not_advanced",
+      detail: `${sprint.name || "Current phase"} is effectively complete, but ${nextSprint.name || "the next phase"} is still ${nextSprint.status || "queued"} instead of advancing.`,
+    };
+  }, null);
   if ((acceptancePending || validationPending) && progressPct >= 100) {
     progressPct = 90;
   }
 
-  const execution = deriveExecutionState({
+  const execution = stuckWorkflowGuardrail
+    ? {
+        key: "stuck_progression",
+        label: "Needs phase handoff",
+        description: stuckWorkflowGuardrail.detail,
+      } as const
+    : deriveExecutionState({
     totalDeliveryTasks: deliveryTasks.length,
     doneDeliveryTasks,
     queuedDeliveryTasks,
@@ -237,6 +283,8 @@ export function deriveProjectTruth(input: {
           ? pendingDeliveryReview ? "Awaiting delivery review" : "Awaiting acceptance"
           : execution.key === "validation_pending"
             ? "Awaiting validation"
+            : execution.key === "stuck_progression"
+              ? "Needs phase handoff"
           : execution.key === "queued"
             ? doneBootstrapTasks > 0
               ? "Kickoff is complete"
@@ -261,6 +309,8 @@ export function deriveProjectTruth(input: {
           : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and a final acceptance checkpoint is waiting for decision.`
         : execution.key === "validation_pending"
           ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, but the final validation step has not started yet.`
+          : execution.key === "stuck_progression"
+            ? stuckWorkflowGuardrail?.detail || `${doneDeliveryTasks} of ${deliveryTasks.length} active work items are complete, but the next phase still has not advanced.`
         : doneBootstrapTasks > 0
           ? `Kickoff is complete. ${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
           : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
@@ -340,6 +390,9 @@ export function deriveProjectTruth(input: {
     execution,
     headline,
     summary,
+    guardrails: {
+      stuckWorkflow: stuckWorkflowGuardrail,
+    },
     taskBoard,
   };
 }

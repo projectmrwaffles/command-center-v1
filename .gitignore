@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local ops/runtime output
+.ops-logs/
+.ops-runtime/locks/
+
+# local audit and repro scratch files
+tmp-*
+*.traineddata

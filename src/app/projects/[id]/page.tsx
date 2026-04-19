@@ -34,7 +34,7 @@ import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-boot
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
-import { deriveMilestoneDisplayState, deriveProjectDetailHeaderState } from "@/lib/project-detail-state";
+import { deriveMilestoneDisplayState, deriveProjectDetailHeaderState, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
 import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
@@ -1354,6 +1354,8 @@ export default function ProjectDetailPage() {
     ? `${queuedPhaseHoldReasons.map((reason) => reason.taskTitle).join(" and ")} unlock after earlier phase work finishes.`
     : null;
   const stuckWorkflowGuardrail = truth?.guardrails?.stuckWorkflow ?? null;
+  const showAttachmentProcessingBanner = shouldShowAttachmentKickoffBanner(attachmentProcessingState);
+  const visibleAttachmentProcessingState = showAttachmentProcessingBanner ? attachmentProcessingState : null;
   const attachmentProcessingTone = attachmentProcessingState?.status === "failed"
     ? "border-red-200 bg-red-50 text-red-900"
     : attachmentProcessingState?.status === "retryable_failure"
@@ -1416,25 +1418,25 @@ export default function ProjectDetailPage() {
                 </div>
               ) : null}
               <div className="flex flex-col gap-3">
-                {attachmentProcessingState ? (
+                {visibleAttachmentProcessingState ? (
                   <div className={cn("rounded-2xl border px-3 py-3", attachmentProcessingTone)}>
                     <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
-                      <span>{attachmentProcessingState.label || "Attachment processing"}</span>
-                      {attachmentProcessingState.fileCount ? <span>· {attachmentProcessingState.fileCount} file{attachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
+                      <span>{visibleAttachmentProcessingState.label || "Attachment processing"}</span>
+                      {visibleAttachmentProcessingState.fileCount ? <span>· {visibleAttachmentProcessingState.fileCount} file{visibleAttachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
                     </div>
-                    <p className="mt-1 text-sm leading-6">{attachmentProcessingState.error || attachmentProcessingState.detail || "Attached materials are still being processed."}</p>
-                    {attachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(attachmentProcessingState.updatedAt)}</p> : null}
-                    {attachmentProcessingState.active && typeof attachmentProcessingState.progressPct === "number" ? (
+                    <p className="mt-1 text-sm leading-6">{visibleAttachmentProcessingState.error || visibleAttachmentProcessingState.detail || "Attached materials are still being processed."}</p>
+                    {visibleAttachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(visibleAttachmentProcessingState.updatedAt)}</p> : null}
+                    {visibleAttachmentProcessingState.active && typeof visibleAttachmentProcessingState.progressPct === "number" ? (
                       <div className="mt-3 space-y-1.5">
                         <div className="h-2 overflow-hidden rounded-full bg-white/70">
-                          <div className="h-full rounded-full bg-sky-500 transition-all duration-500" style={{ width: `${Math.max(8, attachmentProcessingState.progressPct)}%` }} />
+                          <div className="h-full rounded-full bg-sky-500 transition-all duration-500" style={{ width: `${Math.max(8, visibleAttachmentProcessingState.progressPct)}%` }} />
                         </div>
                         <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-current/70">Estimated progress</p>
                       </div>
                     ) : null}
                   </div>
                 ) : null}
-                {!attachmentProcessingState ? (
+                {!showAttachmentProcessingBanner ? (
                   <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
                     <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
                       {headerState.badgeText}</span>

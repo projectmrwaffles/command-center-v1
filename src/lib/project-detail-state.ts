@@ -11,6 +11,17 @@ type AttachmentKickoffState = {
   retryable?: boolean;
 };
 
+export function shouldShowAttachmentKickoffBanner(attachmentKickoffState?: AttachmentKickoffState | null) {
+  return Boolean(
+    attachmentKickoffState
+    && (
+      attachmentKickoffState.active
+      || attachmentKickoffState.status === "failed"
+      || attachmentKickoffState.status === "retryable_failure"
+    )
+  );
+}
+
 type TruthExecutionState = {
   key: string;
   label: string;
@@ -50,16 +61,17 @@ export function deriveProjectDetailHeaderState(input: {
   attachmentKickoffState?: AttachmentKickoffState | null;
 }) {
   const attachment = input.attachmentKickoffState;
+  const shouldShowAttachmentState = shouldShowAttachmentKickoffBanner(attachment);
   const hasAttachmentIssue = attachment?.status === "failed" || attachment?.status === "retryable_failure";
-  if (attachment?.active || hasAttachmentIssue) {
+  if (shouldShowAttachmentState) {
     const defaultProgress = hasAttachmentIssue ? 100 : 0;
-    const progressPct = Math.max(0, Math.min(100, attachment.progressPct ?? defaultProgress));
+    const progressPct = Math.max(0, Math.min(100, attachment?.progressPct ?? defaultProgress));
     return {
       key: hasAttachmentIssue ? "attachment_failed" : "attachment_processing",
       progressPct,
       badgeText: hasAttachmentIssue ? "Attachment issue" : "Attachment processing",
       headline: attachment?.status === "retryable_failure" ? "Attachment processing paused" : hasAttachmentIssue ? "Attachment processing failed" : "Kickoff setup in progress",
-      summary: attachment.error || attachment.detail || (hasAttachmentIssue
+      summary: attachment?.error || attachment?.detail || (hasAttachmentIssue
         ? attachment?.status === "retryable_failure"
           ? "Attachment intake can be retried from saved files before kickoff continues."
           : "Attachment intake hit an error and needs attention before kickoff can continue."

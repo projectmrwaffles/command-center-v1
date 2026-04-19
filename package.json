@@ -32,7 +32,8 @@
     "verify:github-provisioning-readiness": "node --experimental-strip-types scripts/verify-github-provisioning-readiness.mjs",
     "verify:framework-version-guard": "node scripts/verify-framework-version-guard.mjs",
     "verify:smoke": "node scripts/internal-ready-smoke.js",
-    "verify:home-empty-openclaw-root": "node --experimental-strip-types scripts/verify-home-empty-openclaw-root.mjs"
+    "verify:home-empty-openclaw-root": "node --experimental-strip-types scripts/verify-home-empty-openclaw-root.mjs",
+    "verify:project-detail-read-reconcile": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-project-detail-read-reconcile.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.98",

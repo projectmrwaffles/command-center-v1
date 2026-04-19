@@ -27,6 +27,7 @@ type TaskRow = {
   assignee_agent_id: string | null;
   position?: number | null;
   task_type?: string | null;
+  review_required?: boolean | null;
 };
 
 type ProjectRow = {
@@ -140,7 +141,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
         projectId: input.projectId,
         sprintId: currentSprint.id,
         sprintName: currentSprint.name,
-        tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, updated_at: null })),
+        tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, updated_at: null })),
       });
       if (submission?.id) {
         await db.from("agent_events").insert({
@@ -218,7 +219,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
           projectId: input.projectId,
           sprintId: currentSprint.id,
           sprintName: currentSprint.name,
-          tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, updated_at: null })),
+          tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, updated_at: null })),
         });
         if (submission?.id) {
           await db.from("agent_events").insert({

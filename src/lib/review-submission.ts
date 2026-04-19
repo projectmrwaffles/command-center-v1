@@ -9,6 +9,7 @@ type TaskLike = {
   title: string;
   status: string;
   task_type?: string | null;
+  review_required?: boolean | null;
   updated_at?: string | null;
 };
 
@@ -34,7 +35,8 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   if (projectError) throw projectError;
   if (!sprint) return null;
   const isBuildSprint = sprint.phase_key === 'build';
-  const requiresReview = Boolean(sprint.approval_gate_required || sprint.delivery_review_required || isBuildSprint);
+  const hasReviewRequiredTasks = input.tasks.some((task) => task.review_required === true);
+  const requiresReview = Boolean(sprint.approval_gate_required || sprint.delivery_review_required || isBuildSprint || hasReviewRequiredTasks);
   if (!requiresReview) return null;
   if (latestSubmission?.id) return latestSubmission;
 

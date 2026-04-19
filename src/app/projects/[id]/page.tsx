@@ -184,6 +184,16 @@ type ProjectDetail = {
       all: { total: number };
       jobs: { queued: number; running: number; blocked: number };
     };
+    guardrails?: {
+      stuckWorkflow?: {
+        activeSprintId: string;
+        activeSprintName: string;
+        nextSprintId: string;
+        nextSprintName: string;
+        reason: string;
+        detail: string;
+      } | null;
+    };
     taskBoard?: {
       queued: string[];
       inProgress: string[];
@@ -1343,6 +1353,7 @@ export default function ProjectDetailPage() {
   const queuedPhaseHoldSummary = queuedPhaseHoldReasons.length
     ? `${queuedPhaseHoldReasons.map((reason) => reason.taskTitle).join(" and ")} unlock after earlier phase work finishes.`
     : null;
+  const stuckWorkflowGuardrail = truth?.guardrails?.stuckWorkflow ?? null;
   const attachmentProcessingTone = attachmentProcessingState?.status === "failed"
     ? "border-red-200 bg-red-50 text-red-900"
     : attachmentProcessingState?.status === "retryable_failure"
@@ -1517,6 +1528,11 @@ export default function ProjectDetailPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <div className="space-y-4">
           <Section title="Task board" description="Keep work moving without opening every task.">
+            {stuckWorkflowGuardrail ? (
+              <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <span className="font-medium">Workflow guardrail:</span> {stuckWorkflowGuardrail.detail}
+              </div>
+            ) : null}
             {queuedPhaseHoldSummary ? (
               <div className="mb-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
                 <span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}

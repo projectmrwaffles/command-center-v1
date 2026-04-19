@@ -75,7 +75,6 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   const { data: submission, error: submissionError } = await db
     .from('milestone_submissions')
     .insert({
-      project_id: input.projectId,
       sprint_id: input.sprintId,
       checkpoint_type: checkpointType,
       evidence_requirements: generatedEvidenceRequirements,

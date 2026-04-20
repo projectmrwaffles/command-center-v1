@@ -5,8 +5,12 @@ import { isStaleExecutionTimestamp } from "@/components/ui/execution-visibility"
 export type TruthTaskLike = {
   id?: string | null;
   sprint_id?: string | null;
+  title?: string | null;
+  task_type?: string | null;
   status?: string | null;
   updated_at?: string | null;
+  review_required?: boolean | null;
+  review_status?: string | null;
   task_metadata?: Record<string, unknown> | null;
 };
 
@@ -68,6 +72,8 @@ export function deriveExecutionState(input: {
   staleRunning?: boolean;
   acceptancePending?: boolean;
   validationPending?: boolean;
+  validationRunning?: boolean;
+  revisionCycleActive?: boolean;
 }) {
   const queuedJobs = input.queuedJobs ?? 0;
   const runningJobs = input.runningJobs ?? 0;
@@ -81,19 +87,35 @@ export function deriveExecutionState(input: {
     } as const;
   }
 
+  if (input.revisionCycleActive) {
+    return {
+      key: "revision_cycle",
+      label: "Revision cycle active",
+      description: "A delivery review requested changes, and the next revision is now the active stage.",
+    } as const;
+  }
+
   if (input.acceptancePending) {
     return {
       key: "acceptance_pending",
       label: "Awaiting delivery review",
-      description: "Implementation is complete, and a post-build delivery review is waiting for decision.",
+      description: "Delivery review is active and waiting on a decision or feedback.",
+    } as const;
+  }
+
+  if (input.validationRunning) {
+    return {
+      key: "validation_running",
+      label: "QA in progress",
+      description: "Implementation is complete, and QA/QC is actively reviewing the build now.",
     } as const;
   }
 
   if (input.validationPending) {
     return {
       key: "validation_pending",
-      label: "Awaiting validation",
-      description: "Implementation is complete, but the final validation step has not started yet.",
+      label: "QA queued",
+      description: "Implementation is complete, but QA/QC is only queued and has not started yet.",
     } as const;
   }
 
@@ -162,7 +184,7 @@ export function deriveExecutionState(input: {
 
 export function deriveProjectTruth(input: {
   project?: { id: string; type?: string | null; intake?: any; links?: Record<string, string> | null; github_repo_binding?: any } | null;
-  tasks?: (TruthTaskLike & { title?: string | null; project_id?: string | null; assignee_agent_id?: string | null; owner_team_id?: string | null; review_required?: boolean | null; review_status?: string | null })[] | null;
+  tasks?: (TruthTaskLike & { project_id?: string | null; assignee_agent_id?: string | null; owner_team_id?: string | null })[] | null;
   sprints?: (TruthSprintLike & { name?: string | null; approval_gate_required?: boolean | null; approval_gate_status?: string | null; delivery_review_required?: boolean | null; delivery_review_status?: string | null })[] | null;
   jobs?: Array<{ id?: string | null; status?: string | null; updated_at?: string | null; owner_agent_id?: string | null; summary?: string | null }> | null;
   agents?: Array<{ id?: string | null; status?: string | null; current_job_id?: string | null }> | null;
@@ -207,18 +229,29 @@ export function deriveProjectTruth(input: {
     .filter((value): value is number => typeof value === "number")
     .sort((a, b) => b - a)[0] ?? null;
   const staleRunning = Boolean((runningDeliveryTasks > 0 || runningJobs > 0) && freshestRunningMs && isStaleExecutionTimestamp(new Date(freshestRunningMs).toISOString(), 1 * 60 * 1000));
-  const pendingFinalValidationTask = deliveryTasks.find((task) => {
-    const title = String((task as any).title || '').toLowerCase();
-    return (task.status === 'todo' || task.status === 'blocked') && /acceptance|qa|validate|review/.test(title);
-  });
-  const pendingDeliveryReview = sprints.some((sprint) => {
+  const isValidationTask = (task: TruthTaskLike) => {
+    const title = String(task.title || '').toLowerCase();
+    return task.task_type === "qa_validation" || /acceptance|qa|qc|validate|review/.test(title);
+  };
+  const pendingFinalValidationTask = deliveryTasks.find((task) => isValidationTask(task) && (task.status === 'todo' || task.status === 'blocked'));
+  const activeFinalValidationTask = deliveryTasks.find((task) => isValidationTask(task) && isRunningStatus(task.status));
+  const buildReviewSprints = sprints.filter((sprint) => {
     const isBuildSprint = sprint.phase_key === "build";
     const deliveryReviewRequired = sprint.delivery_review_required === true || isBuildSprint;
-    const deliveryReviewStatus = sprint.delivery_review_status ?? "not_requested";
-    return deliveryReviewRequired && deliveryReviewStatus !== "approved";
+    return deliveryReviewRequired;
   });
-  const acceptancePending = Boolean(pendingDeliveryReview || (pendingFinalValidationTask && (pendingFinalValidationTask as any).review_required));
-  const validationPending = Boolean(pendingFinalValidationTask && !(pendingFinalValidationTask as any).review_required && doneDeliveryTasks > 0 && runningDeliveryTasks === 0);
+  const pendingDeliveryReview = buildReviewSprints.some((sprint) => (sprint.delivery_review_status ?? "not_requested") === "pending");
+  const revisionCycleActive = buildReviewSprints.some((sprint) => (sprint.delivery_review_status ?? "not_requested") === "rejected");
+  const deliveryReviewNotStarted = buildReviewSprints.some((sprint) => (sprint.delivery_review_status ?? "not_requested") === "not_requested");
+  const acceptancePending = pendingDeliveryReview;
+  const validationRunning = Boolean(!pendingDeliveryReview && !revisionCycleActive && activeFinalValidationTask);
+  const validationPending = Boolean(
+    !pendingDeliveryReview
+    && !revisionCycleActive
+    && doneDeliveryTasks > 0
+    && runningDeliveryTasks === 0
+    && (pendingFinalValidationTask || deliveryReviewNotStarted)
+  );
   const stuckWorkflowGuardrail = sprints.reduce<StuckWorkflowGuardrail | null>((match, sprint, index) => {
     if (match || sprint.status !== "active") return match;
     const sprintTasks = tasks.filter((task) => task.sprint_id === sprint.id);
@@ -273,6 +306,8 @@ export function deriveProjectTruth(input: {
     staleRunning,
     acceptancePending,
     validationPending,
+    validationRunning,
+    revisionCycleActive,
   });
 
   const headline = deliveryTasks.length > 0
@@ -282,10 +317,14 @@ export function deriveProjectTruth(input: {
         ? "Work needs an update"
         : execution.key === "acceptance_pending"
           ? pendingDeliveryReview ? "Awaiting delivery review" : "Awaiting acceptance"
-          : execution.key === "validation_pending"
-            ? "Awaiting validation"
-            : execution.key === "stuck_progression"
-              ? "Needs phase handoff"
+          : execution.key === "revision_cycle"
+            ? "Revision cycle active"
+            : execution.key === "validation_pending"
+              ? "QA queued"
+              : execution.key === "validation_running"
+                ? "QA in progress"
+                : execution.key === "stuck_progression"
+                  ? "Needs phase handoff"
           : execution.key === "queued"
             ? doneBootstrapTasks > 0
               ? "Kickoff is complete"
@@ -306,12 +345,16 @@ export function deriveProjectTruth(input: {
       ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} marked in progress, but there has been no recent execution update.`
       : execution.key === "acceptance_pending"
         ? pendingDeliveryReview
-          ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Build output is ready, but delivery review still needs a decision or revisions.`
+          ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Delivery review is now active and waiting on a decision.`
           : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and a final acceptance checkpoint is waiting for decision.`
-        : execution.key === "validation_pending"
-          ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, but the final validation step has not started yet.`
-          : execution.key === "stuck_progression"
-            ? stuckWorkflowGuardrail?.detail || `${doneDeliveryTasks} of ${deliveryTasks.length} active work items are complete, but the next phase still has not advanced.`
+        : execution.key === "revision_cycle"
+          ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Delivery review requested changes, so the project is back in revision.`
+          : execution.key === "validation_pending"
+            ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, but QA/QC is still queued and has not started yet.`
+            : execution.key === "validation_running"
+              ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and QA/QC is actively reviewing the current build.`
+              : execution.key === "stuck_progression"
+                ? stuckWorkflowGuardrail?.detail || `${doneDeliveryTasks} of ${deliveryTasks.length} active work items are complete, but the next phase still has not advanced.`
         : doneBootstrapTasks > 0
           ? `Kickoff is complete. ${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`
           : `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} in progress, ${blockedDeliveryTasks} blocked.`

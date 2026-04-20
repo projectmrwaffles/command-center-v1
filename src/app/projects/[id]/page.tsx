@@ -261,22 +261,19 @@ function formatProofItemKind(kind?: string | null) {
   }
 }
 
-function formatMilestoneGateLabel(value?: string | null) {
-  if (!value || value === "not_requested") return "No checkpoint review";
-  if (value === "pending") return "Awaiting review";
-  if (value === "approved") return "Approved";
-  if (value === "rejected") return "Changes requested";
-  return value.replace(/_/g, " ");
-}
-
 function checkpointTone(value?: string | null) {
   switch (value) {
     case "approved":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "pending":
-      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "ready_for_review":
+      return "border-violet-200 bg-violet-50 text-violet-700";
     case "rejected":
+    case "changes_requested":
       return "border-red-200 bg-red-50 text-red-700";
+    case "awaiting_evidence":
+    case "setup_required":
+      return "border-amber-200 bg-amber-50 text-amber-700";
     default:
       return "border-zinc-200 bg-zinc-100 text-zinc-600";
   }
@@ -445,23 +442,34 @@ function MilestoneReviewCard({
 }) {
   const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
   const hasRevisionRequest = Boolean(milestone.reviewRequest);
+  const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
   const revisionCycleActive = hasRevisionRequest
     || milestone.deliveryReviewStatus === "rejected"
     || milestone.reviewSummary?.latestSubmissionStatus === "changes_requested"
     || milestone.reviewSummary?.latestDecision === "request_changes";
   const deliveryApproved = milestone.deliveryReviewStatus === "approved" || milestone.reviewSummary?.latestDecision === "approve";
+  const reviewReady = milestoneDisplayState.checkpointState.key === "ready_for_review";
+  const qaQueued = reviewTasksReady && !reviewReady && !revisionCycleActive && !deliveryApproved;
 
   const stateBadge = revisionCycleActive
     ? { label: "Revision cycle", className: "border-amber-200 bg-amber-50 text-amber-700" }
     : deliveryApproved
       ? { label: "Iteration shipped", className: "border-emerald-200 bg-emerald-50 text-emerald-700" }
-      : { label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
+      : reviewReady
+        ? { label: "Delivery review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
+        : qaQueued
+          ? { label: "QA queued", className: "border-zinc-200 bg-zinc-50 text-zinc-700" }
+          : { label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
 
   const summaryCopy = revisionCycleActive
     ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this milestone. Complete the revision, then resubmit when ready.")
     : deliveryApproved
       ? "The first shipped iteration is complete and QC-approved. Request another revision only if new changes are actually needed."
-      : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
+      : reviewReady
+        ? "Delivery review is active on the submitted proof bundle. Wait for approval or requested changes before moving on."
+        : qaQueued
+          ? "Implementation is complete, but QA/QC has not started reviewing yet. Delivery review should not appear active until a review packet is submitted."
+          : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -1238,7 +1246,8 @@ export default function ProjectDetailPage() {
                           });
                           const taskProgress = taskProgressValue(task);
                           const taskMilestone = task.sprint_id ? milestones.find((milestone) => milestone.id === task.sprint_id) : null;
-                          const checkpointState = taskMilestone?.approvalGateRequired || taskMilestone?.reviewSummary?.latestSubmissionId ? taskMilestone : null;
+                          const checkpointState = taskMilestone?.approvalGateRequired || taskMilestone?.deliveryReviewRequired || taskMilestone?.reviewSummary?.latestSubmissionId ? taskMilestone : null;
+                          const checkpointDisplayState = checkpointState ? deriveMilestoneDisplayState(checkpointState) : null;
                           const showTaskReviewBadge = Boolean(
                             task.review_required
                             && task.status !== "in_progress"
@@ -1250,10 +1259,10 @@ export default function ProjectDetailPage() {
                           );
                           const showCheckpointBadge = Boolean(
                             checkpointState
+                            && checkpointDisplayState
                             && task.status !== "in_progress"
                             && !(task.review_required && task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved")
-                            && (checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus)
-                            && (checkpointState.deliveryReviewStatus || checkpointState.approvalGateStatus) !== "not_requested"
+                            && checkpointDisplayState.checkpointState.key !== "awaiting_submission"
                           );
                           return (
                             <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
@@ -1268,7 +1277,7 @@ export default function ProjectDetailPage() {
                                     <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                     {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                     {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointState?.deliveryReviewStatus || checkpointState?.approvalGateStatus))}>{taskMilestone?.name}: {formatMilestoneGateLabel(checkpointState?.deliveryReviewStatus || checkpointState?.approvalGateStatus)}</span> : null}
+                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointDisplayState?.checkpointState.key))}>{taskMilestone?.name}: {checkpointDisplayState?.checkpointState.label}</span> : null}
                                   </div>
                                   {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                     <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">

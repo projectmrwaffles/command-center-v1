@@ -50,7 +50,31 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     const latestCheckpointType = latestSubmission as { checkpoint_type?: string | null; status?: string | null };
     const submissionStillSatisfiesCurrentGate = latestCheckpointType.checkpoint_type === checkpointType
       && !(checkpointType === 'delivery_review' && latestCheckpointType.status === 'approved');
-    if (submissionStillSatisfiesCurrentGate) return latestSubmission;
+    if (submissionStillSatisfiesCurrentGate) {
+      if (checkpointType !== 'delivery_review') return latestSubmission;
+
+      const { data: existingBundle, error: existingBundleError } = await db
+        .from('proof_bundles')
+        .select('id, completeness_status')
+        .eq('submission_id', latestSubmission.id)
+        .maybeSingle();
+      if (existingBundleError) throw existingBundleError;
+
+      if (!existingBundle?.id) return latestSubmission;
+
+      const { data: existingProofItems, error: existingProofItemsError } = await db
+        .from('proof_items')
+        .select('kind')
+        .eq('proof_bundle_id', existingBundle.id);
+      if (existingProofItemsError) throw existingProofItemsError;
+
+      const existingValidation = validateProofBundleRequirements({
+        checkpointType,
+        evidenceRequirements: sprint.checkpoint_evidence_requirements,
+        items: existingProofItems || [],
+      });
+      if (existingValidation.ok) return latestSubmission;
+    }
   }
 
   const nextRevision = (latestSubmission?.revision_number || 0) + 1;

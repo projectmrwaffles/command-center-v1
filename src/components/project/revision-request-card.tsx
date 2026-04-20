@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -29,12 +30,41 @@ export function RevisionRequestCard({
   const [message, setMessage] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const attachmentOptions = useMemo(() => documents.slice().sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)), [documents]);
 
   const toggle = (id: string) => {
     setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  };
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setStatus(null);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => formData.append("files", file));
+      const res = await fetch(`/api/projects/${projectId}/documents/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || "Failed to upload files");
+      const uploadedIds = Array.isArray(payload.documents) ? payload.documents.map((doc: any) => doc.id).filter(Boolean) : [];
+      if (uploadedIds.length > 0) {
+        setSelectedIds((current) => Array.from(new Set([...current, ...uploadedIds])));
+      }
+      setStatus("Files uploaded");
+      onSubmitted?.();
+    } catch (error: any) {
+      setStatus(error?.message || "Failed to upload files");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const submit = async () => {
@@ -64,7 +94,7 @@ export function RevisionRequestCard({
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Revision request</div>
         <h3 className="mt-1 text-base font-semibold text-zinc-950">Request changes for {sprintName}</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">Review the delivered work directly, then submit revision instructions here. You can attach uploaded files to give visual or written guidance.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-600">Review the delivered work directly, then submit revision instructions here. You can upload files here or attach existing project documents.</p>
       </div>
 
       <div className="mt-4">
@@ -78,8 +108,30 @@ export function RevisionRequestCard({
         />
       </div>
 
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-medium text-zinc-700">Upload supporting files</div>
+            <p className="mt-1 text-xs text-zinc-500">Add screenshots, PDFs, or notes directly from this revision request.</p>
+          </div>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => void uploadFiles(e.target.files)}
+            />
+            <Button type="button" variant="outline" className="rounded-xl" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+              <Upload className="h-4 w-4" />
+              {uploading ? "Uploading..." : "Upload files"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-4">
-        <div className="text-sm font-medium text-zinc-700">Attach supporting files</div>
+        <div className="text-sm font-medium text-zinc-700">Attach existing project files</div>
         {attachmentOptions.length > 0 ? (
           <div className="mt-2 space-y-2">
             {attachmentOptions.map((doc) => {
@@ -96,12 +148,12 @@ export function RevisionRequestCard({
             })}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-zinc-500">No uploaded project documents yet. Upload files in Documents first, then attach them here.</p>
+          <p className="mt-2 text-sm text-zinc-500">No project documents uploaded yet.</p>
         )}
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
-        {status ? <p className={cn("text-xs", status === "Revision request submitted" ? "text-emerald-600" : "text-zinc-500")}>{status}</p> : <span />}
+        {status ? <p className={cn("text-xs", status === "Revision request submitted" || status === "Files uploaded" ? "text-emerald-600" : "text-zinc-500")}>{status}</p> : <span />}
         <Button onClick={submit} disabled={saving || !message.trim()} variant="warm" className="rounded-xl px-4">
           {saving ? "Submitting..." : "Submit revision request"}
         </Button>

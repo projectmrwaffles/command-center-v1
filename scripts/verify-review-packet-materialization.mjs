@@ -401,6 +401,65 @@ function createSeed({ projectId, projectName, projectType, projectLinks = {}, sp
 }
 
 {
+  const db = new MockDb(createSeed({
+    projectId: "project-workspace-screenshot-proof",
+    projectName: "Workspace screenshot proof repro",
+    projectType: "product_build",
+    sprint: {
+      id: "sprint-workspace-screenshot-proof",
+      project_id: "project-workspace-screenshot-proof",
+      name: "Phase 2 · Build",
+      status: "active",
+      phase_key: "build",
+      phase_order: 2,
+      approval_gate_required: true,
+      approval_gate_status: "approved",
+      delivery_review_required: true,
+      delivery_review_status: "not_requested",
+      checkpoint_type: "delivery_review",
+      checkpoint_evidence_requirements: {
+        screenshotRequired: true,
+        minScreenshotCount: 1,
+        requiredEvidenceKinds: ["screenshot", "staging_url", "github_pr", "commit", "loom"],
+        requiredEvidenceKindsMode: "any",
+      },
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    tasks: [{
+      id: "task-workspace-screenshot-proof",
+      project_id: "project-workspace-screenshot-proof",
+      sprint_id: "sprint-workspace-screenshot-proof",
+      title: "Ship implementation slice",
+      status: "done",
+      review_required: true,
+      review_status: "not_requested",
+      task_type: "build_implementation",
+      updated_at: "2026-04-10T22:15:00.000Z",
+      position: 1,
+    }],
+  }));
+  db.tables.agent_events.push({
+    id: 'event-workspace-screenshot-proof',
+    event_type: 'task_completed',
+    payload: {
+      task_id: 'task-workspace-screenshot-proof',
+      title: 'Ship implementation slice',
+      raw_result: 'Saved screenshot to `/tmp/content-planner-proof.png` and pushed commit `abcdef1234567890`',
+      message: 'Saved screenshot to `/tmp/content-planner-proof.png`',
+    },
+  });
+
+  const result = await maybeAdvanceProjectAfterTaskDone(db, { projectId: "project-workspace-screenshot-proof", completedTaskId: "task-workspace-screenshot-proof" });
+
+  assert.equal(result.reason, "review_submission_created");
+  assert.equal(db.tables.milestone_submissions.length, 1);
+  assert.equal(db.tables.proof_bundles.length, 1);
+  assert.equal(db.tables.proof_items.some((item) => item.kind === 'screenshot'), true, 'png workspace artifacts should count as screenshot proof for delivery review');
+
+  console.log("PASS workspace screenshot artifacts materialize as screenshot proof items for delivery review");
+}
+
+{
   const { fetchPendingTasks } = await import("../scripts/agent-listener.js");
   const tables = createSeed({
     projectId: "project-pending-filter",

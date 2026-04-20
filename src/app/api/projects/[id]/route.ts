@@ -249,10 +249,6 @@ export async function GET(
     });
 
     await repairKickoffSignoffTasks(db as any, { projectId });
-    await reconcileProjectPhaseProgression(db as any, {
-      projectId,
-      projectName: effectiveProject.name || null,
-    });
 
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
     const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }, { data: completionEvents }] = await Promise.all([

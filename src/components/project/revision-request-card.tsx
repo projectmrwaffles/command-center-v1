@@ -20,12 +20,16 @@ export function RevisionRequestCard({
   sprintName,
   documents,
   onSubmitted,
+  hasActiveRevisionCycle = false,
+  shippedApproved = false,
 }: {
   projectId: string;
   sprintId: string;
   sprintName: string;
   documents: ProjectDocument[];
   onSubmitted?: () => void;
+  hasActiveRevisionCycle?: boolean;
+  shippedApproved?: boolean;
 }) {
   const [message, setMessage] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -35,6 +39,13 @@ export function RevisionRequestCard({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const attachmentOptions = useMemo(() => documents.slice().sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)), [documents]);
+  const headingEyebrow = hasActiveRevisionCycle ? "Revision cycle" : shippedApproved ? "Optional revision" : "Revision request";
+  const headingTitle = hasActiveRevisionCycle ? `Update revision request for ${sprintName}` : shippedApproved ? `Request another revision for ${sprintName}` : `Request changes for ${sprintName}`;
+  const helperCopy = hasActiveRevisionCycle
+    ? "A revision is already in play for this milestone. Add any extra instructions or supporting files here."
+    : shippedApproved
+      ? "This milestone is already shipped and QC-complete. Only open a new revision if you want another round of changes."
+      : "Review the delivered work directly, then submit revision instructions only if changes are needed.";
 
   const toggle = (id: string) => {
     setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
@@ -92,9 +103,9 @@ export function RevisionRequestCard({
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Revision request</div>
-        <h3 className="mt-1 text-base font-semibold text-zinc-950">Request changes for {sprintName}</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">Review the delivered work directly, then submit revision instructions here. You can upload files here or attach existing project documents.</p>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{headingEyebrow}</div>
+        <h3 className="mt-1 text-base font-semibold text-zinc-950">{headingTitle}</h3>
+        <p className="mt-2 text-sm leading-6 text-zinc-600">{helperCopy} You can upload files here or attach existing project documents.</p>
       </div>
 
       <div className="mt-4">
@@ -103,7 +114,7 @@ export function RevisionRequestCard({
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={5}
-          placeholder="Describe what needs to change..."
+          placeholder={hasActiveRevisionCycle ? "Add more detail for the active revision cycle..." : "Describe what needs to change..."}
           className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
         />
       </div>
@@ -154,8 +165,8 @@ export function RevisionRequestCard({
 
       <div className="mt-4 flex items-center justify-between gap-3">
         {status ? <p className={cn("text-xs", status === "Revision request submitted" || status === "Files uploaded" ? "text-emerald-600" : "text-zinc-500")}>{status}</p> : <span />}
-        <Button onClick={submit} disabled={saving || !message.trim()} variant="warm" className="rounded-xl px-4">
-          {saving ? "Submitting..." : "Submit revision request"}
+        <Button onClick={submit} disabled={saving || !message.trim()} variant={hasActiveRevisionCycle ? "warm" : "outline"} className="rounded-xl px-4">
+          {saving ? "Submitting..." : hasActiveRevisionCycle ? "Update revision request" : shippedApproved ? "Start revision cycle" : "Submit revision request"}
         </Button>
       </div>
     </div>

@@ -444,6 +444,24 @@ function MilestoneReviewCard({
   onSaved: () => void;
 }) {
   const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
+  const hasRevisionRequest = Boolean(milestone.reviewRequest);
+  const revisionCycleActive = hasRevisionRequest
+    || milestone.deliveryReviewStatus === "rejected"
+    || milestone.reviewSummary?.latestSubmissionStatus === "changes_requested"
+    || milestone.reviewSummary?.latestDecision === "request_changes";
+  const deliveryApproved = milestone.deliveryReviewStatus === "approved" || milestone.reviewSummary?.latestDecision === "approve";
+
+  const stateBadge = revisionCycleActive
+    ? { label: "Revision cycle", className: "border-amber-200 bg-amber-50 text-amber-700" }
+    : deliveryApproved
+      ? { label: "Iteration shipped", className: "border-emerald-200 bg-emerald-50 text-emerald-700" }
+      : { label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
+
+  const summaryCopy = revisionCycleActive
+    ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this milestone. Complete the revision, then resubmit when ready.")
+    : deliveryApproved
+      ? "The first shipped iteration is complete and QC-approved. Request another revision only if new changes are actually needed."
+      : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -452,9 +470,11 @@ function MilestoneReviewCard({
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
             <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
-            <span className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-amber-700">Self-review</span>
+            <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", stateBadge.className)}>{stateBadge.label}</span>
+            {hasRevisionRequest ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-red-700">Revision requested</span> : null}
           </div>
           {milestone.goal ? <p className="mt-2 text-sm leading-6 text-zinc-600">{milestone.goal}</p> : null}
+          <p className="mt-2 text-sm leading-6 text-zinc-600">{summaryCopy}</p>
         </div>
         <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
       </div>
@@ -467,11 +487,13 @@ function MilestoneReviewCard({
             sprintName={milestone.name}
             documents={documents}
             onSubmitted={onSaved}
+            hasActiveRevisionCycle={revisionCycleActive}
+            shippedApproved={deliveryApproved}
           />
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-          Finish milestone tasks, then review the deliverable yourself and submit any revision requests here.
+          Finish milestone tasks, then review the deliverable yourself. A revision request only matters if changes are actually needed.
         </div>
       )}
     </div>
@@ -1312,8 +1334,8 @@ export default function ProjectDetailPage() {
               blockerOnlyMilestones.length === 0 ? (
                 <EmptySectionState
                   icon={<ShieldCheck className="h-7 w-7" />}
-                  title="No revision flows yet"
-                  description="Revision requests will appear here once milestones have delivered work that can be self-reviewed."
+                  title="No review checkpoints yet"
+                  description="Review-ready milestones will appear here. Revisions stay optional unless a change request exists."
                 />
               ) : null
             ) : (

@@ -89,9 +89,19 @@ async function listStoragePathsRecursively(db: NonNullable<ReturnType<typeof cre
   return paths;
 }
 
+function isPrivateLoopbackUrl(value?: string | null) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '::1';
+  } catch {
+    return false;
+  }
+}
+
 async function ensureReviewScreenshot(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, input: { projectId: string; sprintId: string; previewUrl?: string | null; proofBundleId: string; existingProofItems: any[] }) {
   const previewUrl = input.previewUrl?.trim();
-  if (!previewUrl) return null;
+  if (!previewUrl || isPrivateLoopbackUrl(previewUrl)) return null;
   if (input.existingProofItems.some((item) => item.kind === "screenshot" && (item.url || item.storage_path))) return null;
 
   try {

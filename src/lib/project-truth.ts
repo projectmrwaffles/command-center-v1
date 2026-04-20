@@ -48,7 +48,8 @@ function isBlockedStatus(status?: string | null) {
 }
 
 function isQueuedTaskBlocker(blocker: ReturnType<typeof getTaskExecutionBlocker>) {
-  return blocker?.key === "waiting_for_kickoff_completion";
+  return blocker?.key === "waiting_for_kickoff_completion"
+    || blocker?.key === "waiting_for_worker_capacity";
 }
 
 export function deriveExecutionState(input: {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { maybeAdvanceProjectAfterTaskDone, reconcileProjectPhaseProgression } from "../src/lib/project-handoff.ts";
+import { buildProjectTruth } from "../src/lib/project-truth.ts";
 
 class Query {
   constructor(db, table) {
@@ -226,4 +227,61 @@ function createSeed({ projectId, projectName, projectType, projectLinks = {}, sp
   assert.equal(db.tables.sprints[0].approval_gate_status, "pending");
 
   console.log("PASS reconcile path also creates a review submission for task-level kickoff review gates");
+}
+
+{
+  const tables = createSeed({
+    projectId: "project-capacity",
+    projectName: "Worker capacity repro",
+    projectType: "product_build",
+    sprint: {
+      id: "sprint-capacity",
+      project_id: "project-capacity",
+      name: "Phase 2 · Validate",
+      status: "active",
+      phase_key: "validate",
+      phase_order: 2,
+      approval_gate_required: false,
+      approval_gate_status: "not_requested",
+      checkpoint_type: "acceptance_review",
+      checkpoint_evidence_requirements: null,
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    tasks: [{
+      id: "task-queued-capacity",
+      project_id: "project-capacity",
+      sprint_id: "sprint-capacity",
+      title: "Acceptance Review For Worker capacity repro",
+      status: "todo",
+      review_required: true,
+      review_status: "pending",
+      task_type: "qa_validation",
+      assignee_agent_id: "qa-agent",
+      updated_at: "2026-04-10T22:20:00.000Z",
+      position: 1,
+    }],
+  });
+  tables.agents = [{ id: "qa-agent", status: "active", current_job_id: "job-other" }];
+  tables.jobs = [{
+    id: "job-other",
+    owner_agent_id: "qa-agent",
+    project_id: "project-capacity",
+    status: "in_progress",
+    summary: "task:some-other-task",
+    updated_at: "2026-04-10T22:21:00.000Z",
+  }];
+  const db = new MockDb(tables);
+
+  const truth = buildProjectTruth({
+    project: tables.projects[0],
+    sprints: tables.sprints,
+    tasks: tables.sprint_items,
+    jobs: tables.jobs,
+    agents: tables.agents,
+  });
+
+  assert.deepEqual(truth.taskBoard.queued, ["task-queued-capacity"], "capacity-blocked todo tasks should stay in queued lane");
+  assert.deepEqual(truth.taskBoard.stalled, [], "capacity-blocked todo tasks should not render as stalled");
+
+  console.log("PASS worker-capacity queued tasks stay in queued lane instead of stalled");
 }

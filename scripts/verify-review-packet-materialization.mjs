@@ -346,6 +346,61 @@ function createSeed({ projectId, projectName, projectType, projectLinks = {}, sp
 }
 
 {
+  const db = new MockDb(createSeed({
+    projectId: "project-existing-delivery-review-bundle-gap",
+    projectName: "Existing delivery review gap repro",
+    projectType: "product_build",
+    sprint: {
+      id: "sprint-existing-delivery-review-gap",
+      project_id: "project-existing-delivery-review-bundle-gap",
+      name: "Phase 2 · Build",
+      status: "active",
+      phase_key: "build",
+      phase_order: 2,
+      approval_gate_required: true,
+      approval_gate_status: "approved",
+      delivery_review_required: true,
+      delivery_review_status: "not_requested",
+      checkpoint_type: "delivery_review",
+      checkpoint_evidence_requirements: {
+        screenshotRequired: true,
+        minScreenshotCount: 1,
+        requiredEvidenceKinds: ["screenshot", "staging_url", "github_pr", "commit", "loom"],
+        requiredEvidenceKindsMode: "any",
+      },
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    tasks: [{
+      id: "task-existing-delivery-review-gap",
+      project_id: "project-existing-delivery-review-bundle-gap",
+      sprint_id: "sprint-existing-delivery-review-gap",
+      title: "Ship implementation slice",
+      status: "done",
+      review_required: true,
+      review_status: "not_requested",
+      task_type: "build_implementation",
+      updated_at: "2026-04-10T22:15:00.000Z",
+      position: 1,
+    }],
+  }));
+  db.tables.milestone_submissions.push({
+    id: "submission-existing-delivery-review-gap",
+    sprint_id: "sprint-existing-delivery-review-gap",
+    status: "submitted",
+    revision_number: 1,
+    checkpoint_type: "delivery_review",
+  });
+
+  const result = await maybeAdvanceProjectAfterTaskDone(db, { projectId: "project-existing-delivery-review-bundle-gap", completedTaskId: "task-existing-delivery-review-gap" });
+
+  assert.equal(result.reason, "review_submission_created");
+  assert.equal(db.tables.milestone_submissions.length, 2, "delivery review should regenerate when the existing submission has no usable proof bundle");
+  assert.equal(db.tables.milestone_submissions[1]?.checkpoint_type, "delivery_review");
+
+  console.log("PASS incomplete existing delivery review submissions do not block regenerated review packets");
+}
+
+{
   const { fetchPendingTasks } = await import("../scripts/agent-listener.js");
   const tables = createSeed({
     projectId: "project-pending-filter",

@@ -1332,6 +1332,100 @@ export default function ProjectDetailPage() {
               </div>
             )}
           </Section>
+
+          <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
+            <div className="space-y-4">
+              {project.links && Object.keys(project.links).length > 0 ? (
+                <div className="space-y-2">
+                  {getProjectLinkEntries(project.links).map((link) => (
+                    <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 transition hover:border-red-200">
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
+                        <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
+                        Open
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <EmptySectionState icon={<ArrowUpRight className="h-7 w-7" />} title="No links or artifacts yet" description={artifactEmptyState(project.type, intake)} />
+              )}
+            </div>
+          </Section>
+
+          {(documents.length > 0 || attachmentRequirementSources.length > 0 || createdFromIntake) ? (
+            <Section title="Supporting docs & uploads" description="Uploaded references, files, and extracted notes tied to this project.">
+              <div className="space-y-3">
+                {attachmentRequirementSources.length > 0 ? (
+                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">PDF extraction notes</span>
+                      <span className="text-xs text-emerald-800/80">{attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} parsed into intake requirements</span>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {attachmentRequirementSources.map((source: any) => (
+                        <div key={`${source.title}-${source.type}`} className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 shadow-sm">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase text-emerald-700">{String(source.type || "document").replace(/_/g, " ")}</span>
+                            <p className="text-sm font-medium text-zinc-900">{source.title}</p>
+                          </div>
+                          <ul className="mt-2 space-y-1 text-sm leading-6 text-zinc-700">
+                            {(source.evidence || []).slice(0, 4).map((item: string) => (
+                              <li key={item} className="flex gap-2">
+                                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : createdFromIntake ? (
+                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Attached files are being processed into project requirements now. This page will keep refreshing while extraction and kickoff are running.</div>
+                ) : null}
+
+                {documents.map((doc) => (
+                  <div key={doc.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
+                          <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-zinc-500">{doc.mime_type ? `${doc.mime_type} • ` : ""}Added {new Date(doc.created_at).toLocaleDateString()}</p>
+                        {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          ) : null}
+
+          {Array.isArray(data?.teams) && data.teams.length > 0 ? (
+            <Section title="Teams" description="Who is attached to the work and how the load is shaping up.">
+              <div className="space-y-2">
+                {data.teams.map((team: any) => (
+                  <div key={team.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-zinc-900">{team.name}</p>
+                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-700">{team.status === "on_track" ? "On track" : team.status === "waiting" ? "Waiting" : formatIntakeValue(team.status)}</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500">
+                      <span>{team.memberCount} members</span>
+                      <span>{team.activeAgents} active now</span>
+                      <span>{team.taskCount} owned tasks</span>
+                      <span>{team.completedTasks || 0} completed</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          ) : null}
         </div>
       </div>
 

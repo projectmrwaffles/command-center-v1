@@ -173,10 +173,6 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     items: proofItemsPayload,
   });
 
-  if (checkpointType === 'delivery_review' && !proofValidation.ok) {
-    throw new Error(proofValidation.message || 'Delivery review evidence is incomplete');
-  }
-
   const { data: bundle, error: bundleError } = await db
     .from('proof_bundles')
     .insert({

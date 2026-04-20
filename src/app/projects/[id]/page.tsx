@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { RevisionRequestCard } from "@/components/project/revision-request-card";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -434,50 +435,15 @@ function Section({ title, description, children, className, action }: { title: s
 function MilestoneReviewCard({
   projectId,
   milestone,
-  projectLinks,
-  reviewTasks,
+  documents,
   onSaved,
 }: {
   projectId: string;
   milestone: Milestone;
-  projectLinks?: ProjectLinks | null;
-  reviewTasks: Array<{ id: string; title: string; status: string; review_status?: string | null }>;
-  onSaved: (payload: { links: ProjectLinks | null }) => void;
+  documents: ProjectDocument[];
+  onSaved: () => void;
 }) {
-  const [draftLinks, setDraftLinks] = useState<ProjectLinks>(projectLinks || milestone.reviewRequest?.links || {});
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
-  const missingReviewRequestRecord = milestone.approvalGateRequired && milestone.approvalGateStatus === "pending" && !milestone.reviewRequest;
-  const canRequestReview = Boolean(milestone.approvalGateRequired && !milestone.reviewRequest && reviewTasksReady);
-  const reviewLinks = getProjectLinkEntries(milestone.reviewRequest?.links || projectLinks || null);
-  const reviewArtifacts = milestone.reviewArtifacts || [];
-  const hasDerivedArtifacts = reviewArtifacts.length > 0;
-
-  useEffect(() => {
-    setDraftLinks(projectLinks || milestone.reviewRequest?.links || {});
-  }, [projectLinks, milestone.reviewRequest?.links]);
-
-  const requestReview = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/review-requests`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sprintId: milestone.id, note, links: draftLinks }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || "Failed to request review");
-      onSaved({ links: payload.links || null });
-      setMessage("Review requested");
-    } catch (e: any) {
-      setMessage(e.message || "Failed to request review");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -486,128 +452,28 @@ function MilestoneReviewCard({
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
             <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
-            {milestone.approvalGateRequired ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-purple-700">Review gate</span> : null}
+            <span className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-amber-700">Self-review</span>
           </div>
           {milestone.goal ? <p className="mt-2 text-sm leading-6 text-zinc-600">{milestone.goal}</p> : null}
         </div>
         <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
       </div>
 
-      {reviewTasks.length > 0 ? (
-        <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-purple-700">
-            {missingReviewRequestRecord ? "Review handoff needs attention" : milestone.reviewRequest ? "Awaiting review on" : "What will be reviewed"}
-          </div>
-          <p className="mt-1 text-sm text-purple-950">
-            {reviewTasks.length} deliverable{reviewTasks.length === 1 ? " is" : "s are"} awaiting review for this milestone.
-            {missingReviewRequestRecord ? " The milestone is marked pending review, but there is no live review request record yet." : ""}
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-purple-900">
-            {reviewTasks.map((task) => (
-              <li key={task.id} className="flex items-start gap-2">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
-                <span>
-                  {task.title}
-                  <span className="ml-2 text-xs text-purple-700">({formatReviewStatus(task.review_status)})</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-xs leading-5 text-purple-800">
-            {milestone.reviewRequest
-              ? "Use Open approvals to review this milestone and record the decision."
-              : hasDerivedArtifacts
-                ? "The review handoff already found concrete deliverables from completed task output. Add links only if you want extra external context."
-                : "Add the key artifact links below, then request review to create the approvals handoff for this milestone."}
-          </p>
+      {reviewTasksReady ? (
+        <div className="mt-4">
+          <RevisionRequestCard
+            projectId={projectId}
+            sprintId={milestone.id}
+            sprintName={milestone.name}
+            documents={documents}
+            onSubmitted={onSaved}
+          />
         </div>
-      ) : null}
-
-      {milestone.reviewRequest ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Review request live</div>
-              <p className="mt-1 text-sm font-medium text-amber-950">{milestone.reviewRequest.summary || "Approval requested"}</p>
-            </div>
-            <Link href={`/approvals?approval=${milestone.reviewRequest.id}#approval-${milestone.reviewRequest.id}`} className="text-sm font-medium text-red-700 hover:text-red-800">Open linked approval →</Link>
-          </div>
-          {reviewLinks.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {reviewLinks.map((link) => (
-                <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-medium text-amber-800">
-                  {link.label}
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                </a>
-              ))}
-            </div>
-          ) : null}
-          {reviewArtifacts.length > 0 ? (
-            <div className="mt-3 space-y-2">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Attached review artifacts</div>
-              <div className="space-y-2">
-                {reviewArtifacts.map((artifact) => (
-                  <div key={`${artifact.kind}-${artifact.value}`} className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-900">
-                    <div className="font-medium">{artifact.label}</div>
-                    <div className="mt-1 break-all text-amber-800">{artifact.value}</div>
-                    {artifact.sourceTaskTitle ? <div className="mt-1 text-[11px] text-amber-700">From {artifact.sourceTaskTitle}</div> : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : canRequestReview ? (
-        <details className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4" open>
-          <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Request review</summary>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">{hasDerivedArtifacts ? "We already found reviewable deliverables from the completed task output and will attach them to the approval handoff automatically. Add links below only if you want extra external context. " : "Capture artifact links for this milestone review. Saved links also populate the project Links & artifacts section. "}Code-heavy phases require a real GitHub repo link before review can start.{missingReviewRequestRecord ? " This will repair the stuck pending-review state and create the actual approvals record." : ""}</p>
-          {hasDerivedArtifacts ? (
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-700">Auto-attached review target</div>
-              <div className="mt-2 space-y-2">
-                {reviewArtifacts.map((artifact) => (
-                  <div key={`${artifact.kind}-${artifact.value}`} className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-950">
-                    <div className="font-medium">{artifact.label}</div>
-                    <div className="mt-1 break-all text-xs text-emerald-800">{artifact.value}</div>
-                    {artifact.sourceTaskTitle ? <div className="mt-1 text-[11px] text-emerald-700">From {artifact.sourceTaskTitle}</div> : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {PROJECT_LINK_FIELDS.map((key) => (
-              <label key={key} className="block">
-                <span className="mb-1.5 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-                <input
-                  type="url"
-                  value={draftLinks[key] || ""}
-                  onChange={(e) => setDraftLinks((current) => {
-                    const next = { ...current };
-                    if (e.target.value.trim()) next[key] = e.target.value;
-                    else delete next[key];
-                    return next;
-                  })}
-                  className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
-                  placeholder={`https://${key === "github" ? "github.com/org/repo" : "example.com"}`}
-                />
-              </label>
-            ))}
-          </div>
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-zinc-700">Review note</label>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="What's ready for review?" className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
-          </div>
-          <div className="mt-4 flex items-center justify-between gap-3">
-            {message ? <p className={cn("text-xs", message === "Review requested" ? "text-emerald-600" : "text-zinc-500")}>{message}</p> : <span />}
-            <Button onClick={requestReview} disabled={saving} variant="warm" className="rounded-xl px-4">{saving ? "Requesting..." : "Request review"}</Button>
-          </div>
-        </details>
-      ) : milestone.approvalGateRequired ? (
+      ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-          Finish milestone tasks to unlock a real review request for this phase.
+          Finish milestone tasks, then review the deliverable yourself and submit any revision requests here.
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -626,114 +492,6 @@ function CreatedFromIntakeBanner() {
         </div>
       </div>
     </div>
-  );
-}
-
-function LinkEditor({
-  projectId,
-  projectType,
-  intake,
-  links,
-  githubBinding,
-  onSaved,
-}: {
-  projectId: string;
-  projectType?: string | null;
-  intake?: any;
-  links?: ProjectLinks | null;
-  githubBinding?: GitHubRepoBinding | null;
-  onSaved: (payload: { links: ProjectLinks | null; githubBinding: GitHubRepoBinding | null }) => void;
-}) {
-  const [draft, setDraft] = useState<ProjectLinks>(links || {});
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const suggestedFields = useMemo(() => getProjectLinkSuggestions(projectType, intake), [projectType, intake]);
-  const parsedGithubRepo = useMemo(() => parseGitHubRepoUrl(draft.github), [draft.github]);
-
-  useEffect(() => {
-    setDraft(links || {});
-  }, [links]);
-
-  const orderedFields = useMemo(() => {
-    const used = PROJECT_LINK_FIELDS.filter((key) => Boolean(draft[key]));
-    const suggestedUnused = suggestedFields.filter((key) => !used.includes(key));
-    const remaining = PROJECT_LINK_FIELDS.filter((key) => !used.includes(key) && !suggestedUnused.includes(key));
-    return [...used, ...suggestedUnused, ...remaining];
-  }, [draft, suggestedFields]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ links: draft, githubRepo: draft.github ? { url: draft.github } : null }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || "Failed to save links");
-      onSaved({ links: payload.project?.links || null, githubBinding: payload.project?.github_repo_binding || null });
-      setMessage("Saved");
-    } catch (e: any) {
-      setMessage(e.message || "Failed to save links");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <details className="group rounded-2xl border border-zinc-200 bg-zinc-50" open={Boolean(Object.keys(draft || {}).length === 0)}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-900">
-        <span>Edit project links</span>
-        <span className="text-xs text-zinc-400 transition group-open:rotate-180">⌄</span>
-      </summary>
-      <div className="space-y-4 border-t border-zinc-200 px-4 py-4">
-        <div className="flex flex-wrap gap-2">
-          {suggestedFields.map((key) => (
-            <span key={key} className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-700">Suggested: {PROJECT_LINK_LABELS[key]}</span>
-          ))}
-        </div>
-
-        {(githubBinding || parsedGithubRepo) ? (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">GitHub repo binding</div>
-            <div className="mt-1 font-medium text-zinc-900">{githubBinding?.fullName || parsedGithubRepo?.fullName}</div>
-            <p className="mt-1 leading-6">{githubBinding ? "Project-level repo binding is live and synced from the GitHub link below." : "Saving this GitHub URL will create a first-class repo binding for this project."}</p>
-          </div>
-        ) : null}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {orderedFields.map((key) => (
-            <label key={key} className="block">
-              <span className="mb-1.5 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
-              <input
-                type="url"
-                value={draft[key] || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setDraft((current) => {
-                    const next = { ...current };
-                    if (value.trim()) next[key] = value;
-                    else delete next[key];
-                    return next;
-                  });
-                  setMessage(null);
-                }}
-                className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
-                placeholder={`https://${key === "github" ? "github.com/org/repo" : key === "preview" ? "preview.example.com" : key === "production" ? "app.example.com" : key === "docs" ? "docs.example.com" : key === "figma" ? "figma.com/file/..." : "admin.example.com"}`}
-              />
-            </label>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {message ? <p className={cn("text-xs", message === "Saved" ? "text-emerald-600" : "text-zinc-500")}>{message}</p> : <span />}
-          <Button onClick={handleSave} disabled={saving} variant="warm" className="rounded-xl px-4">
-            {saving ? "Saving..." : "Save project links"}
-          </Button>
-        </div>
-      </div>
-    </details>
   );
 }
 
@@ -758,9 +516,7 @@ export default function ProjectDetailPage() {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskModalMode, setTaskModalMode] = useState<"view" | "edit">("view");
   const [creatingTask, setCreatingTask] = useState(false);
-  const [checkpointActionLoading, setCheckpointActionLoading] = useState<string | null>(null);
   const [checkpointDrafts, setCheckpointDrafts] = useState<Record<string, { note: string; requestedChanges: string; resubmitSummary: string; resubmitWhatChanged: string; proofLink: string }>>({});
-  const [reviewingCheckpointId, setReviewingCheckpointId] = useState<string | null>(null);
   const [taskDesc, setTaskDesc] = useState("");
   const [dismissedUpdateIds, setDismissedUpdateIds] = useState<string[]>([]);
   const [clearedFeedAt, setClearedFeedAt] = useState<string | null>(null);
@@ -1072,7 +828,7 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleCheckpointApprove = async (milestone: Milestone) => {
+  const handleTaskClick = (task: any) => {
     const submissionId = milestone.reviewSummary?.latestSubmissionId || null;
     if (!submissionId) return;
     setCheckpointActionLoading(`${milestone.id}:approve`);
@@ -1182,7 +938,6 @@ export default function ProjectDetailPage() {
   };
 
   const project = data?.project ?? null;
-  const teams = useMemo(() => data?.teams ?? [], [data?.teams]);
   const milestones = useMemo(() => data?.milestones ?? [], [data?.milestones]);
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
   const stats = data?.stats ?? { totalTasks: 0, doneTasks: 0, blockedTasks: 0, inProgressTasks: 0 };
@@ -1261,7 +1016,6 @@ export default function ProjectDetailPage() {
 
   const bootstrapSprintIds = getBootstrapSprintIds(milestones.map((milestone) => ({ id: milestone.id, auto_generated: milestone.autoGenerated, phase_key: milestone.phaseKey })));
   const intake = project.intake || null;
-  const projectLinks = getProjectLinkEntries(project.links);
   const summaryText = project.intake_summary || project.description || intake?.summary || null;
   const actionTargetStatus = project.status === "active" ? "paused" : project.status === "paused" ? "active" : null;
   const actionLabel = actionTargetStatus === "paused" ? "Pause" : actionTargetStatus === "active" ? "Resume" : null;
@@ -1273,10 +1027,7 @@ export default function ProjectDetailPage() {
     attachmentKickoffState: attachmentProcessingState,
   });
   const progress = headerState.progressPct;
-  const selectedTaskSnapshot = selectedTask ? tasks.find((task: any) => task.id === selectedTask.id) || selectedTask : null;
-  const selectedTaskProgress = taskProgressValue(selectedTask);
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
-  const selectedTaskMilestone = selectedTask?.sprint_id ? data?.milestones.find((milestone) => milestone.id === selectedTask.sprint_id) : null;
   const reviewableMilestones = milestones
     .filter((milestone) => {
       if (isPrebuildCheckpointMilestone(milestone)) return false;
@@ -1310,18 +1061,7 @@ export default function ProjectDetailPage() {
     });
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
-  const reviewingCheckpoint = reviewingCheckpointId ? reviewableMilestones.find((milestone) => milestone.id === reviewingCheckpointId) || null : null;
-  const reviewingCheckpointDisplay = reviewingCheckpoint ? deriveMilestoneDisplayState(reviewingCheckpoint) : null;
-  const reviewingCheckpointIsNonReviewablePrebuild = Boolean(
-    reviewingCheckpoint?.reviewSummary?.checkpointType === "prebuild_checkpoint"
-    && /pre-build stack checkpoint auto-cleared/i.test(reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "")
-  );
 
-  const selectedTaskMetadataEntries = selectedTaskTypeConfig
-    ? selectedTaskTypeConfig.metadataFields
-        .map((field) => ({ key: field.key, label: field.label, value: selectedTask?.task_metadata?.[field.key] }))
-        .filter((entry) => typeof entry.value === "string" && entry.value.trim().length > 0)
-    : [];
 
   const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
   const executionBadgeTone =
@@ -1675,829 +1415,28 @@ export default function ProjectDetailPage() {
               blockerOnlyMilestones.length === 0 ? (
                 <EmptySectionState
                   icon={<ShieldCheck className="h-7 w-7" />}
-                  title="No review checkpoints yet"
-                  description="Review checkpoints will show up here once stages are created. This surface stays visible so review remains part of the workflow, not a hidden mode."
+                  title="No revision flows yet"
+                  description="Revision requests will appear here once milestones have delivered work that can be self-reviewed."
                 />
               ) : null
             ) : (
               <div className="space-y-3">
-                {reviewableMilestones.map((milestone) => {
-                    const summary = milestone.reviewSummary;
-                    const fallbackArtifactsCount = milestone.reviewArtifacts?.length || 0;
-                    const milestoneForDisplay = { ...milestone, approvalGateStatus: milestone.deliveryReviewStatus || milestone.approvalGateStatus };
-                    const { checkpointState, showDecisionActions, showChangesRequestedActions } = deriveMilestoneDisplayState(milestoneForDisplay);
-                    const evidenceRequirements = getCheckpointEvidenceRequirements(summary?.checkpointType || milestone.checkpointType, summary?.evidenceRequirements || milestone.checkpointEvidenceRequirements);
-                    const canApprove = checkpointState.key === "ready_for_review" && summary?.proofCompletenessStatus === "ready";
-                    const approvalBlockedReason = !canApprove
-                      ? checkpointState.key === "awaiting_submission"
-                        ? "Approval is not available yet because this checkpoint does not have a review packet attached."
-                        : checkpointState.key === "setup_required"
-                          ? "Approval is not available yet because this checkpoint is blocked on repo setup and cannot produce a review packet yet."
-                          : checkpointState.key === "awaiting_evidence"
-                            ? "Approval is not available yet because the review evidence is still incomplete."
-                            : null
-                      : null;
-                    const showApprovalReason = Boolean(
-                      milestone.preBuildCheckpoint?.reasons?.length
-                      && milestone.preBuildCheckpoint?.status !== "approved"
-                    );
-                    const showDecisionMetadata = shouldShowCheckpointDecisionMetadata(summary, milestone.deliveryReviewStatus || milestone.approvalGateStatus);
-                    const showLatestRejectionComment = Boolean(
-                      showDecisionMetadata
-                      && summary?.latestRejectionComment
-                      && (summary?.latestDecision === "reject" || milestone.deliveryReviewStatus === "rejected" || milestone.approvalGateStatus === "rejected")
-                    );
-                    const showLatestDecisionNote = Boolean(
-                      showDecisionMetadata
-                      && summary?.latestDecisionNotes
-                      && !showLatestRejectionComment
-                    );
-                    return (
-                      <div key={milestone.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
-                        <div className="flex flex-col gap-3">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Checkpoint</div>
-                              <h3 className="mt-1 text-base font-semibold text-zinc-950">{milestone.name}</h3>
-                              <p className="mt-1 text-sm leading-6 text-zinc-500">
-                                {checkpointSummaryCopy({
-                                  summary,
-                                  preBuildCheckpoint: milestone.preBuildCheckpoint,
-                                  checkpointState,
-                                  fallbackArtifactsCount,
-                                })}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-4">
-                              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">
-                                {formatCheckpointTypeLabel(summary?.checkpointType || milestone.checkpointType)}
-                              </span>
-                              <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(milestone.deliveryReviewStatus || milestone.approvalGateStatus))}>
-                                {formatMilestoneGateLabel(milestone.deliveryReviewStatus || milestone.approvalGateStatus)}
-                              </span>
-                              {summary?.proofCompletenessStatus ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(summary.proofCompletenessStatus))}>Proof {summary.proofCompletenessStatus.replace(/_/g, " ")}</span> : null}
-                              {evidenceRequirements.screenshotRequired ? <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">Screenshot evidence required</span> : null}
-                              {milestone.preBuildCheckpoint?.outcome ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", milestone.preBuildCheckpoint.outcome === "match" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : milestone.preBuildCheckpoint.outcome === "mismatch" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700")}>Stack {milestone.preBuildCheckpoint.outcome.replace(/_/g, " ")}</span> : null}
-                              {summary?.latestRevisionNumber ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">Revision {summary.latestRevisionNumber}</span> : null}
-                            </div>
-                          </div>
-
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Stage progress</div>
-                              <div className="mt-1 text-sm font-medium text-zinc-900">{milestone.doneTasks}/{milestone.totalTasks} done</div>
-                            </div>
-                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
-                                  <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.proofItemCount || fallbackArtifactsCount} item{(summary?.proofItemCount || fallbackArtifactsCount) === 1 ? "" : "s"}</div>
-                                  {evidenceRequirements.screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {summary?.screenshotItemCount || 0}/{evidenceRequirements.minScreenshotCount}</div> : null}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requested changes</div>
-                              <div className="mt-1 text-sm font-medium text-zinc-900">{summary?.feedbackItemCount || 0} open/requested</div>
-                            </div>
-                          </div>
-
-                          {!((summary?.checkpointType || milestone.checkpointType) === "prebuild_checkpoint" && /pre-build stack checkpoint auto-cleared/i.test(summary?.latestSubmissionSummary || "")) ? (
-                             <div className="flex justify-end">
-                               <Button onClick={() => setReviewingCheckpointId(milestone.id)} variant="outline" className="rounded-xl">
-                                 Open review details
-                               </Button>
-                             </div>
-                           ) : null}
-
-                          {checkpointState.key === "awaiting_submission" && fallbackArtifactsCount > 0 ? (
-                            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm leading-6 text-sky-950">
-                              <span className="font-medium">Available now:</span> review artifacts are attached below even though the formal checkpoint packet has not been created yet.
-                            </div>
-                          ) : null}
-
-                          {evidenceRequirements.screenshotRequired && (summary?.screenshotItemCount || 0) < evidenceRequirements.minScreenshotCount ? (
-                            <div className="rounded-2xl border border-purple-200 bg-purple-50 px-3 py-3 text-sm leading-6 text-purple-950">
-                              <span className="font-medium">Review blocked:</span> {evidenceRequirements.captureHint || "Attach current screenshots from the running UI before this build can be treated as reviewable."}
-                            </div>
-                          ) : null}
-
-                          {showApprovalReason ? (
-                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm leading-6 text-zinc-700">
-                              <span className="font-medium">Why approval is needed:</span> {formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0])}
-                            </div>
-                          ) : null}
-
-                          {showLatestRejectionComment ? (
-                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
-                              <span className="font-medium">Latest reject comment:</span> {summary?.latestRejectionComment}
-                            </div>
-                          ) : showLatestDecisionNote ? (
-                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
-                              <span className="font-medium">Latest note:</span> {summary?.latestDecisionNotes}
-                            </div>
-                          ) : null}
-
-                          <div className="space-y-3">
-                            {showDecisionActions ? (
-                              <div className="rounded-[28px] border border-zinc-200 bg-gradient-to-br from-white via-emerald-50/40 to-zinc-50 p-3 shadow-sm sm:p-4">
-                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
-                                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Primary action</span>
-                                      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-700">Ready to approve</span>
-                                    </div>
-                                    <p className="mt-2 text-sm leading-6 text-emerald-950">Approve this checkpoint to move the project forward. Use request changes only when another revision is genuinely needed.</p>
-                                    {approvalBlockedReason ? <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">{approvalBlockedReason}</p> : null}
-                                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                      <div className="text-xs leading-5 text-emerald-800">This records the checkpoint decision and clears the stage gate for the next phase.</div>
-                                      <Button
-                                        onClick={() => handleCheckpointApprove(milestone)}
-                                        disabled={!canApprove || checkpointActionLoading === `${milestone.id}:approve`}
-                                        variant="warm"
-                                        className="min-h-12 w-full rounded-xl px-5 text-base font-semibold shadow-sm sm:w-auto"
-                                      >
-                                        {checkpointActionLoading === `${milestone.id}:approve` ? "Approving..." : "Approve checkpoint"}
-                                      </Button>
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <details className="rounded-2xl border border-zinc-200 bg-white p-4">
-                                      <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">Add optional approval note</summary>
-                                      <label className="mt-3 block">
-                                        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Approval note</span>
-                                        <input
-                                          type="text"
-                                          value={checkpointDrafts[milestone.id]?.note || ""}
-                                          onChange={(event) =>
-                                            setCheckpointDrafts((current) => ({
-                                              ...current,
-                                              [milestone.id]: {
-                                                note: event.target.value,
-                                                requestedChanges: current[milestone.id]?.requestedChanges || "",
-                                                resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                                resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                                proofLink: current[milestone.id]?.proofLink || "",
-                                              },
-                                            }))
-                                          }
-                                          placeholder="Optional note to store with the approval"
-                                          className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
-                                        />
-                                      </label>
-                                    </details>
-
-                                    <details className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-                                      <summary className="cursor-pointer list-none text-sm font-medium text-amber-900">Request changes instead</summary>
-                                      <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                                        <label className="block">
-                                          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">What needs to change</span>
-                                          <textarea
-                                            value={checkpointDrafts[milestone.id]?.requestedChanges || ""}
-                                            onChange={(event) =>
-                                              setCheckpointDrafts((current) => ({
-                                                ...current,
-                                                [milestone.id]: {
-                                                  note: current[milestone.id]?.note || "",
-                                                  requestedChanges: event.target.value,
-                                                  resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                                  resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                                  proofLink: current[milestone.id]?.proofLink || "",
-                                                },
-                                              }))
-                                            }
-                                            rows={4}
-                                            placeholder="Required. Explain exactly what should change before this checkpoint can be approved."
-                                            className="mt-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-amber-500 focus:outline-none"
-                                          />
-                                        </label>
-                                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                                          <Button
-                                            onClick={() => handleCheckpointRequestChanges(milestone)}
-                                            disabled={checkpointActionLoading === `${milestone.id}:request-changes`}
-                                            variant="outline"
-                                            className="min-h-11 rounded-xl border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
-                                          >
-                                            {checkpointActionLoading === `${milestone.id}:request-changes` ? "Sending..." : "Send change request"}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </details>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : showChangesRequestedActions ? (
-                              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                                <label className="block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Revision summary</span>
-                                  <input
-                                    type="text"
-                                    value={checkpointDrafts[milestone.id]?.resubmitSummary || ""}
-                                    onChange={(event) =>
-                                      setCheckpointDrafts((current) => ({
-                                        ...current,
-                                        [milestone.id]: {
-                                          note: current[milestone.id]?.note || "",
-                                          requestedChanges: current[milestone.id]?.requestedChanges || "",
-                                          resubmitSummary: event.target.value,
-                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                          proofLink: current[milestone.id]?.proofLink || "",
-                                        },
-                                      }))
-                                    }
-                                    placeholder="Short summary of this revision"
-                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
-                                  />
-                                </label>
-                                <label className="mt-3 block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">What changed</span>
-                                  <textarea
-                                    value={checkpointDrafts[milestone.id]?.resubmitWhatChanged || ""}
-                                    onChange={(event) =>
-                                      setCheckpointDrafts((current) => ({
-                                        ...current,
-                                        [milestone.id]: {
-                                          note: current[milestone.id]?.note || "",
-                                          requestedChanges: current[milestone.id]?.requestedChanges || "",
-                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                          resubmitWhatChanged: event.target.value,
-                                          proofLink: current[milestone.id]?.proofLink || "",
-                                        },
-                                      }))
-                                    }
-                                    rows={4}
-                                    placeholder="Describe what changed since the last review"
-                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
-                                  />
-                                </label>
-                                {evidenceRequirements.screenshotRequired ? (
-                                  <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs leading-5 text-purple-900">
-                                    {evidenceRequirements.captureHint || "Attach current local-app screenshots in the next submission before re-review."}
-                                  </div>
-                                ) : null}
-                                <label className="mt-3 block">
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Updated proof link</span>
-                                  <input
-                                    type="url"
-                                    value={checkpointDrafts[milestone.id]?.proofLink || ""}
-                                    onChange={(event) =>
-                                      setCheckpointDrafts((current) => ({
-                                        ...current,
-                                        [milestone.id]: {
-                                          note: current[milestone.id]?.note || "",
-                                          requestedChanges: current[milestone.id]?.requestedChanges || "",
-                                          resubmitSummary: current[milestone.id]?.resubmitSummary || "",
-                                          resubmitWhatChanged: current[milestone.id]?.resubmitWhatChanged || "",
-                                          proofLink: event.target.value,
-                                        },
-                                      }))
-                                    }
-                                    placeholder="https://..."
-                                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 focus:border-red-500 focus:outline-none"
-                                  />
-                                </label>
-                              </div>
-                            ) : null}
-
-                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                              {checkpointState.actionable ? (
-                                <Button
-                                  onClick={() => setReviewingCheckpointId(milestone.id)}
-                                  variant="outline"
-                                  className="min-h-11 rounded-xl sm:w-auto"
-                                >
-                                  Review details
-                                </Button>
-                              ) : null}
-                              {milestone.deliveryReviewStatus === "rejected" || milestone.approvalGateStatus === "rejected" ? (
-                                <Button
-                                  onClick={() => handleCheckpointResubmit(milestone)}
-                                  disabled={checkpointActionLoading === `${milestone.id}:resubmit`}
-                                  variant="warm"
-                                  className="rounded-xl"
-                                >
-                                  {checkpointActionLoading === `${milestone.id}:resubmit` ? "Resubmitting..." : "Submit updated version"}
-                                </Button>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                {reviewableMilestones.map((milestone) => (
+                  <MilestoneReviewCard
+                    key={milestone.id}
+                    projectId={projectId}
+                    milestone={milestone}
+                    documents={documents}
+                    onSaved={() => {
+                      void Promise.all([fetchProject(false), fetchDocuments()]);
+                    }}
+                  />
+                ))}
               </div>
             )}
           </Section>
-
-          <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">GitHub repo provenance</div>
-                    <div className="mt-1 text-sm font-medium text-zinc-900">{project.github_repo_provenance?.label || "no repo yet"}</div>
-                    <p className="mt-1 text-sm leading-6 text-zinc-600">{project.github_repo_provenance?.description || "No GitHub repo provenance is available yet."}</p>
-                  </div>
-                  {project.github_repo_binding?.fullName ? (
-                    <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700">{project.github_repo_binding.fullName}</span>
-                  ) : null}
-                </div>
-                {project.github_repo_provenance?.mismatch ? (
-                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    <div className="font-medium">Repo provenance mismatch</div>
-                    <div className="mt-1 leading-6">{project.github_repo_provenance.mismatchReason}</div>
-                  </div>
-                ) : null}
-              </div>
-              {projectLinks.length === 0 ? (
-                <EmptySectionState
-                  icon={<ArrowUpRight className="h-7 w-7" />}
-                  title="No links or artifacts yet"
-                  description={artifactEmptyState(project.type, intake)}
-                />
-              ) : (
-                <div className="space-y-2">
-                  {projectLinks.map((link) => (
-                    <a
-                      key={link.key}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 transition hover:border-red-200"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
-                        <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
-                        Open
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
-
-              <LinkEditor
-                projectId={projectId}
-                projectType={project.type}
-                intake={intake}
-                links={project.links}
-                githubBinding={project.github_repo_binding}
-                onSaved={({ links, githubBinding }) => setData((prev) => (prev ? { ...prev, project: { ...prev.project, links, github_repo_binding: githubBinding } } : prev))}
-              />
-            </div>
-          </Section>
-
-          {documents.length > 0 ? (
-            <Section title="Supporting docs & uploads" description="Uploaded references, files, and source material tied to this project.">
-              <div className="space-y-3">
-                {attachmentRequirementSources.length > 0 ? (
-                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                        Attachment-derived requirements
-                      </span>
-                      <span className="text-xs text-emerald-800/80">
-                        {attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} read into intake requirements
-                      </span>
-                    </div>
-                    <div className="mt-3 space-y-3">
-                      {attachmentRequirementSources.map((source: any) => (
-                        <div key={`${source.title}-${source.type}`} className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 shadow-sm">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase text-emerald-700">{String(source.type || "document").replace(/_/g, " ")}</span>
-                            <p className="text-sm font-medium text-zinc-900">{source.title}</p>
-                          </div>
-                          <ul className="mt-2 space-y-1 text-sm leading-6 text-zinc-700">
-                            {source.evidence.slice(0, 4).map((item: string) => (
-                              <li key={item} className="flex gap-2">
-                                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : createdFromIntake ? (
-                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                    Attached files are being processed into project requirements now. This page will keep refreshing while extraction and kickoff are running.
-                  </div>
-                ) : null}
-
-                {documents.map((doc) => (
-                  <div key={doc.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
-                          <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
-                        </div>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {formatBytes(doc.size_bytes)}
-                          {doc.mime_type ? ` • ${doc.mime_type}` : ""}
-                          {` • Added ${new Date(doc.created_at).toLocaleDateString()}`}
-                        </p>
-                        {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
-                        {doc.url ? <a href={doc.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline">Open link <ArrowUpRight className="h-3.5 w-3.5" /></a> : null}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          ) : null}
-
-          {teams.length > 0 ? (
-            <Section title="Teams" description="Who is attached to the work and how the load is shaping up.">
-              <div className="space-y-2">
-                {teams.map((team: any) => (
-                  <div key={team.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-zinc-900">{team.name}</p>
-                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-700">
-                        {team.status === "on_track" ? "On track" : team.status === "waiting" ? "Waiting" : formatIntakeValue(team.status)}
-                      </span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500">
-                      <span>{team.memberCount} members</span>
-                      <span>{team.activeAgents} active now</span>
-                      <span>{team.taskCount} owned tasks</span>
-                      <span>{team.completedTasks || 0} completed</span>
-                    </div>
-                    {team.blockedTasks > 0 ? <p className="mt-2 inline-flex items-center gap-1 text-xs text-red-600"><ShieldCheck className="h-3.5 w-3.5" />{team.blockedTasks} blocked task{team.blockedTasks === 1 ? "" : "s"}</p> : null}
-                  </div>
-                ))}
-              </div>
-            </Section>
-          ) : null}
         </div>
       </div>
-
-      {reviewingCheckpoint ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReviewingCheckpointId(null)}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[24px] bg-white p-4 shadow-xl sm:p-6" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-3 border-b border-zinc-200 pb-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review</p>
-                <h3 className="mt-1 text-lg font-semibold text-zinc-950">{reviewingCheckpoint.name}</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Review this submitted work without leaving the project page.</p>
-              </div>
-              <Button onClick={() => setReviewingCheckpointId(null)} variant="outline" className="rounded-xl">Close</Button>
-            </div>
-
-            <div className="mt-4 space-y-5">
-              {reviewingCheckpointIsNonReviewablePrebuild ? (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950">
-                  This is an auto-cleared pre-build stack check. It confirms the repo matched the PRD stack contract, but it is not a human review packet and does not need a manual approve or request-changes decision.
-                </div>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", checkpointTone(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus))}>
-                  {formatMilestoneGateLabel(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus)}
-                </span>
-                {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? (
-                  <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(reviewingCheckpoint.reviewSummary.proofCompletenessStatus))}>
-                    Evidence {reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ")}
-                  </span>
-                ) : null}
-                {reviewingCheckpoint.reviewSummary?.latestRevisionNumber ? (
-                  <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">
-                    Revision {reviewingCheckpoint.reviewSummary.latestRevisionNumber}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Stage progress</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.doneTasks}/{reviewingCheckpoint.totalTasks} tasks complete.</p>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review materials</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.proofItemCount || 0} item{(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) === 1 ? "" : "s"}</p>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requested changes</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.feedbackItemCount || 0} open/requested</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submitted materials</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-700">{reviewingCheckpoint.reviewSummary?.proofBundleTitle || "No submitted materials yet."}</p>
-                  </div>
-                  <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", proofTone(reviewingCheckpoint.reviewSummary?.proofCompletenessStatus || null))}>
-                    {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "no materials"}
-                  </span>
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Files & links</div>
-                    <div className="mt-1 font-medium text-zinc-900">{reviewingCheckpoint.reviewSummary?.proofItemCount || 0}</div>
-                    {getCheckpointEvidenceRequirements(reviewingCheckpoint.reviewSummary?.checkpointType || reviewingCheckpoint.checkpointType, reviewingCheckpoint.reviewSummary?.evidenceRequirements || reviewingCheckpoint.checkpointEvidenceRequirements).screenshotRequired ? <div className="mt-1 text-xs text-zinc-500">Screenshots: {reviewingCheckpoint.reviewSummary?.screenshotItemCount || 0}/{getCheckpointEvidenceRequirements(reviewingCheckpoint.reviewSummary?.checkpointType || reviewingCheckpoint.checkpointType, reviewingCheckpoint.reviewSummary?.evidenceRequirements || reviewingCheckpoint.checkpointEvidenceRequirements).minScreenshotCount}</div> : null}
-                  </div>
-                  <div className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Latest submission</div>
-                    <div className="mt-1 font-medium text-zinc-900">{reviewingCheckpoint.reviewSummary?.latestSubmittedAt ? new Date(reviewingCheckpoint.reviewSummary.latestSubmittedAt).toLocaleString() : "Not submitted"}</div>
-                  </div>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {(reviewingCheckpoint.reviewSummary?.proofItems || []).length > 0 ? (
-                    reviewingCheckpoint.reviewSummary?.proofItems?.map((item) => {
-                      const href = proofItemHref(item);
-                      const actionLabel = item.kind === "screenshot" ? "View screenshot" : "Open";
-                      const content = (
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{formatProofItemKind(item.kind)}</div>
-                            <div className="mt-1 text-sm font-medium text-zinc-900">{item.label || "Untitled proof item"}</div>
-                            {item.notes ? <p className="mt-1 text-sm leading-6 text-zinc-600">{item.notes}</p> : null}
-                            {item.storagePath ? <p className="mt-1 break-all text-xs text-zinc-500">Stored at: {item.storagePath}</p> : null}
-                          </div>
-                          {href ? (
-                            <span className="shrink-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-900 transition hover:border-red-200 hover:bg-white">
-                              {actionLabel}
-                            </span>
-                          ) : null}
-                        </div>
-                      );
-                      return href ? (
-                        <a
-                          key={item.id}
-                          href={href}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block rounded-xl border border-zinc-200 bg-white px-3 py-3 transition hover:border-red-200"
-                        >
-                          {content}
-                        </a>
-                      ) : (
-                        <div key={item.id} className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
-                          {content}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-3 py-3 text-sm text-zinc-500">
-                      No proof item links are available for this submission yet.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submission details</div>
-                  <div className="mt-2 space-y-2 text-sm text-zinc-700">
-                    <p><span className="font-medium text-zinc-900">Submission ID:</span> {reviewingCheckpoint.reviewSummary?.latestSubmissionId || "—"}</p>
-                    <p><span className="font-medium text-zinc-900">Summary:</span> {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary || "—"}</p>
-                    <p><span className="font-medium text-zinc-900">Revision:</span> {reviewingCheckpoint.reviewSummary?.latestRevisionNumber || "—"}</p>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review status</div>
-                  <div className="mt-2 space-y-2 text-sm text-zinc-700">
-                    <p><span className="font-medium text-zinc-900">Delivery review state:</span> {formatMilestoneGateLabel(reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus)}</p>
-                    <p><span className="font-medium text-zinc-900">Materials status:</span> {reviewingCheckpoint.reviewSummary?.proofCompletenessStatus ? reviewingCheckpoint.reviewSummary.proofCompletenessStatus.replace(/_/g, " ") : "No materials yet"}</p>
-                    {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus) ? (
-                      <p><span className="font-medium text-zinc-900">Latest decision:</span> {reviewingCheckpoint.reviewSummary?.latestDecision ? reviewingCheckpoint.reviewSummary.latestDecision.replace(/_/g, " ") : "Not decided"}</p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Submission checklist</div>
-                <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Summary captured: {reviewingCheckpoint.reviewSummary?.latestSubmissionSummary ? "Yes" : "No"}</li>
-                  <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Materials attached: {(reviewingCheckpoint.reviewSummary?.proofItemCount || 0) > 0 ? "Yes" : "No"}</li>
-                  {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus) ? (
-                    <li className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">Decision note present: {reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? "Yes" : "No"}</li>
-                  ) : null}
-                </ul>
-              </div>
-
-              {shouldShowCheckpointDecisionMetadata(reviewingCheckpoint.reviewSummary, reviewingCheckpoint.deliveryReviewStatus || reviewingCheckpoint.approvalGateStatus) && reviewingCheckpoint.reviewSummary?.latestDecisionNotes ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-                  <span className="font-medium">Latest note:</span> {reviewingCheckpoint.reviewSummary.latestDecisionNotes}
-                </div>
-              ) : null}
-
-              {!reviewingCheckpointIsNonReviewablePrebuild && reviewingCheckpointDisplay?.showDecisionActions ? (
-                <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-red-700">Decision</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-600">Approve this work or request changes with clear feedback.</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => handleCheckpointRequestChanges(reviewingCheckpoint)}
-                      disabled={checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes`}
-                      variant="outline"
-                      className="rounded-xl min-w-[170px] border-amber-200 text-amber-800 hover:bg-amber-50"
-                    >
-                      {checkpointActionLoading === `${reviewingCheckpoint.id}:request-changes` ? "Sending..." : "Request changes"}
-                    </Button>
-                    <Button
-                      onClick={() => handleCheckpointApprove(reviewingCheckpoint)}
-                      disabled={checkpointActionLoading === `${reviewingCheckpoint.id}:approve`}
-                      variant="warm"
-                      className="rounded-xl min-w-[140px]"
-                    >
-                      {checkpointActionLoading === `${reviewingCheckpoint.id}:approve` ? "Approving..." : "Approve"}
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-
-              {!reviewingCheckpointIsNonReviewablePrebuild && reviewingCheckpointDisplay?.showChangesRequestedActions ? (
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Update status</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">Changes were requested. Submit an updated version from the review panel when revisions are ready.</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {showTaskModal && selectedTask && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:items-center sm:p-4"
-          onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="task-details-title"
-            className="max-h-[calc(100dvh-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-3xl overflow-y-auto rounded-[24px] bg-white p-4 shadow-xl sm:max-h-[90vh] sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-4">
-              <div>
-                <h3 id="task-details-title" className="text-lg font-semibold text-zinc-900">Task details</h3>
-                <p className="mt-1 text-sm text-zinc-500">Read the work clearly first, then edit only when needed.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{taskModalMode === "edit" ? "Editing" : "Viewing"}</span>
-                <button
-                  type="button"
-                  onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }}
-                  className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50"
-                  aria-label="Close task details"
-                >
-                  <X className="h-4 w-4" />
-                  <span className="sm:hidden">Close</span>
-                </button>
-              </div>
-            </div>
-            <div className="mt-4 space-y-4">
-              <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <TaskStatusBadge status={selectedTask.status || "todo"} />
-                      <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status, stale: isTaskExecutionStale(selectedTask) }).badgeClassName)}>
-                        {getExecutionTone({ status: selectedTask.status, reviewRequired: selectedTask.review_required, reviewStatus: selectedTask.review_status, stale: isTaskExecutionStale(selectedTask) }).label}
-                      </span>
-                      {isBootstrapTask(selectedTask, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
-                      {selectedTask.review_required ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(selectedTask.review_status)}</span> : null}
-                    </div>
-                    <h4 className="mt-3 text-xl font-semibold tracking-tight text-zinc-950 sm:text-2xl">{selectedTask.title}</h4>
-                    <p className="mt-2 text-sm leading-6 text-zinc-600">
-                      {taskModalMode === "edit"
-                        ? "Editing task details. Save when you want to update status or directions."
-                        : "This is the current read-only view of the task. Use Edit task if anything needs to change."}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 self-start rounded-2xl border border-white/80 bg-white px-3 py-2 shadow-sm">
-                    {selectedTaskProgress != null ? (
-                      <>
-                        <ProgressRing value={selectedTaskProgress} size={56} strokeWidth={5} />
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Progress</p>
-                          <p className="text-sm font-medium text-zinc-700">{Math.round(selectedTaskProgress)}% complete</p>
-                        </div>
-                      </>
-                    ) : (
-                      <div>
-                        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Task state</p>
-                        <p className="text-sm font-medium text-zinc-700">
-                          {selectedTask.status === "blocked"
-                            ? "Blocked"
-                            : selectedTask.status === "in_progress"
-                              ? "In progress"
-                              : selectedTask.status === "todo"
-                                ? "Ready to start"
-                                : selectedTask.status === "cancelled"
-                                  ? "Cancelled"
-                                  : formatTaskStatusLabel(selectedTask.status)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Status</p>
-                    <p className="mt-1 text-sm font-medium text-zinc-900">{formatTaskStatusLabel(selectedTask.status)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Milestone</p>
-                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTaskMilestone?.name || "Unassigned"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Type</p>
-                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTaskTypeConfig?.label || "General task"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Owner</p>
-                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTask.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id)?.name || "Assigned" : "Unassigned"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Updated</p>
-                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTask.updated_at ? formatRelativeTimestamp(selectedTask.updated_at) : "Recently updated"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/80 bg-white px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review</p>
-                    <p className="mt-1 text-sm font-medium text-zinc-900">{selectedTask.review_required ? formatReviewStatus(selectedTask.review_status) : "Review not required"}</p>
-                  </div>
-                </div>
-
-                {selectedTaskMetadataEntries.length > 0 ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {selectedTaskMetadataEntries.map((entry) => (
-                      <span key={entry.key} className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600">
-                        <span className="font-medium text-zinc-900">{entry.label}:</span> {String(entry.value).replace(/_/g, " ")}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)] lg:items-start">
-                <div className="space-y-4">
-                  <section className="rounded-3xl border border-zinc-200 bg-white p-4 sm:p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Description</p>
-                        <h5 className="mt-1 text-base font-semibold text-zinc-950">Directions and notes</h5>
-                      </div>
-                    </div>
-                    {taskModalMode === "edit" ? (
-                      <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Add notes or directions for the assigned agent..." rows={8} className="mt-4 w-full rounded-2xl border border-zinc-300 px-4 py-3 text-sm leading-6 text-zinc-700" />
-                    ) : (
-                      <div className="mt-4 rounded-2xl bg-zinc-50 px-4 py-4 text-sm leading-7 text-zinc-700 whitespace-pre-wrap">
-                        {taskDesc?.trim() ? taskDesc : "No task directions added yet."}
-                      </div>
-                    )}
-                  </section>
-
-                  {taskModalMode === "edit" ? (
-                    <section className="rounded-3xl border border-zinc-200 bg-white p-4 sm:p-5">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Status</p>
-                      <h5 className="mt-1 text-base font-semibold text-zinc-950">Update workflow state</h5>
-                      <select
-                        value={selectedTask.status}
-                        onChange={(e) => setSelectedTask((prev: any) => (prev ? { ...prev, status: e.target.value } : prev))}
-                        className="mt-4 w-full rounded-2xl border border-zinc-300 px-4 py-3 text-sm text-zinc-700"
-                      >
-                        <option value="todo">To do</option>
-                        <option value="in_progress">In progress</option>
-                        <option value="done">Done</option>
-                        <option value="blocked">Needs attention</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </section>
-                  ) : null}
-                </div>
-
-              </div>
-            </div>
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap">
-              <Button onClick={() => { setSelectedTask(null); setShowTaskModal(false); setTaskModalMode("view"); }} variant="outline" className="flex-1 rounded-xl">Close</Button>
-              <Button onClick={handleDeleteTask} variant="outline" className="rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">Delete</Button>
-              {taskModalMode === "edit" ? (
-                <>
-                  <Button onClick={() => {
-                    setSelectedTask(selectedTaskSnapshot);
-                    setTaskDesc(selectedTaskSnapshot?.description || "");
-                    setTaskModalMode("view");
-                  }} variant="outline" className="rounded-xl">Cancel edit</Button>
-                  <Button onClick={handleUpdateTask} variant="warm" className="flex-1 rounded-xl">Save changes</Button>
-                </>
-              ) : (
-                <Button onClick={() => setTaskModalMode("edit")} variant="warm" className="flex-1 rounded-xl">Edit task</Button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <StructuredTaskModal open={showTaskModal && !selectedTask} onClose={() => setShowTaskModal(false)} onCreate={handleCreateTask} creating={creatingTask} />
     </div>

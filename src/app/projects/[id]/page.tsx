@@ -516,7 +516,6 @@ export default function ProjectDetailPage() {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskModalMode, setTaskModalMode] = useState<"view" | "edit">("view");
   const [creatingTask, setCreatingTask] = useState(false);
-  const [checkpointDrafts, setCheckpointDrafts] = useState<Record<string, { note: string; requestedChanges: string; resubmitSummary: string; resubmitWhatChanged: string; proofLink: string }>>({});
   const [taskDesc, setTaskDesc] = useState("");
   const [dismissedUpdateIds, setDismissedUpdateIds] = useState<string[]>([]);
   const [clearedFeedAt, setClearedFeedAt] = useState<string | null>(null);
@@ -825,108 +824,6 @@ export default function ProjectDetailPage() {
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
-    }
-  };
-
-  const handleTaskClick = (task: any) => {
-    const submissionId = milestone.reviewSummary?.latestSubmissionId || null;
-    if (!submissionId) return;
-    setCheckpointActionLoading(`${milestone.id}:approve`);
-    try {
-      const note = checkpointDrafts[milestone.id]?.note?.trim() || null;
-      const res = await fetch(`/api/projects/${projectId}/milestones/${milestone.id}/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, note }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || "Failed to approve checkpoint");
-      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "", resubmitSummary: "", resubmitWhatChanged: "", proofLink: "" } }));
-      await fetchProject(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to approve checkpoint");
-    } finally {
-      setCheckpointActionLoading(null);
-    }
-  };
-
-  const handleCheckpointRequestChanges = async (milestone: Milestone) => {
-    const submissionId = milestone.reviewSummary?.latestSubmissionId;
-    const requestedChanges = checkpointDrafts[milestone.id]?.requestedChanges?.trim() || "";
-    if (!submissionId || !requestedChanges) {
-      setError("Add requested changes before sending the checkpoint back.");
-      return;
-    }
-
-    setCheckpointActionLoading(`${milestone.id}:request-changes`);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/milestones/${milestone.id}/request-changes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          submissionId,
-          decisionNotes: requestedChanges,
-          feedbackItems: [
-            {
-              feedbackType: "required",
-              body: requestedChanges,
-            },
-          ],
-        }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || "Failed to request changes");
-      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "", resubmitSummary: "", resubmitWhatChanged: "", proofLink: "" } }));
-      await fetchProject(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to request changes");
-    } finally {
-      setCheckpointActionLoading(null);
-    }
-  };
-
-  const handleCheckpointResubmit = async (milestone: Milestone) => {
-    const priorSubmissionId = milestone.reviewSummary?.latestSubmissionId;
-    const draft = checkpointDrafts[milestone.id];
-    const summary = draft?.resubmitSummary?.trim() || "";
-    const whatChanged = draft?.resubmitWhatChanged?.trim() || "";
-    const proofLink = draft?.proofLink?.trim() || "";
-
-    if (!priorSubmissionId || !summary || !whatChanged || !proofLink) {
-      setError("Add a resubmission summary, what changed, and one proof link before resubmitting.");
-      return;
-    }
-
-    setCheckpointActionLoading(`${milestone.id}:resubmit`);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/milestones/${milestone.id}/resubmit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priorSubmissionId,
-          summary,
-          whatChanged,
-          proofBundle: {
-            title: `${milestone.name} resubmission`,
-            summary: whatChanged,
-            items: [
-              {
-                kind: "doc",
-                label: "Updated proof link",
-                url: proofLink,
-              },
-            ],
-          },
-        }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || "Failed to resubmit checkpoint");
-      setCheckpointDrafts((current) => ({ ...current, [milestone.id]: { note: "", requestedChanges: "", resubmitSummary: "", resubmitWhatChanged: "", proofLink: "" } }));
-      await fetchProject(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to resubmit checkpoint");
-    } finally {
-      setCheckpointActionLoading(null);
     }
   };
 

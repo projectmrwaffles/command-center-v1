@@ -808,12 +808,22 @@ async function heartbeatAgent(adminSupabase, agentId) {
 
 async function fetchPendingTasks(adminSupabase, agentId) {
   if (!adminSupabase || !agentId) return [];
-  const { data, error } = await withRetry(`fetchPendingTasks(${agentId})`, () => adminSupabase.from("sprint_items").select("id, project_id, sprint_id, title, status, assignee_agent_id, created_at").eq("assignee_agent_id", agentId).eq("status", "todo").order("created_at", { ascending: true }).limit(25));
+  const { data, error } = await withRetry(`fetchPendingTasks(${agentId})`, () => adminSupabase
+    .from("sprint_items")
+    .select("id, project_id, sprint_id, title, status, assignee_agent_id, created_at, sprints!inner(status)")
+    .eq("assignee_agent_id", agentId)
+    .eq("status", "todo")
+    .eq("sprints.status", "active")
+    .order("created_at", { ascending: true })
+    .limit(25));
   if (error) {
     console.error(`[Listener] Failed to fetch pending tasks for agent ${agentId}:`, error);
     return [];
   }
-  return data || [];
+  return (data || []).map((task) => ({
+    ...task,
+    sprint_status: Array.isArray(task.sprints) ? task.sprints[0]?.status ?? null : task.sprints?.status ?? null,
+  }));
 }
 
 async function fetchRecoverableInProgressTasks(adminSupabase, agentId) {
@@ -1112,6 +1122,8 @@ if (require.main === module) {
   });
 } else {
   module.exports = {
+    startListener,
+    fetchPendingTasks,
     resolveOpenClawRoot,
     resolveRepoWorkspacePath,
     buildAgentMessage,

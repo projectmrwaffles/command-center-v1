@@ -23,6 +23,14 @@ class Query {
   limit(value) { this.limitValue = value; return this; }
   single() { this.singleMode = "single"; return this.execute(); }
   maybeSingle() { this.singleMode = "maybeSingle"; return this.execute(); }
+  not(column, operator, value) {
+    this.filters.push((row) => {
+      if (operator === "like") return row?.[column] !== value;
+      if (operator === "is" && value === null) return row?.[column] !== null && row?.[column] !== undefined;
+      return true;
+    });
+    return this;
+  }
   then(resolve, reject) { return this.execute().then(resolve, reject); }
 
   async execute() {
@@ -82,6 +90,7 @@ function createSeed({ projectId, projectName, projectType, projectLinks = {}, sp
     proof_bundles: [],
     proof_items: [],
     agent_events: [],
+    agent_notifications: [],
   };
 }
 
@@ -284,4 +293,75 @@ function createSeed({ projectId, projectName, projectType, projectLinks = {}, sp
   assert.deepEqual(truth.taskBoard.stalled, [], "capacity-blocked todo tasks should not render as stalled");
 
   console.log("PASS worker-capacity queued tasks stay in queued lane instead of stalled");
+}
+
+{
+  const { fetchPendingTasks } = await import("../scripts/agent-listener.js");
+  const tables = createSeed({
+    projectId: "project-pending-filter",
+    projectName: "Pending filter repro",
+    projectType: "product_build",
+    sprint: {
+      id: "sprint-active",
+      project_id: "project-pending-filter",
+      name: "Phase 2 · Validate",
+      status: "active",
+      phase_key: "validate",
+      phase_order: 2,
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    extraSprints: [{
+      id: "sprint-draft",
+      project_id: "project-pending-filter",
+      name: "Phase 3 · QA",
+      status: "draft",
+      phase_key: "qa",
+      phase_order: 3,
+      created_at: "2026-04-10T22:30:00.000Z",
+    }],
+    tasks: [
+      {
+        id: "task-active",
+        project_id: "project-pending-filter",
+        sprint_id: "sprint-active",
+        title: "Active sprint task",
+        status: "todo",
+        assignee_agent_id: "qa-agent",
+        created_at: "2026-04-10T22:20:00.000Z",
+      },
+      {
+        id: "task-draft",
+        project_id: "project-pending-filter",
+        sprint_id: "sprint-draft",
+        title: "Draft sprint task",
+        status: "todo",
+        assignee_agent_id: "qa-agent",
+        created_at: "2026-04-10T22:25:00.000Z",
+      }
+    ],
+  });
+  const db = new MockDb(tables);
+  const originalExecute = Query.prototype.execute;
+  Query.prototype.execute = async function patchedExecute() {
+    if (this.table === "sprint_items") {
+      const base = await originalExecute.call(this);
+      const rows = Array.isArray(base.data) ? base.data : [];
+      const activeOnly = this.filters.some((filter) => String(filter).includes("sprints"));
+      if (!activeOnly) return base;
+      return {
+        data: rows.filter((row) => tables.sprints.find((s) => s.id === row.sprint_id)?.status === "active").map((row) => ({
+          ...row,
+          sprints: tables.sprints.find((s) => s.id === row.sprint_id) || null,
+        })),
+        error: null,
+      };
+    }
+    return originalExecute.call(this);
+  };
+  const pending = await fetchPendingTasks(db, "qa-agent");
+  Query.prototype.execute = originalExecute;
+
+  assert.deepEqual(pending.map((task) => task.id), ["task-active"], "listener should ignore draft/future-sprint todo tasks during reconcile fetch");
+
+  console.log("PASS listener pending-task reconcile ignores non-active sprint tasks");
 }

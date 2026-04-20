@@ -62,6 +62,15 @@ function normalizeCommit(value: string) {
   return /^[0-9a-f]{7,40}$/i.test(trimmed) ? trimmed : null;
 }
 
+function isPrivateLoopbackUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '::1';
+  } catch {
+    return false;
+  }
+}
+
 export function deriveReviewArtifacts(input: {
   reviewTasks?: Array<{ id: string; title?: string | null }>;
   completionEvents?: Array<{ payload?: Record<string, unknown> | null }>;
@@ -72,7 +81,7 @@ export function deriveReviewArtifacts(input: {
   const seen = new Set<string>();
 
   const previewUrl = input.links?.preview || input.links?.production || null;
-  if (previewUrl) {
+  if (previewUrl && !isPrivateLoopbackUrl(previewUrl)) {
     const dedupeKey = `preview_url:${previewUrl}`;
     seen.add(dedupeKey);
     artifacts.push({

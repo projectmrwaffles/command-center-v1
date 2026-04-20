@@ -377,20 +377,6 @@ export async function GET(
       };
     });
 
-    for (const sprint of visibleSprints || []) {
-      const sprintTasks = (visibleTasks || []).filter((task: any) => task.sprint_id === sprint.id && task.review_required);
-      const completionEvents = sprintTasks
-        .map((task: any) => completionEventsByTaskId.get(task.id))
-        .filter(Boolean);
-      await ensureMilestoneReviewSubmission(db as any, {
-        projectId,
-        sprintId: sprint.id,
-        sprintName: sprint.name || null,
-        tasks: sprintTasks,
-        completionEvents,
-      });
-    }
-
     const sprintIds = (sprints || []).map((s: any) => s.id).filter(Boolean);
     const submissionRows = sprintIds.length > 0
       ? ((await db.from("milestone_submissions").select("*").in("sprint_id", sprintIds).order("revision_number", { ascending: false })).data || [])

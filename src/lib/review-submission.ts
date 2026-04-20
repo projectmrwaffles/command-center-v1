@@ -132,13 +132,13 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
       }))
   ).map((artifact, index) => {
     const artifactKind = artifact.kind;
-    let kind: 'artifact' | 'staging_url' | 'commit' | 'note' = 'note';
+    let kind: 'artifact' | 'screenshot' | 'staging_url' | 'commit' | 'note' = 'note';
     const url: string | null = artifactKind === 'preview_url' ? artifact.value : null;
     let storagePath: string | null = null;
 
     if (artifactKind === 'workspace_file') {
-      kind = 'artifact';
       storagePath = artifact.value;
+      kind = /\.(png|jpe?g|gif|webp)$/i.test(artifact.value) ? 'screenshot' : 'artifact';
     } else if (artifactKind === 'preview_url') {
       kind = 'staging_url';
     } else if (artifactKind === 'git_commit') {

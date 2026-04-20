@@ -341,6 +341,7 @@ function createSeed({ projectId, projectName, projectType, projectLinks = {}, sp
   assert.equal(result.reason, "review_submission_created");
   assert.equal(db.tables.milestone_submissions.length, 2, "build completion should create a new delivery review even when an approved prebuild checkpoint already exists");
   assert.equal(db.tables.milestone_submissions[1]?.checkpoint_type, "delivery_review");
+  assert.equal(db.tables.proof_bundles.length, 1, "delivery review submissions should still materialize an incomplete proof bundle instead of throwing");
 
   console.log("PASS approved prebuild checkpoints do not suppress required build delivery review submissions");
 }

@@ -38,7 +38,20 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   const hasReviewRequiredTasks = input.tasks.some((task) => task.review_required === true);
   const requiresReview = Boolean(sprint.approval_gate_required || sprint.delivery_review_required || isBuildSprint || hasReviewRequiredTasks);
   if (!requiresReview) return null;
-  if (latestSubmission?.id) return latestSubmission;
+
+  const checkpointType = resolveMilestoneCheckpointType({
+    checkpointType: sprint.checkpoint_type,
+    sprintName: sprint.name || input.sprintName || null,
+    phaseKey: sprint.phase_key || null,
+    taskTypes: input.tasks.map((task) => task.task_type),
+  }) || sprint.checkpoint_type || 'delivery_review';
+
+  if (latestSubmission?.id) {
+    const latestCheckpointType = latestSubmission as { checkpoint_type?: string | null; status?: string | null };
+    const submissionStillSatisfiesCurrentGate = latestCheckpointType.checkpoint_type === checkpointType
+      && !(checkpointType === 'delivery_review' && latestCheckpointType.status === 'approved');
+    if (submissionStillSatisfiesCurrentGate) return latestSubmission;
+  }
 
   const nextRevision = (latestSubmission?.revision_number || 0) + 1;
   const completedTasks = input.tasks.filter((task) => task.status === 'done');
@@ -56,13 +69,6 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   const reviewGuidance = completedTasks.some((task) => /frontend|design|ui|landing|page|feature/i.test(task.title))
     ? 'Review the visual/design output, compare against the requested scope, and request changes if the delivered experience is not acceptable.'
     : 'Review the submitted output and request changes if the delivered work does not meet the expected outcome.';
-
-  const checkpointType = resolveMilestoneCheckpointType({
-    checkpointType: sprint.checkpoint_type,
-    sprintName: sprint.name || input.sprintName || null,
-    phaseKey: sprint.phase_key || null,
-    taskTypes: input.tasks.map((task) => task.task_type),
-  }) || sprint.checkpoint_type || 'delivery_review';
 
   const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
     checkpointType,

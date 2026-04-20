@@ -296,6 +296,56 @@ function createSeed({ projectId, projectName, projectType, projectLinks = {}, sp
 }
 
 {
+  const db = new MockDb(createSeed({
+    projectId: "project-build-delivery-followup",
+    projectName: "Build delivery followup repro",
+    projectType: "product_build",
+    sprint: {
+      id: "sprint-build-followup",
+      project_id: "project-build-delivery-followup",
+      name: "Phase 2 · Build",
+      status: "active",
+      phase_key: "build",
+      phase_order: 2,
+      approval_gate_required: true,
+      approval_gate_status: "approved",
+      delivery_review_required: true,
+      delivery_review_status: "not_requested",
+      checkpoint_type: "delivery_review",
+      checkpoint_evidence_requirements: null,
+      created_at: "2026-04-10T22:00:00.000Z",
+    },
+    tasks: [{
+      id: "task-build-followup",
+      project_id: "project-build-delivery-followup",
+      sprint_id: "sprint-build-followup",
+      title: "Ship implementation slice",
+      status: "done",
+      review_required: true,
+      review_status: "not_requested",
+      task_type: "build_implementation",
+      updated_at: "2026-04-10T22:15:00.000Z",
+      position: 1,
+    }],
+  }));
+  db.tables.milestone_submissions.push({
+    id: "submission-prebuild-approved",
+    sprint_id: "sprint-build-followup",
+    status: "approved",
+    revision_number: 1,
+    checkpoint_type: "prebuild_checkpoint",
+  });
+
+  const result = await maybeAdvanceProjectAfterTaskDone(db, { projectId: "project-build-delivery-followup", completedTaskId: "task-build-followup" });
+
+  assert.equal(result.reason, "review_submission_created");
+  assert.equal(db.tables.milestone_submissions.length, 2, "build completion should create a new delivery review even when an approved prebuild checkpoint already exists");
+  assert.equal(db.tables.milestone_submissions[1]?.checkpoint_type, "delivery_review");
+
+  console.log("PASS approved prebuild checkpoints do not suppress required build delivery review submissions");
+}
+
+{
   const { fetchPendingTasks } = await import("../scripts/agent-listener.js");
   const tables = createSeed({
     projectId: "project-pending-filter",

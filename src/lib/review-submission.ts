@@ -64,16 +64,11 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
       const { data: existingProofItems, error: existingProofItemsError } = await db
         .from('proof_items')
-        .select('kind')
+        .select('kind, url, storage_path')
         .eq('proof_bundle_id', existingBundle.id);
       if (existingProofItemsError) throw existingProofItemsError;
 
-      const existingValidation = validateProofBundleRequirements({
-        checkpointType,
-        evidenceRequirements: sprint.checkpoint_evidence_requirements,
-        items: existingProofItems || [],
-      });
-      if (existingValidation.ok) return latestSubmission;
+      return latestSubmission;
     }
   }
 

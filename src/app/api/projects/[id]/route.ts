@@ -379,7 +379,8 @@ export async function GET(
 
     const sprintIds = (sprints || []).map((s: any) => s.id).filter(Boolean);
     const submissionRows = sprintIds.length > 0
-      ? ((await db.from("milestone_submissions").select("*").in("sprint_id", sprintIds).order("revision_number", { ascending: false })).data || [])
+      ? (((await db.from("milestone_submissions").select("*").in("sprint_id", sprintIds).order("revision_number", { ascending: false })).data || [])
+          .filter((submission: any) => submission.status !== "superseded"))
       : [];
     const submissionIds = submissionRows.map((row: any) => row.id).filter(Boolean);
     const proofBundleRows = submissionIds.length > 0

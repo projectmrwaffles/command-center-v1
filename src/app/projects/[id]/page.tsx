@@ -128,6 +128,7 @@ type Milestone = {
   reviewArtifacts?: ReviewArtifact[] | null;
   reviewRequest?: {
     id: string;
+    jobId?: string | null;
     status: string;
     summary?: string | null;
     createdAt: string;

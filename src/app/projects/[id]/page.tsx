@@ -441,12 +441,12 @@ function MilestoneReviewCard({
   onSaved: () => void;
 }) {
   const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
-  const hasRevisionRequest = Boolean(milestone.reviewRequest);
   const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
   const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
   const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
   const reviewReady = milestoneDisplayState.checkpointState.key === "ready_for_review";
   const qaQueued = milestoneDisplayState.stageState.key === "qa_queued";
+  const showRevisionRequestCard = reviewTasksReady && (revisionCycleActive || deliveryApproved);
 
   const stateBadge = milestoneDisplayState.stageState;
 
@@ -468,7 +468,7 @@ function MilestoneReviewCard({
             <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
             <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
             <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", stateBadge.className)}>{stateBadge.label}</span>
-            {hasRevisionRequest ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-red-700">Revision requested</span> : null}
+            {revisionCycleActive ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-red-700">Revision requested</span> : null}
           </div>
           {milestone.goal ? <p className="mt-2 text-sm leading-6 text-zinc-600">{milestone.goal}</p> : null}
           <p className="mt-2 text-sm leading-6 text-zinc-600">{summaryCopy}</p>
@@ -476,7 +476,7 @@ function MilestoneReviewCard({
         <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
       </div>
 
-      {reviewTasksReady ? (
+      {showRevisionRequestCard ? (
         <div className="mt-4">
           <RevisionRequestCard
             projectId={projectId}
@@ -490,7 +490,13 @@ function MilestoneReviewCard({
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-          Finish milestone tasks, then review the deliverable yourself. A revision request only matters if changes are actually needed.
+          {reviewTasksReady
+            ? reviewReady
+              ? "QC is reviewing the first delivery pass now. Revision controls stay hidden unless changes are actually requested."
+              : qaQueued
+                ? "Implementation is complete and waiting for first-pass QC. Revision controls stay hidden until QC asks for changes."
+                : "Revision controls will appear here only after QC requests changes, or after the milestone ships and you intentionally open another revision cycle."
+            : "Finish milestone tasks, then review the deliverable yourself. A revision request only matters if changes are actually needed."}
         </div>
       )}
     </div>

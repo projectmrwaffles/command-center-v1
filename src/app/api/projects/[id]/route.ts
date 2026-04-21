@@ -8,7 +8,6 @@ import { deriveReviewArtifacts } from "@/lib/review-requests";
 import { filterLegacyAttachmentShellState } from "@/lib/project-attachment-finalize";
 import { deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from "@/lib/milestone-review";
 import { repairKickoffSignoffTasks } from "@/lib/kickoff-signoff-repair";
-import { ensureMilestoneReviewSubmission } from "@/lib/review-submission";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
@@ -249,6 +248,10 @@ export async function GET(
     });
 
     await repairKickoffSignoffTasks(db as any, { projectId });
+    await reconcileProjectPhaseProgression(db as any, {
+      projectId,
+      projectName: effectiveProject.name || null,
+    });
 
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
     const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }, { data: completionEvents }] = await Promise.all([

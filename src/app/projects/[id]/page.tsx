@@ -1233,16 +1233,24 @@ export default function ProjectDetailPage() {
                         (bucket as any[]).map((task: any) => {
                           const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
                           const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
-                          const executionTone = getExecutionTone({
-                            status: task.status,
-                            reviewRequired: task.review_required,
-                            reviewStatus: task.review_status,
-                            stale: isTaskExecutionStale(task),
-                          });
                           const taskProgress = taskProgressValue(task);
                           const taskMilestone = task.sprint_id ? milestones.find((milestone) => milestone.id === task.sprint_id) : null;
                           const checkpointState = taskMilestone?.approvalGateRequired || taskMilestone?.deliveryReviewRequired || taskMilestone?.reviewSummary?.latestSubmissionId ? taskMilestone : null;
                           const checkpointDisplayState = checkpointState ? deriveMilestoneDisplayState(checkpointState) : null;
+                          const checkpointReviewActive = Boolean(
+                            task.review_required
+                            && task.status === "todo"
+                            && checkpointDisplayState
+                            && (checkpointDisplayState.stageState.key === "delivery_review_active" || checkpointDisplayState.stageState.key === "rereview_active")
+                          );
+                          const effectiveTaskStatus = checkpointReviewActive ? "review" : task.status;
+                          const effectiveReviewStatus = checkpointReviewActive ? "in_review" : task.review_status;
+                          const executionTone = getExecutionTone({
+                            status: effectiveTaskStatus,
+                            reviewRequired: task.review_required,
+                            reviewStatus: effectiveReviewStatus,
+                            stale: isTaskExecutionStale(task),
+                          });
                           const showTaskReviewBadge = Boolean(
                             task.review_required
                             && task.status !== "in_progress"
@@ -1265,7 +1273,7 @@ export default function ProjectDetailPage() {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-start justify-between gap-2">
                                     <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
-                                    <TaskStatusBadge status={task.status} />
+                                    <TaskStatusBadge status={effectiveTaskStatus} />
                                   </div>
                                   {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
                                   <div className="mt-2 flex flex-wrap gap-2">

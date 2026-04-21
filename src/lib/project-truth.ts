@@ -56,6 +56,16 @@ function isQueuedTaskBlocker(blocker: ReturnType<typeof getTaskExecutionBlocker>
     || blocker?.key === "waiting_for_worker_capacity";
 }
 
+function isTaskInActiveCheckpointReview(task: TruthTaskLike, sprint?: TruthSprintLike | null) {
+  if (!task.review_required || task.status !== "todo") return false;
+
+  const approvalPending = sprint?.approval_gate_required && (sprint.approval_gate_status ?? "not_requested") === "pending";
+  const deliveryPending = (sprint?.delivery_review_required === true || sprint?.phase_key === "build")
+    && (sprint?.delivery_review_status ?? "not_requested") === "pending";
+
+  return Boolean(approvalPending || deliveryPending);
+}
+
 export function deriveExecutionState(input: {
   totalDeliveryTasks: number;
   doneDeliveryTasks: number;
@@ -368,11 +378,13 @@ export function deriveProjectTruth(input: {
   const taskBoard = canonicalProject
     ? tasks.reduce(
         (acc, task) => {
+          const sprint = (input.sprints || []).find((candidate) => candidate.id === task.sprint_id) as any;
+
           if (task.status === "done") {
             acc.done.push(task.id || "");
             return acc;
           }
-          if (task.status === "in_progress" || task.status === "review") {
+          if (task.status === "in_progress" || task.status === "review" || isTaskInActiveCheckpointReview(task, sprint)) {
             acc.inProgress.push(task.id || "");
             return acc;
           }
@@ -385,7 +397,7 @@ export function deriveProjectTruth(input: {
           const blocker = getTaskExecutionBlocker({
             project: canonicalProject,
             task: task as any,
-            sprint: (input.sprints || []).find((sprint) => sprint.id === task.sprint_id) as any,
+            sprint,
             sprints: (input.sprints || []) as any,
             jobs: jobs as any,
             agents: agents as any,

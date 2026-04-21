@@ -48,6 +48,7 @@ type MilestoneLike = {
   } | null;
   reviewSummary?: {
     latestSubmissionId?: string | null;
+    latestRevisionNumber?: number | null;
     proofItemCount?: number | null;
     proofCompletenessStatus?: string | null;
     feedbackItemCount?: number | null;
@@ -107,24 +108,27 @@ export function deriveMilestoneDisplayState(milestone: MilestoneLike) {
   });
 
   const reviewTasksReady = (milestone.totalTasks || 0) > 0 && milestone.doneTasks === milestone.totalTasks;
-  const hasRevisionRequest = Boolean(milestone.reviewRequest);
-  const revisionCycleActive = hasRevisionRequest
-    || milestone.deliveryReviewStatus === "rejected"
+  const changesRequested = milestone.deliveryReviewStatus === "rejected"
     || milestone.reviewSummary?.latestSubmissionStatus === "changes_requested"
     || milestone.reviewSummary?.latestDecision === "request_changes";
+  const hasActualRevisionHistory = (milestone.reviewSummary?.latestRevisionNumber ?? 0) > 1 || changesRequested;
+  const revisionCycleActive = changesRequested;
   const deliveryApproved = milestone.deliveryReviewStatus === "approved" || milestone.reviewSummary?.latestDecision === "approve";
   const reviewReady = checkpointState.key === "ready_for_review";
+  const rereviewActive = hasActualRevisionHistory && reviewReady && !revisionCycleActive && !deliveryApproved;
   const qaQueued = reviewTasksReady && !reviewReady && !revisionCycleActive && !deliveryApproved;
 
   const stageState = revisionCycleActive
     ? { key: "revision_cycle", label: "Revision cycle", className: "border-amber-200 bg-amber-50 text-amber-700" }
     : deliveryApproved
       ? { key: "iteration_shipped", label: "Iteration shipped", className: "border-emerald-200 bg-emerald-50 text-emerald-700" }
-      : reviewReady
-        ? { key: "delivery_review_active", label: "Delivery review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
-        : qaQueued
-          ? { key: "qa_queued", label: "QA queued", className: "border-zinc-200 bg-zinc-50 text-zinc-700" }
-          : { key: "self_review", label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
+      : rereviewActive
+        ? { key: "rereview_active", label: "Re-review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
+        : reviewReady
+          ? { key: "delivery_review_active", label: "Delivery review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
+          : qaQueued
+            ? { key: "qa_queued", label: "QA queued", className: "border-zinc-200 bg-zinc-50 text-zinc-700" }
+            : { key: "self_review", label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
 
   return {
     checkpointState,

@@ -24,6 +24,25 @@ export type TruthSprintLike = {
   approval_gate_status?: string | null;
   delivery_review_required?: boolean | null;
   delivery_review_status?: string | null;
+  reviewRequest?: {
+    id?: string | null;
+    status?: string | null;
+  } | null;
+  reviewSummary?: {
+    latestSubmissionId?: string | null;
+    proofItemCount?: number | null;
+    proofCompletenessStatus?: string | null;
+    feedbackItemCount?: number | null;
+    checkpointType?: string | null;
+    latestDecisionNotes?: string | null;
+    latestRejectionComment?: string | null;
+    latestSubmissionSummary?: string | null;
+  } | null;
+  preBuildCheckpoint?: {
+    outcome?: "match" | "mismatch" | "manual_review" | null;
+    status?: "approved" | "pending" | "not_requested" | null;
+    reasons?: string[] | null;
+  } | null;
 };
 
 type StuckWorkflowGuardrail = {
@@ -64,6 +83,22 @@ function isTaskInActiveCheckpointReview(task: TruthTaskLike, sprint?: TruthSprin
     && (sprint?.delivery_review_status ?? "not_requested") === "pending";
 
   return Boolean(approvalPending || deliveryPending);
+}
+
+function isSprintInActiveDeliveryReview(sprint: TruthSprintLike) {
+  const rawPending = (sprint.delivery_review_status ?? "not_requested") === "pending";
+  if (!rawPending) return false;
+
+  const hasCheckpointMetadata = Boolean(sprint.reviewSummary || sprint.reviewRequest || sprint.preBuildCheckpoint);
+  if (!hasCheckpointMetadata) return true;
+
+  const checkpointState = deriveReviewCheckpointState({
+    approvalGateStatus: sprint.delivery_review_status,
+    reviewSummary: sprint.reviewSummary,
+    preBuildCheckpoint: sprint.preBuildCheckpoint,
+  });
+
+  return checkpointState.key === "ready_for_review" || sprint.reviewRequest?.status === "pending";
 }
 
 export function deriveExecutionState(input: {
@@ -250,7 +285,7 @@ export function deriveProjectTruth(input: {
     const deliveryReviewRequired = sprint.delivery_review_required === true || isBuildSprint;
     return deliveryReviewRequired;
   });
-  const pendingDeliveryReview = buildReviewSprints.some((sprint) => (sprint.delivery_review_status ?? "not_requested") === "pending");
+  const pendingDeliveryReview = buildReviewSprints.some((sprint) => isSprintInActiveDeliveryReview(sprint));
   const revisionCycleActive = buildReviewSprints.some((sprint) => (sprint.delivery_review_status ?? "not_requested") === "rejected");
   const deliveryReviewNotStarted = buildReviewSprints.some((sprint) => (sprint.delivery_review_status ?? "not_requested") === "not_requested");
   const acceptancePending = pendingDeliveryReview;

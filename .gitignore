@@ -42,7 +42,7 @@ next-env.d.ts
 
 # local ops/runtime output
 .ops-logs/
-.ops-runtime/locks/
+.ops-runtime/
 
 # local audit and repro scratch files
 tmp-*

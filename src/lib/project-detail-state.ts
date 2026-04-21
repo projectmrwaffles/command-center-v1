@@ -38,6 +38,14 @@ type ProjectTruthLike = {
 type MilestoneLike = {
   approvalGateStatus?: string | null;
   deliveryReviewStatus?: string | null;
+  totalTasks?: number | null;
+  doneTasks?: number | null;
+  reviewRequest?: {
+    id?: string | null;
+    status?: string | null;
+    summary?: string | null;
+    createdAt?: string | null;
+  } | null;
   reviewSummary?: {
     latestSubmissionId?: string | null;
     proofItemCount?: number | null;
@@ -47,6 +55,8 @@ type MilestoneLike = {
     latestSubmissionSummary?: string | null;
     latestDecisionNotes?: string | null;
     latestRejectionComment?: string | null;
+    latestSubmissionStatus?: string | null;
+    latestDecision?: string | null;
   } | null;
   preBuildCheckpoint?: {
     outcome?: "match" | "mismatch" | "manual_review" | null;
@@ -96,8 +106,29 @@ export function deriveMilestoneDisplayState(milestone: MilestoneLike) {
     preBuildCheckpoint: milestone.preBuildCheckpoint,
   });
 
+  const reviewTasksReady = (milestone.totalTasks || 0) > 0 && milestone.doneTasks === milestone.totalTasks;
+  const hasRevisionRequest = Boolean(milestone.reviewRequest);
+  const revisionCycleActive = hasRevisionRequest
+    || milestone.deliveryReviewStatus === "rejected"
+    || milestone.reviewSummary?.latestSubmissionStatus === "changes_requested"
+    || milestone.reviewSummary?.latestDecision === "request_changes";
+  const deliveryApproved = milestone.deliveryReviewStatus === "approved" || milestone.reviewSummary?.latestDecision === "approve";
+  const reviewReady = checkpointState.key === "ready_for_review";
+  const qaQueued = reviewTasksReady && !reviewReady && !revisionCycleActive && !deliveryApproved;
+
+  const stageState = revisionCycleActive
+    ? { key: "revision_cycle", label: "Revision cycle", className: "border-amber-200 bg-amber-50 text-amber-700" }
+    : deliveryApproved
+      ? { key: "iteration_shipped", label: "Iteration shipped", className: "border-emerald-200 bg-emerald-50 text-emerald-700" }
+      : reviewReady
+        ? { key: "delivery_review_active", label: "Delivery review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
+        : qaQueued
+          ? { key: "qa_queued", label: "QA queued", className: "border-zinc-200 bg-zinc-50 text-zinc-700" }
+          : { key: "self_review", label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
+
   return {
     checkpointState,
+    stageState,
     showDecisionActions: checkpointState.key === "ready_for_review",
     showChangesRequestedActions: checkpointState.key === "changes_requested",
     showBlockedApprovalPanel: checkpointState.key === "setup_required" || checkpointState.key === "awaiting_submission" || checkpointState.key === "awaiting_evidence",

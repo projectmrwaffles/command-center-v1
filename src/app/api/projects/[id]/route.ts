@@ -453,18 +453,6 @@ export async function GET(
 
     const artifactIntegrity = getProjectArtifactIntegrity(effectiveProject, visibleTasks || []);
     const preBuildCheckpoint = derivePreBuildCheckpointState(effectiveProject);
-    const truth = deriveProjectTruth({
-      project: effectiveProject,
-      tasks: visibleTasks || [],
-      sprints: visibleSprints || [],
-      jobs: jobs || [],
-      agents: agents || [],
-    });
-    const overallProgress = artifactIntegrity.completionCapPct != null
-      && truth.counts.delivery.done === truth.counts.delivery.total
-      && truth.counts.delivery.total > 0
-      ? Math.min(truth.progressPct, artifactIntegrity.completionCapPct)
-      : truth.progressPct;
 
     const milestones = (visibleSprints || []).map((sprint: any) => {
       const sprintTasks = (visibleTasks || []).filter((task: any) => task.sprint_id === sprint.id);
@@ -504,6 +492,50 @@ export async function GET(
         projectType: effectiveProject.type || null,
         projectIntake: effectiveProject.intake || null,
       });
+      const reviewRequest = pendingReview
+        ? {
+            id: pendingReview.id,
+            jobId: pendingReview.job_id ?? null,
+            status: pendingReview.status,
+            summary: pendingReview.summary,
+            createdAt: pendingReview.created_at,
+            links: pendingReview.context?.links ?? null,
+          }
+        : null;
+      const reviewSummary = latestSubmission
+        ? {
+            latestSubmissionId: latestSubmission.id,
+            latestSubmissionStatus: latestSubmission.status ?? null,
+            latestRevisionNumber: latestSubmission.revision_number ?? null,
+            checkpointType: latestSubmission.checkpoint_type ?? resolvedCheckpointType,
+            evidenceRequirements: latestSubmission.evidence_requirements ?? resolvedCheckpointEvidenceRequirements,
+            latestSubmissionSummary: latestSubmission.summary ?? null,
+            latestDecision: latestSubmission.decision ?? null,
+            latestDecisionNotes: latestSubmission.decision_notes ?? null,
+            latestRejectionComment: latestSubmission.rejection_comment ?? null,
+            latestSubmittedAt: latestSubmission.submitted_at ?? null,
+            proofBundleId: latestBundle?.id ?? null,
+            proofBundleTitle: latestBundle?.title ?? null,
+            proofCompletenessStatus: latestBundle?.completeness_status ?? null,
+            proofItemCount: latestProofItems.length,
+            screenshotItemCount: latestProofItems.filter((item: any) => item.kind === "screenshot").length,
+            feedbackItemCount: latestFeedbackItems.length,
+            proofItems: latestProofItems
+              .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .map((item: any) => ({
+                id: item.id,
+                kind: item.kind,
+                label: item.label,
+                url: item.url ?? null,
+                storagePath: item.storage_path ?? null,
+                notes: item.notes ?? null,
+                metadata: item.metadata && typeof item.metadata === "object" ? item.metadata : null,
+                sortOrder: item.sort_order ?? 0,
+              } satisfies ProofItemView)),
+          }
+        : null;
+      const sprintPreBuildCheckpoint = sprint.phase_key === "build" || /\bbuild\b/i.test(sprint.name || "") ? preBuildCheckpoint : null;
+
       return {
         id: sprint.id,
         name: sprint.name,
@@ -527,51 +559,37 @@ export async function GET(
         hiddenBootstrapTasks: sprintTruth.hiddenBootstrapTasks,
         progressPct: sprintTruth.progressPct,
         reviewArtifacts: pendingReview?.context?.artifacts ?? derivedArtifacts,
-        reviewRequest: pendingReview
-          ? {
-              id: pendingReview.id,
-              jobId: pendingReview.job_id ?? null,
-              status: pendingReview.status,
-              summary: pendingReview.summary,
-              createdAt: pendingReview.created_at,
-              links: pendingReview.context?.links ?? null,
-            }
-          : null,
-        reviewSummary: latestSubmission
-          ? {
-              latestSubmissionId: latestSubmission.id,
-              latestSubmissionStatus: latestSubmission.status ?? null,
-              latestRevisionNumber: latestSubmission.revision_number ?? null,
-              checkpointType: latestSubmission.checkpoint_type ?? resolvedCheckpointType,
-              evidenceRequirements: latestSubmission.evidence_requirements ?? resolvedCheckpointEvidenceRequirements,
-              latestSubmissionSummary: latestSubmission.summary ?? null,
-              latestDecision: latestSubmission.decision ?? null,
-              latestDecisionNotes: latestSubmission.decision_notes ?? null,
-              latestRejectionComment: latestSubmission.rejection_comment ?? null,
-              latestSubmittedAt: latestSubmission.submitted_at ?? null,
-              proofBundleId: latestBundle?.id ?? null,
-              proofBundleTitle: latestBundle?.title ?? null,
-              proofCompletenessStatus: latestBundle?.completeness_status ?? null,
-              proofItemCount: latestProofItems.length,
-              screenshotItemCount: latestProofItems.filter((item: any) => item.kind === "screenshot").length,
-              feedbackItemCount: latestFeedbackItems.length,
-              proofItems: latestProofItems
-                .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                .map((item: any) => ({
-                  id: item.id,
-                  kind: item.kind,
-                  label: item.label,
-                  url: item.url ?? null,
-                  storagePath: item.storage_path ?? null,
-                  notes: item.notes ?? null,
-                  metadata: item.metadata && typeof item.metadata === "object" ? item.metadata : null,
-                  sortOrder: item.sort_order ?? 0,
-                } satisfies ProofItemView)),
-            }
-          : null,
-        preBuildCheckpoint: sprint.phase_key === "build" || /\bbuild\b/i.test(sprint.name || "") ? preBuildCheckpoint : null,
+        reviewRequest,
+        reviewSummary,
+        preBuildCheckpoint: sprintPreBuildCheckpoint,
       };
     });
+
+    const truth = deriveProjectTruth({
+      project: effectiveProject,
+      tasks: visibleTasks || [],
+      sprints: milestones.map((milestone: any) => ({
+        id: milestone.id,
+        name: milestone.name,
+        auto_generated: milestone.autoGenerated,
+        phase_key: milestone.phaseKey,
+        status: milestone.status,
+        approval_gate_required: milestone.approvalGateRequired,
+        approval_gate_status: milestone.approvalGateStatus,
+        delivery_review_required: milestone.deliveryReviewRequired,
+        delivery_review_status: milestone.deliveryReviewStatus,
+        reviewRequest: milestone.reviewRequest,
+        reviewSummary: milestone.reviewSummary,
+        preBuildCheckpoint: milestone.preBuildCheckpoint,
+      })),
+      jobs: jobs || [],
+      agents: agents || [],
+    });
+    const overallProgress = artifactIntegrity.completionCapPct != null
+      && truth.counts.delivery.done === truth.counts.delivery.total
+      && truth.counts.delivery.total > 0
+      ? Math.min(truth.progressPct, artifactIntegrity.completionCapPct)
+      : truth.progressPct;
 
     const queuedExecutionReasons = (visibleTasks || [])
       .filter((task: any) => task.status === "todo")

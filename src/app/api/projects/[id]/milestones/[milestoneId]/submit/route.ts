@@ -1,6 +1,7 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, isProofItemKind, resolveMilestoneCheckpointType, validateProofBundleRequirements } from "@/lib/milestone-review";
+import { syncMilestoneReviewRequest } from "@/lib/review-request-sync";
 import { NextRequest, NextResponse } from "next/server";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -155,7 +156,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       }),
     });
 
-    return NextResponse.json({ submission, proofBundle: bundle }, { status: 201 });
+    let reviewRequest: Awaited<ReturnType<typeof syncMilestoneReviewRequest>> | null = null;
+    if (completenessStatus === "ready") {
+      reviewRequest = await syncMilestoneReviewRequest(db as any, {
+        projectId,
+        sprintId: milestoneId,
+      });
+
+      if (!reviewRequest.created && reviewRequest.reason !== "already_pending") {
+        return NextResponse.json({
+          error: reviewRequest.reason || "Failed to create review request",
+          submission,
+          proofBundle: bundle,
+        }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ submission, proofBundle: bundle, reviewRequest: reviewRequest?.created ? reviewRequest.reviewRequest : null }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects/:id/milestones/:milestoneId/submit] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

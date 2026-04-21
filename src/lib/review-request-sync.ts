@@ -3,29 +3,43 @@ import { getProjectRequirementCompliance } from "./project-requirements.ts";
 import { getSprintReviewEligibility, resolveSprintReviewSurface } from "./review-request-guards.ts";
 import { buildReviewRequestContext, buildReviewRequestSummary, deriveReviewArtifacts, mergeProjectLinks } from "./review-requests.ts";
 import { validateProofBundleRequirements } from "./milestone-review.ts";
+import { resolveTaskAssignee } from "./project-execution.ts";
 
 type DbClient = { from: (table: string) => any; rpc?: (fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: any }> } & Record<string, any>;
 
 async function resolveReviewOwner(db: DbClient, projectId: string, sprintId: string) {
+  const pickOwnerFromTasks = async (tasks: Array<{ assignee_agent_id?: string | null; owner_team_id?: string | null; review_required?: boolean | null; task_type?: string | null }>) => {
+    const prioritized = tasks.slice().sort((a, b) => {
+      const aScore = Number(Boolean(a.review_required)) * 10 + Number(a.task_type === "qa_validation") * 5 + Number(a.task_type === "build_implementation");
+      const bScore = Number(Boolean(b.review_required)) * 10 + Number(b.task_type === "qa_validation") * 5 + Number(b.task_type === "build_implementation");
+      return bScore - aScore;
+    });
+
+    for (const task of prioritized) {
+      const agentId = await resolveTaskAssignee(db as any, task);
+      if (agentId) return agentId;
+    }
+
+    return null;
+  };
+
   const { data: sprintTasks } = await db
     .from("sprint_items")
-    .select("assignee_agent_id")
+    .select("assignee_agent_id, owner_team_id, review_required, task_type")
     .eq("project_id", projectId)
     .eq("sprint_id", sprintId)
-    .not("assignee_agent_id", "is", null)
-    .limit(10);
+    .limit(25);
 
-  const sprintAgentId = sprintTasks?.find((task: any) => task.assignee_agent_id)?.assignee_agent_id;
+  const sprintAgentId = await pickOwnerFromTasks(sprintTasks || []);
   if (sprintAgentId) return sprintAgentId as string;
 
   const { data: projectTasks } = await db
     .from("sprint_items")
-    .select("assignee_agent_id")
+    .select("assignee_agent_id, owner_team_id, review_required, task_type")
     .eq("project_id", projectId)
-    .not("assignee_agent_id", "is", null)
-    .limit(10);
+    .limit(25);
 
-  const projectAgentId = projectTasks?.find((task: any) => task.assignee_agent_id)?.assignee_agent_id;
+  const projectAgentId = await pickOwnerFromTasks(projectTasks || []);
   if (projectAgentId) return projectAgentId as string;
 
   const { data: fallbackAgent } = await db.from("agents").select("id").limit(1).maybeSingle();

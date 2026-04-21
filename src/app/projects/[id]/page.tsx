@@ -443,23 +443,12 @@ function MilestoneReviewCard({
   const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
   const hasRevisionRequest = Boolean(milestone.reviewRequest);
   const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
-  const revisionCycleActive = hasRevisionRequest
-    || milestone.deliveryReviewStatus === "rejected"
-    || milestone.reviewSummary?.latestSubmissionStatus === "changes_requested"
-    || milestone.reviewSummary?.latestDecision === "request_changes";
-  const deliveryApproved = milestone.deliveryReviewStatus === "approved" || milestone.reviewSummary?.latestDecision === "approve";
+  const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
+  const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
   const reviewReady = milestoneDisplayState.checkpointState.key === "ready_for_review";
-  const qaQueued = reviewTasksReady && !reviewReady && !revisionCycleActive && !deliveryApproved;
+  const qaQueued = milestoneDisplayState.stageState.key === "qa_queued";
 
-  const stateBadge = revisionCycleActive
-    ? { label: "Revision cycle", className: "border-amber-200 bg-amber-50 text-amber-700" }
-    : deliveryApproved
-      ? { label: "Iteration shipped", className: "border-emerald-200 bg-emerald-50 text-emerald-700" }
-      : reviewReady
-        ? { label: "Delivery review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
-        : qaQueued
-          ? { label: "QA queued", className: "border-zinc-200 bg-zinc-50 text-zinc-700" }
-          : { label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
+  const stateBadge = milestoneDisplayState.stageState;
 
   const summaryCopy = revisionCycleActive
     ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this milestone. Complete the revision, then resubmit when ready.")
@@ -1277,7 +1266,7 @@ export default function ProjectDetailPage() {
                                     <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                     {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                     {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointTone(checkpointDisplayState?.checkpointState.key))}>{taskMilestone?.name}: {checkpointDisplayState?.checkpointState.label}</span> : null}
+                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>{taskMilestone?.name}: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                   </div>
                                   {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                     <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">

@@ -1,7 +1,8 @@
 import { buildAttachmentKickoffFinalizedIntake, buildAttachmentKickoffReadyIntake, buildAttachmentKickoffStageState, getAttachmentKickoffState, hasAttachmentDerivedRequirements, hasOnlyLegacyAttachmentShellSprints, shouldFinalizeProjectAfterAttachmentUpload } from "@/lib/project-attachment-finalize";
 import type { ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate } from "@/lib/project-create-finalize";
-import { ensureProvisionedRepoMatchesRequirements } from "@/lib/github-provisioning";
+import { ensureProvisionedRepoMatchesRequirements, provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
+import { githubProvisioningAvailable, syncProjectLinksWithGitHubBinding } from "@/lib/github-repo-binding";
 import { deriveProjectRequirements, extractRequirementsFromUploadedFile } from "@/lib/project-requirements";
 import type { ProjectRequirements } from "@/lib/project-requirements.types";
 
@@ -29,6 +30,12 @@ type ProjectIntakeLike = {
   goals?: string | null;
   requirements?: ProjectRequirements | null;
   attachmentKickoffState?: Record<string, unknown> | null;
+  githubRepoProvisioning?: {
+    status?: "pending" | "failed" | "ready" | null;
+    reason?: string | null;
+    attemptedAt?: string | null;
+    nextAction?: string | null;
+  } | null;
 };
 
 type AttachmentProjectLike = {
@@ -245,11 +252,52 @@ async function finalizeRecoveredAttachmentProject(
     }
   }
 
-  const finalizedIntake = buildAttachmentKickoffFinalizedIntake(input.intake as ProjectIntake) as ProjectIntakeLike;
+  let finalizedIntake = buildAttachmentKickoffFinalizedIntake(input.intake as ProjectIntake) as ProjectIntakeLike;
+  let githubRepoBinding = input.project.github_repo_binding || null;
+  let projectLinks = input.project.links || null;
+
+  const shouldProvisionRepo = !githubRepoBinding && shouldAutoProvisionGitHubRepo({
+    type: input.project.type || "other",
+    intake: finalizedIntake as ProjectIntake,
+    existingGitHubUrl: projectLinks?.github || null,
+  });
+
+  if (shouldProvisionRepo && githubProvisioningAvailable()) {
+    try {
+      githubRepoBinding = await provisionGitHubRepoForProject({
+        projectId: input.project.id,
+        projectName: input.project.name || "Untitled project",
+        description: input.project.name || null,
+        requirements: getExistingRequirements(finalizedIntake),
+      });
+      projectLinks = syncProjectLinksWithGitHubBinding(projectLinks, githubRepoBinding);
+      finalizedIntake = {
+        ...finalizedIntake,
+        githubRepoProvisioning: {
+          status: "ready",
+          reason: `GitHub repo ${githubRepoBinding.fullName} was provisioned automatically during attachment finalization.`,
+          attemptedAt: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      finalizedIntake = {
+        ...finalizedIntake,
+        githubRepoProvisioning: {
+          status: "failed",
+          reason: error instanceof Error ? error.message : "GitHub repo auto-provisioning failed during attachment finalization.",
+          attemptedAt: new Date().toISOString(),
+          nextAction: "Retry provisioning after restoring GitHub runtime auth, or attach an existing GitHub repo manually.",
+        },
+      };
+    }
+  }
+
   const { error: persistFinalizeError } = await db
     .from("projects")
     .update({
       intake: finalizedIntake,
+      links: projectLinks,
+      github_repo_binding: githubRepoBinding,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.project.id);
@@ -266,8 +314,8 @@ async function finalizeRecoveredAttachmentProject(
     name: input.project.name || "Untitled project",
     type: input.project.type || "other",
     intake: finalizedIntake as any,
-    links: input.project.links || null,
-    githubRepoBinding: input.project.github_repo_binding || null,
+    links: projectLinks,
+    githubRepoBinding,
     teamId: input.project.team_id || null,
   });
 

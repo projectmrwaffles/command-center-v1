@@ -5,6 +5,7 @@ import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
+import { syncMilestoneReviewRequest } from "@/lib/review-request-sync";
 import { filterLegacyAttachmentShellState } from "@/lib/project-attachment-finalize";
 import { deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from "@/lib/milestone-review";
 import { repairKickoffSignoffTasks } from "@/lib/kickoff-signoff-repair";
@@ -434,6 +435,19 @@ export async function GET(
       }
       if (insertedProofItem) {
         proofItemRows.push(insertedProofItem);
+        const { error: bundleReadyError } = await db
+          .from("proof_bundles")
+          .update({ completeness_status: "ready" })
+          .eq("id", latestBundle.id);
+        if (bundleReadyError) {
+          console.error(`[API /projects/:id] failed to update proof bundle completeness for sprint ${sprint.id}:`, bundleReadyError);
+          throw new Error(bundleReadyError.message || "Failed to update review proof bundle state");
+        }
+        latestBundle.completeness_status = "ready";
+        await syncMilestoneReviewRequest(db as any, {
+          projectId,
+          sprintId: sprint.id,
+        });
       }
     }
 

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildReviewEventPayload, computeProofBundleCompletenessStatus, deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType, validateProofBundleRequirements } from './milestone-review.ts';
 import { deriveReviewArtifacts } from './review-requests.ts';
+import { syncMilestoneReviewRequest } from './review-request-sync.ts';
 
 type DbClient = SupabaseClient<any, 'public', any>;
 
@@ -62,7 +63,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
       if (!existingBundle?.id) return latestSubmission;
 
-      const { data: existingProofItems, error: existingProofItemsError } = await db
+      const { error: existingProofItemsError } = await db
         .from('proof_items')
         .select('kind, url, storage_path')
         .eq('proof_bundle_id', existingBundle.id);
@@ -157,7 +158,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     };
   });
 
-  const proofValidation = validateProofBundleRequirements({
+  validateProofBundleRequirements({
     checkpointType,
     evidenceRequirements: generatedEvidenceRequirements,
     items: proofItemsPayload,
@@ -211,6 +212,13 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
       summary,
     }),
   });
+
+  if (bundleCompletenessStatus === 'ready') {
+    await syncMilestoneReviewRequest(db as any, {
+      projectId: input.projectId,
+      sprintId: input.sprintId,
+    });
+  }
 
   return submission;
 }

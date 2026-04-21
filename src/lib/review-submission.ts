@@ -26,7 +26,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   completionEvents?: CompletionEventLike[];
 }) {
   const [{ data: latestSubmission, error: latestSubmissionError }, { data: sprint, error: sprintError }, { data: project, error: projectError }] = await Promise.all([
-    db.from('milestone_submissions').select('id, status, revision_number').eq('sprint_id', input.sprintId).order('revision_number', { ascending: false }).limit(1).maybeSingle(),
+    db.from('milestone_submissions').select('id, status, revision_number, checkpoint_type, evidence_requirements').eq('sprint_id', input.sprintId).order('revision_number', { ascending: false }).limit(1).maybeSingle(),
     db.from('sprints').select('id, name, phase_key, approval_gate_required, delivery_review_required, delivery_review_status, checkpoint_type, checkpoint_evidence_requirements').eq('id', input.sprintId).maybeSingle(),
     db.from('projects').select('id, type, intake, links').eq('id', input.projectId).maybeSingle(),
   ]);
@@ -47,8 +47,18 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
     taskTypes: input.tasks.map((task) => task.task_type),
   }) || sprint.checkpoint_type || 'delivery_review';
 
+  const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
+    checkpointType,
+    explicitRequirements: sprint.checkpoint_evidence_requirements,
+    sprintName: sprint.name || input.sprintName || null,
+    phaseKey: sprint.phase_key || null,
+    taskTypes: input.tasks.map((task) => task.task_type),
+    projectType: project?.type || null,
+    projectIntake: project?.intake || null,
+  });
+
   if (latestSubmission?.id) {
-    const latestCheckpointType = latestSubmission as { checkpoint_type?: string | null; status?: string | null };
+    const latestCheckpointType = latestSubmission as { checkpoint_type?: string | null; status?: string | null; evidence_requirements?: Record<string, unknown> | null };
     const submissionStillSatisfiesCurrentGate = latestCheckpointType.checkpoint_type === checkpointType
       && !(checkpointType === 'delivery_review' && latestCheckpointType.status === 'approved');
     if (submissionStillSatisfiesCurrentGate) {
@@ -63,11 +73,25 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
 
       if (!existingBundle?.id) return latestSubmission;
 
-      const { error: existingProofItemsError } = await db
+      const { data: existingProofItems, error: existingProofItemsError } = await db
         .from('proof_items')
         .select('kind, url, storage_path')
         .eq('proof_bundle_id', existingBundle.id);
       if (existingProofItemsError) throw existingProofItemsError;
+
+      if (existingBundle.completeness_status === 'ready') {
+        const proofValidation = validateProofBundleRequirements({
+          checkpointType,
+          evidenceRequirements: latestCheckpointType.evidence_requirements ?? generatedEvidenceRequirements,
+          items: existingProofItems || [],
+        });
+        if (proofValidation.ok) {
+          await syncMilestoneReviewRequest(db as any, {
+            projectId: input.projectId,
+            sprintId: input.sprintId,
+          });
+        }
+      }
 
       return latestSubmission;
     }
@@ -89,16 +113,6 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   const reviewGuidance = completedTasks.some((task) => /frontend|design|ui|landing|page|feature/i.test(task.title))
     ? 'Review the visual/design output, compare against the requested scope, and request changes if the delivered experience is not acceptable.'
     : 'Review the submitted output and request changes if the delivered work does not meet the expected outcome.';
-
-  const generatedEvidenceRequirements = deriveMilestoneEvidenceRequirements({
-    checkpointType,
-    explicitRequirements: sprint.checkpoint_evidence_requirements,
-    sprintName: sprint.name || input.sprintName || null,
-    phaseKey: sprint.phase_key || null,
-    taskTypes: input.tasks.map((task) => task.task_type),
-    projectType: project?.type || null,
-    projectIntake: project?.intake || null,
-  });
 
   const { data: submission, error: submissionError } = await db
     .from('milestone_submissions')

@@ -157,6 +157,17 @@ export async function syncMilestoneReviewRequest(db: DbClient, input: {
     artifacts: derivedArtifacts,
   });
 
+  if (!pendingApproval?.id && reviewSurface.status === "pending") {
+    const resetPayload = reviewSurface.reviewKind === "delivery_review"
+      ? { delivery_review_status: "not_requested", updated_at: new Date().toISOString() }
+      : { approval_gate_status: "not_requested", updated_at: new Date().toISOString() };
+    await db
+      .from("sprints")
+      .update(resetPayload)
+      .eq("id", input.sprintId)
+      .eq("project_id", input.projectId);
+  }
+
   const { data: rpcResult, error: rpcError } = await db.rpc("create_project_review_request", {
     p_project_id: input.projectId,
     p_sprint_id: input.sprintId,

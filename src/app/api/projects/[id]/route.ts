@@ -268,7 +268,7 @@ export async function GET(
         : Promise.resolve({ data: [] as any[] }),
       db
         .from("approvals")
-        .select("id, summary, severity, status, created_at, sprint_id, context")
+        .select("id, summary, severity, status, created_at, sprint_id, job_id, context")
         .eq("project_id", projectId)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -530,6 +530,7 @@ export async function GET(
         reviewRequest: pendingReview
           ? {
               id: pendingReview.id,
+              jobId: pendingReview.job_id ?? null,
               status: pendingReview.status,
               summary: pendingReview.summary,
               createdAt: pendingReview.created_at,

@@ -42,6 +42,7 @@ type MilestoneLike = {
   doneTasks?: number | null;
   reviewRequest?: {
     id?: string | null;
+    jobId?: string | null;
     status?: string | null;
     summary?: string | null;
     createdAt?: string | null;

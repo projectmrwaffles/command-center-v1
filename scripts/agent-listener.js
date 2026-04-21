@@ -677,20 +677,34 @@ async function postTaskUpdateThroughApi(agentId, taskId, projectId, result) {
 async function emitTaskProgressHeartbeat(adminSupabase, agentId, taskId, projectId, taskTitle) {
   if (!adminSupabase || !agentId || !taskId) return;
 
+  const taskScope = await adminSupabase
+    .from("sprint_items")
+    .select("id, status")
+    .eq("id", taskId)
+    .eq("assignee_agent_id", agentId)
+    .maybeSingle();
+  if (taskScope.error) {
+    console.error(`[Listener] Failed heartbeat task lookup for ${taskId}:`, taskScope.error);
+    return;
+  }
+  if (!taskScope.data || taskScope.data.status !== "in_progress") {
+    return;
+  }
+
   const timestamp = new Date().toISOString();
   const summaryKey = `task:${taskId}`;
-  const existingJob = await adminSupabase.from("jobs").select("id").eq("summary", summaryKey).eq("owner_agent_id", agentId).limit(1).maybeSingle();
+  const existingJob = await adminSupabase.from("jobs").select("id, status").eq("summary", summaryKey).eq("owner_agent_id", agentId).limit(1).maybeSingle();
   const jobId = existingJob.data?.id || null;
 
-  if (jobId) {
-    const jobUpdate = await adminSupabase.from("jobs").update({ status: "in_progress", updated_at: timestamp }).eq("id", jobId);
+  if (jobId && existingJob.data?.status === "in_progress") {
+    const jobUpdate = await adminSupabase.from("jobs").update({ status: "in_progress", updated_at: timestamp }).eq("id", jobId).eq("status", "in_progress");
     if (jobUpdate.error) console.error(`[Listener] Failed heartbeat job update for ${jobId}:`, jobUpdate.error);
   }
 
-  const taskUpdate = await adminSupabase.from("sprint_items").update({ updated_at: timestamp }).eq("id", taskId).eq("assignee_agent_id", agentId);
+  const taskUpdate = await adminSupabase.from("sprint_items").update({ updated_at: timestamp }).eq("id", taskId).eq("assignee_agent_id", agentId).eq("status", "in_progress");
   if (taskUpdate.error) console.error(`[Listener] Failed heartbeat task update for ${taskId}:`, taskUpdate.error);
 
-  const agentUpdate = await adminSupabase.from("agents").update({ status: "active", last_seen: timestamp, current_job_id: jobId }).eq("id", agentId);
+  const agentUpdate = await adminSupabase.from("agents").update({ status: "active", last_seen: timestamp, current_job_id: jobId }).eq("id", agentId).eq("current_job_id", jobId);
   if (agentUpdate.error) console.error(`[Listener] Failed heartbeat agent update for ${agentId}:`, agentUpdate.error);
 
 }

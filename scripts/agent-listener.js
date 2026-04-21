@@ -599,6 +599,7 @@ async function withRetry(label, fn, maxAttempts = 3, delayMs = 1500) {
 async function runAgentUntilStopCondition(agentName, initialMessage) {
   let sessionId = null;
   let latestResult = null;
+  let lastExecutionError = null;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     const runScope = createScratchScope(REPO_ROOT, `agent-${agentName}`, `attempt-${attempt}`);
@@ -623,10 +624,27 @@ async function runAgentUntilStopCondition(agentName, initialMessage) {
       sessionId = parsedLog?.result?.meta?.agentMeta?.sessionId || sessionId;
       const text = parsedLog?.result?.payloads?.[0]?.text || "";
       latestResult = parseAgentResult(text);
-      if (latestResult.isTerminal) return latestResult;
-    } finally {
       runScope.cleanup();
+      if (latestResult.isTerminal) return latestResult;
+    } catch (error) {
+      lastExecutionError = error;
+      const messageText = error instanceof Error ? error.message : String(error);
+      console.warn(`[Listener] Agent ${agentName} attempt ${attempt} failed before producing a terminal result: ${messageText}`);
+      console.warn(`[Listener] Preserving failed agent log at ${logPath}`);
+      if (attempt >= 3) break;
     }
+  }
+
+  if (lastExecutionError) {
+    const message = lastExecutionError instanceof Error ? lastExecutionError.message : String(lastExecutionError);
+    return {
+      status: "blocked",
+      isTerminal: true,
+      taskStatus: "blocked",
+      summary: `Agent execution failed after retries: ${message}`,
+      raw: message,
+      hasRealBlockerSignal: true,
+    };
   }
 
   return {
@@ -1142,5 +1160,7 @@ if (require.main === module) {
     resolveRepoWorkspacePath,
     buildAgentMessage,
     inspectRepoTestContract,
+    runAgentUntilStopCondition,
+    finalizeTaskRun,
   };
 }

@@ -1,4 +1,4 @@
-import { deriveReviewCheckpointState } from "./review-checkpoint-state.ts";
+import { deriveFirstPassQcState, deriveReviewCheckpointState } from "./review-checkpoint-state.ts";
 
 type AttachmentKickoffState = {
   status?: string;
@@ -105,6 +105,13 @@ export function deriveMilestoneDisplayState(milestone: MilestoneLike) {
   const checkpointState = deriveReviewCheckpointState({
     approvalGateStatus: milestone.deliveryReviewStatus || milestone.approvalGateStatus,
     reviewSummary: milestone.reviewSummary,
+    reviewRequest: milestone.reviewRequest,
+    preBuildCheckpoint: milestone.preBuildCheckpoint,
+  });
+  const qcState = deriveFirstPassQcState({
+    approvalGateStatus: milestone.deliveryReviewStatus || milestone.approvalGateStatus,
+    reviewSummary: milestone.reviewSummary,
+    reviewRequest: milestone.reviewRequest,
     preBuildCheckpoint: milestone.preBuildCheckpoint,
   });
 
@@ -114,27 +121,35 @@ export function deriveMilestoneDisplayState(milestone: MilestoneLike) {
     || milestone.reviewSummary?.latestDecision === "request_changes";
   const hasActualRevisionHistory = (milestone.reviewSummary?.latestRevisionNumber ?? 0) > 1 || changesRequested;
   const revisionCycleActive = changesRequested;
-  const deliveryApproved = milestone.deliveryReviewStatus === "approved" || milestone.reviewSummary?.latestDecision === "approve";
-  const reviewReady = checkpointState.key === "ready_for_review";
-  const rereviewActive = hasActualRevisionHistory && reviewReady && !revisionCycleActive && !deliveryApproved;
-  const qaQueued = reviewTasksReady && !reviewReady && !revisionCycleActive && !deliveryApproved;
+  const deliveryApproved = qcState.key === "approved";
+  const reviewReady = qcState.key === "ready_for_review";
+  const reviewRequested = qcState.key === "approval_requested";
+  const inReview = qcState.key === "in_review";
+  const reviewActive = reviewRequested || inReview;
+  const rereviewActive = hasActualRevisionHistory && (reviewReady || reviewActive) && !revisionCycleActive && !deliveryApproved;
+  const qaQueued = reviewTasksReady && !reviewReady && !reviewActive && !revisionCycleActive && !deliveryApproved;
 
   const stageState = revisionCycleActive
     ? { key: "revision_cycle", label: "Revision cycle", className: "border-amber-200 bg-amber-50 text-amber-700" }
     : deliveryApproved
       ? { key: "iteration_shipped", label: "Iteration shipped", className: "border-emerald-200 bg-emerald-50 text-emerald-700" }
       : rereviewActive
-        ? { key: "rereview_active", label: "Re-review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
-        : reviewReady
-          ? { key: "delivery_review_active", label: "Delivery review active", className: "border-violet-200 bg-violet-50 text-violet-700" }
-          : qaQueued
-            ? { key: "qa_queued", label: "QA queued", className: "border-zinc-200 bg-zinc-50 text-zinc-700" }
-            : { key: "self_review", label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
+        ? { key: "rereview_active", label: inReview ? "Re-review in progress" : reviewRequested ? "Re-review requested" : "Re-review ready", className: "border-violet-200 bg-violet-50 text-violet-700" }
+        : inReview
+          ? { key: "delivery_review_active", label: "In review", className: "border-violet-200 bg-violet-50 text-violet-700" }
+          : reviewRequested
+            ? { key: "delivery_review_active", label: "Review requested", className: "border-violet-200 bg-violet-50 text-violet-700" }
+            : reviewReady
+              ? { key: "qa_ready", label: "Ready for review", className: "border-sky-200 bg-sky-50 text-sky-700" }
+              : qaQueued
+                ? { key: "qa_queued", label: "QA queued", className: "border-zinc-200 bg-zinc-50 text-zinc-700" }
+                : { key: "self_review", label: "Self-review", className: "border-sky-200 bg-sky-50 text-sky-700" };
 
   return {
     checkpointState,
+    qcState,
     stageState,
-    showDecisionActions: checkpointState.key === "ready_for_review",
+    showDecisionActions: reviewReady || reviewRequested || inReview,
     showChangesRequestedActions: checkpointState.key === "changes_requested",
     showBlockedApprovalPanel: checkpointState.key === "setup_required" || checkpointState.key === "awaiting_submission" || checkpointState.key === "awaiting_evidence",
   } as const;

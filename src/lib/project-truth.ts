@@ -1,5 +1,6 @@
 import { getBootstrapSprintIds, isBootstrapTask, matchesBootstrapTruth } from "./project-bootstrap.ts";
 import { getTaskExecutionBlocker } from "./project-execution.ts";
+import { deriveFirstPassQcState } from "./review-checkpoint-state.ts";
 import { isStaleExecutionTimestamp } from "@/components/ui/execution-visibility";
 
 export type TruthTaskLike = {
@@ -26,14 +27,17 @@ export type TruthSprintLike = {
   delivery_review_status?: string | null;
   reviewRequest?: {
     id?: string | null;
+    jobId?: string | null;
     status?: string | null;
   } | null;
   reviewSummary?: {
     latestSubmissionId?: string | null;
+    latestSubmissionStatus?: string | null;
     proofItemCount?: number | null;
     proofCompletenessStatus?: string | null;
     feedbackItemCount?: number | null;
     checkpointType?: string | null;
+    latestDecision?: string | null;
     latestDecisionNotes?: string | null;
     latestRejectionComment?: string | null;
     latestSubmissionSummary?: string | null;
@@ -75,30 +79,25 @@ function isQueuedTaskBlocker(blocker: ReturnType<typeof getTaskExecutionBlocker>
     || blocker?.key === "waiting_for_worker_capacity";
 }
 
+function getSprintFirstPassQcState(sprint?: TruthSprintLike | null) {
+  if (!sprint) return null;
+  return deriveFirstPassQcState({
+    approvalGateStatus: sprint.delivery_review_status,
+    reviewSummary: sprint.reviewSummary,
+    reviewRequest: sprint.reviewRequest,
+    preBuildCheckpoint: sprint.preBuildCheckpoint,
+  });
+}
+
 function isTaskInActiveCheckpointReview(task: TruthTaskLike, sprint?: TruthSprintLike | null) {
   if (!task.review_required || task.status !== "todo") return false;
-
-  const approvalPending = sprint?.approval_gate_required && (sprint.approval_gate_status ?? "not_requested") === "pending";
-  const deliveryPending = (sprint?.delivery_review_required === true || sprint?.phase_key === "build")
-    && (sprint?.delivery_review_status ?? "not_requested") === "pending";
-
-  return Boolean(approvalPending || deliveryPending);
+  const qcState = getSprintFirstPassQcState(sprint);
+  return qcState?.key === "approval_requested" || qcState?.key === "in_review";
 }
 
 function isSprintInActiveDeliveryReview(sprint: TruthSprintLike) {
-  const rawPending = (sprint.delivery_review_status ?? "not_requested") === "pending";
-  if (!rawPending) return false;
-
-  const hasCheckpointMetadata = Boolean(sprint.reviewSummary || sprint.reviewRequest || sprint.preBuildCheckpoint);
-  if (!hasCheckpointMetadata) return true;
-
-  const checkpointState = deriveReviewCheckpointState({
-    approvalGateStatus: sprint.delivery_review_status,
-    reviewSummary: sprint.reviewSummary,
-    preBuildCheckpoint: sprint.preBuildCheckpoint,
-  });
-
-  return checkpointState.key === "ready_for_review" || sprint.reviewRequest?.status === "pending";
+  const qcState = getSprintFirstPassQcState(sprint);
+  return qcState?.key === "approval_requested" || qcState?.key === "in_review";
 }
 
 export function deriveExecutionState(input: {
@@ -117,6 +116,7 @@ export function deriveExecutionState(input: {
   staleRunning?: boolean;
   acceptancePending?: boolean;
   validationPending?: boolean;
+  validationReady?: boolean;
   validationRunning?: boolean;
   revisionCycleActive?: boolean;
 }) {
@@ -156,11 +156,19 @@ export function deriveExecutionState(input: {
     } as const;
   }
 
+  if (input.validationReady) {
+    return {
+      key: "validation_ready",
+      label: "QA ready",
+      description: "Implementation is complete, and QA/QC is the next runnable checkpoint.",
+    } as const;
+  }
+
   if (input.validationPending) {
     return {
       key: "validation_pending",
       label: "QA queued",
-      description: "Implementation is complete, but QA/QC is only queued and has not started yet.",
+      description: "Implementation is complete, but QA/QC is still blocked behind earlier sequencing work.",
     } as const;
   }
 
@@ -280,6 +288,18 @@ export function deriveProjectTruth(input: {
   };
   const pendingFinalValidationTask = deliveryTasks.find((task) => isValidationTask(task) && (task.status === 'todo' || task.status === 'blocked'));
   const activeFinalValidationTask = deliveryTasks.find((task) => isValidationTask(task) && isRunningStatus(task.status));
+  const pendingFinalValidationTaskBlocker = pendingFinalValidationTask && input.project
+    ? getTaskExecutionBlocker({
+        project: input.project as any,
+        task: pendingFinalValidationTask as any,
+        sprint: sprints.find((candidate) => candidate.id === pendingFinalValidationTask.sprint_id) as any,
+        sprints: sprints as any,
+        tasks: tasks as any,
+        jobs: jobs as any,
+        agents: agents as any,
+      })
+    : null;
+  const canonicalProject = input.project ?? null;
   const buildReviewSprints = sprints.filter((sprint) => {
     const isBuildSprint = sprint.phase_key === "build";
     const deliveryReviewRequired = sprint.delivery_review_required === true || isBuildSprint;
@@ -290,9 +310,18 @@ export function deriveProjectTruth(input: {
   const deliveryReviewNotStarted = buildReviewSprints.some((sprint) => (sprint.delivery_review_status ?? "not_requested") === "not_requested");
   const acceptancePending = pendingDeliveryReview;
   const validationRunning = Boolean(!pendingDeliveryReview && !revisionCycleActive && activeFinalValidationTask);
+  const validationReady = Boolean(
+    !pendingDeliveryReview
+    && !revisionCycleActive
+    && doneDeliveryTasks > 0
+    && runningDeliveryTasks === 0
+    && pendingFinalValidationTask
+    && !pendingFinalValidationTaskBlocker
+  );
   const validationPending = Boolean(
     !pendingDeliveryReview
     && !revisionCycleActive
+    && !validationReady
     && doneDeliveryTasks > 0
     && runningDeliveryTasks === 0
     && (pendingFinalValidationTask || deliveryReviewNotStarted)
@@ -313,8 +342,24 @@ export function deriveProjectTruth(input: {
     const nextSprint = sprints.slice(index + 1).find((candidate) => candidate.status !== "completed" && candidate.status !== "archived");
     if (!nextSprint || nextSprint.status === "active") return match;
 
-    const nextSprintHasQueuedWork = tasks.some((task) => task.sprint_id === nextSprint.id && task.status === "todo");
-    if (!nextSprintHasQueuedWork) return match;
+    const nextSprintQueuedTasks = tasks.filter((task) => task.sprint_id === nextSprint.id && task.status === "todo");
+    if (!nextSprintQueuedTasks.length) return match;
+
+    const nextSprintStillLocked = nextSprintQueuedTasks.every((task) => {
+      const blocker = canonicalProject
+        ? getTaskExecutionBlocker({
+            project: canonicalProject as any,
+            task: task as any,
+            sprint: nextSprint as any,
+            sprints: sprints as any,
+            tasks: tasks as any,
+            jobs: jobs as any,
+            agents: agents as any,
+          })
+        : null;
+      return blocker?.key === "waiting_for_kickoff_completion";
+    });
+    if (!nextSprintStillLocked) return match;
 
     return {
       activeSprintId: sprint.id,
@@ -351,6 +396,7 @@ export function deriveProjectTruth(input: {
     staleRunning,
     acceptancePending,
     validationPending,
+    validationReady,
     validationRunning,
     revisionCycleActive,
   });
@@ -366,8 +412,10 @@ export function deriveProjectTruth(input: {
             ? "Revision cycle active"
             : execution.key === "validation_pending"
               ? "QA queued"
-              : execution.key === "validation_running"
-                ? "QA in progress"
+              : execution.key === "validation_ready"
+                ? "QA ready"
+                : execution.key === "validation_running"
+                  ? "QA in progress"
                 : execution.key === "stuck_progression"
                   ? "Needs phase handoff"
           : execution.key === "queued"
@@ -395,9 +443,11 @@ export function deriveProjectTruth(input: {
         : execution.key === "revision_cycle"
           ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Delivery review requested changes, so the project is back in revision.`
           : execution.key === "validation_pending"
-            ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, but QA/QC is still queued and has not started yet.`
-            : execution.key === "validation_running"
-              ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and QA/QC is actively reviewing the current build.`
+            ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, but QA/QC is still held behind earlier sequencing work.`
+            : execution.key === "validation_ready"
+              ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and QA/QC is the next runnable checkpoint.`
+              : execution.key === "validation_running"
+                ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. Implementation is done, and QA/QC is actively reviewing the current build.`
               : execution.key === "stuck_progression"
                 ? stuckWorkflowGuardrail?.detail || `${doneDeliveryTasks} of ${deliveryTasks.length} active work items are complete, but the next phase still has not advanced.`
         : doneBootstrapTasks > 0
@@ -409,7 +459,6 @@ export function deriveProjectTruth(input: {
         : `${bootstrapTasks.length} kickoff task${bootstrapTasks.length === 1 ? " is" : "s are"} visible (${queuedBootstrapTasks} queued, ${runningBootstrapTasks} in progress, ${doneBootstrapTasks} done). The project is still getting set up before the main work starts.`
       : "No kickoff tasks or delivery work are visible yet.";
 
-  const canonicalProject = input.project ?? null;
   const taskBoard = canonicalProject
     ? tasks.reduce(
         (acc, task) => {
@@ -434,6 +483,7 @@ export function deriveProjectTruth(input: {
             task: task as any,
             sprint,
             sprints: (input.sprints || []) as any,
+            tasks: tasks as any,
             jobs: jobs as any,
             agents: agents as any,
           });
@@ -486,106 +536,6 @@ export function deriveProjectTruth(input: {
     },
     taskBoard,
   };
-}
-
-function buildCheckpointNotes(summary: {
-  latestDecisionNotes?: string | null;
-  latestRejectionComment?: string | null;
-} | null) {
-  return [summary?.latestDecisionNotes, summary?.latestRejectionComment].filter(Boolean).join(" \n");
-}
-
-function isNonReviewablePrebuildPacket(summary: {
-  checkpointType?: string | null;
-  latestDecisionNotes?: string | null;
-  latestRejectionComment?: string | null;
-} | null) {
-  if (summary?.checkpointType !== "prebuild_checkpoint") return false;
-  return /no repo workspace path found\./i.test(buildCheckpointNotes(summary));
-}
-
-function isSetupBlockedPrebuildCheckpoint(summary: {
-  checkpointType?: string | null;
-  latestDecisionNotes?: string | null;
-  latestRejectionComment?: string | null;
-} | null) {
-  if (summary?.checkpointType !== "prebuild_checkpoint") return false;
-  return /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(buildCheckpointNotes(summary));
-}
-
-export function deriveReviewCheckpointState(input: {
-  approvalGateStatus?: string | null;
-  reviewSummary?: {
-    latestSubmissionId?: string | null;
-    proofItemCount?: number | null;
-    proofCompletenessStatus?: string | null;
-    feedbackItemCount?: number | null;
-    checkpointType?: string | null;
-    latestDecisionNotes?: string | null;
-    latestRejectionComment?: string | null;
-  } | null;
-  preBuildCheckpoint?: {
-    outcome?: "match" | "mismatch" | "manual_review" | null;
-    status?: "approved" | "pending" | "not_requested" | null;
-    reasons?: string[] | null;
-  } | null;
-}) {
-  const approvalGateStatus = input.approvalGateStatus || "not_requested";
-  const summary = input.reviewSummary || null;
-  const hasSubmission = Boolean(summary?.latestSubmissionId);
-  const hasMaterials = summary?.proofCompletenessStatus === "ready" && Boolean((summary?.proofItemCount || 0) > 0);
-  const nonReviewablePrebuildPacket = isNonReviewablePrebuildPacket(summary);
-  const setupBlockedPrebuild = !hasSubmission
-    && approvalGateStatus === "pending"
-    && input.preBuildCheckpoint?.status === "pending"
-    && input.preBuildCheckpoint?.outcome === "manual_review"
-    && (isSetupBlockedPrebuildCheckpoint(summary) || (input.preBuildCheckpoint?.reasons || []).some((reason) => /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(reason)));
-
-  if (setupBlockedPrebuild) {
-    return {
-      key: "setup_required",
-      label: "Repo setup required",
-      actionable: false,
-    } as const;
-  }
-
-  if (!hasSubmission) {
-    return {
-      key: "awaiting_submission",
-      label: "Awaiting submission",
-      actionable: false,
-    } as const;
-  }
-
-  if (approvalGateStatus === "rejected") {
-    return {
-      key: "changes_requested",
-      label: "Changes requested",
-      actionable: true,
-    } as const;
-  }
-
-  if (approvalGateStatus === "approved") {
-    return {
-      key: "approved",
-      label: "Approved",
-      actionable: false,
-    } as const;
-  }
-
-  if (approvalGateStatus === "pending" && hasMaterials && !nonReviewablePrebuildPacket) {
-    return {
-      key: "ready_for_review",
-      label: "Ready for review",
-      actionable: true,
-    } as const;
-  }
-
-  return {
-    key: "awaiting_evidence",
-    label: nonReviewablePrebuildPacket ? "Manual setup required" : "Awaiting evidence",
-    actionable: false,
-  } as const;
 }
 
 export function deriveSprintTruth(input: {

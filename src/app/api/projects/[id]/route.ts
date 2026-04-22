@@ -2,6 +2,7 @@ import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements
 import { getTaskExecutionBlocker } from "@/lib/project-execution";
 import { reconcileProjectPhaseProgression } from "@/lib/project-handoff";
 import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
+import { syncProjectState } from "@/lib/project-state";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
@@ -253,6 +254,9 @@ export async function GET(
       projectId,
       projectName: effectiveProject.name || null,
     });
+    const syncedProjectState = await syncProjectState(db as any, projectId);
+    effectiveProject.status = syncedProjectState.projectStatus || effectiveProject.status;
+    effectiveProject.progress_pct = syncedProjectState.progressPct;
 
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
     const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }, { data: completionEvents }] = await Promise.all([
@@ -464,10 +468,17 @@ export async function GET(
       const latestProofItems = latestBundle ? proofItemRows.filter((item: any) => item.proof_bundle_id === latestBundle.id) : [];
       const latestFeedbackItems = latestSubmission ? feedbackRows.filter((item: any) => item.submission_id === latestSubmission.id) : [];
       const reviewTasks = sprintTasks.filter((task: any) => task.review_required);
+      const sprintTaskTypes = sprintTasks.map((task: any) => task.task_type);
+      const resolvedCheckpointType = resolveMilestoneCheckpointType({
+        checkpointType: sprint.checkpoint_type,
+        sprintName: sprint.name,
+        phaseKey: sprint.phase_key,
+        taskTypes: sprintTaskTypes,
+      }) || sprint.checkpoint_type || "delivery_review";
       const inferredDeliveryReviewRequired = Boolean(
         sprint.delivery_review_required
         || sprint.phase_key === "build"
-        || reviewTasks.length > 0
+        || resolvedCheckpointType === "delivery_review"
       );
       const derivedArtifacts = deriveReviewArtifacts({
         reviewTasks,
@@ -476,13 +487,6 @@ export async function GET(
           .filter(Boolean),
         links: effectiveProject.links || effectiveProject.intake?.links || null,
       });
-      const sprintTaskTypes = sprintTasks.map((task: any) => task.task_type);
-      const resolvedCheckpointType = resolveMilestoneCheckpointType({
-        checkpointType: sprint.checkpoint_type,
-        sprintName: sprint.name,
-        phaseKey: sprint.phase_key,
-        taskTypes: sprintTaskTypes,
-      }) || sprint.checkpoint_type || "delivery_review";
       const resolvedCheckpointEvidenceRequirements = deriveMilestoneEvidenceRequirements({
         checkpointType: resolvedCheckpointType,
         explicitRequirements: sprint.checkpoint_evidence_requirements,

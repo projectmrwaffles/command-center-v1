@@ -107,11 +107,11 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
   const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }] = await Promise.all([
     db
       .from("sprint_items")
-      .select("status, task_metadata")
+      .select("status, task_metadata, sprint_id, task_type")
       .eq("project_id", projectId),
     db
       .from("sprints")
-      .select("phase_key, delivery_review_required, delivery_review_status")
+      .select("id, status, phase_key, delivery_review_required, delivery_review_status")
       .eq("project_id", projectId),
   ]);
 
@@ -122,14 +122,56 @@ export async function syncProjectState(db: DbClient, projectId: string): Promise
     throw new Error(sprintsError.message);
   }
 
-  const pendingDeliveryReview = (sprints || []).some((sprint: any) => {
+  const sprintRows = sprints || [];
+  const taskRows = tasks || [];
+  const validateSprintIds = new Set(
+    sprintRows
+      .filter((sprint: any) => sprint?.phase_key === "validate")
+      .map((sprint: any) => sprint.id)
+      .filter(Boolean)
+  );
+  const validateTasks = taskRows.filter((task: any) => task.sprint_id && validateSprintIds.has(task.sprint_id));
+  const validatePhaseAccepted = validateSprintIds.size > 0
+    && validateTasks.length > 0
+    && validateTasks.every((task: any) => task.status === "done" || task.status === "cancelled")
+    && sprintRows
+      .filter((sprint: any) => sprint?.phase_key === "validate")
+      .every((sprint: any) => sprint.status === "completed" || sprint.status === "archived");
+
+  const buildSprintsNeedingHeal = sprintRows.filter((sprint: any) => {
+    const isBuildSprint = sprint?.phase_key === "build";
+    const deliveryReviewRequired = sprint?.delivery_review_required === true || isBuildSprint;
+    const deliveryReviewStatus = sprint?.delivery_review_status ?? "not_requested";
+    const sprintTasks = taskRows.filter((task: any) => task.sprint_id === sprint.id);
+    const sprintComplete = sprint?.status === "completed" || sprint?.status === "archived";
+    const sprintTasksComplete = sprintTasks.length > 0 && sprintTasks.every((task: any) => task.status === "done" || task.status === "cancelled");
+    return validatePhaseAccepted && deliveryReviewRequired && deliveryReviewStatus !== "approved" && sprintComplete && sprintTasksComplete;
+  });
+
+  if (buildSprintsNeedingHeal.length > 0) {
+    const { error: healError } = await db
+      .from("sprints")
+      .update({ delivery_review_required: true, delivery_review_status: "approved", updated_at: new Date().toISOString() })
+      .in("id", buildSprintsNeedingHeal.map((sprint: any) => sprint.id));
+
+    if (healError) {
+      throw new Error(healError.message || "Failed to heal delivery review state after validate completion");
+    }
+
+    for (const sprint of buildSprintsNeedingHeal) {
+      sprint.delivery_review_required = true;
+      sprint.delivery_review_status = "approved";
+    }
+  }
+
+  const pendingDeliveryReview = sprintRows.some((sprint: any) => {
     const isBuildSprint = sprint?.phase_key === "build";
     const deliveryReviewRequired = sprint?.delivery_review_required === true || isBuildSprint;
     const deliveryReviewStatus = sprint?.delivery_review_status ?? "not_requested";
     return deliveryReviewRequired && deliveryReviewStatus !== "approved";
   });
 
-  const progressTasks = getProgressTaskSlice((tasks || []) as Array<{ status: string; task_metadata?: Record<string, unknown> | null }>);
+  const progressTasks = getProgressTaskSlice(taskRows as Array<{ status: string; task_metadata?: Record<string, unknown> | null }>);
   const totalTasks = progressTasks.length;
   const doneTasks = progressTasks.filter((task: { status: string }) => task.status === "done").length;
   const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;

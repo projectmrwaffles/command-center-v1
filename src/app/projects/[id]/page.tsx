@@ -965,7 +965,10 @@ export default function ProjectDetailPage() {
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
   const completedProjectRevisionMilestones = getCompletedProjectRevisionMilestones(milestones);
-  const showReviewCheckpointSection = shouldShowReviewCheckpointSection({ projectStatus: project.status, milestones: reviewableMilestones });
+  const showReviewCheckpointSection = shouldShowReviewCheckpointSection({
+    projectStatus: project.status,
+    milestones: [...reviewableMilestones, ...blockerOnlyMilestones],
+  });
 
   const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
   const executionBadgeTone =

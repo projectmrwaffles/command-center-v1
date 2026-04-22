@@ -457,9 +457,9 @@ function MilestoneReviewCard({
     : deliveryApproved
       ? "The first shipped iteration is complete and QC-approved. Request another revision only if new changes are actually needed."
       : reviewReady || qaReady
-        ? "Implementation is complete, and QA/QC is the next runnable checkpoint. Submit the review packet when ready to start formal review."
+        ? "Implementation is complete, and QA/QC is the next runnable checkpoint. A review packet only matters later if QC asks for changes or another revision cycle starts."
         : qaQueued
-          ? "Implementation is complete, but QA/QC is still held behind earlier sequencing work. Delivery review should not appear active until a review packet is submitted."
+          ? "Implementation is complete, but QA/QC is still held behind earlier sequencing work. First-pass QC should become active as soon as sequencing clears."
           : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
 
   return (
@@ -494,7 +494,7 @@ function MilestoneReviewCard({
         <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
           {reviewTasksReady
             ? reviewReady
-              ? "QC is reviewing the first delivery pass now. Revision controls stay hidden unless changes are actually requested."
+              ? "First-pass QC is ready to run now. Revision controls stay hidden unless changes are actually requested."
               : qaQueued
                 ? "Implementation is complete and waiting for first-pass QC. Revision controls stay hidden until QC asks for changes."
                 : "Revision controls will appear here only after QC requests changes, or after the milestone ships and you intentionally open another revision cycle."

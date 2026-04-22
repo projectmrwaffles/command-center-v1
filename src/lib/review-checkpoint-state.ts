@@ -35,6 +35,7 @@ function isSetupBlockedPrebuildCheckpoint(summary: {
 type ReviewSummaryLike = {
   latestSubmissionId?: string | null;
   latestSubmissionStatus?: string | null;
+  latestRevisionNumber?: number | null;
   proofItemCount?: number | null;
   proofCompletenessStatus?: string | null;
   feedbackItemCount?: number | null;
@@ -84,6 +85,11 @@ export function deriveFirstPassQcState(input: {
   const approvalExists = Boolean(reviewRequest?.id || reviewRequest?.jobId || reviewRequest?.status === "pending");
   const inReview = latestSubmissionStatus === "under_review";
   const reviewReady = approvalGateStatus === "pending" && hasMaterials && !nonReviewablePrebuildPacket;
+  const firstPassReady = approvalGateStatus === "pending"
+    && !hasSubmission
+    && !approvalExists
+    && !nonReviewablePrebuildPacket
+    && (summary?.latestRevisionNumber ?? 1) <= 1;
 
   if (setupBlockedPrebuild) {
     return {
@@ -130,7 +136,7 @@ export function deriveFirstPassQcState(input: {
     } as const;
   }
 
-  if (reviewReady) {
+  if (reviewReady || firstPassReady) {
     return {
       key: "ready_for_review",
       label: "Ready for review",

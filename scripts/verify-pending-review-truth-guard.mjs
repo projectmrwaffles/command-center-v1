@@ -128,17 +128,17 @@ try {
   assert.equal(buildMilestone.reviewSummary?.latestSubmissionId ?? null, null, "Fixture should not materialize a review submission");
 
   const milestoneState = deriveMilestoneDisplayState(buildMilestone);
-  assert.equal(milestoneState.checkpointState.key, "awaiting_submission", "Milestone should stay in awaiting submission when no proof packet exists");
-  assert.notEqual(milestoneState.stageState.key, "delivery_review_active", "Milestone should not show delivery review active without a real review packet");
+  assert.equal(milestoneState.checkpointState.key, "ready_for_review", "First-pass QC should become review-ready as soon as implementation is complete");
+  assert.equal(milestoneState.stageState.key, "qa_ready", "Milestone should show QA ready instead of waiting for a review packet");
 
   const headerState = deriveProjectDetailHeaderState({
     projectProgressPct: payload.project?.progress_pct,
     truth: payload.truth,
     attachmentKickoffState: payload.project?.intake?.attachmentKickoffState,
   });
-  assert.notEqual(payload.truth?.execution?.key, "acceptance_pending", "Project truth should not treat raw pending delivery review as active review without ready checkpoint evidence");
-  assert.ok(!/awaiting delivery review/i.test(String(payload.truth?.headline || "")), "Truth headline should not announce active delivery review for incomplete review packets");
-  assert.ok(!/awaiting delivery review/i.test(String(headerState.headline || "")), "Header should stay aligned with checkpoint readiness and not announce active delivery review");
+  assert.equal(payload.truth?.execution?.key, "validation_ready", "Project truth should expose first-pass QC as the next runnable checkpoint");
+  assert.ok(/qa ready/i.test(String(payload.truth?.headline || "")), "Truth headline should announce QA readiness once implementation is complete");
+  assert.ok(/qa ready/i.test(String(headerState.headline || "")), "Header should stay aligned with first-pass QC readiness");
 
   console.log("verify-pending-review-truth-guard: ok", JSON.stringify({
     projectId: createdIds.projectId,

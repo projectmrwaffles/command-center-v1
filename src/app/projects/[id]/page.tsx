@@ -35,7 +35,7 @@ import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-boot
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
-import { deriveMilestoneDisplayState, deriveProjectDetailHeaderState, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
+import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
 import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
@@ -441,26 +441,11 @@ function MilestoneReviewCard({
   documents: ProjectDocument[];
   onSaved: () => void;
 }) {
-  const reviewTasksReady = milestone.totalTasks > 0 && milestone.doneTasks === milestone.totalTasks;
-  const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
+  const { milestoneDisplayState, summaryCopy, helperCopy, showRevisionRequestCard } = deriveMilestoneReviewCardCopy(milestone);
   const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
   const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
-  const reviewReady = milestoneDisplayState.checkpointState.key === "ready_for_review";
-  const qaQueued = milestoneDisplayState.stageState.key === "qa_queued";
-  const qaReady = milestoneDisplayState.stageState.key === "qa_ready";
-  const showRevisionRequestCard = reviewTasksReady && (revisionCycleActive || deliveryApproved);
 
   const stateBadge = milestoneDisplayState.stageState;
-
-  const summaryCopy = revisionCycleActive
-    ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this milestone. Complete the revision, then resubmit when ready.")
-    : deliveryApproved
-      ? "The first shipped iteration is complete and QC-approved. Request another revision only if new changes are actually needed."
-      : reviewReady || qaReady
-        ? "Implementation is complete, and QA/QC is the next runnable checkpoint. A review packet only matters later if QC asks for changes or another revision cycle starts."
-        : qaQueued
-          ? "Implementation is complete, but QA/QC is still held behind earlier sequencing work. First-pass QC should become active as soon as sequencing clears."
-          : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -492,13 +477,7 @@ function MilestoneReviewCard({
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-          {reviewTasksReady
-            ? reviewReady
-              ? "First-pass QC is ready to run now. Revision controls stay hidden unless changes are actually requested."
-              : qaQueued
-                ? "Implementation is complete and waiting for first-pass QC. Revision controls stay hidden until QC asks for changes."
-                : "Revision controls will appear here only after QC requests changes, or after the milestone ships and you intentionally open another revision cycle."
-            : "Finish milestone tasks, then review the deliverable yourself. A revision request only matters if changes are actually needed."}
+          {helperCopy}
         </div>
       )}
     </div>

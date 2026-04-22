@@ -39,12 +39,12 @@ export function RevisionRequestCard({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const attachmentOptions = useMemo(() => documents.slice().sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)), [documents]);
-  const headingEyebrow = hasActiveRevisionCycle ? "Revision cycle" : shippedApproved ? "Optional revision" : "Revision request";
-  const headingTitle = hasActiveRevisionCycle ? `Update revision request for ${sprintName}` : shippedApproved ? `Request another revision for ${sprintName}` : `Request changes for ${sprintName}`;
+  const headingEyebrow = hasActiveRevisionCycle ? "Revision in progress" : shippedApproved ? "Post-completion revision" : "Revision request";
+  const headingTitle = hasActiveRevisionCycle ? `Update revision request for ${sprintName}` : shippedApproved ? `Request a follow-up revision for ${sprintName}` : `Request changes for ${sprintName}`;
   const helperCopy = hasActiveRevisionCycle
-    ? "A revision is already in play for this milestone. Add any extra instructions or supporting files here."
+    ? "A revision is already active for this milestone. Add any extra instructions or supporting files here."
     : shippedApproved
-      ? "This milestone is already shipped and QC-complete. Only open a new revision if you want another round of changes."
+      ? "This milestone is already shipped and complete. Only open a new revision if you want another round of changes."
       : "Review the delivered work directly, then submit revision instructions only if changes are needed.";
 
   const toggle = (id: string) => {
@@ -166,7 +166,7 @@ export function RevisionRequestCard({
       <div className="mt-4 flex items-center justify-between gap-3">
         {status ? <p className={cn("text-xs", status === "Revision request submitted" || status === "Files uploaded" ? "text-emerald-600" : "text-zinc-500")}>{status}</p> : <span />}
         <Button onClick={submit} disabled={saving || !message.trim()} variant={hasActiveRevisionCycle ? "warm" : "outline"} className="rounded-xl px-4">
-          {saving ? "Submitting..." : hasActiveRevisionCycle ? "Update revision request" : shippedApproved ? "Start revision cycle" : "Submit revision request"}
+          {saving ? "Submitting..." : hasActiveRevisionCycle ? "Update revision request" : shippedApproved ? "Request revision" : "Submit revision request"}
         </Button>
       </div>
     </div>

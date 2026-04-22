@@ -179,22 +179,22 @@ export function deriveMilestoneReviewCardCopy(milestone: MilestoneLike) {
   const reviewTasksReady = (milestone.totalTasks || 0) > 0 && milestone.doneTasks === milestone.totalTasks;
 
   const summaryCopy = milestoneDisplayState.stageState.key === "revision_cycle"
-    ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this milestone. Complete the revision, then resubmit when ready.")
+    ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "A revision is open for this milestone. Complete the requested changes, then resubmit when ready.")
     : milestoneDisplayState.stageState.key === "iteration_shipped"
-      ? "The first shipped iteration is complete and QC-approved. Request another revision only if new changes are actually needed."
+      ? "This milestone is shipped and QC-approved. Open another revision only if follow-up changes are actually needed."
       : milestoneDisplayState.stageState.key === "qa_ready"
-        ? "Implementation is complete, and QA/QC is the next runnable checkpoint. A review packet only matters later if QC asks for changes or another revision cycle starts."
+        ? "Implementation is complete, and QA/QC is the next step. Revision controls stay out of the way unless changes are actually requested."
         : milestoneDisplayState.stageState.key === "qa_queued"
-          ? "Implementation is complete, but QA/QC is still held behind earlier sequencing work. First-pass QC should become active as soon as sequencing clears."
-          : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
+          ? "Implementation is complete, but QA/QC is still waiting on earlier sequencing work. Revision controls stay hidden until review actually asks for changes."
+          : "Work is still moving toward completion. Revision requests only matter once delivered work needs another pass.";
 
   const helperCopy = reviewTasksReady
     ? milestoneDisplayState.stageState.key === "qa_ready"
-      ? "First-pass QC is ready to run now. Revision controls stay hidden unless changes are actually requested."
+      ? "QC can run now. A revision request only appears after changes are requested, or after the milestone ships and you intentionally open one."
       : milestoneDisplayState.stageState.key === "qa_queued"
-        ? "Implementation is complete and waiting for first-pass QC. Revision controls stay hidden until QC asks for changes."
-        : "Revision controls will appear here only after QC requests changes, or after the milestone ships and you intentionally open another revision cycle."
-    : "Finish milestone tasks, then review the deliverable yourself. A revision request only matters if changes are actually needed.";
+        ? "Implementation is complete and waiting for QC sequencing. Revision requests stay hidden until review actually needs them."
+        : "This milestone is already complete. Only open a revision if you want another round of changes."
+    : "Finish the milestone first. Revision requests stay out of the main flow until completed work needs another pass.";
 
   return {
     milestoneDisplayState,

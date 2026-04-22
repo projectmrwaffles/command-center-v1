@@ -262,5 +262,87 @@ const buildPrecheckSprint = buildPrecheckDb.tables.sprints.find((row) => row.id 
 assert.equal(buildPrecheckSprint.approval_gate_status, "approved", "pre-build checkpoint should approve the approval gate status");
 assert.equal(buildPrecheckSprint.delivery_review_status, "not_requested", "pre-build checkpoint approval must not mutate delivery review status");
 
+const deliveryReviewDb = new MockDb({
+  projects: [{ id: "project-3", name: "Delivery review completion", type: "web_app", intake: {}, links: { preview: "https://preview.example.com", github: "https://github.com/acme-inc/command-center-app" }, github_repo_binding: null }],
+  sprints: [
+    {
+      id: "build-review",
+      project_id: "project-3",
+      name: "Phase 2 · Build",
+      status: "active",
+      phase_order: 2,
+      phase_key: "build",
+      checkpoint_type: "delivery_review",
+      approval_gate_required: false,
+      approval_gate_status: "not_requested",
+      delivery_review_required: true,
+      delivery_review_status: "pending",
+      created_at: "2026-04-09T00:00:00.000Z",
+    },
+    {
+      id: "launch-next",
+      project_id: "project-3",
+      name: "Phase 3 · Launch",
+      status: "draft",
+      phase_order: 3,
+      created_at: "2026-04-09T00:10:00.000Z",
+    },
+  ],
+  sprint_items: [
+    {
+      id: "task-delivery-review",
+      project_id: "project-3",
+      sprint_id: "build-review",
+      title: "QC delivered build",
+      status: "done",
+      review_required: true,
+      review_status: "pending",
+      position: 1,
+    },
+    {
+      id: "task-delivery-impl",
+      project_id: "project-3",
+      sprint_id: "build-review",
+      title: "Ship feature slice",
+      status: "done",
+      review_required: false,
+      position: 2,
+    },
+  ],
+  jobs: [],
+  agents: [],
+  agent_events: [],
+  milestone_submissions: [
+    {
+      id: "submission-approved-1",
+      sprint_id: "build-review",
+      status: "approved",
+      revision_number: 1,
+      checkpoint_type: "delivery_review",
+      evidence_requirements: null,
+    },
+  ],
+  proof_bundles: [],
+  proof_items: [],
+});
+
+const deliveryReviewResult = await finalizeCheckpointApproval(deliveryReviewDb, {
+  projectId: "project-3",
+  milestoneId: "build-review",
+  decidedAt: "2026-04-09T21:45:00.000Z",
+  reviewKind: "delivery_review",
+});
+
+const completedBuildSprint = deliveryReviewDb.tables.sprints.find((row) => row.id === "build-review");
+const activatedLaunchSprint = deliveryReviewDb.tables.sprints.find((row) => row.id === "launch-next");
+const approvedReviewTask = deliveryReviewDb.tables.sprint_items.find((row) => row.id === "task-delivery-review");
+assert.equal(completedBuildSprint.delivery_review_status, "approved", "delivery review approval should persist on the build sprint");
+assert.equal(completedBuildSprint.status, "completed", "approved build sprint should complete instead of reopening another revision step");
+assert.equal(activatedLaunchSprint.status, "active", "next sprint should activate once QC approves with no requested changes");
+assert.equal(approvedReviewTask.review_status, "approved", "QC task should be marked approved after delivery review approval");
+assert.equal(deliveryReviewResult.progression?.advanced, true, "delivery review approval should advance project progression");
+assert.equal(deliveryReviewDb.tables.milestone_submissions.length, 1, "approved delivery review should not auto-create a follow-up revision submission when QC requested no changes");
+
 console.log("PASS checkpoint approval advances the next sprint after PRD-gated build approval");
 console.log("PASS build pre-build checkpoint approval stays separate from delivery review status");
+console.log("PASS approved delivery review does not force a follow-up revision cycle before build completion");

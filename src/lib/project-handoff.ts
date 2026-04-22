@@ -28,6 +28,7 @@ type TaskRow = {
   position?: number | null;
   task_type?: string | null;
   review_required?: boolean | null;
+  review_status?: string | null;
 };
 
 function getProgressionEventAgentId(taskRows: TaskRow[], sprintId: string, completedTaskId?: string) {
@@ -100,6 +101,10 @@ async function loadProjectProgressionContext(db: DbClient, projectId: string) {
   };
 }
 
+function hasUnresolvedReviewRequiredTasks(tasks: TaskRow[]) {
+  return tasks.some((task) => task.review_required === true && task.review_status !== "approved");
+}
+
 function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRows: TaskRow[]) {
   const sprintTasks = taskRows.filter((task) => task.sprint_id === sprint.id);
   const sprintStillActive = sprintTasks.some((task) => ACTIVE_LIKE.has(task.status));
@@ -107,7 +112,7 @@ function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRo
   const artifactIntegrity = getProjectArtifactIntegrity(project || {}, sprintTasks);
   const deliveryReviewBlocked = (sprint.phase_key === "build" || sprint.delivery_review_required)
     && sprint.delivery_review_status !== "approved";
-  const hasReviewRequiredTasks = sprintTasks.some((task) => task.review_required === true);
+  const hasReviewRequiredTasks = hasUnresolvedReviewRequiredTasks(sprintTasks);
   const gateBlocked = Boolean(
     (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
     || deliveryReviewBlocked
@@ -183,7 +188,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
         projectId: input.projectId,
         sprintId: currentSprint.id,
         sprintName: currentSprint.name,
-        tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, updated_at: null })),
+        tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, review_status: task.review_status ?? null, updated_at: null })),
       });
       if (submission?.id) {
         await insertProjectProgressionEvent(db, {
@@ -265,7 +270,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
           projectId: input.projectId,
           sprintId: currentSprint.id,
           sprintName: currentSprint.name,
-          tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, updated_at: null })),
+          tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, review_status: task.review_status ?? null, updated_at: null })),
         });
         if (submission?.id) {
           await insertProjectProgressionEvent(db, {

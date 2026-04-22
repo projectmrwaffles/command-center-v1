@@ -11,12 +11,17 @@ type TaskLike = {
   status: string;
   task_type?: string | null;
   review_required?: boolean | null;
+  review_status?: string | null;
   updated_at?: string | null;
 };
 
 type CompletionEventLike = {
   payload?: Record<string, unknown> | null;
 };
+
+function hasUnresolvedReviewRequiredTasks(tasks: TaskLike[]) {
+  return tasks.some((task) => task.review_required === true && task.review_status !== 'approved');
+}
 
 export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   projectId: string;
@@ -36,7 +41,7 @@ export async function ensureMilestoneReviewSubmission(db: DbClient, input: {
   if (projectError) throw projectError;
   if (!sprint) return null;
   const isBuildSprint = sprint.phase_key === 'build';
-  const hasReviewRequiredTasks = input.tasks.some((task) => task.review_required === true);
+  const hasReviewRequiredTasks = hasUnresolvedReviewRequiredTasks(input.tasks);
   const requiresReview = Boolean(sprint.approval_gate_required || sprint.delivery_review_required || isBuildSprint || hasReviewRequiredTasks);
   if (!requiresReview) return null;
 

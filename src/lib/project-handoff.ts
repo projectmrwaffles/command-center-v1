@@ -140,9 +140,7 @@ function sprintNeedsReviewSubmission(sprint: SprintRow, state: ReturnType<typeof
     && sprint.delivery_review_status !== "approved"
     && !state.sequencingComplete;
 
-  return buildDeliveryReviewPending
-    || (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
-    || state.hasReviewRequiredTasks;
+  return buildDeliveryReviewPending || state.hasReviewRequiredTasks;
 }
 
 async function dispatchSprintTodoTasks(db: DbClient, sprint: SprintRow, taskRows: TaskRow[], project: ProjectRow, sprintRows: SprintRow[]) {

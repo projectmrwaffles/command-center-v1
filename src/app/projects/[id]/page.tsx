@@ -447,6 +447,7 @@ function MilestoneReviewCard({
   const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
   const reviewReady = milestoneDisplayState.checkpointState.key === "ready_for_review";
   const qaQueued = milestoneDisplayState.stageState.key === "qa_queued";
+  const qaReady = milestoneDisplayState.stageState.key === "qa_ready";
   const showRevisionRequestCard = reviewTasksReady && (revisionCycleActive || deliveryApproved);
 
   const stateBadge = milestoneDisplayState.stageState;
@@ -455,10 +456,10 @@ function MilestoneReviewCard({
     ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this milestone. Complete the revision, then resubmit when ready.")
     : deliveryApproved
       ? "The first shipped iteration is complete and QC-approved. Request another revision only if new changes are actually needed."
-      : reviewReady
-        ? "Delivery review is active on the submitted proof bundle. Wait for approval or requested changes before moving on."
+      : reviewReady || qaReady
+        ? "Implementation is complete, and QA/QC is the next runnable checkpoint. Submit the review packet when ready to start formal review."
         : qaQueued
-          ? "Implementation is complete, but QA/QC has not started reviewing yet. Delivery review should not appear active until a review packet is submitted."
+          ? "Implementation is complete, but QA/QC is still held behind earlier sequencing work. Delivery review should not appear active until a review packet is submitted."
           : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
 
   return (
@@ -1002,7 +1003,9 @@ export default function ProjectDetailPage() {
             ? "border-violet-200 bg-violet-50 text-violet-700"
             : executionSummary.key === "validation_pending"
               ? "border-amber-200 bg-amber-50 text-amber-700"
-              : executionSummary.key === "completed"
+              : executionSummary.key === "validation_ready"
+                ? "border-sky-200 bg-sky-50 text-sky-700"
+                : executionSummary.key === "completed"
           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
           : executionSummary.key === "planning_running"
             ? "border-sky-200 bg-sky-50 text-sky-700"

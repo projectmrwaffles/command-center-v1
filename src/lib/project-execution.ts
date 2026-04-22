@@ -21,6 +21,9 @@ type SprintRow = {
   created_at?: string | null;
   approval_gate_required?: boolean | null;
   approval_gate_status?: string | null;
+  phase_key?: string | null;
+  delivery_review_required?: boolean | null;
+  delivery_review_status?: string | null;
 };
 
 type TaskRow = {
@@ -48,6 +51,8 @@ type AgentRow = {
   status?: string | null;
   current_job_id?: string | null;
 };
+
+const DONE_LIKE_TASK_STATUSES = new Set(["done", "cancelled"]);
 
 function sortSprints(a: SprintRow, b: SprintRow) {
   const ao = a.phase_order ?? Number.MAX_SAFE_INTEGER;
@@ -81,14 +86,30 @@ export function getTaskExecutionBlocker(input: {
   task: TaskRow;
   sprint?: SprintRow | null;
   sprints?: SprintRow[];
+  tasks?: TaskRow[];
   jobs?: JobRow[];
   agents?: AgentRow[];
 }) {
   const sprints = (input.sprints || []).slice().sort(sortSprints);
   const sprint = input.sprint ?? sprints.find((candidate) => candidate.id === input.task.sprint_id) ?? null;
+  const tasks = input.tasks || [];
   const jobs = input.jobs || [];
   const agents = input.agents || [];
   const artifactIntegrity = getProjectArtifactIntegrity(input.project, [input.task]);
+  const isSprintEffectivelyComplete = (candidate: SprintRow) => {
+    const sprintTasks = tasks.filter((task) => task.sprint_id === candidate.id);
+    if (!sprintTasks.length) return false;
+    const tasksComplete = sprintTasks.every((task) => DONE_LIKE_TASK_STATUSES.has(task.status));
+    if (!tasksComplete) return false;
+
+    const approvalBlocked = candidate.approval_gate_required
+      && candidate.approval_gate_status !== "approved"
+      && candidate.approval_gate_status !== "not_requested";
+    const deliveryReviewBlocked = (candidate.phase_key === "build" || candidate.delivery_review_required)
+      && candidate.delivery_review_status !== "approved";
+
+    return !approvalBlocked && !deliveryReviewBlocked;
+  };
 
   if (!input.task.assignee_agent_id && !input.task.owner_team_id) {
     return {
@@ -170,7 +191,7 @@ export function getTaskExecutionBlocker(input: {
   if (sprint && sprintIndex > 0) {
     const earlierBlockingSprint = sprints
       .slice(0, sprintIndex)
-      .find((candidate) => candidate.status !== "completed" && candidate.status !== "archived");
+      .find((candidate) => candidate.status !== "completed" && candidate.status !== "archived" && !isSprintEffectivelyComplete(candidate));
 
     if (earlierBlockingSprint) {
       return {
@@ -184,7 +205,11 @@ export function getTaskExecutionBlocker(input: {
     }
   }
 
-  if (sprint && sprint.status !== "active") {
+  const sprintUnlocked = sprint
+    ? sprintIndex <= 0 || sprints.slice(0, sprintIndex).every((candidate) => candidate.status === "completed" || candidate.status === "archived" || isSprintEffectivelyComplete(candidate))
+    : false;
+
+  if (sprint && sprint.status !== "active" && !sprintUnlocked) {
     return {
       key: "waiting_for_kickoff_completion",
       label: "Waiting for phase activation",
@@ -271,6 +296,7 @@ export async function dispatchEligibleProjectTasks(db: DbClient, input: {
       task,
       sprint: input.sprints.find((sprint) => sprint.id === task.sprint_id) ?? null,
       sprints: input.sprints,
+      tasks: input.tasks,
       jobs,
       agents,
     });

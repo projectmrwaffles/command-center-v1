@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "verify:checkpoint-approval": "node --experimental-strip-types scripts/verify-checkpoint-approval-progression.mjs",
+    "verify:checkpoint-approval": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-checkpoint-approval-progression.mjs",
     "verify:phase-progression-guardrails": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-phase-progression-guardrails.mjs",
     "verify:delivery-review-workflow": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-delivery-review-workflow.mjs",
     "verify:auto-delivery-review-request-sync": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-auto-delivery-review-request-sync.mjs",

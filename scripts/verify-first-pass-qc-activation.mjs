@@ -28,8 +28,8 @@ const milestoneDisplay = deriveMilestoneDisplayState({
   },
 });
 
-assert.equal(milestoneDisplay.stageState.key, "delivery_review_active", "Completed first-pass delivery should show active QC");
-assert.equal(milestoneDisplay.showDecisionActions, true, "First-pass QC should be reviewable");
+assert.equal(milestoneDisplay.stageState.key, "qa_ready", "Completed first-pass delivery should show QA-ready before review is requested");
+assert.equal(milestoneDisplay.showDecisionActions, true, "First-pass QA-ready state should still expose review actions");
 
 const truth = deriveProjectTruth({
   project: {
@@ -69,8 +69,8 @@ const truth = deriveProjectTruth({
   jobs: [],
 });
 
-assert.deepEqual(truth.taskBoard.inProgress, ["qc-task"], "First-pass QC task should move into the active bucket once delivery review is pending");
-assert.deepEqual(truth.taskBoard.queued, [], "First-pass QC task should not remain queued");
+assert.deepEqual(truth.taskBoard.inProgress, [], "First-pass QC task should not look active before review is requested");
+assert.deepEqual(truth.taskBoard.queued, ["qc-task"], "First-pass QC task should remain queued until review is actually requested");
 
 console.log("verify-first-pass-qc-activation: ok", JSON.stringify({
   stageState: milestoneDisplay.stageState.key,

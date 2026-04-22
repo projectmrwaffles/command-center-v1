@@ -1,4 +1,4 @@
-import { dispatchEligibleProjectTasks } from "./project-execution.ts";
+import { dispatchEligibleProjectTasks, isSprintEffectivelyCompleteForSequencing } from "./project-execution.ts";
 import { getProjectArtifactIntegrity } from "./project-artifact-requirements.ts";
 import { selectProjectWithArtifactCompat } from "./project-db-compat.ts";
 import { ensureMilestoneReviewSubmission } from './review-submission.ts';
@@ -105,17 +105,23 @@ function hasUnresolvedReviewRequiredTasks(tasks: TaskRow[]) {
   return tasks.some((task) => task.review_required === true && task.review_status !== "approved");
 }
 
-function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRows: TaskRow[]) {
+function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRows: TaskRow[], sprintRows: SprintRow[]) {
   const sprintTasks = taskRows.filter((task) => task.sprint_id === sprint.id);
   const sprintStillActive = sprintTasks.some((task) => ACTIVE_LIKE.has(task.status));
   const sprintComplete = sprintTasks.length > 0 && sprintTasks.every((task) => DONE_LIKE.has(task.status));
   const artifactIntegrity = getProjectArtifactIntegrity(project || {}, sprintTasks);
   const deliveryReviewBlocked = (sprint.phase_key === "build" || sprint.delivery_review_required)
     && sprint.delivery_review_status !== "approved";
-  const hasReviewRequiredTasks = hasUnresolvedReviewRequiredTasks(sprintTasks);
+  const unresolvedReviewRequiredTasks = hasUnresolvedReviewRequiredTasks(sprintTasks);
+  const sequencingComplete = isSprintEffectivelyCompleteForSequencing({
+    sprint,
+    tasks: taskRows,
+    sprints: sprintRows,
+  });
+  const hasReviewRequiredTasks = unresolvedReviewRequiredTasks && !sequencingComplete;
   const gateBlocked = Boolean(
     (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
-    || deliveryReviewBlocked
+    || (deliveryReviewBlocked && !sequencingComplete)
   );
 
   return {
@@ -125,12 +131,14 @@ function getSprintCompletionState(project: ProjectRow, sprint: SprintRow, taskRo
     artifactIntegrity,
     hasReviewRequiredTasks,
     gateBlocked,
+    sequencingComplete,
   };
 }
 
 function sprintNeedsReviewSubmission(sprint: SprintRow, state: ReturnType<typeof getSprintCompletionState>) {
   const buildDeliveryReviewPending = (sprint.phase_key === "build" || sprint.delivery_review_required)
-    && sprint.delivery_review_status !== "approved";
+    && sprint.delivery_review_status !== "approved"
+    && !state.sequencingComplete;
 
   return buildDeliveryReviewPending
     || (sprint.approval_gate_required && sprint.approval_gate_status !== "approved")
@@ -177,7 +185,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
     const currentSprint = sprintRows[index];
     if (currentSprint.status === "completed" || currentSprint.status === "archived") continue;
 
-    const state = getSprintCompletionState(project, currentSprint, taskRows);
+    const state = getSprintCompletionState(project, currentSprint, taskRows, sprintRows);
     if (state.sprintStillActive || !state.sprintComplete) break;
     if (state.artifactIntegrity.blockingReason) {
       return { advanced: false, reason: "required_artifacts_missing", advancedTransitions };
@@ -255,7 +263,7 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
       if (!completedTask?.sprint_id) return { advanced: false, reason: "completed_task_has_no_sprint", advancedTransitions };
       const currentSprint = sprintRows.find((sprint) => sprint.id === completedTask.sprint_id);
       if (!currentSprint) return { advanced: false, reason: "current_sprint_not_found", advancedTransitions };
-      const state = getSprintCompletionState(project, currentSprint, taskRows);
+      const state = getSprintCompletionState(project, currentSprint, taskRows, sprintRows);
       if (state.sprintStillActive) return { advanced: false, reason: "current_sprint_still_has_active_tasks", advancedTransitions };
       if (!state.sprintComplete) return { advanced: false, reason: "current_sprint_not_complete", advancedTransitions };
 

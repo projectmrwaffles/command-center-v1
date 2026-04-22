@@ -81,6 +81,41 @@ export async function resolveTaskAssignee(db: DbClient, task: Pick<TaskRow, "ass
   return getLeadAgentForTeam(db, task.owner_team_id);
 }
 
+export function isSprintEffectivelyCompleteForSequencing(input: {
+  sprint: SprintRow;
+  tasks: TaskRow[];
+  sprints?: SprintRow[];
+}) {
+  const sprintTasks = input.tasks.filter((task) => task.sprint_id === input.sprint.id);
+  if (!sprintTasks.length) return false;
+
+  const tasksComplete = sprintTasks.every((task) => DONE_LIKE_TASK_STATUSES.has(task.status));
+  if (!tasksComplete) return false;
+
+  const approvalBlocked = input.sprint.approval_gate_required
+    && input.sprint.approval_gate_status !== "approved"
+    && input.sprint.approval_gate_status !== "not_requested";
+  if (approvalBlocked) return false;
+
+  const deliveryReviewBlocked = (input.sprint.phase_key === "build" || input.sprint.delivery_review_required)
+    && input.sprint.delivery_review_status !== "approved";
+  if (!deliveryReviewBlocked) return true;
+
+  const allSprints = (input.sprints || []).slice().sort(sortSprints);
+  const sprintIndex = allSprints.findIndex((candidate) => candidate.id === input.sprint.id);
+  if (sprintIndex === -1) return false;
+
+  const nextSprint = allSprints.slice(sprintIndex + 1).find((candidate) => candidate.status !== "completed" && candidate.status !== "archived");
+  if (!nextSprint) return false;
+
+  const nextSprintTasks = input.tasks.filter((task) => task.sprint_id === nextSprint.id);
+  const onlyValidationFollowUp = nextSprint.phase_key === "validate"
+    && nextSprintTasks.length > 0
+    && nextSprintTasks.every((task) => task.task_type === "qa_validation");
+
+  return onlyValidationFollowUp;
+}
+
 export function getTaskExecutionBlocker(input: {
   project: ProjectRow;
   task: TaskRow;
@@ -96,20 +131,11 @@ export function getTaskExecutionBlocker(input: {
   const jobs = input.jobs || [];
   const agents = input.agents || [];
   const artifactIntegrity = getProjectArtifactIntegrity(input.project, [input.task]);
-  const isSprintEffectivelyComplete = (candidate: SprintRow) => {
-    const sprintTasks = tasks.filter((task) => task.sprint_id === candidate.id);
-    if (!sprintTasks.length) return false;
-    const tasksComplete = sprintTasks.every((task) => DONE_LIKE_TASK_STATUSES.has(task.status));
-    if (!tasksComplete) return false;
-
-    const approvalBlocked = candidate.approval_gate_required
-      && candidate.approval_gate_status !== "approved"
-      && candidate.approval_gate_status !== "not_requested";
-    const deliveryReviewBlocked = (candidate.phase_key === "build" || candidate.delivery_review_required)
-      && candidate.delivery_review_status !== "approved";
-
-    return !approvalBlocked && !deliveryReviewBlocked;
-  };
+  const isSprintEffectivelyComplete = (candidate: SprintRow) => isSprintEffectivelyCompleteForSequencing({
+    sprint: candidate,
+    tasks,
+    sprints,
+  });
 
   if (!input.task.assignee_agent_id && !input.task.owner_team_id) {
     return {

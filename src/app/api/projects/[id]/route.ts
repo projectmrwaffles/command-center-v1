@@ -599,6 +599,7 @@ export async function GET(
           task,
           sprint: (visibleSprints || []).find((sprint: any) => sprint.id === task.sprint_id) ?? null,
           sprints: (visibleSprints || []) as any,
+          tasks: (visibleTasks || []) as any,
           jobs: (jobs || []) as any,
           agents: (agents || []) as any,
         });

@@ -111,8 +111,10 @@ try {
       task_type: "qa_validation",
       assignee_agent_id: fixtureAgentId,
     },
-  ]).select("id");
+  ]).select("id, title");
   assert.equal(taskInsert.error, null, taskInsert.error?.message || "Failed to create task fixtures");
+  const qaTask = taskInsert.data.find((task) => task.title === "QA validation");
+  assert.ok(qaTask?.id, "Expected QA validation fixture task");
 
   const headers = { Accept: "application/json" };
   if (process.env.AGENT_AUTH_TOKEN) headers.Authorization = `Bearer ${process.env.AGENT_AUTH_TOKEN}`;
@@ -139,6 +141,10 @@ try {
   assert.equal(payload.truth?.execution?.key, "validation_ready", "Project truth should expose first-pass QC as the next runnable checkpoint");
   assert.ok(/qa ready/i.test(String(payload.truth?.headline || "")), "Truth headline should announce QA readiness once implementation is complete");
   assert.ok(/qa ready/i.test(String(headerState.headline || "")), "Header should stay aligned with first-pass QC readiness");
+  assert.ok(
+    !payload.executionVisibility?.queuedReasons?.some((reason) => reason.taskId === qaTask.id && reason.status === "waiting_for_kickoff_completion"),
+    "Project detail payload should not report first-pass QA as held behind earlier sequencing work once implementation is complete",
+  );
 
   console.log("verify-pending-review-truth-guard: ok", JSON.stringify({
     projectId: createdIds.projectId,
@@ -147,6 +153,7 @@ try {
     headerState,
     milestoneCheckpoint: milestoneState.checkpointState,
     milestoneStage: milestoneState.stageState,
+    queuedReasons: payload.executionVisibility?.queuedReasons || [],
   }, null, 2));
 } finally {
   await cleanup();

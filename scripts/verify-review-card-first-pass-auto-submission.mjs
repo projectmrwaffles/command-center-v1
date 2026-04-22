@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { deriveMilestoneDisplayState } from "../src/lib/project-detail-state.ts";
+import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy } from "../src/lib/project-detail-state.ts";
 
 const baseUrl = process.env.VERIFY_BASE_URL || "http://127.0.0.1:3000";
 const repoRoot = process.cwd();
@@ -41,25 +41,6 @@ async function getActiveFixtureAgentId() {
   assert.equal(error, null, error?.message || "Failed to load fixture agent");
   assert.ok(data?.[0]?.id, "Expected at least one available agent fixture");
   return data[0].id;
-}
-
-function deriveReviewCardSummary(milestone) {
-  const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
-  const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
-  const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
-  const reviewReady = milestoneDisplayState.checkpointState.key === "ready_for_review";
-  const qaReady = milestoneDisplayState.stageState.key === "qa_ready";
-  const qaQueued = milestoneDisplayState.stageState.key === "qa_queued";
-
-  return revisionCycleActive
-    ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this milestone. Complete the revision, then resubmit when ready.")
-    : deliveryApproved
-      ? "The first shipped iteration is complete and QC-approved. Request another revision only if new changes are actually needed."
-      : reviewReady || qaReady
-        ? "Implementation is complete, and QA/QC is the next runnable checkpoint. A review packet only matters later if QC asks for changes or another revision cycle starts."
-        : qaQueued
-          ? "Implementation is complete, but QA/QC is still held behind earlier sequencing work. First-pass QC should become active as soon as sequencing clears."
-          : "Review the delivered work directly. If you want changes after review, open an optional revision request.";
 }
 
 async function cleanup() {
@@ -148,19 +129,22 @@ try {
   assert.equal(buildMilestone.reviewSummary?.proofCompletenessStatus, "incomplete", "Fixture should reproduce the auto-generated incomplete packet path");
 
   const milestoneState = deriveMilestoneDisplayState(buildMilestone);
-  const renderedSummary = deriveReviewCardSummary(buildMilestone);
+  const reviewCardCopy = deriveMilestoneReviewCardCopy(buildMilestone);
   assert.equal(milestoneState.checkpointState.key, "ready_for_review", "Incomplete auto-generated first-pass packets should still surface as review-ready");
   assert.equal(milestoneState.stageState.key, "qa_ready", "Review card should render QA ready instead of QA queued for first-pass QC");
-  assert.ok(!/qa queued/i.test(milestoneState.stageState.label), "Review card badge should no longer show QA queued");
-  assert.ok(!/held behind earlier sequencing work/i.test(renderedSummary), "Review card summary should no longer mention sequencing hold copy");
-  assert.ok(/next runnable checkpoint/i.test(renderedSummary), "Review card summary should use the QA-ready guidance copy");
+  assert.ok(!/qa queued/i.test(reviewCardCopy.milestoneDisplayState.stageState.label), "Review card badge should no longer show QA queued");
+  assert.ok(!/held behind earlier sequencing work/i.test(reviewCardCopy.summaryCopy), "Review card summary should no longer mention sequencing hold copy");
+  assert.ok(/next runnable checkpoint/i.test(reviewCardCopy.summaryCopy), "Review card summary should use the QA-ready guidance copy");
+  assert.ok(/First-pass QC is ready to run now/i.test(reviewCardCopy.helperCopy), "Review card helper copy should align with the QA-ready badge and summary");
+  assert.ok(!/waiting for first-pass QC/i.test(reviewCardCopy.helperCopy), "Review card helper copy should no longer use QA queued guidance");
 
   console.log("verify-review-card-first-pass-auto-submission: ok", JSON.stringify({
     projectId: createdIds.projectId,
     milestoneCheckpoint: milestoneState.checkpointState,
-    milestoneStage: milestoneState.stageState,
+    milestoneStage: reviewCardCopy.milestoneDisplayState.stageState,
     reviewSummaryStatus: buildMilestone.reviewSummary?.proofCompletenessStatus,
-    renderedSummary,
+    summaryCopy: reviewCardCopy.summaryCopy,
+    helperCopy: reviewCardCopy.helperCopy,
   }, null, 2));
 } finally {
   await cleanup();

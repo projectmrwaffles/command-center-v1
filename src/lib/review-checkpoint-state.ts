@@ -84,12 +84,16 @@ export function deriveFirstPassQcState(input: {
     || summary?.latestDecision === "approve";
   const approvalExists = Boolean(reviewRequest?.id || reviewRequest?.jobId || reviewRequest?.status === "pending");
   const inReview = latestSubmissionStatus === "under_review";
-  const reviewReady = approvalGateStatus === "pending" && hasMaterials && !nonReviewablePrebuildPacket;
-  const firstPassReady = approvalGateStatus === "pending"
-    && !hasSubmission
+  const firstPassWindow = approvalGateStatus === "pending"
     && !approvalExists
+    && !inReview
     && !nonReviewablePrebuildPacket
+    && !approved
+    && !changesRequested
     && (summary?.latestRevisionNumber ?? 1) <= 1;
+  const reviewReady = approvalGateStatus === "pending" && hasMaterials && !nonReviewablePrebuildPacket;
+  const firstPassReady = firstPassWindow && !hasSubmission;
+  const firstPassReadyWithoutPacket = firstPassWindow && hasSubmission && !hasMaterials;
 
   if (setupBlockedPrebuild) {
     return {
@@ -136,7 +140,7 @@ export function deriveFirstPassQcState(input: {
     } as const;
   }
 
-  if (reviewReady || firstPassReady) {
+  if (reviewReady || firstPassReady || firstPassReadyWithoutPacket) {
     return {
       key: "ready_for_review",
       label: "Ready for review",

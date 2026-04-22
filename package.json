@@ -36,7 +36,8 @@
     "verify:home-empty-openclaw-root": "node --experimental-strip-types scripts/verify-home-empty-openclaw-root.mjs",
     "verify:project-detail-read-reconcile": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-project-detail-read-reconcile.mjs",
     "verify:pending-review-truth-guard": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-pending-review-truth-guard.mjs",
-    "verify:completed-project-detail-state": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-completed-project-detail-state.mjs"
+    "verify:completed-project-detail-state": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-completed-project-detail-state.mjs",
+    "verify:blocker-only-review-checkpoint-section": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-blocker-only-review-checkpoint-section.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.98",

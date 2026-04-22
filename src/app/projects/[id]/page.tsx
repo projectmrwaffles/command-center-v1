@@ -35,7 +35,7 @@ import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-boot
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
-import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
+import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, getCompletedProjectRevisionMilestones, shouldShowAttachmentKickoffBanner, shouldShowReviewCheckpointSection } from "@/lib/project-detail-state";
 import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
@@ -964,7 +964,8 @@ export default function ProjectDetailPage() {
     });
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
-
+  const completedProjectRevisionMilestones = getCompletedProjectRevisionMilestones(milestones);
+  const showReviewCheckpointSection = shouldShowReviewCheckpointSection({ projectStatus: project.status, milestones: reviewableMilestones });
 
   const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
   const executionBadgeTone =
@@ -1298,57 +1299,85 @@ export default function ProjectDetailPage() {
 
         <div className="space-y-4">
 
-          <Section title="Review checkpoints" description="Human sign-off milestones for design, functionality, and delivery.">
-            {blockerOnlyMilestones.length > 0 ? (
-              <div className="mb-3 space-y-3">
-                {blockerOnlyMilestones.map((milestone) => {
-                  const reason = formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.";
-                  const nextAction = milestone.preBuildCheckpoint?.outcome === "mismatch"
-                    ? "Align the linked repo with the PRD stack contract, then rerun the checkpoint."
-                    : "Link or provision the real repo workspace, then rerun the checkpoint.";
+          {showReviewCheckpointSection ? (
+            <Section title="Review checkpoints" description="Human sign-off milestones for design, functionality, and delivery.">
+              {blockerOnlyMilestones.length > 0 ? (
+                <div className="mb-3 space-y-3">
+                  {blockerOnlyMilestones.map((milestone) => {
+                    const reason = formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.";
+                    const nextAction = milestone.preBuildCheckpoint?.outcome === "mismatch"
+                      ? "Align the linked repo with the PRD stack contract, then rerun the checkpoint."
+                      : "Link or provision the real repo workspace, then rerun the checkpoint.";
 
-                  return (
-                    <div key={`${milestone.id}-blocker`} className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 shadow-sm">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Build blocker</div>
-                          <h3 className="mt-1 text-base font-semibold text-amber-950">{milestone.name} needs repo setup, not approval</h3>
-                          <p className="mt-2 text-sm leading-6 text-amber-950">{reason}</p>
+                    return (
+                      <div key={`${milestone.id}-blocker`} className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Build blocker</div>
+                            <h3 className="mt-1 text-base font-semibold text-amber-950">{milestone.name} needs repo setup, not approval</h3>
+                            <p className="mt-2 text-sm leading-6 text-amber-950">{reason}</p>
+                          </div>
+                          <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</span>
                         </div>
-                        <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</span>
+                        <div className="mt-3 rounded-2xl border border-amber-200 bg-white px-3 py-3 text-sm leading-6 text-amber-900">
+                          <span className="font-medium">Next action:</span> {nextAction}
+                        </div>
                       </div>
-                      <div className="mt-3 rounded-2xl border border-amber-200 bg-white px-3 py-3 text-sm leading-6 text-amber-900">
-                        <span className="font-medium">Next action:</span> {nextAction}
-                      </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {reviewableMilestones.length === 0 ? (
+                blockerOnlyMilestones.length === 0 ? (
+                  <EmptySectionState
+                    icon={<ShieldCheck className="h-7 w-7" />}
+                    title="No review checkpoints yet"
+                    description="Review-ready milestones will appear here. Revisions stay optional unless a change request exists."
+                  />
+                ) : null
+              ) : (
+                <div className="space-y-3">
+                  {reviewableMilestones.map((milestone) => (
+                    <MilestoneReviewCard
+                      key={milestone.id}
+                      projectId={projectId}
+                      milestone={milestone}
+                      documents={documents}
+                      onSaved={() => {
+                        void Promise.all([fetchProject(false), fetchDocuments()]);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </Section>
+          ) : null}
+
+          {completedProjectRevisionMilestones.length > 0 ? (
+            <Section title="Post-completion revisions" description="The project is finished. Open another revision only if follow-up changes are needed.">
+              <div className="space-y-3">
+                {completedProjectRevisionMilestones.map((milestone) => {
+                  const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
+                  const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
+                  const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
+                  return (
+                    <RevisionRequestCard
+                      key={`${milestone.id}-completed-revision`}
+                      projectId={projectId}
+                      sprintId={milestone.id}
+                      sprintName={milestone.name}
+                      documents={documents}
+                      onSubmitted={() => {
+                        void Promise.all([fetchProject(false), fetchDocuments()]);
+                      }}
+                      hasActiveRevisionCycle={revisionCycleActive}
+                      shippedApproved={deliveryApproved}
+                    />
                   );
                 })}
               </div>
-            ) : null}
-            {reviewableMilestones.length === 0 ? (
-              blockerOnlyMilestones.length === 0 ? (
-                <EmptySectionState
-                  icon={<ShieldCheck className="h-7 w-7" />}
-                  title="No review checkpoints yet"
-                  description="Review-ready milestones will appear here. Revisions stay optional unless a change request exists."
-                />
-              ) : null
-            ) : (
-              <div className="space-y-3">
-                {reviewableMilestones.map((milestone) => (
-                  <MilestoneReviewCard
-                    key={milestone.id}
-                    projectId={projectId}
-                    milestone={milestone}
-                    documents={documents}
-                    onSaved={() => {
-                      void Promise.all([fetchProject(false), fetchDocuments()]);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </Section>
+            </Section>
+          ) : null}
 
           <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
             <div className="space-y-4">

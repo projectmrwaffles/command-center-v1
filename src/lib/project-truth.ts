@@ -236,7 +236,7 @@ export function deriveExecutionState(input: {
 }
 
 export function deriveProjectTruth(input: {
-  project?: { id: string; type?: string | null; intake?: any; links?: Record<string, string> | null; github_repo_binding?: any } | null;
+  project?: { id: string; status?: string | null; type?: string | null; intake?: any; links?: Record<string, string> | null; github_repo_binding?: any } | null;
   tasks?: (TruthTaskLike & { project_id?: string | null; assignee_agent_id?: string | null; owner_team_id?: string | null })[] | null;
   sprints?: (TruthSprintLike & { name?: string | null; approval_gate_required?: boolean | null; approval_gate_status?: string | null; delivery_review_required?: boolean | null; delivery_review_status?: string | null })[] | null;
   jobs?: Array<{ id?: string | null; status?: string | null; updated_at?: string | null; owner_agent_id?: string | null; summary?: string | null }> | null;
@@ -247,6 +247,8 @@ export function deriveProjectTruth(input: {
   const jobs = Array.isArray(input.jobs) ? input.jobs : [];
   const agents = Array.isArray(input.agents) ? input.agents : [];
   const sprintIds = getBootstrapSprintIds(sprints);
+  const projectStatus = String(input.project?.status || "").toLowerCase();
+  const projectCompleted = projectStatus === "completed" || projectStatus === "archived";
 
   const bootstrapTasks = tasks.filter((task) => matchesBootstrapTruth(task, sprintIds));
   const deliveryTasks = tasks.filter((task) => !bootstrapTasks.includes(task));
@@ -373,14 +375,23 @@ export function deriveProjectTruth(input: {
   if ((acceptancePending || validationPending) && progressPct >= 100) {
     progressPct = 90;
   }
+  if (projectCompleted) {
+    progressPct = 100;
+  }
 
-  const execution = stuckWorkflowGuardrail
+  const execution = projectCompleted
     ? {
-        key: "stuck_progression",
-        label: "Needs phase handoff",
-        description: stuckWorkflowGuardrail.detail,
+        key: "completed",
+        label: "Completed",
+        description: "This project is finished and closed out.",
       } as const
-    : deriveExecutionState({
+    : stuckWorkflowGuardrail
+      ? {
+          key: "stuck_progression",
+          label: "Needs phase handoff",
+          description: stuckWorkflowGuardrail.detail,
+        } as const
+      : deriveExecutionState({
     totalDeliveryTasks: deliveryTasks.length,
     doneDeliveryTasks,
     queuedDeliveryTasks,
@@ -401,7 +412,9 @@ export function deriveProjectTruth(input: {
     revisionCycleActive,
   });
 
-  const headline = deliveryTasks.length > 0
+  const headline = projectCompleted
+    ? "Project completed"
+    : deliveryTasks.length > 0
     ? execution.key === "running"
       ? "Work is underway"
       : execution.key === "stale_running"
@@ -433,7 +446,9 @@ export function deriveProjectTruth(input: {
         : "Kickoff is still in setup"
       : "No work added yet";
 
-  const summary = deliveryTasks.length > 0
+  const summary = projectCompleted
+    ? "This project is complete. You can still request a revision later if follow-up changes are needed."
+    : deliveryTasks.length > 0
     ? execution.key === "stale_running"
       ? `${doneDeliveryTasks} of ${deliveryTasks.length} active work item${deliveryTasks.length === 1 ? "" : "s"} complete. ${queuedDeliveryTasks} queued, ${runningDeliveryTasks} marked in progress, but there has been no recent execution update.`
       : execution.key === "acceptance_pending"

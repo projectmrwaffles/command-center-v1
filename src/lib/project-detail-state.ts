@@ -35,7 +35,7 @@ type ProjectTruthLike = {
   execution?: TruthExecutionState;
 } | null | undefined;
 
-type MilestoneLike = {
+export type MilestoneLike = {
   approvalGateStatus?: string | null;
   deliveryReviewStatus?: string | null;
   totalTasks?: number | null;
@@ -153,6 +153,25 @@ export function deriveMilestoneDisplayState(milestone: MilestoneLike) {
     showChangesRequestedActions: checkpointState.key === "changes_requested",
     showBlockedApprovalPanel: checkpointState.key === "setup_required" || checkpointState.key === "awaiting_submission" || checkpointState.key === "awaiting_evidence",
   } as const;
+}
+
+export function isTerminalProjectStatus(status?: string | null) {
+  const normalized = String(status || "").toLowerCase();
+  return normalized === "completed" || normalized === "archived";
+}
+
+export function shouldShowReviewCheckpointSection(input: { projectStatus?: string | null; milestones?: MilestoneLike[] | null }) {
+  if (isTerminalProjectStatus(input.projectStatus)) return false;
+  return Array.isArray(input.milestones) && input.milestones.length > 0;
+}
+
+export function getCompletedProjectRevisionMilestones<T extends MilestoneLike>(milestones?: T[] | null) {
+  return (Array.isArray(milestones) ? milestones : []).filter((milestone) => {
+    const reviewTasksReady = (milestone.totalTasks || 0) > 0 && milestone.doneTasks === milestone.totalTasks;
+    if (!reviewTasksReady) return false;
+    const stageKey = deriveMilestoneDisplayState(milestone).stageState.key;
+    return stageKey === "iteration_shipped" || stageKey === "revision_cycle";
+  });
 }
 
 export function deriveMilestoneReviewCardCopy(milestone: MilestoneLike) {

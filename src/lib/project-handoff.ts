@@ -30,6 +30,40 @@ type TaskRow = {
   review_required?: boolean | null;
 };
 
+function getProgressionEventAgentId(taskRows: TaskRow[], sprintId: string, completedTaskId?: string) {
+  if (completedTaskId) {
+    const completedTaskAssignee = taskRows.find((task) => task.id === completedTaskId)?.assignee_agent_id;
+    if (completedTaskAssignee) return completedTaskAssignee;
+  }
+
+  return taskRows.find((task) => task.sprint_id === sprintId && task.assignee_agent_id)?.assignee_agent_id || null;
+}
+
+async function insertProjectProgressionEvent(db: DbClient, input: {
+  taskRows: TaskRow[];
+  sprintId: string;
+  projectId: string;
+  jobId?: string | null;
+  eventType: "project_review_ready" | "project_phase_advanced";
+  payload: Record<string, unknown>;
+  completedTaskId?: string;
+}) {
+  const agentId = getProgressionEventAgentId(input.taskRows, input.sprintId, input.completedTaskId);
+  if (!agentId) return;
+
+  const eventInsert = await db.from("agent_events").insert({
+    agent_id: agentId,
+    project_id: input.projectId,
+    job_id: input.jobId ?? null,
+    event_type: input.eventType,
+    payload: input.payload,
+  });
+
+  if (eventInsert.error) {
+    throw new Error(eventInsert.error.message);
+  }
+}
+
 type ProjectRow = {
   name?: string | null;
   type?: string | null;
@@ -152,10 +186,12 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
         tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, updated_at: null })),
       });
       if (submission?.id) {
-        await db.from("agent_events").insert({
-          agent_id: null,
-          project_id: input.projectId,
-          event_type: "project_review_ready",
+        await insertProjectProgressionEvent(db, {
+          taskRows,
+          sprintId: currentSprint.id,
+          projectId: input.projectId,
+          eventType: "project_review_ready",
+          completedTaskId: input.completedTaskId,
           payload: {
             sprint_id: currentSprint.id,
             sprint_name: currentSprint.name,
@@ -188,10 +224,12 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
     const dispatchedTaskIds = await dispatchSprintTodoTasks(db, nextSprint, taskRows, project, sprintRows);
     advancedTransitions.push({ previousSprintId: currentSprint.id, nextSprintId: nextSprint.id, dispatchedTaskIds });
 
-    await db.from("agent_events").insert({
-      agent_id: null,
-      project_id: input.projectId,
-      event_type: "project_phase_advanced",
+    await insertProjectProgressionEvent(db, {
+      taskRows,
+      sprintId: currentSprint.id,
+      projectId: input.projectId,
+      eventType: "project_phase_advanced",
+      completedTaskId: input.completedTaskId,
       payload: {
         completed_task_id: input.completedTaskId ?? null,
         previous_sprint_id: currentSprint.id,
@@ -230,10 +268,12 @@ export async function reconcileProjectPhaseProgression(db: DbClient, input: {
           tasks: state.sprintTasks.map((task) => ({ id: task.id, title: task.title, status: task.status, review_required: task.review_required ?? null, updated_at: null })),
         });
         if (submission?.id) {
-          await db.from("agent_events").insert({
-            agent_id: null,
-            project_id: input.projectId,
-            event_type: "project_review_ready",
+          await insertProjectProgressionEvent(db, {
+            taskRows,
+            sprintId: currentSprint.id,
+            projectId: input.projectId,
+            eventType: "project_review_ready",
+            completedTaskId: input.completedTaskId,
             payload: {
               sprint_id: currentSprint.id,
               sprint_name: currentSprint.name,

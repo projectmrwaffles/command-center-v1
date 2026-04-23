@@ -1,5 +1,6 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
+import { reopenProjectSprintForRevision } from "@/lib/revision-reopen";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -30,18 +31,44 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (projectError || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     if (sprintError || !sprint) return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
 
-    const { data: activeSubmission } = await db
+    const { data: latestDeliverySubmission, error: latestDeliverySubmissionError } = await db
       .from("milestone_submissions")
-      .select("id,revision_number")
+      .select("id,revision_number,status")
       .eq("sprint_id", sprintId)
       .eq("checkpoint_type", "delivery_review")
-      .in("status", ["submitted", "under_review", "changes_requested"])
       .order("revision_number", { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    if (latestDeliverySubmissionError) {
+      return NextResponse.json({ error: latestDeliverySubmissionError.message || "Failed to load delivery review history" }, { status: 500 });
+    }
+
+    const now = new Date().toISOString();
+
+    let activeSubmission = latestDeliverySubmission;
     if (!activeSubmission?.id) {
-      return NextResponse.json({ error: "No active delivery submission found for this milestone" }, { status: 409 });
+      const { data: createdSubmission, error: createSubmissionError } = await db
+        .from("milestone_submissions")
+        .insert({
+          sprint_id: sprintId,
+          checkpoint_type: "delivery_review",
+          revision_number: 1,
+          summary: `Revision requested for ${sprint.name}`,
+          what_changed: message,
+          status: "changes_requested",
+          decision: "request_changes",
+          decision_notes: message,
+          rejection_comment: message,
+          decided_at: now,
+          updated_at: now,
+        })
+        .select("id,revision_number,status")
+        .single();
+      if (createSubmissionError || !createdSubmission) {
+        return NextResponse.json({ error: createSubmissionError?.message || "Failed to create revision request record" }, { status: 500 });
+      }
+      activeSubmission = createdSubmission;
     }
 
     const normalizedAttachments: Array<{ documentId: string; title: string; storagePath: string | null; mimeType: string | null; sizeBytes: number | null }> = [];
@@ -63,7 +90,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       }
     }
 
-    const now = new Date().toISOString();
     const noteLines = [message];
     if (normalizedAttachments.length > 0) {
       noteLines.push("", "Attachments:");
@@ -72,18 +98,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       }
     }
 
-    const { error: submissionError } = await db
-      .from("milestone_submissions")
-      .update({
-        status: "changes_requested",
-        decision: "request_changes",
-        decision_notes: message,
-        rejection_comment: message,
-        decided_at: now,
-        updated_at: now,
-      })
-      .eq("id", activeSubmission.id);
-    if (submissionError) return NextResponse.json({ error: submissionError.message || "Failed to store revision request" }, { status: 500 });
+    const shouldUpdateExistingSubmission = latestDeliverySubmission?.id === activeSubmission.id;
+    if (shouldUpdateExistingSubmission) {
+      const { error: submissionError } = await db
+        .from("milestone_submissions")
+        .update({
+          status: "changes_requested",
+          decision: "request_changes",
+          decision_notes: message,
+          rejection_comment: message,
+          decided_at: now,
+          updated_at: now,
+        })
+        .eq("id", activeSubmission.id);
+      if (submissionError) return NextResponse.json({ error: submissionError.message || "Failed to store revision request" }, { status: 500 });
+    }
 
     const feedbackRows = [
       {
@@ -101,8 +130,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const { error: feedbackError } = await db.from("submission_feedback_items").insert(feedbackRows);
     if (feedbackError) return NextResponse.json({ error: feedbackError.message || "Failed to persist revision notes" }, { status: 500 });
 
-    await db.from("sprints").update({ delivery_review_status: "rejected", updated_at: now }).eq("id", sprintId).eq("project_id", projectId);
+    await db.from("sprints").update({ delivery_review_required: true, delivery_review_status: "rejected", updated_at: now }).eq("id", sprintId).eq("project_id", projectId);
     await db.from("sprint_items").update({ review_status: "revision_requested", status: "todo", updated_at: now }).eq("project_id", projectId).eq("sprint_id", sprintId).eq("review_required", true);
+    await reopenProjectSprintForRevision(db as any, { projectId, sprintId, now });
 
     await db.from("agent_events").insert({
       agent_id: null,

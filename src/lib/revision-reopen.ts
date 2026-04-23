@@ -1,3 +1,6 @@
+import { dispatchEligibleProjectTasks } from "./project-execution.ts";
+import { selectProjectWithArtifactCompat } from "./project-db-compat.ts";
+
 type DbClient = { from: (table: string) => any } & Record<string, any>;
 
 type SprintRow = {
@@ -62,4 +65,34 @@ export async function reopenProjectSprintForRevision(db: DbClient, input: {
     reopenedSprintId: input.sprintId,
     resetSprintIds: laterSprintIds,
   };
+}
+
+export async function redispatchReopenedSprintTasks(db: DbClient, input: {
+  projectId: string;
+  sprintId: string;
+}) {
+  const [{ data: project, error: projectError }, { data: sprints, error: sprintsError }, { data: tasks, error: tasksError }, { data: jobs, error: jobsError }, { data: agents, error: agentsError }] = await Promise.all([
+    selectProjectWithArtifactCompat(db, input.projectId, "id, name, type, intake"),
+    db.from("sprints").select("id, name, status, phase_order, created_at, phase_key, approval_gate_required, approval_gate_status, delivery_review_required, delivery_review_status").eq("project_id", input.projectId),
+    db.from("sprint_items").select("id, project_id, sprint_id, title, status, assignee_agent_id, task_type, owner_team_id").eq("project_id", input.projectId).eq("sprint_id", input.sprintId),
+    db.from("jobs").select("id, owner_agent_id, project_id, status, summary, updated_at").eq("project_id", input.projectId).in("status", ["queued", "in_progress", "blocked"]),
+    db.from("agents").select("id, status, current_job_id").not("name", "like", "_archived_%"),
+  ]);
+
+  if (projectError || !project) throw new Error(projectError?.message || "Failed to load reopened project context");
+  if (sprintsError) throw new Error(sprintsError.message || "Failed to load sprint context for reopen dispatch");
+  if (tasksError) throw new Error(tasksError.message || "Failed to load task context for reopen dispatch");
+  if (jobsError) throw new Error(jobsError.message || "Failed to load job context for reopen dispatch");
+  if (agentsError) throw new Error(agentsError.message || "Failed to load agent context for reopen dispatch");
+
+  const sprintTasks = ((tasks || []) as Array<Record<string, any>>).filter((task) => task.status === "todo");
+  if (sprintTasks.length === 0) return [];
+
+  return dispatchEligibleProjectTasks(db as any, {
+    project: project as any,
+    tasks: sprintTasks as any,
+    sprints: (sprints || []) as any,
+    jobs: (jobs || []) as any,
+    agents: (agents || []) as any,
+  });
 }

@@ -1,7 +1,56 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
-import { reopenProjectSprintForRevision } from "@/lib/revision-reopen";
+import { redispatchReopenedSprintTasks, reopenProjectSprintForRevision } from "@/lib/revision-reopen";
 import { NextRequest, NextResponse } from "next/server";
+
+function isUniqueRevisionError(error: { code?: string; message?: string } | null | undefined) {
+  const message = error?.message || "";
+  return error?.code === "23505" && message.includes("milestone_submissions_revision_unique");
+}
+
+async function createRevisionRequestSubmission(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, input: {
+  sprintId: string;
+  sprintName: string;
+  message: string;
+  now: string;
+}) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const { data: latestSubmission, error: latestSubmissionError } = await db
+      .from("milestone_submissions")
+      .select("revision_number")
+      .eq("sprint_id", input.sprintId)
+      .order("revision_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestSubmissionError) throw new Error(latestSubmissionError.message || "Failed to load delivery review history");
+
+    const { data: createdSubmission, error: createSubmissionError } = await db
+      .from("milestone_submissions")
+      .insert({
+        sprint_id: input.sprintId,
+        checkpoint_type: "delivery_review",
+        revision_number: (latestSubmission?.revision_number || 0) + 1,
+        summary: `Revision requested for ${input.sprintName}`,
+        what_changed: input.message,
+        status: "changes_requested",
+        decision: "request_changes",
+        decision_notes: input.message,
+        rejection_comment: input.message,
+        decided_at: input.now,
+        updated_at: input.now,
+      })
+      .select("id,revision_number,status")
+      .single();
+
+    if (!createSubmissionError && createdSubmission) return createdSubmission;
+    if (!isUniqueRevisionError(createSubmissionError)) {
+      throw new Error(createSubmissionError?.message || "Failed to create revision request record");
+    }
+  }
+
+  throw new Error("Failed to allocate a unique revision number for the revision request");
+}
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -48,27 +97,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     let activeSubmission = latestDeliverySubmission;
     if (!activeSubmission?.id) {
-      const { data: createdSubmission, error: createSubmissionError } = await db
-        .from("milestone_submissions")
-        .insert({
-          sprint_id: sprintId,
-          checkpoint_type: "delivery_review",
-          revision_number: 1,
-          summary: `Revision requested for ${sprint.name}`,
-          what_changed: message,
-          status: "changes_requested",
-          decision: "request_changes",
-          decision_notes: message,
-          rejection_comment: message,
-          decided_at: now,
-          updated_at: now,
-        })
-        .select("id,revision_number,status")
-        .single();
-      if (createSubmissionError || !createdSubmission) {
-        return NextResponse.json({ error: createSubmissionError?.message || "Failed to create revision request record" }, { status: 500 });
-      }
-      activeSubmission = createdSubmission;
+      activeSubmission = await createRevisionRequestSubmission(db, {
+        sprintId,
+        sprintName: sprint.name,
+        message,
+        now,
+      });
     }
 
     const normalizedAttachments: Array<{ documentId: string; title: string; storagePath: string | null; mimeType: string | null; sizeBytes: number | null }> = [];
@@ -133,6 +167,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await db.from("sprints").update({ delivery_review_required: true, delivery_review_status: "rejected", updated_at: now }).eq("id", sprintId).eq("project_id", projectId);
     await db.from("sprint_items").update({ review_status: "revision_requested", status: "todo", updated_at: now }).eq("project_id", projectId).eq("sprint_id", sprintId).eq("review_required", true);
     await reopenProjectSprintForRevision(db as any, { projectId, sprintId, now });
+    const dispatchResults = await redispatchReopenedSprintTasks(db as any, { projectId, sprintId });
 
     await db.from("agent_events").insert({
       agent_id: null,
@@ -146,10 +181,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         message,
         attachment_count: normalizedAttachments.length,
         attachments: normalizedAttachments,
+        redispatch_results: dispatchResults,
       },
     });
 
-    return NextResponse.json({ ok: true, submissionId: activeSubmission.id, attachmentCount: normalizedAttachments.length }, { status: 201 });
+    return NextResponse.json({ ok: true, submissionId: activeSubmission.id, attachmentCount: normalizedAttachments.length, redispatchResults: dispatchResults }, { status: 201 });
   } catch (e: unknown) {
     console.error("[API /projects/:id/revision-requests] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

@@ -1,7 +1,7 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { buildReviewEventPayload, isFeedbackType } from "@/lib/milestone-review";
-import { reopenProjectSprintForRevision } from "@/lib/revision-reopen";
+import { redispatchReopenedSprintTasks, reopenProjectSprintForRevision } from "@/lib/revision-reopen";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string; milestoneId: string }> }) {
@@ -87,22 +87,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     await db.from("sprint_items").update({ review_status: "revision_requested", status: "todo", updated_at: now }).eq("project_id", projectId).eq("sprint_id", milestoneId).eq("review_required", true);
     await reopenProjectSprintForRevision(db as any, { projectId, sprintId: milestoneId, now });
+    const dispatchResults = await redispatchReopenedSprintTasks(db as any, { projectId, sprintId: milestoneId });
 
     await db.from("agent_events").insert({
       agent_id: null,
       project_id: projectId,
       event_type: "milestone_changes_requested",
-      payload: buildReviewEventPayload({
-        submissionId,
-        sprintId: milestoneId,
-        revisionNumber: submission.revision_number,
-        summary: submission.summary,
-        decision: "request_changes",
-        note: decisionNotes,
-      }),
+      payload: {
+        ...buildReviewEventPayload({
+          submissionId,
+          sprintId: milestoneId,
+          revisionNumber: submission.revision_number,
+          summary: submission.summary,
+          decision: "request_changes",
+          note: decisionNotes,
+        }),
+        redispatchResults: dispatchResults,
+      },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, redispatchResults: dispatchResults });
   } catch (e: unknown) {
     console.error("[API /projects/:id/milestones/:milestoneId/request-changes] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";

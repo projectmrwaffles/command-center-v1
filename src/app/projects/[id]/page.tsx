@@ -359,6 +359,30 @@ function formatTaskStatusLabel(value?: string | null) {
   return value.replace(/_/g, " ");
 }
 
+function isStaleSystemTaskCopy(value?: string | null) {
+  if (!value) return false;
+  return /bootstrap is still pending|\bi read bootstrap\.md\b|identity\/preferences answers|delivery review\s*:\s*iteration shipped/i.test(value);
+}
+
+function getTaskCardSummary(task: any, blocker?: { label?: string | null; detail?: string | null; resolution?: string | null } | null) {
+  if (blocker?.detail) {
+    return blocker.detail;
+  }
+
+  if (task?.description && !isStaleSystemTaskCopy(task.description)) {
+    return task.description;
+  }
+
+  if (typeof task?.task_goal === "string" && task.task_goal.trim()) {
+    if (task.status === "blocked") {
+      return `This work is blocked before ${task.task_goal.trim()} can move forward.`;
+    }
+    return task.task_goal.trim();
+  }
+
+  return null;
+}
+
 function taskProgressValue(task: any) {
   if (!task) return null;
 
@@ -1288,8 +1312,10 @@ export default function ProjectDetailPage() {
                         const showCheckpointBadge = Boolean(
                           checkpointDisplayState
                           && !isBootstrapTask(task, bootstrapSprintIds)
-                          && ["delivery_review_active", "rereview_active", "qa_ready", "qa_queued", "revision_cycle", "iteration_shipped"].includes(checkpointDisplayState.stageState.key)
+                          && ["delivery_review_active", "rereview_active", "qa_ready", "qa_queued", "revision_cycle"].includes(checkpointDisplayState.stageState.key)
                         );
+                        const blocker = bucketKey === "stalled" ? truth?.taskBoard?.blockers?.[task.id] : null;
+                        const taskCardSummary = getTaskCardSummary(task, blocker);
                         return (
                           <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
                             <div className="flex items-start justify-between gap-3">
@@ -1307,21 +1333,21 @@ export default function ProjectDetailPage() {
                                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                   {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                   {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Delivery review: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
+                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>{checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>
-                                {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
+                                {bucketKey === "stalled" && blocker ? (
                                   <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
-                                    <div className="font-semibold text-amber-800">{truth.taskBoard.blockers[task.id].label}</div>
-                                    <div className="mt-1">{truth.taskBoard.blockers[task.id].detail}</div>
-                                    {truth.taskBoard.blockers[task.id].resolution ? <div className="mt-2 text-amber-700">Next: {truth.taskBoard.blockers[task.id].resolution}</div> : null}
+                                    <div className="font-semibold text-amber-800">{blocker.label}</div>
+                                    <div className="mt-1">{blocker.detail}</div>
+                                    {blocker.resolution ? <div className="mt-2 text-amber-700">Next: {blocker.resolution}</div> : null}
                                   </div>
                                 ) : null}
                               </div>
                               <ProgressRing value={taskProgress} size={48} strokeWidth={4} />
                             </div>
-                            {(task.description || assignee || task.updated_at) && (
+                            {(taskCardSummary || assignee || task.updated_at) && (
                               <div className="mt-2 space-y-1">
-                                {task.description && <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{task.description}</p>}
+                                {taskCardSummary ? <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{taskCardSummary}</p> : null}
                                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
                                   {assignee ? <p>Owner: {assignee.name}</p> : null}
                                   {task.updated_at ? <p>{formatRelativeTimestamp(task.updated_at)}</p> : null}

@@ -55,7 +55,7 @@ const INTENT_OPTIONS: Array<{
   {
     value: "add_deliverable",
     label: "Add deliverable",
-    description: "Create a new deliverable with the right work type and milestone context.",
+    description: "Create a new deliverable with the right work type and delivery stage context.",
   },
   {
     value: "add_support_work",
@@ -86,9 +86,9 @@ function buildIntentCopy(intent: FollowUpIntent | null) {
     case "add_deliverable":
       return {
         title: "Add deliverable",
-        description: "Choose the milestone this new deliverable belongs to, then define the structured work that should be added.",
-        submitLabel: "Add deliverable work",
-        detailsLabel: "Deliverable details",
+        description: "Choose the delivery stage this new deliverable belongs to, then define the structured task that should be added.",
+        submitLabel: "Add deliverable task",
+        detailsLabel: "Deliverable task details",
       };
     case "add_support_work":
       return {
@@ -99,10 +99,10 @@ function buildIntentCopy(intent: FollowUpIntent | null) {
       };
     default:
       return {
-        title: "Add project follow-up work",
-        description: "Start by choosing the kind of follow-up you need so the next form can stay project-aware.",
-        submitLabel: "Add follow-up work",
-        detailsLabel: "Follow-up work details",
+        title: "Add project work",
+        description: "Start by choosing the kind of task you need so the next form can stay project-aware.",
+        submitLabel: "Add task",
+        detailsLabel: "Task details",
       };
   }
 }
@@ -241,7 +241,7 @@ export function StructuredTaskModal({
       autoContext.push(`Milestone context: ${selectedMilestone.name}`);
     }
     if (intent === "add_support_work" && selectedMilestone?.name) {
-      autoContext.push(`Related milestone: ${selectedMilestone.name}`);
+      autoContext.push(`Related stage: ${selectedMilestone.name}`);
     }
 
     const combinedContext = [...autoContext, contextNote.trim()].filter(Boolean).join("\n\n");
@@ -321,7 +321,7 @@ export function StructuredTaskModal({
                   </div>
                   {revisionCandidateTasks.length > 0 ? (
                     <label className="mt-3 block">
-                      <span className="mb-1 block text-sm font-medium text-zinc-700">Existing delivered item</span>
+                      <span className="mb-1 block text-sm font-medium text-zinc-700">Existing delivered task</span>
                       <select
                         value={selectedRevisionTaskId}
                         onChange={(e) => setSelectedRevisionTaskId(e.target.value)}
@@ -339,7 +339,7 @@ export function StructuredTaskModal({
                     </label>
                   ) : (
                     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-                      No completed delivered work is available yet, so the revision path is UI-only for now. Ship a deliverable first, then open a revision from here.
+                      No completed delivered task is available yet, so the revision path is UI-only for now. Finish a deliverable first, then open a revision from here.
                     </div>
                   )}
                 </section>
@@ -348,21 +348,21 @@ export function StructuredTaskModal({
               {intent !== "revise_delivered_work" ? (
                 <section className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 sm:p-4">
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">{intent === "add_deliverable" ? "Milestone context" : "Related milestone"}</p>
+                    <p className="text-sm font-medium text-zinc-900">{intent === "add_deliverable" ? "Delivery stage" : "Related stage"}</p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {intent === "add_deliverable"
-                        ? "Attach the new deliverable to the milestone it belongs to."
-                        : "Optional milestone context helps support work stay connected to delivery."}
+                        ? "Attach the new deliverable to the stage it belongs to."
+                        : "Optional stage context helps support work stay connected to delivery."}
                     </p>
                   </div>
                   <label className="mt-3 block">
-                    <span className="mb-1 block text-sm font-medium text-zinc-700">{intent === "add_deliverable" ? "Milestone" : "Milestone (optional)"}</span>
+                    <span className="mb-1 block text-sm font-medium text-zinc-700">{intent === "add_deliverable" ? "Stage" : "Stage (optional)"}</span>
                     <select
                       value={selectedMilestoneId}
                       onChange={(e) => setSelectedMilestoneId(e.target.value)}
                       className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
                     >
-                      {intent === "add_support_work" ? <option value="">No specific milestone</option> : null}
+                      {intent === "add_support_work" ? <option value="">No specific stage</option> : null}
                       {deliveryMilestones.map((milestone) => (
                         <option key={milestone.id} value={milestone.id}>
                           {milestone.name}
@@ -411,7 +411,7 @@ export function StructuredTaskModal({
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="rounded-full bg-white px-2.5 py-1 font-medium text-zinc-700">{config.label}</span>
                   {routing ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-zinc-500">{routing.ownerTeamLabel} → {routing.qcTeamLabel}</span> : null}
-                  {selectedMilestone?.name ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-zinc-500">Milestone: {selectedMilestone.name}</span> : null}
+                  {selectedMilestone?.name ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-zinc-500">Stage: {selectedMilestone.name}</span> : null}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700">{config.goalLabel || "What follow-up outcome should this work item accomplish?"}</label>
@@ -429,7 +429,7 @@ export function StructuredTaskModal({
                 {intent === "revise_delivered_work" && selectedRevisionTask ? (
                   <div className="rounded-xl border border-red-100 bg-white px-3 py-3 text-sm text-zinc-700">
                     <div className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600">Revision lineage</div>
-                    <p className="mt-1">This task will reference <span className="font-medium text-zinc-900">{selectedRevisionTask.title}</span>{selectedMilestone?.name ? ` in ${selectedMilestone.name}` : ""} so the UI clearly reads as a revision, not a generic new work item.</p>
+                    <p className="mt-1">This task will reference <span className="font-medium text-zinc-900">{selectedRevisionTask.title}</span>{selectedMilestone?.name ? ` in ${selectedMilestone.name}` : ""} so the UI clearly reads as a revision task, not a generic new work item.</p>
                   </div>
                 ) : null}
               </section>

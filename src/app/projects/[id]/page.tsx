@@ -1165,7 +1165,7 @@ export default function ProjectDetailPage() {
 
               <div className="mt-4 border-t border-zinc-200 pt-4">
                 <div className="text-sm font-medium text-zinc-900">Project actions</div>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Add follow-up work, adjust delivery state, or remove the project without leaving this workspace.</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Add tasks, adjust delivery state, or remove the project without leaving this workspace.</p>
                 <div className="mt-4 grid gap-2">
                   {actionTargetStatus && actionLabel ? (
                     <Button
@@ -1196,21 +1196,21 @@ export default function ProjectDetailPage() {
       {createdFromIntake ? <CreatedFromIntakeBanner /> : null}
 
       <div className="space-y-4">
-        <Section title="Project work" description="The canonical work surface for scoped delivery and follow-up actions.">
+        <Section title="Project work" description="Tasks are the canonical work surface for scoped delivery, active execution, and follow-up work.">
           {tasks.length === 0 ? (
             <EmptySectionState
               icon={<FolderKanban className="h-7 w-7" />}
-              title="No active work yet"
-              description="Add the first project work item to move this project from setup into execution. The board will update as work moves across lanes."
-              action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Add first follow-up work item</Button>}
+              title="No project work yet"
+              description="Add the first task to move this project from setup into active delivery. Work items will update here as they move across lanes."
+              action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Add first task</Button>}
             />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
-                ["Queued", taskGroups.todo, "border-zinc-200 bg-zinc-50", "queued"],
-                ["In flight", taskGroups.inProgress, "border-blue-100 bg-blue-50/60", "in_flight"],
-                ["Stalled", taskGroups.blocked, "border-amber-100 bg-amber-50/70", "stalled"],
-                ["Done", taskGroups.done, "border-emerald-100 bg-emerald-50/70", "done"],
+                ["Queued work", taskGroups.todo, "border-zinc-200 bg-zinc-50", "queued"],
+                ["Active work", taskGroups.inProgress, "border-blue-100 bg-blue-50/60", "in_flight"],
+                ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/70", "stalled"],
+                ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/70", "done"],
               ].map(([label, bucket, bucketClass, bucketKey]) => (
                 <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
                   <div className="mb-3 flex items-center justify-between gap-2">
@@ -1219,7 +1219,7 @@ export default function ProjectDetailPage() {
                   </div>
                   <div className="space-y-2">
                     {(bucket as any[]).length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No items</div>
+                      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No work items</div>
                     ) : (
                       (bucket as any[]).map((task: any) => {
                         const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
@@ -1264,12 +1264,16 @@ export default function ProjectDetailPage() {
                                   <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
                                   <TaskStatusBadge status={effectiveTaskStatus} />
                                 </div>
-                                {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
+                                  <span className="text-zinc-500">Task</span>
+                                  {taskTypeConfig ? <span className="text-red-600">{taskTypeConfig.label}</span> : null}
+                                  {taskMilestone?.name ? <span className="text-zinc-400">Stage: {taskMilestone.name}</span> : null}
+                                </div>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                   {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                   {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Checkpoint: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
+                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Review gate: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>
                                 {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                   <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">

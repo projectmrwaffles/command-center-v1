@@ -321,18 +321,18 @@ function checkpointSummaryCopy(input: {
   switch (input.checkpointState.key) {
     case "awaiting_submission":
       return input.fallbackArtifactsCount && input.fallbackArtifactsCount > 0
-        ? "Work is ready for sign-off, but the formal review packet has not been created yet. Open details to inspect the available artifacts."
-        : "No review packet has been submitted yet.";
+        ? "Work is ready for review, but the formal review request has not been created yet. Open details to inspect the available materials."
+        : "No review request has been created yet.";
     case "setup_required":
-      return "This checkpoint is blocked on repo setup, so review cannot start yet.";
+      return "This work is blocked on repo setup, so review cannot start yet.";
     case "awaiting_evidence":
-      return "A submission exists, but the review evidence is not complete yet.";
+      return "A review request exists, but the review materials are not complete yet.";
     case "changes_requested":
-      return "This checkpoint is waiting on updates before it can be approved.";
+      return "This work is waiting on updates before it can be approved.";
     case "approved":
-      return "This checkpoint is approved and ready to move forward.";
+      return "This work is approved and ready to move forward.";
     default:
-      return "This checkpoint is ready for review and decision.";
+      return "This work is ready for review and decision.";
   }
 }
 
@@ -350,8 +350,8 @@ function formatCheckpointReason(reason?: string | null) {
   return reason
     .replace(/^Manual review required for unsupported requirement kinds:\s*/i, "Needs manual review because these requirement types could not be auto-checked: ")
     .replace(/^Missing required project artifact:\s*/i, "Missing required project artifact: ")
-    .replace(/^Code-heavy delivery cannot advance to review or completion without a real GitHub repo linked to the project\.?/i, "Add a real GitHub repo to this project before this checkpoint can be approved.")
-    .replace(/^GitHub repo provisioning is in progress for this code-heavy project\. A real repo will still be required before review or completion\.?/i, "GitHub repo setup is still in progress. This checkpoint stays blocked until a real repo is linked.");
+    .replace(/^Code-heavy delivery cannot advance to review or completion without a real GitHub repo linked to the project\.?/i, "Add a real GitHub repo to this project before this work can be approved.")
+    .replace(/^GitHub repo provisioning is in progress for this code-heavy project\. A real repo will still be required before review or completion\.?/i, "GitHub repo setup is still in progress. This work stays blocked until a real repo is linked.");
 }
 
 function formatTaskStatusLabel(value?: string | null) {
@@ -458,7 +458,7 @@ function MilestoneReviewCard({
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Delivered work review</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Completed work review</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
             <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
@@ -1058,8 +1058,8 @@ export default function ProjectDetailPage() {
   const heroSummary = summaryText || attentionState.summary;
   const operationalDetails = [
     { label: "Signals surfaced", value: String(projectWorkSignalCount) },
-    { label: "Queued runtime work", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
-    { label: "Active runtime work", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
+    { label: "Queued operations", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
+    { label: "Active operations", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
   ];
   const recentSignalItems = resolveProjectDetailRecentUpdates({
     recentSignals: data?.recentSignals,
@@ -1069,7 +1069,7 @@ export default function ProjectDetailPage() {
         id: `${milestone.id}-blocked`,
         kind: "blocked" as const,
         title: `${milestone.name} blocked`,
-        detail: formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.",
+        detail: formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack requirements before build work can start.",
         timestamp: project.updated_at,
       })),
       ...activeReviewMilestones.map((milestone) => ({
@@ -1307,7 +1307,7 @@ export default function ProjectDetailPage() {
                                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                   {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                   {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Review status: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
+                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Delivery review: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>
                                 {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                   <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
@@ -1339,7 +1339,7 @@ export default function ProjectDetailPage() {
           )}
         </Section>
 
-        <Section title="Approvals & review" description="Keep permission decisions and post-delivery acceptance in one place, without blending them into the work board.">
+        <Section title="Approvals & review" description="Keep permission decisions and completed-work review in one place, without blending them into the work board.">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
               <div className="flex items-start justify-between gap-3">
@@ -1373,7 +1373,7 @@ export default function ProjectDetailPage() {
 
             <div className="rounded-2xl border border-zinc-200 bg-white p-4">
               <h3 className="text-sm font-semibold text-zinc-900">Review & revisions</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Post-delivery acceptance for completed work, plus any requested follow-up changes.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Review completed work, confirm what shipped, and track any requested follow-up changes.</p>
               <div className="mt-3 space-y-3">
                 {reviewableMilestones.length > 0 ? reviewableMilestones.map((milestone) => (
                   <MilestoneReviewCard
@@ -1391,7 +1391,7 @@ export default function ProjectDetailPage() {
 
                 {completedProjectRevisionMilestones.length > 0 ? (
                   <div className="border-t border-zinc-200 pt-4">
-                    <h4 className="text-sm font-semibold text-zinc-900">Post-delivery revision requests</h4>
+                    <h4 className="text-sm font-semibold text-zinc-900">Revision requests</h4>
                     <p className="mt-1 text-sm leading-6 text-zinc-500">Use this when accepted work needs another pass after review, not as a substitute for approval.</p>
                     <div className="mt-3 space-y-3">
                       {completedProjectRevisionMilestones.map((milestone) => {
@@ -1440,12 +1440,12 @@ export default function ProjectDetailPage() {
           )}
         </Section>
 
-        <Section title="Context" description="Links, uploads, and supporting materials organized around how operators actually use them.">
+        <Section title="Context" description="Links, uploads, and reference material organized around how operators actually use the project.">
           <div className="grid gap-3 md:grid-cols-3">
             {[
               { label: "Working links", value: getWorkingProjectLinkCount(project.links) },
               { label: "Uploaded files", value: documents.length },
-              { label: "Supporting materials", value: attachmentRequirementSources.length },
+              { label: "Extracted notes", value: attachmentRequirementSources.length },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
@@ -1458,7 +1458,7 @@ export default function ProjectDetailPage() {
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-900">Links</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Separate delivery surfaces from reference material so operators can get where they need faster.</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Separate active delivery surfaces from reference material so operators can get where they need faster.</p>
               </div>
               {project.links && Object.keys(project.links).length > 0 ? (
                 <div className="grid gap-3 lg:grid-cols-2">
@@ -1509,7 +1509,7 @@ export default function ProjectDetailPage() {
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Supporting materials</h3>
+                <h3 className="text-sm font-semibold text-zinc-900">Documents & uploads</h3>
                 <p className="mt-1 text-sm leading-6 text-zinc-500">Uploads and derived notes stay together here so reference files and extracted context scan as one set.</p>
               </div>
               {(documents.length > 0 || attachmentRequirementSources.length > 0 || createdFromIntake) ? (
@@ -1557,7 +1557,7 @@ export default function ProjectDetailPage() {
                   {attachmentRequirementSources.length > 0 ? (
                     <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Extracted support notes</span>
+                        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Extracted notes</span>
                         <span className="text-xs text-emerald-800/80">{attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} parsed into intake requirements</span>
                       </div>
                       <div className="mt-3 space-y-3">
@@ -1584,7 +1584,7 @@ export default function ProjectDetailPage() {
                   ) : null}
                 </div>
               ) : (
-                <EmptySectionState icon={<FolderKanban className="h-7 w-7" />} title="No supporting materials yet" description="Project files, uploaded references, and extracted notes will appear here." />
+                <EmptySectionState icon={<FolderKanban className="h-7 w-7" />} title="No documents or notes yet" description="Project files, uploaded references, and extracted notes will appear here." />
               )}
             </div>
           </div>
@@ -1646,7 +1646,7 @@ export default function ProjectDetailPage() {
               <details className="group rounded-2xl border border-zinc-200 bg-zinc-50/70 shadow-sm">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-900 marker:content-none">
                   <div>
-                    <div>Runtime and delivery diagnostics</div>
+                    <div>Operational diagnostics</div>
                     <div className="mt-1 text-xs font-normal text-zinc-500">Queue state, provisioning, attachment processing, and workflow blockers.</div>
                   </div>
                   <ChevronDown className="h-4 w-4 text-zinc-400 transition group-open:rotate-180" />
@@ -1695,8 +1695,8 @@ export default function ProjectDetailPage() {
                         </ul>
                       </div>
                     ) : null}
-                    {stuckWorkflowGuardrail ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Workflow guardrail:</span> {stuckWorkflowGuardrail.detail}</div> : null}
-                    {queuedPhaseHoldSummary ? <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3"><span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}</div> : null}
+                    {stuckWorkflowGuardrail ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Workflow sequencing hold:</span> {stuckWorkflowGuardrail.detail}</div> : null}
+                    {queuedPhaseHoldSummary ? <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3"><span className="font-medium text-zinc-900">Stage sequencing:</span> {queuedPhaseHoldSummary}</div> : null}
                     <div className="text-xs text-zinc-400">Last updated {updatedLabel}</div>
                   </div>
                 </div>

@@ -69,6 +69,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
   const replaceAgents = useRealtimeStore((s) => s.replaceAgents);
   const upsertProject = useRealtimeStore((s) => s.upsertProject);
   const upsertApproval = useRealtimeStore((s) => s.upsertApproval);
+  const upsertJob = useRealtimeStore((s) => s.upsertJob);
   const upsertTeam = useRealtimeStore((s) => s.upsertTeam);
 
   useEffect(() => {
@@ -86,10 +87,21 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           job_id: n.jobId,
           created_at: n.createdAt,
         });
+        return;
+      }
+
+      if (n.type === "error" && n.jobId) {
+        upsertJob({
+          id: n.jobId,
+          title: n.title,
+          status: "blocked",
+          project_id: n.projectId,
+          owner_agent_id: n.agentId,
+        });
       }
     });
     initialData.teams?.forEach((t: any) => upsertTeam(t));
-  }, [initialData, replaceAgents, upsertApproval, upsertProject, upsertTeam]);
+  }, [initialData, replaceAgents, upsertApproval, upsertJob, upsertProject, upsertTeam]);
 
   const agentsById = useRealtimeStore((s) => s.agentsById);
   const projectsById = useRealtimeStore((s) => s.projectsById);

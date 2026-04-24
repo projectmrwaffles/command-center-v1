@@ -983,29 +983,58 @@ export default function ProjectDetailPage() {
       ? "border-sky-200 bg-sky-50 text-sky-700"
       : headerState.key === "attachment_failed"
         ? "border-red-200 bg-red-50 text-red-700"
-      : executionSummary.key === "blocked"
-      ? "border-red-200 bg-red-50 text-red-700"
-      : executionSummary.key === "running"
-        ? "border-blue-200 bg-blue-50 text-blue-700"
-        : executionSummary.key === "stale_running"
-          ? "border-amber-200 bg-amber-50 text-amber-700"
-          : executionSummary.key === "acceptance_pending"
-            ? "border-violet-200 bg-violet-50 text-violet-700"
-            : executionSummary.key === "validation_pending"
+        : executionSummary.key === "blocked"
+          ? "border-red-200 bg-red-50 text-red-700"
+          : executionSummary.key === "running"
+            ? "border-blue-200 bg-blue-50 text-blue-700"
+            : executionSummary.key === "stale_running"
               ? "border-amber-200 bg-amber-50 text-amber-700"
-              : executionSummary.key === "validation_ready"
-                ? "border-sky-200 bg-sky-50 text-sky-700"
-                : executionSummary.key === "completed"
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : executionSummary.key === "planning_running"
-            ? "border-sky-200 bg-sky-50 text-sky-700"
-            : executionSummary.key === "planning_queued" || executionSummary.key === "queued"
-              ? "border-zinc-200 bg-zinc-50 text-zinc-700"
-              : "border-amber-200 bg-amber-50 text-amber-700";
+              : executionSummary.key === "acceptance_pending"
+                ? "border-violet-200 bg-violet-50 text-violet-700"
+                : executionSummary.key === "validation_pending"
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : executionSummary.key === "validation_ready"
+                    ? "border-sky-200 bg-sky-50 text-sky-700"
+                    : executionSummary.key === "completed"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : executionSummary.key === "planning_running"
+                        ? "border-sky-200 bg-sky-50 text-sky-700"
+                        : executionSummary.key === "planning_queued" || executionSummary.key === "queued"
+                          ? "border-zinc-200 bg-zinc-50 text-zinc-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700";
+  const summaryMetrics = [
+    { label: "Open tasks", value: Math.max(0, (data?.stats.totalTasks ?? 0) - (data?.stats.doneTasks ?? 0)) },
+    { label: "Pending approvals", value: data?.stats.pendingApprovals ?? 0 },
+    { label: "In review", value: tasks.filter((task: any) => task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved").length },
+    { label: "Blocked work", value: data?.stats.blockedTasks ?? 0 },
+  ];
   const operationalDetails = [
-    { label: "review signals", value: String(projectWorkSignalCount) },
-    { label: "queued", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
-    { label: "running", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
+    { label: "Review signals", value: String(projectWorkSignalCount) },
+    { label: "Queued work", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
+    { label: "Running work", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
+  ];
+  const recentSignalItems = [
+    ...(data?.recentSignals || []).map((signal) => ({
+      id: signal.id,
+      label: signal.kind === "approval" ? "Approval" : signal.kind === "blocked" ? "Blocked" : signal.kind === "completed" ? "Completed" : signal.kind === "progress" ? "Progress" : "Activity",
+      title: signal.title,
+      detail: signal.detail,
+      timestamp: signal.timestamp,
+    })),
+    ...blockerOnlyMilestones.map((milestone) => ({
+      id: `${milestone.id}-blocked`,
+      label: "Blocked",
+      title: milestone.name,
+      detail: formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.",
+      timestamp: project.updated_at,
+    })),
+    ...activeReviewMilestones.map((milestone) => ({
+      id: `${milestone.id}-review`,
+      label: "Review",
+      title: milestone.name,
+      detail: `${deriveMilestoneDisplayState(milestone).stageState.label} requires follow-through.`,
+      timestamp: project.updated_at,
+    })),
   ];
   const updatedLabel = formatUpdatedDate(project.updated_at).replace(/^Updated\s+/i, "");
   const queuedPhaseHoldReasons = executionVisibility?.queuedReasons?.filter((reason) => reason.status === "waiting_for_kickoff_completion") || [];
@@ -1068,54 +1097,21 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className={cn("rounded-2xl border p-3 sm:p-4", statusTone.surface)}>
-              {deliveryIntegrity?.blockingReason ? (
-                <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-medium text-amber-900">
-                  Delivery hold: {deliveryIntegrity.blockingReason}
-                </div>
-              ) : deliveryIntegrity?.pendingProvisioningReason ? (
-                <div className="mb-3 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm font-medium text-sky-900">
-                  Repo provisioning pending: {deliveryIntegrity.pendingProvisioningReason}
-                </div>
-              ) : null}
               <div className="flex flex-col gap-3">
-                {visibleAttachmentProcessingState ? (
-                  <div className={cn("rounded-2xl border px-3 py-3", attachmentProcessingTone)}>
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
-                      <span>{visibleAttachmentProcessingState.label || "Attachment processing"}</span>
-                      {visibleAttachmentProcessingState.fileCount ? <span>· {visibleAttachmentProcessingState.fileCount} file{visibleAttachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
-                    </div>
-                    <p className="mt-1 text-sm leading-6">{visibleAttachmentProcessingState.error || visibleAttachmentProcessingState.detail || "Attached materials are still being processed."}</p>
-                    {visibleAttachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(visibleAttachmentProcessingState.updatedAt)}</p> : null}
-                    {visibleAttachmentProcessingState.active && typeof visibleAttachmentProcessingState.progressPct === "number" ? (
-                      <div className="mt-3 space-y-1.5">
-                        <div className="h-2 overflow-hidden rounded-full bg-white/70">
-                          <div className="h-full rounded-full bg-sky-500 transition-all duration-500" style={{ width: `${Math.max(8, visibleAttachmentProcessingState.progressPct)}%` }} />
-                        </div>
-                        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-current/70">Estimated progress</p>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                {!showAttachmentProcessingBanner ? (
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
-                    <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
-                      {headerState.badgeText}</span>
-                    <span className="min-w-0 flex-1 text-zinc-600">{headerState.key === "completed" ? null : headerState.headline}</span>
-                  </div>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
+                  <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
+                    {headerState.badgeText}
+                  </span>
+                  <span className="min-w-0 flex-1 text-zinc-600">{headerState.key === "completed" ? executionSummary.description : headerState.headline}</span>
+                </div>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-600">
-                  {operationalDetails.map((item, index) => (
-                    <div key={item.label} className="flex items-center gap-1.5">
-                      {index > 0 ? <span className="text-zinc-300">•</span> : null}
-                      <span className="font-semibold text-zinc-900">{item.value}</span>
-                      <span>{item.label}</span>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {summaryMetrics.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
+                      <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{item.value}</div>
                     </div>
                   ))}
-                  <div className="flex items-center gap-1.5 text-zinc-500 sm:ml-auto">
-                    <span className="hidden sm:inline text-zinc-300">•</span>
-                    <span>{updatedLabel}</span>
-                  </div>
                 </div>
               </div>
               <div className={cn("mt-3 h-2.5 overflow-hidden rounded-full", statusTone.progressTrack)}>
@@ -1128,32 +1124,9 @@ export default function ProjectDetailPage() {
             <div className="rounded-2xl border border-zinc-200 bg-white p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
                 <Clock3 className="h-4 w-4 text-red-500" />
-                Workspace overview
+                Project summary
               </div>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Key context and actions, without repeating the delivery status you already see on the left.</p>
-
-              {exceptionalQueuedHoldReasons.length ? (
-                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</div>
-                  <ul className="mt-2 space-y-2 text-xs leading-5">
-                    {exceptionalQueuedHoldReasons.map((reason) => {
-                      const shortDetail = reason.status === "waiting_for_approval"
-                        ? `${reason.label}. This phase cannot start until approval is complete.`
-                        : reason.status === "waiting_for_repo"
-                          ? `${reason.label}. Required repo setup is still incomplete.`
-                          : reason.status === "waiting_for_worker_capacity"
-                            ? `${reason.label}. The assigned owner is still busy with active work.`
-                            : reason.detail;
-
-                      return (
-                        <li key={reason.taskId}>
-                          <span className="font-medium">{reason.taskTitle}</span>: {shortDetail}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : null}
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Primary actions and current project state live here; deeper operational details move lower on the page.</p>
 
               <div className="mt-4 border-t border-zinc-200 pt-4">
                 <div className="text-sm font-medium text-zinc-900">Project actions</div>
@@ -1187,169 +1160,128 @@ export default function ProjectDetailPage() {
 
       {createdFromIntake ? <CreatedFromIntakeBanner /> : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
-        <div className="space-y-4">
-          <Section title="Project work" description="The canonical work surface for scoped delivery, review, and follow-up actions.">
-            {stuckWorkflowGuardrail ? (
-              <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <span className="font-medium">Workflow guardrail:</span> {stuckWorkflowGuardrail.detail}
-              </div>
-            ) : null}
-            {queuedPhaseHoldSummary ? (
-              <div className="mb-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                <span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}
-              </div>
-            ) : null}
-            {projectWorkSignalCount > 0 ? (
-              <div className="mb-4 space-y-3">
-                {blockerOnlyMilestones.map((milestone) => {
-                  const reason = formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.";
-                  const nextAction = milestone.preBuildCheckpoint?.outcome === "mismatch"
-                    ? "Align the linked repo with the PRD stack contract, then rerun the checkpoint."
-                    : "Link or provision the real repo workspace, then rerun the checkpoint.";
-
-                  return (
-                    <div key={`${milestone.id}-work-signal`} className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Build blocked</span>
-                        <span className="font-medium">{milestone.name}</span>
-                      </div>
-                      <p className="mt-2 leading-6">{reason}</p>
-                      <p className="mt-1 text-xs leading-5 text-amber-800"><span className="font-semibold">Next:</span> {nextAction}</p>
-                    </div>
-                  );
-                })}
-
-                {activeReviewMilestones.length > 0 ? (
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-950">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-700">Review signals</span>
-                      <span className="font-medium">{activeReviewMilestones.length} milestone{activeReviewMilestones.length === 1 ? "" : "s"} need review follow-through</span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {activeReviewMilestones.map((milestone) => {
-                        const stageState = deriveMilestoneDisplayState(milestone).stageState;
-                        return (
-                          <span key={`${milestone.id}-signal-chip`} className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", stageState.className)}>
-                            {milestone.name}: {stageState.label}
-                          </span>
+      <div className="space-y-4">
+        <Section title="Project work" description="The canonical work surface for scoped delivery and follow-up actions.">
+          {tasks.length === 0 ? (
+            <EmptySectionState
+              icon={<FolderKanban className="h-7 w-7" />}
+              title="No active work yet"
+              description="Add the first project work item to move this project from setup into execution. The board will update as work moves across lanes."
+              action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Add first follow-up work item</Button>}
+            />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["Queued", taskGroups.todo, "border-zinc-200 bg-zinc-50", "queued"],
+                ["In flight", taskGroups.inProgress, "border-blue-100 bg-blue-50/60", "in_flight"],
+                ["Stalled", taskGroups.blocked, "border-amber-100 bg-amber-50/70", "stalled"],
+                ["Done", taskGroups.done, "border-emerald-100 bg-emerald-50/70", "done"],
+              ].map(([label, bucket, bucketClass, bucketKey]) => (
+                <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-zinc-900">{label}</h3>
+                    <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{(bucket as any[]).length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {(bucket as any[]).length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No items</div>
+                    ) : (
+                      (bucket as any[]).map((task: any) => {
+                        const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
+                        const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
+                        const taskProgress = taskProgressValue(task);
+                        const taskMilestone = task.sprint_id ? milestones.find((milestone) => milestone.id === task.sprint_id) : null;
+                        const checkpointState = taskMilestone?.approvalGateRequired || taskMilestone?.deliveryReviewRequired || taskMilestone?.reviewSummary?.latestSubmissionId ? taskMilestone : null;
+                        const checkpointDisplayState = checkpointState ? deriveMilestoneDisplayState(checkpointState) : null;
+                        const checkpointReviewActive = Boolean(
+                          task.review_required
+                          && task.status === "todo"
+                          && checkpointDisplayState
+                          && (checkpointDisplayState.stageState.key === "delivery_review_active" || checkpointDisplayState.stageState.key === "rereview_active")
                         );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {tasks.length === 0 ? (
-              <EmptySectionState
-                icon={<FolderKanban className="h-7 w-7" />}
-                title="No active work yet"
-                description="Add the first project work item to move this project from setup into execution. The board will update as work moves across lanes."
-                action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Add first follow-up work item</Button>}
-              />
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {[
-                  ["Queued", taskGroups.todo, "border-zinc-200 bg-zinc-50", "queued"],
-                  ["In flight", taskGroups.inProgress, "border-blue-100 bg-blue-50/60", "in_flight"],
-                  ["Stalled", taskGroups.blocked, "border-amber-100 bg-amber-50/70", "stalled"],
-                  ["Done", taskGroups.done, "border-emerald-100 bg-emerald-50/70", "done"],
-                ].map(([label, bucket, bucketClass, bucketKey]) => (
-                  <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-zinc-900">{label}</h3>
-                      <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{(bucket as any[]).length}</span>
-                    </div>
-                    <div className="space-y-2">
-                      {(bucket as any[]).length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No items</div>
-                      ) : (
-                        (bucket as any[]).map((task: any) => {
-                          const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
-                          const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
-                          const taskProgress = taskProgressValue(task);
-                          const taskMilestone = task.sprint_id ? milestones.find((milestone) => milestone.id === task.sprint_id) : null;
-                          const checkpointState = taskMilestone?.approvalGateRequired || taskMilestone?.deliveryReviewRequired || taskMilestone?.reviewSummary?.latestSubmissionId ? taskMilestone : null;
-                          const checkpointDisplayState = checkpointState ? deriveMilestoneDisplayState(checkpointState) : null;
-                          const checkpointReviewActive = Boolean(
-                            task.review_required
-                            && task.status === "todo"
-                            && checkpointDisplayState
-                            && (checkpointDisplayState.stageState.key === "delivery_review_active" || checkpointDisplayState.stageState.key === "rereview_active")
-                          );
-                          const effectiveTaskStatus = checkpointReviewActive ? "review" : task.status;
-                          const effectiveReviewStatus = checkpointReviewActive ? "in_review" : task.review_status;
-                          const executionTone = getExecutionTone({
-                            status: effectiveTaskStatus,
-                            reviewRequired: task.review_required,
-                            reviewStatus: effectiveReviewStatus,
-                            stale: isTaskExecutionStale(task),
-                          });
-                          const showTaskReviewBadge = Boolean(
-                            task.review_required
-                            && task.status !== "in_progress"
-                            && task.status !== "review"
-                            && task.status !== "done"
-                            && task.review_status
-                            && task.review_status !== "not_requested"
-                            && task.review_status !== "approved"
-                          );
-                          const showCheckpointBadge = Boolean(
-                            checkpointDisplayState
-                            && !isBootstrapTask(task, bootstrapSprintIds)
-                            && ["delivery_review_active", "rereview_active", "qa_ready", "qa_queued", "revision_cycle", "iteration_shipped"].includes(checkpointDisplayState.stageState.key)
-                          );
-                          return (
-                            <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
-                                    <TaskStatusBadge status={effectiveTaskStatus} />
-                                  </div>
-                                  {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
-                                    {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
-                                    {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Checkpoint: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
-                                  </div>
-                                  {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
-                                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
-                                      <div className="font-semibold text-amber-800">{truth.taskBoard.blockers[task.id].label}</div>
-                                      <div className="mt-1">{truth.taskBoard.blockers[task.id].detail}</div>
-                                      {truth.taskBoard.blockers[task.id].resolution ? <div className="mt-2 text-amber-700">Next: {truth.taskBoard.blockers[task.id].resolution}</div> : null}
-                                    </div>
-                                  ) : null}
+                        const effectiveTaskStatus = checkpointReviewActive ? "review" : task.status;
+                        const effectiveReviewStatus = checkpointReviewActive ? "in_review" : task.review_status;
+                        const executionTone = getExecutionTone({
+                          status: effectiveTaskStatus,
+                          reviewRequired: task.review_required,
+                          reviewStatus: effectiveReviewStatus,
+                          stale: isTaskExecutionStale(task),
+                        });
+                        const showTaskReviewBadge = Boolean(
+                          task.review_required
+                          && task.status !== "in_progress"
+                          && task.status !== "review"
+                          && task.status !== "done"
+                          && task.review_status
+                          && task.review_status !== "not_requested"
+                          && task.review_status !== "approved"
+                        );
+                        const showCheckpointBadge = Boolean(
+                          checkpointDisplayState
+                          && !isBootstrapTask(task, bootstrapSprintIds)
+                          && ["delivery_review_active", "rereview_active", "qa_ready", "qa_queued", "revision_cycle", "iteration_shipped"].includes(checkpointDisplayState.stageState.key)
+                        );
+                        return (
+                          <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
+                                  <TaskStatusBadge status={effectiveTaskStatus} />
                                 </div>
-                                <ProgressRing value={taskProgress} size={48} strokeWidth={4} />
+                                {taskTypeConfig ? <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-red-600">{taskTypeConfig.label}</p> : null}
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
+                                  {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
+                                  {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
+                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Checkpoint: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
+                                </div>
+                                {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
+                                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
+                                    <div className="font-semibold text-amber-800">{truth.taskBoard.blockers[task.id].label}</div>
+                                    <div className="mt-1">{truth.taskBoard.blockers[task.id].detail}</div>
+                                    {truth.taskBoard.blockers[task.id].resolution ? <div className="mt-2 text-amber-700">Next: {truth.taskBoard.blockers[task.id].resolution}</div> : null}
+                                  </div>
+                                ) : null}
                               </div>
-                              {(task.description || assignee || task.updated_at) && (
-                                <div className="mt-2 space-y-1">
-                                  {task.description && <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{task.description}</p>}
-                                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
-                                    {assignee ? <p>Owner: {assignee.name}</p> : null}
-                                    {task.updated_at ? <p>{formatRelativeTimestamp(task.updated_at)}</p> : null}
-                                  </div>
+                              <ProgressRing value={taskProgress} size={48} strokeWidth={4} />
+                            </div>
+                            {(task.description || assignee || task.updated_at) && (
+                              <div className="mt-2 space-y-1">
+                                {task.description && <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{task.description}</p>}
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                                  {assignee ? <p>Owner: {assignee.name}</p> : null}
+                                  {task.updated_at ? <p>{formatRelativeTimestamp(task.updated_at)}</p> : null}
                                 </div>
-                              )}
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-
-            {reviewableMilestones.length > 0 ? (
-              <div className="mt-4 space-y-3 border-t border-zinc-200 pt-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">Review & revision flow</h3>
-                  <p className="mt-1 text-sm leading-6 text-zinc-500">Delivery review and revision state now lives directly beside the work it governs.</p>
                 </div>
-                {reviewableMilestones.map((milestone) => (
+              ))}
+            </div>
+          )}
+        </Section>
+
+        <Section title="Approvals & review" description="Human decisions stay separate from the main work board, even while later slices refine the exact review model.">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">Pending approvals</h3>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Approval-specific UI remains limited in this slice, so this section currently surfaces the project approval count and defers deeper approval modeling to later work.</p>
+              <div className="mt-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Pending approvals</div>
+                <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{data?.stats.pendingApprovals ?? 0}</div>
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-200 pt-4">
+              <h3 className="text-sm font-semibold text-zinc-900">Review & revisions</h3>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Existing review and revision surfaces are preserved, but moved into the dedicated decision section.</p>
+              <div className="mt-3 space-y-3">
+                {reviewableMilestones.length > 0 ? reviewableMilestones.map((milestone) => (
                   <MilestoneReviewCard
                     key={milestone.id}
                     projectId={projectId}
@@ -1359,42 +1291,68 @@ export default function ProjectDetailPage() {
                       void Promise.all([fetchProject(false), fetchDocuments()]);
                     }}
                   />
-                ))}
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No active review items yet.</div>
+                )}
+
+                {completedProjectRevisionMilestones.length > 0 ? (
+                  <div className="border-t border-zinc-200 pt-4">
+                    <h4 className="text-sm font-semibold text-zinc-900">Post-completion revisions</h4>
+                    <p className="mt-1 text-sm leading-6 text-zinc-500">Temporary carry-forward surface left intact while later slices finish the review model.</p>
+                    <div className="mt-3 space-y-3">
+                      {completedProjectRevisionMilestones.map((milestone) => {
+                        const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
+                        const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
+                        const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
+                        return (
+                          <RevisionRequestCard
+                            key={`${milestone.id}-completed-revision`}
+                            projectId={projectId}
+                            sprintId={milestone.id}
+                            sprintName={milestone.name}
+                            documents={documents}
+                            onSubmitted={() => {
+                              void Promise.all([fetchProject(false), fetchDocuments()]);
+                            }}
+                            hasActiveRevisionCycle={revisionCycleActive}
+                            shippedApproved={deliveryApproved}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </Section>
-        </div>
+            </div>
+          </div>
+        </Section>
 
-        <div className="space-y-4">
+        <Section title="Recent signals" description="Curated updates and blockers, using the current signal-like sources until the later signal pass lands.">
+          {recentSignalItems.length > 0 ? (
+            <div className="space-y-3">
+              {recentSignalItems.slice(0, 8).map((signal) => (
+                <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-700">{signal.label}</span>
+                    <span className="text-sm font-medium text-zinc-900">{signal.title}</span>
+                    <span className="ml-auto text-xs text-zinc-400">{formatRelativeTimestamp(signal.timestamp)}</span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">{signal.detail}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptySectionState icon={<Sparkles className="h-7 w-7" />} title="No recent signals" description="Meaningful project updates will appear here once work, approvals, or review activity starts moving." />
+          )}
+        </Section>
 
-          {completedProjectRevisionMilestones.length > 0 ? (
-            <Section title="Post-completion revisions" description="The project is finished. Open another revision only if follow-up changes are needed.">
-              <div className="space-y-3">
-                {completedProjectRevisionMilestones.map((milestone) => {
-                  const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
-                  const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
-                  const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
-                  return (
-                    <RevisionRequestCard
-                      key={`${milestone.id}-completed-revision`}
-                      projectId={projectId}
-                      sprintId={milestone.id}
-                      sprintName={milestone.name}
-                      documents={documents}
-                      onSubmitted={() => {
-                        void Promise.all([fetchProject(false), fetchDocuments()]);
-                      }}
-                      hasActiveRevisionCycle={revisionCycleActive}
-                      shippedApproved={deliveryApproved}
-                    />
-                  );
-                })}
-              </div>
-            </Section>
-          ) : null}
-
-          <Section title="Links & artifacts" description="Relevant repos, previews, docs, and launch assets in one place.">
+        <Section title="Context" description="Links, documents, uploads, and extracted materials that support the work.">
+          <div className="grid gap-4 xl:grid-cols-2">
             <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900">Links</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Relevant repos, previews, docs, and launch assets in one place.</p>
+              </div>
               {project.links && Object.keys(project.links).length > 0 ? (
                 <div className="space-y-2">
                   {getProjectLinkEntries(project.links).map((link) => (
@@ -1411,82 +1369,155 @@ export default function ProjectDetailPage() {
                   ))}
                 </div>
               ) : (
-                <EmptySectionState icon={<ArrowUpRight className="h-7 w-7" />} title="No links or artifacts yet" description={artifactEmptyState(project.type, intake)} />
+                <EmptySectionState icon={<ArrowUpRight className="h-7 w-7" />} title="No links yet" description={artifactEmptyState(project.type, intake)} />
               )}
             </div>
-          </Section>
 
-          {(documents.length > 0 || attachmentRequirementSources.length > 0 || createdFromIntake) ? (
-            <Section title="Supporting docs & uploads" description="Uploaded references, files, and extracted notes tied to this project.">
-              <div className="space-y-3">
-                {attachmentRequirementSources.length > 0 ? (
-                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">PDF extraction notes</span>
-                      <span className="text-xs text-emerald-800/80">{attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} parsed into intake requirements</span>
-                    </div>
-                    <div className="mt-3 space-y-3">
-                      {attachmentRequirementSources.map((source: any) => (
-                        <div key={`${source.title}-${source.type}`} className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 shadow-sm">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase text-emerald-700">{String(source.type || "document").replace(/_/g, " ")}</span>
-                            <p className="text-sm font-medium text-zinc-900">{source.title}</p>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900">Documents & uploads</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Uploaded references, files, and extracted notes tied to this project.</p>
+              </div>
+              {(documents.length > 0 || attachmentRequirementSources.length > 0 || createdFromIntake) ? (
+                <div className="space-y-3">
+                  {attachmentRequirementSources.length > 0 ? (
+                    <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">PDF extraction notes</span>
+                        <span className="text-xs text-emerald-800/80">{attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} parsed into intake requirements</span>
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {attachmentRequirementSources.map((source: any) => (
+                          <div key={`${source.title}-${source.type}`} className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 shadow-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase text-emerald-700">{String(source.type || "document").replace(/_/g, " ")}</span>
+                              <p className="text-sm font-medium text-zinc-900">{source.title}</p>
+                            </div>
+                            <ul className="mt-2 space-y-1 text-sm leading-6 text-zinc-700">
+                              {(source.evidence || []).slice(0, 4).map((item: string) => (
+                                <li key={item} className="flex gap-2">
+                                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
                           </div>
-                          <ul className="mt-2 space-y-1 text-sm leading-6 text-zinc-700">
-                            {(source.evidence || []).slice(0, 4).map((item: string) => (
-                              <li key={item} className="flex gap-2">
-                                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : createdFromIntake ? (
-                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Attached files are being processed into project requirements now. This page will keep refreshing while extraction and kickoff are running.</div>
-                ) : null}
-
-                {documents.map((doc) => (
-                  <div key={doc.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
-                          <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
-                        </div>
-                        <p className="mt-1 text-xs text-zinc-500">{doc.mime_type ? `${doc.mime_type} • ` : ""}Added {new Date(doc.created_at).toLocaleDateString()}</p>
-                        {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
+                        ))}
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          ) : null}
+                  ) : createdFromIntake ? (
+                    <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Attached files are being processed into project requirements now. This page will keep refreshing while extraction and kickoff are running.</div>
+                  ) : null}
 
-          {Array.isArray(data?.teams) && data.teams.length > 0 ? (
-            <Section title="Teams" description="Who is attached to the work and how the load is shaping up.">
-              <div className="space-y-2">
-                {data.teams.map((team: any) => (
-                  <div key={team.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-zinc-900">{team.name}</p>
-                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-700">{team.status === "on_track" ? "On track" : team.status === "waiting" ? "Waiting" : formatIntakeValue(team.status)}</span>
+                  {documents.map((doc) => (
+                    <div key={doc.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
+                            <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-500">{doc.mime_type ? `${doc.mime_type} • ` : ""}Added {new Date(doc.created_at).toLocaleDateString()}</p>
+                          {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500">
-                      <span>{team.memberCount} members</span>
-                      <span>{team.activeAgents} active now</span>
-                      <span>{team.taskCount} owned tasks</span>
-                      <span>{team.completedTasks || 0} completed</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              ) : (
+                <EmptySectionState icon={<FolderKanban className="h-7 w-7" />} title="No documents or uploads yet" description="Project files, uploaded references, and extracted notes will appear here." />
+              )}
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Project details" description="Secondary metadata and operational details live here instead of competing with the core work and decision flow.">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900">Team & ownership</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Who is attached to the work and how the load is shaping up.</p>
               </div>
-            </Section>
-          ) : null}
-        </div>
+              {Array.isArray(data?.teams) && data.teams.length > 0 ? (
+                <div className="space-y-2">
+                  {data.teams.map((team: any) => (
+                    <div key={team.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-zinc-900">{team.name}</p>
+                        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-700">{team.status === "on_track" ? "On track" : team.status === "waiting" ? "Waiting" : formatIntakeValue(team.status)}</span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500">
+                        <span>{team.memberCount} members</span>
+                        <span>{team.activeAgents} active now</span>
+                        <span>{team.taskCount} owned tasks</span>
+                        <span>{team.completedTasks || 0} completed</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No team assignments are attached to this project yet.</div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900">Operational details</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Retained for support and debugging, but moved below the primary project narrative.</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {operationalDetails.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
+                      <div className="mt-1 text-xl font-semibold text-zinc-950">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 space-y-3 text-sm text-zinc-600">
+                  {deliveryIntegrity?.blockingReason ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Delivery hold:</span> {deliveryIntegrity.blockingReason}</div> : null}
+                  {deliveryIntegrity?.pendingProvisioningReason ? <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900"><span className="font-medium">Repo provisioning:</span> {deliveryIntegrity.pendingProvisioningReason}</div> : null}
+                  {visibleAttachmentProcessingState ? (
+                    <div className={cn("rounded-2xl border px-4 py-3", attachmentProcessingTone)}>
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
+                        <span>{visibleAttachmentProcessingState.label || "Attachment processing"}</span>
+                        {visibleAttachmentProcessingState.fileCount ? <span>· {visibleAttachmentProcessingState.fileCount} file{visibleAttachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
+                      </div>
+                      <p className="mt-1 text-sm leading-6">{visibleAttachmentProcessingState.error || visibleAttachmentProcessingState.detail || "Attached materials are still being processed."}</p>
+                      {visibleAttachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(visibleAttachmentProcessingState.updatedAt)}</p> : null}
+                    </div>
+                  ) : null}
+                  {exceptionalQueuedHoldReasons.length ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</div>
+                      <ul className="mt-2 space-y-2 text-xs leading-5">
+                        {exceptionalQueuedHoldReasons.map((reason) => {
+                          const shortDetail = reason.status === "waiting_for_approval"
+                            ? `${reason.label}. This phase cannot start until approval is complete.`
+                            : reason.status === "waiting_for_repo"
+                              ? `${reason.label}. Required repo setup is still incomplete.`
+                              : reason.status === "waiting_for_worker_capacity"
+                                ? `${reason.label}. The assigned owner is still busy with active work.`
+                                : reason.detail;
+
+                          return (
+                            <li key={reason.taskId}>
+                              <span className="font-medium">{reason.taskTitle}</span>: {shortDetail}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {stuckWorkflowGuardrail ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Workflow guardrail:</span> {stuckWorkflowGuardrail.detail}</div> : null}
+                  {queuedPhaseHoldSummary ? <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3"><span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}</div> : null}
+                  <div className="text-xs text-zinc-400">Last updated {updatedLabel}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+
       </div>
 
       <StructuredTaskModal

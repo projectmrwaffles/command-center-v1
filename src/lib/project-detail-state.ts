@@ -73,9 +73,11 @@ export function deriveProjectDetailHeaderState(input: {
   attachmentKickoffState?: AttachmentKickoffState | null;
 }) {
   const attachment = input.attachmentKickoffState;
+  const truthExecutionKey = input.truth?.execution?.key || "idle";
+  const hasCanonicalWorkState = truthExecutionKey !== "idle";
   const shouldShowAttachmentState = shouldShowAttachmentKickoffBanner(attachment);
   const hasAttachmentIssue = attachment?.status === "failed" || attachment?.status === "retryable_failure";
-  if (shouldShowAttachmentState) {
+  if (shouldShowAttachmentState && !hasCanonicalWorkState) {
     const defaultProgress = hasAttachmentIssue ? 100 : 0;
     const progressPct = Math.max(0, Math.min(100, attachment?.progressPct ?? defaultProgress));
     return {

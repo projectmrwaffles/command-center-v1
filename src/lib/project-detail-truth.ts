@@ -1,6 +1,8 @@
+export type ProjectDetailRecentUpdateKind = "blocked" | "approval" | "review" | "completed" | "progress" | "activity";
+
 export type ProjectDetailRecentSignalTruthInput = {
   id: string;
-  kind: "blocked" | "approval" | "completed" | "progress" | "activity";
+  kind: ProjectDetailRecentUpdateKind;
   title: string;
   detail: string;
   timestamp: string;
@@ -18,7 +20,7 @@ export type ProjectDetailEventTruthInput = {
 
 export type ResolvedProjectDetailRecentUpdate = {
   id: string;
-  kind: "blocked" | "approval" | "completed" | "progress" | "activity";
+  kind: ProjectDetailRecentUpdateKind;
   title: string;
   detail: string;
   timestamp: string;
@@ -36,6 +38,25 @@ const NOISY_EVENT_PATTERNS = [
   /status_changed/i,
 ];
 
+const LOW_SIGNAL_TEXT_PATTERNS = [
+  /queued job/i,
+  /active job/i,
+  /job is currently running/i,
+  /dispatched job is queued/i,
+  /agent pickup/i,
+  /task dispatched/i,
+  /^recent project activity$/i,
+];
+
+const KIND_PRIORITY: Record<ProjectDetailRecentUpdateKind, number> = {
+  blocked: 5,
+  approval: 4,
+  review: 4,
+  completed: 3,
+  progress: 2,
+  activity: 1,
+};
+
 function startCase(value?: string | null) {
   if (!value) return "Unknown";
   return value
@@ -50,18 +71,28 @@ function cleanText(value?: string | null) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function normalizeTopic(value: string) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/\b(task|review|approval|project|stage|milestone|work item|needs|follow|through)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 function getActorName(event: ProjectDetailEventTruthInput) {
   if (Array.isArray(event.agents)) return event.agents[0]?.name || null;
   return event.agents?.name || null;
 }
 
-function resolveEventKind(event: ProjectDetailEventTruthInput): ResolvedProjectDetailRecentUpdate["kind"] {
+function resolveEventKind(event: ProjectDetailEventTruthInput): ProjectDetailRecentUpdateKind {
   const payload = event.payload || {};
   const status = typeof payload.status === "string" ? payload.status : null;
-  if (status === "failed" || status === "blocked" || /blocked/i.test(event.event_type)) return "blocked";
-  if (status === "completed" || /completed/i.test(event.event_type)) return "completed";
-  if (/review|approval/i.test(event.event_type)) return "approval";
-  if (/dispatch|progress/i.test(event.event_type)) return "progress";
+  const haystack = `${event.event_type} ${typeof payload.title === "string" ? payload.title : ""} ${typeof payload.summary === "string" ? payload.summary : ""} ${typeof payload.message === "string" ? payload.message : ""}`;
+  if (status === "failed" || status === "blocked" || /blocked|risk|hold/i.test(haystack)) return "blocked";
+  if (/review|changes_requested|approved|ready_for_review|rereview/i.test(haystack)) return "review";
+  if (/approval|approved_to_proceed|rejected/i.test(haystack)) return "approval";
+  if (status === "completed" || /completed|shipped|done/i.test(haystack)) return "completed";
+  if (/dispatch|progress|started|in_progress/i.test(haystack)) return "progress";
   return "activity";
 }
 
@@ -74,31 +105,57 @@ function isLowSignalEvent(event: ProjectDetailEventTruthInput) {
   return NOISY_EVENT_PATTERNS.some((pattern) => pattern.test(haystack));
 }
 
+function isLowSignalUpdate(update: Pick<ResolvedProjectDetailRecentUpdate, "kind" | "title" | "detail">) {
+  const haystack = `${update.title} ${update.detail}`;
+  if (update.kind === "progress" || update.kind === "activity") {
+    return LOW_SIGNAL_TEXT_PATTERNS.some((pattern) => pattern.test(haystack));
+  }
+  return false;
+}
+
 function normalizeDetail(parts: Array<string | null | undefined>) {
   return cleanText(parts.filter(Boolean).join(" • "));
 }
 
 function dedupeUpdates(updates: ResolvedProjectDetailRecentUpdate[]) {
-  const seen = new Set<string>();
-  return updates.filter((update) => {
-    const key = [
-      update.kind,
-      cleanText(update.title).toLowerCase(),
-      cleanText(update.detail).toLowerCase(),
-      update.actorName?.toLowerCase() || "",
-    ].join("|");
+  const seen = new Map<string, ResolvedProjectDetailRecentUpdate>();
 
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  for (const update of updates) {
+    const key = [normalizeTopic(update.title), normalizeTopic(update.detail) || update.kind].join("|");
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, update);
+      continue;
+    }
+
+    const existingPriority = KIND_PRIORITY[existing.kind];
+    const nextPriority = KIND_PRIORITY[update.kind];
+    if (nextPriority > existingPriority || (nextPriority === existingPriority && +new Date(update.timestamp) > +new Date(existing.timestamp))) {
+      seen.set(key, update);
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
+function curateUpdates(updates: ResolvedProjectDetailRecentUpdate[]) {
+  return dedupeUpdates(
+    updates.filter((update) => update.title && update.timestamp && !isLowSignalUpdate(update)),
+  )
+    .sort((a, b) => {
+      const priorityDelta = KIND_PRIORITY[b.kind] - KIND_PRIORITY[a.kind];
+      if (priorityDelta !== 0) return priorityDelta;
+      return +new Date(b.timestamp) - +new Date(a.timestamp);
+    })
+    .slice(0, 8);
 }
 
 export function resolveProjectDetailRecentUpdates(input: {
   recentSignals?: ProjectDetailRecentSignalTruthInput[];
   events?: ProjectDetailEventTruthInput[];
+  extraUpdates?: ProjectDetailRecentSignalTruthInput[];
 }): ResolvedProjectDetailRecentUpdate[] {
-  const recentSignals = (input.recentSignals || [])
+  const directSignals = [...(input.recentSignals || []), ...(input.extraUpdates || [])]
     .map((signal) => ({
       id: signal.id,
       kind: signal.kind,
@@ -106,20 +163,12 @@ export function resolveProjectDetailRecentUpdates(input: {
       detail: cleanText(signal.detail),
       timestamp: signal.timestamp,
       actorName: signal.actorName || null,
-      sourceLabel: "Project activity",
+      sourceLabel: signal.kind === "review" ? "Review state" : "Project activity",
       sourceDetail: null,
     }))
-    .filter((signal) => signal.title && signal.timestamp)
-    .filter((signal) => !(signal.kind === "progress" && /queued job|agent pickup/i.test(signal.title + " " + signal.detail)));
+    .filter((signal) => signal.title && signal.timestamp);
 
-  if (recentSignals.length > 0) {
-    return dedupeUpdates(recentSignals)
-      .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
-      .slice(0, 8);
-  }
-
-  const events = input.events || [];
-  const fallbackUpdates = events
+  const fallbackUpdates = (input.events || [])
     .filter((event) => !isLowSignalEvent(event))
     .map((event): ResolvedProjectDetailRecentUpdate | null => {
       const payload = event.payload || {};
@@ -152,7 +201,7 @@ export function resolveProjectDetailRecentUpdates(input: {
     })
     .filter((item): item is ResolvedProjectDetailRecentUpdate => item !== null);
 
-  return dedupeUpdates(fallbackUpdates)
-    .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
-    .slice(0, 8);
+  const primaryUpdates = curateUpdates(directSignals);
+  if (primaryUpdates.length > 0) return primaryUpdates;
+  return curateUpdates(fallbackUpdates);
 }

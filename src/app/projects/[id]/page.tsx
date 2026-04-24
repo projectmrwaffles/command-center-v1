@@ -35,6 +35,7 @@ import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
 import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, getCompletedProjectRevisionMilestones, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
+import { resolveProjectDetailRecentUpdates } from "@/lib/project-detail-truth";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
 
@@ -167,7 +168,7 @@ type ProjectDetail = {
   events: any[];
   recentSignals?: Array<{
     id: string;
-    kind: "blocked" | "approval" | "completed" | "progress" | "activity";
+    kind: "blocked" | "approval" | "review" | "completed" | "progress" | "activity";
     title: string;
     detail: string;
     timestamp: string;
@@ -1046,29 +1047,39 @@ export default function ProjectDetailPage() {
     { label: "Queued work", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
     { label: "Running work", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
   ];
-  const recentSignalItems = [
-    ...(data?.recentSignals || []).map((signal) => ({
-      id: signal.id,
-      label: signal.kind === "approval" ? "Approval" : signal.kind === "blocked" ? "Blocked" : signal.kind === "completed" ? "Completed" : signal.kind === "progress" ? "Progress" : "Activity",
-      title: signal.title,
-      detail: signal.detail,
-      timestamp: signal.timestamp,
-    })),
-    ...blockerOnlyMilestones.map((milestone) => ({
-      id: `${milestone.id}-blocked`,
-      label: "Blocked",
-      title: milestone.name,
-      detail: formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.",
-      timestamp: project.updated_at,
-    })),
-    ...activeReviewMilestones.map((milestone) => ({
-      id: `${milestone.id}-review`,
-      label: "Review",
-      title: milestone.name,
-      detail: `${deriveMilestoneDisplayState(milestone).stageState.label} requires follow-through.`,
-      timestamp: project.updated_at,
-    })),
-  ];
+  const recentSignalItems = resolveProjectDetailRecentUpdates({
+    recentSignals: data?.recentSignals,
+    events: data?.events,
+    extraUpdates: [
+      ...blockerOnlyMilestones.map((milestone) => ({
+        id: `${milestone.id}-blocked`,
+        kind: "blocked" as const,
+        title: `${milestone.name} blocked`,
+        detail: formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.",
+        timestamp: project.updated_at,
+      })),
+      ...activeReviewMilestones.map((milestone) => ({
+        id: `${milestone.id}-review`,
+        kind: "review" as const,
+        title: `${milestone.name} needs review follow-through`,
+        detail: `${deriveMilestoneDisplayState(milestone).stageState.label} requires follow-through.`,
+        timestamp: project.updated_at,
+      })),
+    ],
+  }).map((signal) => ({
+    ...signal,
+    label: signal.kind === "approval"
+      ? "Approval"
+      : signal.kind === "review"
+        ? "Review"
+        : signal.kind === "blocked"
+          ? "Blocked"
+          : signal.kind === "completed"
+            ? "Completed"
+            : signal.kind === "progress"
+              ? "Progress"
+              : "Activity",
+  }));
   const updatedLabel = formatUpdatedDate(project.updated_at).replace(/^Updated\s+/i, "");
   const queuedPhaseHoldReasons = executionVisibility?.queuedReasons?.filter((reason) => reason.status === "waiting_for_kickoff_completion") || [];
   const exceptionalQueuedHoldReasons = executionVisibility?.queuedReasons?.filter((reason) => reason.status !== "waiting_for_kickoff_completion") || [];
@@ -1396,7 +1407,7 @@ export default function ProjectDetailPage() {
           </div>
         </Section>
 
-        <Section title="Recent signals" description="Curated updates and blockers, using the current signal-like sources until the later signal pass lands.">
+        <Section title="Recent signals" description="Operator-relevant updates only: blockers, approvals, review movement, completions, and meaningful project changes.">
           {recentSignalItems.length > 0 ? (
             <div className="space-y-3">
               {recentSignalItems.slice(0, 8).map((signal) => (

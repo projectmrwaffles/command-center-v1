@@ -487,11 +487,6 @@ export function deriveProjectTruth(input: {
             acc.inProgress.push(task.id || "");
             return acc;
           }
-          if (task.status === "blocked") {
-            acc.stalled.push(task.id || "");
-            return acc;
-          }
-          if (task.status !== "todo") return acc;
 
           const blocker = getTaskExecutionBlocker({
             project: canonicalProject,
@@ -502,6 +497,13 @@ export function deriveProjectTruth(input: {
             jobs: jobs as any,
             agents: agents as any,
           });
+
+          if (task.status === "blocked") {
+            acc.stalled.push(task.id || "");
+            if (blocker) acc.blockers[task.id || ""] = blocker;
+            return acc;
+          }
+          if (task.status !== "todo") return acc;
 
           if (blocker) {
             if (isQueuedTaskBlocker(blocker)) {

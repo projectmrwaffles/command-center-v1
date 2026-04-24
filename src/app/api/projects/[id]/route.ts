@@ -206,7 +206,7 @@ export async function GET(
         .limit(10),
       db
         .from("jobs")
-        .select("id, title, status, updated_at, owner_agent_id")
+        .select("id, title, status, updated_at, owner_agent_id, summary")
         .eq("project_id", projectId)
         .in("status", ["queued", "blocked", "in_progress"])
         .order("updated_at", { ascending: false })

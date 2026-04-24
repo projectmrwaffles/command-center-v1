@@ -2,20 +2,16 @@ import { getProjectArtifactIntegrity } from "@/lib/project-artifact-requirements
 import { getTaskExecutionBlocker } from "@/lib/project-execution";
 import { reconcileProjectPhaseProgression } from "@/lib/project-handoff";
 import { deriveProjectTruth, deriveSprintTruth } from "@/lib/project-truth";
-import { syncProjectState } from "@/lib/project-state";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { derivePreBuildCheckpointState, syncProjectPreBuildCheckpoint } from "@/lib/pre-build-checkpoint";
 import { deriveReviewArtifacts } from "@/lib/review-requests";
-import { syncMilestoneReviewRequest } from "@/lib/review-request-sync";
 import { filterLegacyAttachmentShellState } from "@/lib/project-attachment-finalize";
 import { deriveMilestoneEvidenceRequirements, resolveMilestoneCheckpointType } from "@/lib/milestone-review";
-import { repairKickoffSignoffTasks } from "@/lib/kickoff-signoff-repair";
 import { createGitHubRepoBinding, getGitHubRepoProvenance, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, mergeProjectLinksForGitHubUpdate, syncProjectLinksWithGitHubBinding, type GitHubRepoBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectWithArtifactCompat } from "@/lib/project-db-compat";
 import { NextRequest, NextResponse } from "next/server";
-import { captureReviewScreenshot } from "@/lib/review-screenshot";
 
 const PROJECT_DOCS_BUCKET = "project_docs";
 const STORAGE_LIST_PAGE_SIZE = 100;
@@ -88,49 +84,6 @@ async function listStoragePathsRecursively(db: NonNullable<ReturnType<typeof cre
   }
 
   return paths;
-}
-
-function isPrivateLoopbackUrl(value?: string | null) {
-  if (!value) return false;
-  try {
-    const url = new URL(value);
-    return url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '::1';
-  } catch {
-    return false;
-  }
-}
-
-async function ensureReviewScreenshot(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, input: { projectId: string; sprintId: string; previewUrl?: string | null; proofBundleId: string; existingProofItems: any[] }) {
-  const previewUrl = input.previewUrl?.trim();
-  if (!previewUrl || isPrivateLoopbackUrl(previewUrl)) return null;
-  if (input.existingProofItems.some((item) => item.kind === "screenshot" && (item.url || item.storage_path))) return null;
-
-  try {
-    const bytes = await captureReviewScreenshot({ url: previewUrl });
-    if (!bytes?.length) return null;
-
-    const storagePath = `${input.projectId}/review-screenshots/${input.sprintId}.png`;
-    const upload = await db.storage.from(PROJECT_DOCS_BUCKET).upload(storagePath, bytes, {
-      contentType: "image/png",
-      upsert: true,
-    });
-    if (upload.error) throw new Error(upload.error.message || "Failed to upload review screenshot");
-
-    const signed = await db.storage.from(PROJECT_DOCS_BUCKET).createSignedUrl(storagePath, 60 * 60 * 24 * 7);
-    if (signed.error) throw new Error(signed.error.message || "Failed to sign review screenshot");
-
-    return {
-      kind: "screenshot",
-      label: "Preview screenshot",
-      url: signed.data?.signedUrl || null,
-      storage_path: storagePath,
-      notes: `Captured from ${previewUrl}`,
-      metadata: { previewUrl, autoCaptured: true },
-    };
-  } catch (error) {
-    console.error("[API /projects/:id] review screenshot capture failed:", error);
-    return null;
-  }
 }
 
 async function removeStoragePaths(db: NonNullable<ReturnType<typeof createRouteHandlerClient>>, paths: string[]) {
@@ -225,38 +178,12 @@ export async function GET(
     }
 
     const derivedGithubBinding = deriveCompatGithubBinding(project);
-    const projectWithDerivedArtifacts = {
-      ...project,
-      github_repo_binding: derivedGithubBinding,
-      links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
-    };
-
     const effectiveProject: any = {
-      ...projectWithDerivedArtifacts,
-      intake: projectWithDerivedArtifacts.intake || null,
-      links: projectWithDerivedArtifacts.links || null,
-      github_repo_binding: projectWithDerivedArtifacts.github_repo_binding || null,
+      ...project,
+      intake: project.intake || null,
+      links: syncProjectLinksWithGitHubBinding(project.links || project.intake?.links || null, derivedGithubBinding),
+      github_repo_binding: derivedGithubBinding || null,
     };
-
-    await syncProjectPreBuildCheckpoint(db as any, {
-      projectId,
-      project: {
-        ...effectiveProject,
-        intake: effectiveProject.intake || null,
-        links: effectiveProject.links || null,
-        github_repo_binding: effectiveProject.github_repo_binding || null,
-      },
-      repairProvisionedRepo: false,
-    });
-
-    await repairKickoffSignoffTasks(db as any, { projectId });
-    await reconcileProjectPhaseProgression(db as any, {
-      projectId,
-      projectName: effectiveProject.name || null,
-    });
-    const syncedProjectState = await syncProjectState(db as any, projectId);
-    effectiveProject.status = syncedProjectState.projectStatus || effectiveProject.status;
-    effectiveProject.progress_pct = syncedProjectState.progressPct;
 
     const includeActivity = req.nextUrl.searchParams.get("include") === "activity";
     const [{ data: tasks }, { data: sprints }, eventsResult, { data: approvals }, { data: jobs }, { data: agents }, { data: completionEvents }] = await Promise.all([
@@ -401,59 +328,6 @@ export async function GET(
     const feedbackRows = submissionIds.length > 0
       ? ((await db.from("submission_feedback_items").select("*").in("submission_id", submissionIds)).data || [])
       : [];
-
-    for (const sprint of visibleSprints || []) {
-      const sprintSubmissions = submissionRows.filter((submission: any) => submission.sprint_id === sprint.id);
-      const latestSubmission = sprintSubmissions[0] || null;
-      if (!latestSubmission) continue;
-      const latestBundle = proofBundleRows.find((bundle: any) => bundle.submission_id === latestSubmission.id) || null;
-      if (!latestBundle) continue;
-      const existingProofItems = proofItemRows.filter((item: any) => item.proof_bundle_id === latestBundle.id);
-      const previewUrl = effectiveProject.links?.preview || effectiveProject.links?.production || effectiveProject.intake?.links?.preview || effectiveProject.intake?.links?.production || null;
-      const screenshotProof = await ensureReviewScreenshot(db as any, {
-        projectId,
-        sprintId: sprint.id,
-        previewUrl,
-        proofBundleId: latestBundle.id,
-        existingProofItems,
-      });
-      if (!screenshotProof) {
-        if (previewUrl && !existingProofItems.some((item: any) => item.kind === "screenshot")) {
-          console.warn(`[API /projects/:id] screenshot proof missing for sprint ${sprint.id} with preview ${previewUrl}`);
-        }
-        continue;
-      }
-      const { data: insertedProofItem, error: insertedProofItemError } = await db.from("proof_items").insert({
-        proof_bundle_id: latestBundle.id,
-        kind: screenshotProof.kind,
-        label: screenshotProof.label,
-        url: screenshotProof.url,
-        storage_path: screenshotProof.storage_path,
-        notes: screenshotProof.notes,
-        metadata: screenshotProof.metadata,
-        sort_order: existingProofItems.length,
-      }).select().single();
-      if (insertedProofItemError) {
-        console.error(`[API /projects/:id] failed to insert screenshot proof item for sprint ${sprint.id}:`, insertedProofItemError);
-        throw new Error(insertedProofItemError.message || "Failed to insert screenshot proof item");
-      }
-      if (insertedProofItem) {
-        proofItemRows.push(insertedProofItem);
-        const { error: bundleReadyError } = await db
-          .from("proof_bundles")
-          .update({ completeness_status: "ready" })
-          .eq("id", latestBundle.id);
-        if (bundleReadyError) {
-          console.error(`[API /projects/:id] failed to update proof bundle completeness for sprint ${sprint.id}:`, bundleReadyError);
-          throw new Error(bundleReadyError.message || "Failed to update review proof bundle state");
-        }
-        latestBundle.completeness_status = "ready";
-        await syncMilestoneReviewRequest(db as any, {
-          projectId,
-          sprintId: sprint.id,
-        });
-      }
-    }
 
     const artifactIntegrity = getProjectArtifactIntegrity(effectiveProject, visibleTasks || []);
     const preBuildCheckpoint = derivePreBuildCheckpointState(effectiveProject);

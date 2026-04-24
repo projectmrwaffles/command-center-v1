@@ -630,22 +630,31 @@ export default function ProjectDetailPage() {
     const isAttachmentActive = Boolean(attachmentProcessingState?.active);
     if (!needsDocumentRetry && !needsRequirementRetry && !isAttachmentActive) return;
 
-    const retryTimers = [400, 1200, 2500].map((delay) => window.setTimeout(() => {
+    const retryTimers = [1000, 5000, 15000].map((delay) => window.setTimeout(() => {
       if (needsDocumentRetry || isAttachmentActive) void fetchDocuments();
       if (needsRequirementRetry || isAttachmentActive) void fetchProject();
     }, delay));
 
     let pollTimer: number | null = null;
     if (isAttachmentActive) {
-      pollTimer = window.setInterval(() => {
-        void fetchProject(false);
-        void fetchDocuments();
-      }, 2500);
+      const pollDelays = [5000, 10000, 15000, 30000];
+      let pollAttempt = 0;
+
+      const schedulePoll = () => {
+        const delay = pollDelays[Math.min(pollAttempt, pollDelays.length - 1)];
+        pollTimer = window.setTimeout(async () => {
+          pollAttempt += 1;
+          await Promise.all([fetchProject(false), fetchDocuments()]);
+          schedulePoll();
+        }, delay);
+      };
+
+      schedulePoll();
     }
 
     return () => {
       retryTimers.forEach((timer) => window.clearTimeout(timer));
-      if (pollTimer) window.clearInterval(pollTimer);
+      if (pollTimer) window.clearTimeout(pollTimer);
     };
   }, [attachmentProcessingState?.active, attachmentRequirementSources.length, createdFromIntake, documents.length, fetchDocuments, fetchProject, projectId]);
 

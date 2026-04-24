@@ -181,21 +181,21 @@ export function deriveMilestoneReviewCardCopy(milestone: MilestoneLike) {
   const reviewTasksReady = (milestone.totalTasks || 0) > 0 && milestone.doneTasks === milestone.totalTasks;
 
   const summaryCopy = milestoneDisplayState.stageState.key === "revision_cycle"
-    ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Post-delivery changes were requested for this delivered work. Complete the revision, then return it for review.")
+    ? (milestone.reviewRequest?.summary || milestone.reviewSummary?.latestDecisionNotes || milestone.reviewSummary?.latestRejectionComment || "Changes were requested for this completed work. Finish the revision, then return it for review.")
     : milestoneDisplayState.stageState.key === "iteration_shipped"
-      ? "This delivered work is shipped and QC-approved. Open another revision only if a new round of changes is genuinely needed."
+      ? "This completed work is shipped and QC-approved. Open another revision only if a new round of changes is genuinely needed."
       : milestoneDisplayState.stageState.key === "qa_ready"
         ? "The deliverable is complete, and QA/QC is the next step. Acceptance or change requests should happen here, after the work is inspectable."
         : milestoneDisplayState.stageState.key === "qa_queued"
           ? "The deliverable is complete, but review is still waiting on earlier sequencing work before acceptance can start."
-          : "Keep moving this work toward a reviewable deliverable. Revisions only appear after delivered work has been reviewed.";
+          : "Keep moving this work toward a reviewable deliverable. Revisions only appear after completed work has been reviewed.";
 
   const helperCopy = reviewTasksReady
     ? milestoneDisplayState.stageState.key === "qa_ready"
-      ? "This is ready for post-delivery review now. Ask for revisions only after the reviewer has inspected the delivered work."
+      ? "This is ready for review now. Ask for revisions only after the reviewer has inspected the completed work."
       : milestoneDisplayState.stageState.key === "qa_queued"
         ? "The deliverable is done, but review cannot start yet. Revision controls stay hidden until review actually begins."
-        : "This delivered work is already complete. Only open a revision if you want another scoped pass after review."
+        : "This work is already complete. Only open a revision if you want another scoped pass after review."
     : "Finish the deliverable first. Review and revision controls stay secondary until there is real work to inspect.";
 
   return {

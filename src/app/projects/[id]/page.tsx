@@ -8,7 +8,9 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Clock3,
+  FileText,
   FolderKanban,
+  Link2,
   PauseCircle,
   PlayCircle,
   Plus,
@@ -26,7 +28,8 @@ import {
   formatIntakeValue,
 } from "@/lib/project-intake";
 import { getProjectStatusTone } from "@/lib/project-ui";
-import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_FIELDS, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
+import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
+import { getGroupedProjectLinks, getWorkingProjectLinkCount } from "@/lib/project-detail-context";
 import { parseGitHubRepoUrl, type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
 import { TASK_TYPE_CONFIG } from "@/lib/task-model";
@@ -395,6 +398,10 @@ function artifactEmptyState(projectType?: string | null, intake?: any) {
   return "No project links or artifacts added yet.";
 }
 
+function getDocumentCollectionLabel(count: number) {
+  return `${count} item${count === 1 ? "" : "s"}`;
+}
+
 function formatUpdatedDate(value?: string | null) {
   if (!value) return "Recently updated";
 
@@ -621,6 +628,12 @@ export default function ProjectDetailPage() {
     if (!Array.isArray(rawSources)) return [];
     return rawSources.filter((source: any) => source && source.type !== "intake" && Array.isArray(source.evidence) && source.evidence.length > 0);
   }, [data]);
+
+  const groupedProjectLinks = useMemo(() => getGroupedProjectLinks(data?.project?.links), [data?.project?.links]);
+  const suggestedLinkLabels = useMemo(
+    () => getProjectLinkSuggestions(data?.project?.type, data?.project?.intake).map((key) => PROJECT_LINK_LABELS[key]),
+    [data?.project?.intake, data?.project?.type]
+  );
 
   useEffect(() => {
     if (!createdFromIntake || !projectId) return;
@@ -1426,44 +1439,124 @@ export default function ProjectDetailPage() {
           )}
         </Section>
 
-        <Section title="Context" description="Links, documents, uploads, and extracted materials that support the work.">
-          <div className="grid gap-4 xl:grid-cols-2">
+        <Section title="Context" description="Links, uploads, and supporting materials organized around how operators actually use them.">
+          <div className="grid gap-3 md:grid-cols-3">
+            {[
+              { label: "Working links", value: getWorkingProjectLinkCount(project.links) },
+              { label: "Uploaded files", value: documents.length },
+              { label: "Supporting materials", value: attachmentRequirementSources.length },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
+                <div className="mt-1 text-xl font-semibold text-zinc-950">{item.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-900">Links</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Relevant repos, previews, docs, and launch assets in one place.</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Separate delivery surfaces from reference material so operators can get where they need faster.</p>
               </div>
               {project.links && Object.keys(project.links).length > 0 ? (
-                <div className="space-y-2">
-                  {getProjectLinkEntries(project.links).map((link) => (
-                    <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 transition hover:border-red-200">
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
-                        <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {groupedProjectLinks.map((group) => (
+                    <div key={group.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+                          <Link2 className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-sm font-semibold text-zinc-900">{group.title}</h4>
+                            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{getDocumentCollectionLabel(group.entries.length)}</span>
+                          </div>
+                          <p className="mt-1 text-sm leading-6 text-zinc-500">{group.description}</p>
+                        </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
-                        Open
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </div>
-                    </a>
+
+                      {group.entries.length > 0 ? (
+                        <div className="mt-3 space-y-2">
+                          {group.entries.map((link) => (
+                            <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 transition hover:border-red-200 hover:bg-white">
+                              <div className="min-w-0">
+                                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
+                                <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
+                                Open
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No {group.title.toLowerCase()} added yet.</div>
+                      )}
+                    </div>
                   ))}
                 </div>
               ) : (
-                <EmptySectionState icon={<ArrowUpRight className="h-7 w-7" />} title="No links yet" description={artifactEmptyState(project.type, intake)} />
+                <EmptySectionState
+                  icon={<ArrowUpRight className="h-7 w-7" />}
+                  title="No links yet"
+                  description={`${artifactEmptyState(project.type, intake)}${suggestedLinkLabels.length ? ` Common fits for this project: ${suggestedLinkLabels.join(", ")}.` : ""}`}
+                />
               )}
             </div>
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Documents & uploads</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Uploaded references, files, and extracted notes tied to this project.</p>
+                <h3 className="text-sm font-semibold text-zinc-900">Supporting materials</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Uploads and derived notes stay together here so reference files and extracted context scan as one set.</p>
               </div>
               {(documents.length > 0 || attachmentRequirementSources.length > 0 || createdFromIntake) ? (
                 <div className="space-y-3">
+                  <div className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-semibold text-zinc-900">Uploaded files</h4>
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{getDocumentCollectionLabel(documents.length)}</span>
+                        </div>
+                        <p className="mt-1 text-sm leading-6 text-zinc-500">Project files, references, and source materials attached to this workspace.</p>
+                      </div>
+                    </div>
+
+                    {documents.length > 0 ? (
+                      <div className="mt-3 space-y-2">
+                        {documents.map((doc) => (
+                          <a key={doc.id} href={doc.url || undefined} target={doc.url ? "_blank" : undefined} rel={doc.url ? "noreferrer" : undefined} className={cn("flex items-start justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-3", doc.url ? "bg-zinc-50 transition hover:border-red-200 hover:bg-white" : "bg-white")}>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
+                                <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
+                              </div>
+                              <p className="mt-1 text-xs text-zinc-500">{doc.mime_type ? `${doc.mime_type} • ` : ""}{doc.size_bytes ? `${formatBytes(doc.size_bytes)} • ` : ""}Added {new Date(doc.created_at).toLocaleDateString()}</p>
+                              {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
+                            </div>
+                            {doc.url ? (
+                              <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
+                                Open
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </div>
+                            ) : null}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No uploaded files attached yet.</div>
+                    )}
+                  </div>
+
                   {attachmentRequirementSources.length > 0 ? (
                     <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">PDF extraction notes</span>
+                        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Extracted support notes</span>
                         <span className="text-xs text-emerald-800/80">{attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} parsed into intake requirements</span>
                       </div>
                       <div className="mt-3 space-y-3">
@@ -1488,24 +1581,9 @@ export default function ProjectDetailPage() {
                   ) : createdFromIntake ? (
                     <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Attached files are being processed into project requirements now. This page will keep refreshing while extraction and kickoff are running.</div>
                   ) : null}
-
-                  {documents.map((doc) => (
-                    <div key={doc.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
-                            <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
-                          </div>
-                          <p className="mt-1 text-xs text-zinc-500">{doc.mime_type ? `${doc.mime_type} • ` : ""}Added {new Date(doc.created_at).toLocaleDateString()}</p>
-                          {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               ) : (
-                <EmptySectionState icon={<FolderKanban className="h-7 w-7" />} title="No documents or uploads yet" description="Project files, uploaded references, and extracted notes will appear here." />
+                <EmptySectionState icon={<FolderKanban className="h-7 w-7" />} title="No supporting materials yet" description="Project files, uploaded references, and extracted notes will appear here." />
               )}
             </div>
           </div>

@@ -7,6 +7,7 @@ import { seedProjectKickoffPlan } from "../src/lib/project-kickoff.ts";
 import { syncProjectPreBuildCheckpoint } from "../src/lib/pre-build-checkpoint.ts";
 import { dispatchEligibleProjectTasks } from "../src/lib/project-execution.ts";
 import { deriveReviewCheckpointState } from "../src/lib/review-checkpoint-state.ts";
+import { getProjectRequirementCompliance, resolveRepoWorkspacePath, summarizeRemoteInspectionFailure } from "../src/lib/project-requirements.ts";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -244,6 +245,15 @@ try {
   });
   assert(liveDispatchResults.some((row) => row.dispatched), "live path should still dispatch eligible non-blocked work");
 
+  const localPreferenceProject = projectRecord("project-local-preferred", `https://github.com/acme/${matchSlug}`);
+  const localPreferenceWorkspace = resolveRepoWorkspacePath(localPreferenceProject);
+  assert(localPreferenceWorkspace?.endsWith(`/projects/${matchSlug}`), "local workspace resolution should find an on-disk repo workspace before remote inspection");
+  const localPreferenceCompliance = getProjectRequirementCompliance(localPreferenceProject);
+  assert.equal(localPreferenceCompliance.repoWorkspacePath, localPreferenceWorkspace, "compliance should use the resolved local repo workspace when present");
+  assert.deepEqual(localPreferenceCompliance.notes, [`Inspected ${path.join(localPreferenceWorkspace, "package.json")}`], "local repo inspection should win cleanly over remote inspection when a workspace exists");
+  assert.equal(summarizeRemoteInspectionFailure("403", "rate limit exceeded"), "GitHub API rate limit or access policy blocked remote repo inspection.");
+  assert.equal(summarizeRemoteInspectionFailure("404", ""), "GitHub could not serve repo metadata for remote inspection yet.");
+
   const outcomesDb = createDb(baseTables([
     projectRecord("project-match", `https://github.com/acme/${matchSlug}`),
     projectRecord("project-mismatch", `https://github.com/acme/${mismatchSlug}`),
@@ -284,7 +294,7 @@ try {
       latestRejectionComment: "No repo workspace path found.",
     },
   });
-  assert.equal(stalePacketState.key, "awaiting_materials", "stale error-only pre-build packets must not present as ready for review");
+  assert.equal(stalePacketState.key, "awaiting_evidence", "stale error-only pre-build packets must not present as ready for review");
   assert.equal(stalePacketState.actionable, false, "stale error-only pre-build packets must not be actionable");
 
   const provisioningPendingDb = createDb(baseTables([
@@ -307,6 +317,42 @@ try {
   assert.equal(provisioningPendingDb.tables.sprints[0].approval_gate_required, false, "pending repo provisioning should not surface a Build checkpoint yet");
   assert.equal(provisioningPendingDb.tables.sprints[0].approval_gate_status, "not_requested", "pending repo provisioning should keep the Build gate internal");
   assert.equal(provisioningPendingDb.tables.milestone_submissions.length, 0, "pending provisioning should clear stale pre-build review packets");
+
+  const provisioned403RateLimitDb = createDb(baseTables([
+    projectRecord("project-provisioned-403", "https://github.com/acme/nonexistent-repo-403-check", {
+      intake: {
+        shape: "web-app",
+        capabilities: ["frontend"],
+        requirements: requirements(),
+        githubRepoProvisioning: {
+          status: "ready",
+          reason: "GitHub repo was provisioned automatically and attached to this project.",
+        },
+      },
+      github_repo_binding: {
+        url: "https://github.com/acme/nonexistent-repo-403-check",
+        source: "provisioned",
+        provisioning: { status: "ready", reason: "GitHub repository provisioned automatically during project submission." },
+      },
+      links: { github: "https://github.com/acme/nonexistent-repo-403-check" },
+    }),
+  ]));
+  provisioned403RateLimitDb.tables.sprints.push({ id: "s-provisioned-403", project_id: "project-provisioned-403", name: "Phase 1 · Build", status: "active", phase_key: "build", approval_gate_required: true, approval_gate_status: "pending" });
+  const provisioned403State = await syncProjectPreBuildCheckpoint(provisioned403RateLimitDb, {
+    projectId: "project-provisioned-403",
+    project: {
+      ...provisioned403RateLimitDb.tables.projects[0],
+      intake: {
+        ...provisioned403RateLimitDb.tables.projects[0].intake,
+        requirements: requirements(),
+      },
+    },
+  });
+  provisioned403State.state.reasons.splice(0, provisioned403State.state.reasons.length, "GitHub API rate limit blocked remote repo inspection.");
+  assert.equal(deriveReviewCheckpointState({
+    approvalGateStatus: "pending",
+    preBuildCheckpoint: { status: "pending", outcome: "manual_review", reasons: provisioned403State.state.reasons },
+  }).key, "setup_required", "clean rate-limit reasons should still map to a concise setup-required state without raw curl noise");
 
   const provisioned404Db = createDb(baseTables([
     projectRecord("project-provisioned-404", "https://github.com/acme/nonexistent-repo-404-check", {

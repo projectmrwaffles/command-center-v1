@@ -86,7 +86,7 @@ function isProvisionedRepoInspectionPending(project: ProjectLikeWithRequirements
   if (bindingSource !== "provisioned") return false;
   if (![bindingProvisioningStatus, intakeProvisioningStatus].some((status) => status === "ready")) return false;
 
-  return notes.some((note) => /Remote repo inspection unavailable: GitHub returned HTTP 404/i.test(note));
+  return notes.some((note) => /github could not serve repo metadata for remote inspection yet|github api rate limit|github returned http 404/i.test(note));
 }
 
 export function derivePreBuildCheckpointState(project: ProjectLikeWithRequirements): PreBuildCheckpointState {
@@ -117,7 +117,7 @@ export function derivePreBuildCheckpointState(project: ProjectLikeWithRequiremen
     };
   }
 
-  const repoNotInspectable = notes.some((note) => /package\.json not found|No repo workspace path found\.|No GitHub repo URL found for remote inspection\.|Remote repo inspection unavailable:/i.test(note));
+  const repoNotInspectable = notes.some((note) => /package\.json not found|No repo workspace path found\.|No GitHub repo URL found for remote inspection\.|remote repo inspection is temporarily unavailable|github api rate limit|github could not serve repo metadata for remote inspection yet|github authentication failed for remote repo inspection|github returned http \d+ during remote repo inspection/i.test(note));
 
   let outcome: PreBuildCheckpointOutcome = "match";
   const reasons: string[] = [];

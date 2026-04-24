@@ -1150,7 +1150,7 @@ export default function ProjectDetailPage() {
 
               <div className="mt-4 border-t border-zinc-200 pt-4">
                 <div className="text-sm font-medium text-zinc-900">Project actions</div>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Create tasks, shift delivery state, or remove the project without leaving this workspace.</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Add follow-up work, adjust delivery state, or remove the project without leaving this workspace.</p>
                 <div className="mt-4 grid gap-2">
                   {actionTargetStatus && actionLabel ? (
                     <Button
@@ -1165,7 +1165,7 @@ export default function ProjectDetailPage() {
                   ) : null}
                   <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" variant="warm" className="w-full rounded-xl">
                     <Plus className="h-4 w-4" />
-                    New task
+                    Add follow-up work
                   </Button>
                   <Button onClick={() => setShowDeleteConfirm(true)} variant="outline" className="w-full justify-center rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">
                     <Trash2 className="h-4 w-4" />
@@ -1180,9 +1180,9 @@ export default function ProjectDetailPage() {
 
       {createdFromIntake ? <CreatedFromIntakeBanner /> : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
         <div className="space-y-4">
-          <Section title="Task board" description="Keep work moving without opening every task.">
+          <Section title="Project work" description="The canonical work surface for scoped delivery, review, and follow-up actions.">
             {stuckWorkflowGuardrail ? (
               <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <span className="font-medium">Workflow guardrail:</span> {stuckWorkflowGuardrail.detail}
@@ -1197,8 +1197,8 @@ export default function ProjectDetailPage() {
               <EmptySectionState
                 icon={<FolderKanban className="h-7 w-7" />}
                 title="No active work yet"
-                description="Add the first work item to move this project from setup into execution. The board will update as work moves across lanes."
-                action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Create first work item</Button>}
+                description="Add the first project work item to move this project from setup into execution. The board will update as work moves across lanes."
+                action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Add first follow-up work item</Button>}
               />
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -1247,7 +1247,11 @@ export default function ProjectDetailPage() {
                             && task.review_status !== "not_requested"
                             && task.review_status !== "approved"
                           );
-                          const showCheckpointBadge = false;
+                          const showCheckpointBadge = Boolean(
+                            checkpointDisplayState
+                            && !isBootstrapTask(task, bootstrapSprintIds)
+                            && ["delivery_review_active", "rereview_active", "qa_ready", "qa_queued", "revision_cycle", "iteration_shipped"].includes(checkpointDisplayState.stageState.key)
+                          );
                           return (
                             <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
                               <div className="flex items-start justify-between gap-3">
@@ -1261,7 +1265,7 @@ export default function ProjectDetailPage() {
                                     <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                     {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                     {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>{taskMilestone?.name}: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
+                                    {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Checkpoint: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                   </div>
                                   {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                     <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
@@ -1297,7 +1301,7 @@ export default function ProjectDetailPage() {
         <div className="space-y-4">
 
           {showReviewCheckpointSection ? (
-            <Section title="Delivery milestones" description="Progress, blockers, QC status, and revision paths without treating checkpoints as the main workflow.">
+            <Section title="Approvals & checkpoints" description="Approval gates, build readiness, and revision loops that support the work already in motion.">
               {blockerOnlyMilestones.length > 0 ? (
                 <div className="mb-3 space-y-3">
                   {blockerOnlyMilestones.map((milestone) => {
@@ -1328,8 +1332,8 @@ export default function ProjectDetailPage() {
                 blockerOnlyMilestones.length === 0 ? (
                   <EmptySectionState
                     icon={<ShieldCheck className="h-7 w-7" />}
-                    title="No delivery milestones need attention"
-                    description="Milestones that are blocked, ready for QC, or already shipped will appear here. Revision requests stay optional unless changes are actually needed."
+                    title="No approvals or checkpoints need attention"
+                    description="Review gates, blocked checkpoints, and shipped iterations will appear here when they need action. Revision requests stay optional unless changes are actually needed."
                   />
                 ) : null
               ) : (
@@ -1472,7 +1476,14 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <StructuredTaskModal open={showTaskModal && !selectedTask} onClose={() => setShowTaskModal(false)} onCreate={handleCreateTask} creating={creatingTask} />
+      <StructuredTaskModal
+        open={showTaskModal && !selectedTask}
+        onClose={() => setShowTaskModal(false)}
+        onCreate={handleCreateTask}
+        creating={creatingTask}
+        milestones={milestones}
+        tasks={tasks}
+      />
     </div>
   );
 }

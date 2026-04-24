@@ -16,7 +16,23 @@ export async function POST(
     const params = await ctx.params;
     const projectId = params.id;
     const body = await req.json();
-    const { title, sprint_id, description, notes, assignee_agent_id, assignee_user_id, task_type, task_goal, task_metadata, context_note, review_required, title_override } = body;
+    const {
+      title,
+      sprint_id,
+      description,
+      notes,
+      assignee_agent_id,
+      assignee_user_id,
+      task_type,
+      task_goal,
+      task_metadata,
+      context_note,
+      review_required,
+      title_override,
+      follow_up_intent,
+      revision_source_task_id,
+      revision_source_task_title,
+    } = body;
 
     if (!projectId) {
       return NextResponse.json({ error: "Project ID required" }, { status: 400 });
@@ -53,6 +69,16 @@ export async function POST(
       }
 
       const metadata = buildTaskMetadata(task_type as TaskType, task_metadata || {});
+      if (typeof follow_up_intent === "string" && follow_up_intent.trim()) {
+        metadata.follow_up_intent = follow_up_intent.trim();
+      }
+      if (typeof revision_source_task_id === "string" && revision_source_task_id.trim()) {
+        metadata.revision_source_task_id = revision_source_task_id.trim();
+      }
+      if (typeof revision_source_task_title === "string" && revision_source_task_title.trim()) {
+        metadata.revision_source_task_title = revision_source_task_title.trim();
+      }
+
       const routing = getRoutingPreview(task_type as TaskType);
       const ownerTeamName = routing.ownerTeamLabel;
       const { data: ownerTeam } = await db

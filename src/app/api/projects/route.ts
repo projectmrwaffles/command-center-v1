@@ -1,12 +1,12 @@
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { type GitHubRepoProvisioningState, type ProjectIntake } from "@/lib/project-intake";
 import { finalizeProjectCreate, resolveAutoRouteTeamIds } from "@/lib/project-create-finalize";
-import { buildAttachmentKickoffWaitingIntake, filterLegacyAttachmentShellState, shouldFinalizeAttachmentProjectNow, shouldInitializeAttachmentWorkflow } from "@/lib/project-attachment-finalize";
+import { buildAttachmentKickoffWaitingIntake, shouldFinalizeAttachmentProjectNow, shouldInitializeAttachmentWorkflow } from "@/lib/project-attachment-finalize";
 import { sanitizeProjectLinks } from "@/lib/project-links";
 import { createGitHubRepoBinding, getGitHubRepoUrlFromProjectArtifacts, getGitHubRepoValidationError, getNetNewGitHubRepoGuardError, githubProvisioningAvailable, syncProjectLinksWithGitHubBinding, type GitHubRepoBindingInput } from "@/lib/github-repo-binding";
 import { getGitHubProvisioningReadiness, provisionGitHubRepoForProject, shouldAutoProvisionGitHubRepo } from "@/lib/github-provisioning";
-import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError, selectProjectSummaryJobsWithCompat, selectProjectSummarySprintsWithCompat, selectProjectSummaryTasksWithCompat, selectProjectsListWithCompat } from "@/lib/project-db-compat";
-import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
+import { isMissingGithubRepoBindingColumnError, isMissingLinksColumnError } from "@/lib/project-db-compat";
+import { invalidateProjectSummaryFeedCache, loadProjectSummaryFeed } from "@/lib/project-summary-feed";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -47,59 +47,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
 
-    const db = createRouteHandlerClient();
-    if (!db) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+    const result = await loadProjectSummaryFeed({ type, useRouteHandlerClient: true });
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
     }
 
-    const initial = await selectProjectsListWithCompat(db, type);
-    const projects: any[] = initial.data ?? [];
-    const error = initial.error;
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const projectIds = projects.map((project) => project.id).filter(Boolean);
-    if (projectIds.length === 0) {
-      return NextResponse.json({ projects });
-    }
-
-    const [{ data: tasks, error: tasksError }, { data: sprints, error: sprintsError }, { data: jobs, error: jobsError }] = await Promise.all([
-      selectProjectSummaryTasksWithCompat(db, projectIds),
-      selectProjectSummarySprintsWithCompat(db, projectIds),
-      selectProjectSummaryJobsWithCompat(db, projectIds),
-    ]);
-
-    if (tasksError || sprintsError || jobsError) {
-      return NextResponse.json({ error: tasksError?.message || sprintsError?.message || jobsError?.message || "Failed to resolve project progress truth" }, { status: 500 });
-    }
-
-    const visibleTasks: any[] = [];
-    const visibleSprints: any[] = [];
-    for (const project of projects) {
-      const filtered = filterLegacyAttachmentShellState({
-        sprints: (sprints ?? []).filter((sprint: any) => sprint.project_id === project.id),
-        tasks: (tasks ?? []).filter((task: any) => task.project_id === project.id),
-      });
-      visibleSprints.push(...filtered.sprints);
-      visibleTasks.push(...filtered.tasks);
-    }
-
-    const projectTruthById = buildProjectTruthIndex({
-      projects,
-      tasks: visibleTasks,
-      sprints: visibleSprints,
-      jobs: jobs ?? [],
-    });
-
-    return NextResponse.json({
-      projects: projects.map((project) => ({
-        ...project,
-        progress_pct: projectTruthById.get(project.id)?.progressPct ?? project.progress_pct ?? 0,
-        truth: projectTruthById.get(project.id) ?? null,
-      })),
-    });
+    return NextResponse.json({ projects: result.projects });
   } catch (e: unknown) {
     console.error("[API /projects GET] exception:", e);
     const message = e instanceof Error ? e.message : "Internal error";
@@ -402,6 +355,8 @@ export async function POST(req: NextRequest) {
           teamId,
         })
       : [];
+
+    invalidateProjectSummaryFeedCache();
 
     return NextResponse.json({
       project: { ...project, intake: project.intake || sanitizedIntake || null, links: sanitizedLinks, github_repo_binding: project.github_repo_binding || githubBinding || null },

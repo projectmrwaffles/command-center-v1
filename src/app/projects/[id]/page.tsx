@@ -935,7 +935,6 @@ export default function ProjectDetailPage() {
     truth,
     attachmentKickoffState: attachmentProcessingState,
   });
-  const progress = headerState.progressPct;
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const reviewableMilestones = milestones
     .filter((milestone) => {
@@ -978,36 +977,61 @@ export default function ProjectDetailPage() {
   const projectWorkSignalCount = blockerOnlyMilestones.length + activeReviewMilestones.length;
 
   const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
-  const executionBadgeTone =
-    headerState.key === "attachment_processing"
-      ? "border-sky-200 bg-sky-50 text-sky-700"
-      : headerState.key === "attachment_failed"
-        ? "border-red-200 bg-red-50 text-red-700"
-        : executionSummary.key === "blocked"
-          ? "border-red-200 bg-red-50 text-red-700"
-          : executionSummary.key === "running"
-            ? "border-blue-200 bg-blue-50 text-blue-700"
-            : executionSummary.key === "stale_running"
-              ? "border-amber-200 bg-amber-50 text-amber-700"
-              : executionSummary.key === "acceptance_pending"
-                ? "border-violet-200 bg-violet-50 text-violet-700"
-                : executionSummary.key === "validation_pending"
-                  ? "border-amber-200 bg-amber-50 text-amber-700"
-                  : executionSummary.key === "validation_ready"
-                    ? "border-sky-200 bg-sky-50 text-sky-700"
-                    : executionSummary.key === "completed"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : executionSummary.key === "planning_running"
-                        ? "border-sky-200 bg-sky-50 text-sky-700"
-                        : executionSummary.key === "planning_queued" || executionSummary.key === "queued"
-                          ? "border-zinc-200 bg-zinc-50 text-zinc-700"
-                          : "border-amber-200 bg-amber-50 text-amber-700";
+  const openTaskCount = Math.max(0, (data?.stats.totalTasks ?? 0) - (data?.stats.doneTasks ?? 0));
+  const pendingApprovalCount = data?.stats.pendingApprovals ?? 0;
+  const reviewTaskCount = tasks.filter((task: any) => task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved").length;
+  const reviewCount = Math.max(reviewTaskCount, activeReviewMilestones.length);
+  const blockedWorkCount = Math.max(data?.stats.blockedTasks ?? 0, blockerOnlyMilestones.length);
   const summaryMetrics = [
-    { label: "Open tasks", value: Math.max(0, (data?.stats.totalTasks ?? 0) - (data?.stats.doneTasks ?? 0)) },
-    { label: "Pending approvals", value: data?.stats.pendingApprovals ?? 0 },
-    { label: "In review", value: tasks.filter((task: any) => task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved").length },
-    { label: "Blocked work", value: data?.stats.blockedTasks ?? 0 },
+    { label: "Open tasks", value: openTaskCount },
+    { label: "Pending approvals", value: pendingApprovalCount },
+    { label: "In review", value: reviewCount },
+    { label: "Blocked work", value: blockedWorkCount },
   ];
+  const statusBadgeLabel = formatTaskStatusLabel(project.status);
+  const statusBadgeTone = project.status === "completed"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : project.status === "paused"
+      ? "border-amber-200 bg-amber-50 text-amber-700"
+      : project.status === "active"
+        ? "border-blue-200 bg-blue-50 text-blue-700"
+        : "border-zinc-200 bg-zinc-100 text-zinc-700";
+  const attentionState = blockedWorkCount > 0
+    ? {
+        label: "Needs unblock",
+        tone: "border-red-200 bg-red-50 text-red-700",
+        summary: blockedWorkCount === 1 ? "1 work item is blocked and needs attention now." : `${blockedWorkCount} work items are blocked and need attention now.`,
+      }
+    : pendingApprovalCount > 0
+      ? {
+          label: "Awaiting approval",
+          tone: "border-amber-200 bg-amber-50 text-amber-700",
+          summary: pendingApprovalCount === 1 ? "1 approval decision is holding work open." : `${pendingApprovalCount} approval decisions are holding work open.`,
+        }
+      : reviewCount > 0
+        ? {
+            label: "Review follow-through",
+            tone: "border-violet-200 bg-violet-50 text-violet-700",
+            summary: reviewCount === 1 ? "1 item is in or ready for review." : `${reviewCount} items are in or ready for review.`,
+          }
+        : openTaskCount > 0
+          ? {
+              label: "Active work",
+              tone: "border-blue-200 bg-blue-50 text-blue-700",
+              summary: openTaskCount === 1 ? "1 task is still open." : `${openTaskCount} tasks are still open.`,
+            }
+          : project.status === "completed"
+            ? {
+                label: "Completed",
+                tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
+                summary: "All tracked work is complete.",
+              }
+            : {
+                label: "Ready for next step",
+                tone: "border-zinc-200 bg-zinc-100 text-zinc-700",
+                summary: "No open work is tracked yet.",
+              };
+  const heroSummary = summaryText || attentionState.summary;
   const operationalDetails = [
     { label: "Review signals", value: String(projectWorkSignalCount) },
     { label: "Queued work", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
@@ -1091,18 +1115,32 @@ export default function ProjectDetailPage() {
               <div>
                 <h1 className="break-words text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">{project.name}</h1>
                 <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block sm:text-base">
-                  {summaryText || "Track project context, active tasks, links, signals, and delivery health from one page."}
+                  {heroSummary || "Track project context, active tasks, approvals, review, and signals from one page."}
                 </p>
               </div>
             </div>
 
-            <div className={cn("rounded-2xl border p-3 sm:p-4", statusTone.surface)}>
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-700">
-                  <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", executionBadgeTone)}>
-                    {headerState.badgeText}
-                  </span>
-                  <span className="min-w-0 flex-1 text-zinc-600">{headerState.key === "completed" ? executionSummary.description : headerState.headline}</span>
+            <div className={cn("rounded-2xl border p-4 sm:p-5", statusTone.surface)}>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", statusBadgeTone)}>
+                        Status · {statusBadgeLabel}
+                      </span>
+                      <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", attentionState.tone)}>
+                        Attention · {attentionState.label}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-base font-medium text-zinc-950">{attentionState.summary}</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-600">{executionSummary.description}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm text-zinc-600 shadow-sm">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Updated</div>
+                    <div className="mt-1 font-medium text-zinc-950">{updatedLabel}</div>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1113,9 +1151,6 @@ export default function ProjectDetailPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-              <div className={cn("mt-3 h-2.5 overflow-hidden rounded-full", statusTone.progressTrack)}>
-                <div className={cn("h-full rounded-full transition-all duration-500", statusTone.progress)} style={{ width: `${progress}%` }} />
               </div>
             </div>
           </div>

@@ -449,7 +449,8 @@ function MilestoneReviewCard({
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Delivered work review</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
             <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
             <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", stateBadge.className)}>{stateBadge.label}</span>
@@ -936,6 +937,14 @@ export default function ProjectDetailPage() {
     attachmentKickoffState: attachmentProcessingState,
   });
   const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
+  const pendingRealtimeApprovals = Array.from(approvalsById.values())
+    .filter((approval) => approval.project_id === projectId && approval.status === "pending")
+    .sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
+
   const reviewableMilestones = milestones
     .filter((milestone) => {
       if (isPrebuildCheckpointMilestone(milestone)) return false;
@@ -1273,7 +1282,7 @@ export default function ProjectDetailPage() {
                                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
                                   {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
                                   {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
-                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Review gate: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
+                                  {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>Review status: {checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>
                                 {bucketKey === "stalled" && truth?.taskBoard?.blockers?.[task.id] ? (
                                   <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
@@ -1305,20 +1314,41 @@ export default function ProjectDetailPage() {
           )}
         </Section>
 
-        <Section title="Approvals & review" description="Human decisions stay separate from the main work board, even while later slices refine the exact review model.">
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-zinc-900">Pending approvals</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Approval-specific UI remains limited in this slice, so this section currently surfaces the project approval count and defers deeper approval modeling to later work.</p>
+        <Section title="Approvals & review" description="Keep permission decisions and post-delivery acceptance in one place, without blending them into the work board.">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900">Pending approvals</h3>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">Permission and risk gates that must be decided before work can proceed.</p>
+                </div>
+                <Link href="/approvals" className="text-xs font-medium text-red-600 hover:text-red-700">Open approvals</Link>
+              </div>
               <div className="mt-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Pending approvals</div>
                 <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{data?.stats.pendingApprovals ?? 0}</div>
+                <p className="mt-2 text-xs leading-5 text-zinc-500">Use approvals when the question is whether the team may proceed, not whether delivered work is acceptable.</p>
+              </div>
+              <div className="mt-3 space-y-3">
+                {pendingRealtimeApprovals.length > 0 ? pendingRealtimeApprovals.slice(0, 4).map((approval) => (
+                  <div key={approval.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">Approval gate</span>
+                      {approval.severity ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">{approval.severity} risk</span> : null}
+                      <span className="ml-auto text-xs text-zinc-400">{formatRelativeTimestamp(approval.created_at)}</span>
+                    </div>
+                    <p className="mt-2 text-sm font-medium text-zinc-900">{approval.summary || "Approval decision needed"}</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">Decide this gate before more work moves forward.</p>
+                  </div>
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-500">No permission or risk gates are waiting right now.</div>
+                )}
               </div>
             </div>
 
-            <div className="border-t border-zinc-200 pt-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
               <h3 className="text-sm font-semibold text-zinc-900">Review & revisions</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Existing review and revision surfaces are preserved, but moved into the dedicated decision section.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Post-delivery acceptance for completed work, plus any requested follow-up changes.</p>
               <div className="mt-3 space-y-3">
                 {reviewableMilestones.length > 0 ? reviewableMilestones.map((milestone) => (
                   <MilestoneReviewCard
@@ -1331,13 +1361,13 @@ export default function ProjectDetailPage() {
                     }}
                   />
                 )) : (
-                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No active review items yet.</div>
+                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No completed work is waiting for review yet.</div>
                 )}
 
                 {completedProjectRevisionMilestones.length > 0 ? (
                   <div className="border-t border-zinc-200 pt-4">
-                    <h4 className="text-sm font-semibold text-zinc-900">Post-completion revisions</h4>
-                    <p className="mt-1 text-sm leading-6 text-zinc-500">Temporary carry-forward surface left intact while later slices finish the review model.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900">Post-delivery revision requests</h4>
+                    <p className="mt-1 text-sm leading-6 text-zinc-500">Use this when accepted work needs another pass after review, not as a substitute for approval.</p>
                     <div className="mt-3 space-y-3">
                       {completedProjectRevisionMilestones.map((milestone) => {
                         const milestoneDisplayState = deriveMilestoneDisplayState(milestone);

@@ -939,18 +939,40 @@ export function resolveRepoWorkspacePath(project: ProjectLikeWithRequirements) {
   const repoSlug = getRepoSlugFromUrl(resolveGithubRepoUrl(project));
   if (!repoSlug) return null;
 
-  const openClawRoot = resolveOpenClawRoot();
-  const candidates = [
-    path.join(openClawRoot, "workspace-product-lead", "projects", repoSlug),
-    path.join(openClawRoot, "workspace-tech-lead-architect", "projects", repoSlug),
-    path.join(openClawRoot, "workspace", "projects", repoSlug),
-  ];
+  const roots = Array.from(new Set([
+    resolveOpenClawRoot(),
+    deriveOpenClawRootFromAbsolutePath(firstAbsolutePath(process.cwd(), currentModuleDir)),
+  ].filter(Boolean) as string[]));
+
+  const candidates = new Set<string>();
+  for (const openClawRoot of roots) {
+    for (const workspaceName of ["workspace-product-lead", "workspace-tech-lead-architect", "workspace"]) {
+      candidates.add(path.join(openClawRoot, workspaceName, "projects", repoSlug));
+    }
+
+    try {
+      for (const entry of fs.readdirSync(openClawRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !/^workspace(?:-|$)/.test(entry.name)) continue;
+        candidates.add(path.join(openClawRoot, entry.name, "projects", repoSlug));
+      }
+    } catch {
+      // Best-effort local workspace discovery only.
+    }
+  }
 
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
   }
 
   return null;
+}
+
+export function summarizeRemoteInspectionFailure(httpCode: string, stderr: string) {
+  if (httpCode === "403") return "GitHub API rate limit or access policy blocked remote repo inspection.";
+  if (httpCode === "404") return "GitHub could not serve repo metadata for remote inspection yet.";
+  if (httpCode === "401") return "GitHub authentication failed for remote repo inspection.";
+  if (/rate limit/i.test(stderr)) return "GitHub API rate limit blocked remote repo inspection.";
+  return `GitHub returned HTTP ${httpCode} during remote repo inspection.`;
 }
 
 function inspectRemoteRepoFrameworks(repoUrl: string | null) {
@@ -995,12 +1017,15 @@ function inspectRemoteRepoFrameworks(repoUrl: string | null) {
 
     if (fetchResult.status !== 0) {
       const stderr = String(fetchResult.stderr || fetchResult.stdout || "").trim();
-      return { ...emptyDetection, notes: [`Remote repo inspection unavailable: ${stderr || "curl failed"}`] };
+      const reason = /rate limit/i.test(stderr)
+        ? "GitHub API rate limit blocked remote repo inspection."
+        : "Remote repo inspection is temporarily unavailable.";
+      return { ...emptyDetection, notes: [reason] };
     }
 
     if (!/^2\d\d$/.test(httpCode)) {
       const stderr = String(fetchResult.stderr || "").trim();
-      return { ...emptyDetection, notes: [`Remote repo inspection unavailable: GitHub returned HTTP ${httpCode}${stderr ? ` (${stderr})` : ""}`] };
+      return { ...emptyDetection, notes: [summarizeRemoteInspectionFailure(httpCode, stderr)] };
     }
 
     return inspectRepoFrameworks(tempDir, "remote");
@@ -1071,9 +1096,8 @@ export function inspectRepoFrameworks(repoWorkspacePath: string | null, source: 
 }
 
 function repoSignalsFromInspection(project: ProjectLikeWithRequirements, repoWorkspacePath: string | null): RepoSignals & { notes: string[] } {
-  const inspected = repoWorkspacePath
-    ? inspectRepoFrameworks(repoWorkspacePath, "local")
-    : inspectRemoteRepoFrameworks(resolveGithubRepoUrl(project));
+  const localInspection = repoWorkspacePath ? inspectRepoFrameworks(repoWorkspacePath, "local") : null;
+  const inspected = localInspection || inspectRemoteRepoFrameworks(resolveGithubRepoUrl(project));
   return {
     frameworks: inspected.detectedFrameworks,
     languages: inspected.detectedLanguages,

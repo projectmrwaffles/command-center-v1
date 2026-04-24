@@ -29,7 +29,7 @@ function isSetupBlockedPrebuildCheckpoint(summary: {
 } | null) {
   if (summary?.checkpointType !== "prebuild_checkpoint") return false;
   const notes = buildCheckpointNotes(summary);
-  return /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(notes) || isManualReviewSetupBlockedText(notes);
+  return /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection is temporarily unavailable|github api rate limit|github could not serve repo metadata for remote inspection yet|github authentication failed for remote repo inspection|github returned http \d+ during remote repo inspection/i.test(notes) || isManualReviewSetupBlockedText(notes);
 }
 
 type ReviewSummaryLike = {
@@ -71,7 +71,7 @@ export function deriveFirstPassQcState(input: {
   const hasSubmission = Boolean(summary?.latestSubmissionId);
   const hasMaterials = summary?.proofCompletenessStatus === "ready" && Boolean((summary?.proofItemCount || 0) > 0);
   const nonReviewablePrebuildPacket = isNonReviewablePrebuildPacket(summary);
-  const setupBlockedReason = (input.preBuildCheckpoint?.reasons || []).some((reason) => /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection unavailable:/i.test(reason) || isManualReviewSetupBlockedText(reason));
+  const setupBlockedReason = (input.preBuildCheckpoint?.reasons || []).some((reason) => /no repo workspace path found\.|no github repo url found for remote inspection\.|remote repo inspection is temporarily unavailable|github api rate limit|github could not serve repo metadata for remote inspection yet|github authentication failed for remote repo inspection|github returned http \d+ during remote repo inspection/i.test(reason) || isManualReviewSetupBlockedText(reason));
   const setupBlockedPrebuild = approvalGateStatus === "pending"
     && input.preBuildCheckpoint?.status === "pending"
     && input.preBuildCheckpoint?.outcome === "manual_review"

@@ -12,7 +12,6 @@ import {
   PauseCircle,
   PlayCircle,
   Plus,
-  ShieldCheck,
   Sparkles,
   Trash2,
   X,
@@ -35,8 +34,7 @@ import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-boot
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
 import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
-import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, getCompletedProjectRevisionMilestones, shouldShowAttachmentKickoffBanner, shouldShowReviewCheckpointSection } from "@/lib/project-detail-state";
-import { formatCheckpointTypeLabel, getCheckpointEvidenceRequirements } from "@/lib/milestone-review";
+import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, getCompletedProjectRevisionMilestones, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
 
@@ -852,7 +850,6 @@ export default function ProjectDetailPage() {
   const project = data?.project ?? null;
   const milestones = useMemo(() => data?.milestones ?? [], [data?.milestones]);
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
-  const stats = data?.stats ?? { totalTasks: 0, doneTasks: 0, blockedTasks: 0, inProgressTasks: 0 };
   const deliveryIntegrity = data?.deliveryIntegrity;
   const truth = data?.truth;
   const executionVisibility = data?.executionVisibility;
@@ -974,10 +971,11 @@ export default function ProjectDetailPage() {
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
   const completedProjectRevisionMilestones = getCompletedProjectRevisionMilestones(milestones);
-  const showReviewCheckpointSection = shouldShowReviewCheckpointSection({
-    projectStatus: project.status,
-    milestones: [...reviewableMilestones, ...blockerOnlyMilestones],
+  const activeReviewMilestones = reviewableMilestones.filter((milestone) => {
+    const stageKey = deriveMilestoneDisplayState(milestone).stageState.key;
+    return stageKey !== "iteration_shipped";
   });
+  const projectWorkSignalCount = blockerOnlyMilestones.length + activeReviewMilestones.length;
 
   const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
   const executionBadgeTone =
@@ -1005,7 +1003,7 @@ export default function ProjectDetailPage() {
               ? "border-zinc-200 bg-zinc-50 text-zinc-700"
               : "border-amber-200 bg-amber-50 text-amber-700";
   const operationalDetails = [
-    { label: "approvals", value: String(stats.pendingApprovals || 0) },
+    { label: "review signals", value: String(projectWorkSignalCount) },
     { label: "queued", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
     { label: "running", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
   ];
@@ -1016,7 +1014,7 @@ export default function ProjectDetailPage() {
     ? `${queuedPhaseHoldReasons.map((reason) => reason.taskTitle).join(" and ")} unlock after earlier phase work finishes.`
     : null;
   const stuckWorkflowGuardrail = truth?.guardrails?.stuckWorkflow ?? null;
-  const showAttachmentProcessingBanner = shouldShowAttachmentKickoffBanner(attachmentProcessingState);
+  const showAttachmentProcessingBanner = shouldShowAttachmentKickoffBanner(attachmentProcessingState) && headerState.key === "attachment_processing";
   const visibleAttachmentProcessingState = showAttachmentProcessingBanner ? attachmentProcessingState : null;
   const attachmentProcessingTone = attachmentProcessingState?.status === "failed"
     ? "border-red-200 bg-red-50 text-red-900"
@@ -1202,6 +1200,46 @@ export default function ProjectDetailPage() {
                 <span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}
               </div>
             ) : null}
+            {projectWorkSignalCount > 0 ? (
+              <div className="mb-4 space-y-3">
+                {blockerOnlyMilestones.map((milestone) => {
+                  const reason = formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.";
+                  const nextAction = milestone.preBuildCheckpoint?.outcome === "mismatch"
+                    ? "Align the linked repo with the PRD stack contract, then rerun the checkpoint."
+                    : "Link or provision the real repo workspace, then rerun the checkpoint.";
+
+                  return (
+                    <div key={`${milestone.id}-work-signal`} className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Build blocked</span>
+                        <span className="font-medium">{milestone.name}</span>
+                      </div>
+                      <p className="mt-2 leading-6">{reason}</p>
+                      <p className="mt-1 text-xs leading-5 text-amber-800"><span className="font-semibold">Next:</span> {nextAction}</p>
+                    </div>
+                  );
+                })}
+
+                {activeReviewMilestones.length > 0 ? (
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-950">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-700">Review signals</span>
+                      <span className="font-medium">{activeReviewMilestones.length} milestone{activeReviewMilestones.length === 1 ? "" : "s"} need review follow-through</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {activeReviewMilestones.map((milestone) => {
+                        const stageState = deriveMilestoneDisplayState(milestone).stageState;
+                        return (
+                          <span key={`${milestone.id}-signal-chip`} className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", stageState.className)}>
+                            {milestone.name}: {stageState.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {tasks.length === 0 ? (
               <EmptySectionState
                 icon={<FolderKanban className="h-7 w-7" />}
@@ -1304,64 +1342,30 @@ export default function ProjectDetailPage() {
                 ))}
               </div>
             )}
+
+            {reviewableMilestones.length > 0 ? (
+              <div className="mt-4 space-y-3 border-t border-zinc-200 pt-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900">Review & revision flow</h3>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">Delivery review and revision state now lives directly beside the work it governs.</p>
+                </div>
+                {reviewableMilestones.map((milestone) => (
+                  <MilestoneReviewCard
+                    key={milestone.id}
+                    projectId={projectId}
+                    milestone={milestone}
+                    documents={documents}
+                    onSaved={() => {
+                      void Promise.all([fetchProject(false), fetchDocuments()]);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : null}
           </Section>
         </div>
 
         <div className="space-y-4">
-
-          {showReviewCheckpointSection ? (
-            <Section title="Approvals & checkpoints" description="Approval gates, build readiness, and revision loops that support the work already in motion.">
-              {blockerOnlyMilestones.length > 0 ? (
-                <div className="mb-3 space-y-3">
-                  {blockerOnlyMilestones.map((milestone) => {
-                    const reason = formatCheckpointReason(milestone.preBuildCheckpoint?.reasons?.[0]) || "Resolve the repo and stack checkpoint before Build can start.";
-                    const nextAction = milestone.preBuildCheckpoint?.outcome === "mismatch"
-                      ? "Align the linked repo with the PRD stack contract, then rerun the checkpoint."
-                      : "Link or provision the real repo workspace, then rerun the checkpoint.";
-
-                    return (
-                      <div key={`${milestone.id}-blocker`} className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 shadow-sm">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-700">Build readiness</div>
-                            <h3 className="mt-1 text-base font-semibold text-amber-950">{milestone.name} is blocked on repo setup</h3>
-                            <p className="mt-2 text-sm leading-6 text-amber-950">{reason}</p>
-                          </div>
-                          <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</span>
-                        </div>
-                        <div className="mt-3 rounded-2xl border border-amber-200 bg-white px-3 py-3 text-sm leading-6 text-amber-900">
-                          <span className="font-medium">Next action:</span> {nextAction}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-              {reviewableMilestones.length === 0 ? (
-                blockerOnlyMilestones.length === 0 ? (
-                  <EmptySectionState
-                    icon={<ShieldCheck className="h-7 w-7" />}
-                    title="No approvals or checkpoints need attention"
-                    description="Review gates, blocked checkpoints, and shipped iterations will appear here when they need action. Revision requests stay optional unless changes are actually needed."
-                  />
-                ) : null
-              ) : (
-                <div className="space-y-3">
-                  {reviewableMilestones.map((milestone) => (
-                    <MilestoneReviewCard
-                      key={milestone.id}
-                      projectId={projectId}
-                      milestone={milestone}
-                      documents={documents}
-                      onSaved={() => {
-                        void Promise.all([fetchProject(false), fetchDocuments()]);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </Section>
-          ) : null}
 
           {completedProjectRevisionMilestones.length > 0 ? (
             <Section title="Post-completion revisions" description="The project is finished. Open another revision only if follow-up changes are needed.">

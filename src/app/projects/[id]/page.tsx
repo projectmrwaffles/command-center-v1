@@ -1036,6 +1036,7 @@ export default function ProjectDetailPage() {
     { label: "In review", value: reviewCount },
     { label: "Blocked work", value: blockedWorkCount },
   ];
+  const visibleProgressPct = Math.max(0, Math.min(100, headerState.progressPct ?? project.progress_pct ?? 0));
   const statusBadgeLabel = formatTaskStatusLabel(project.status);
   const statusBadgeTone = project.status === "completed"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -1199,6 +1200,20 @@ export default function ProjectDetailPage() {
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Updated</div>
                     <div className="mt-1 font-medium text-zinc-950">{updatedLabel}</div>
                   </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Tracked progress</div>
+                      <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{visibleProgressPct}%</div>
+                    </div>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone.pill)}>{executionSummary.label}</span>
+                  </div>
+                  <div className={cn("mt-3 h-2 overflow-hidden rounded-full", statusTone.progressTrack)}>
+                    <div className={cn("h-full rounded-full transition-all", statusTone.progress)} style={{ width: `${visibleProgressPct}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs text-zinc-500">Based on completed visible tasks, with review/acceptance holds preventing misleading 100% states.</p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

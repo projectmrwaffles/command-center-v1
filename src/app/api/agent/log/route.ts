@@ -13,6 +13,8 @@ type TaskScope = {
   status: string;
   title: string;
   assignee_agent_id: string | null;
+  task_type?: string | null;
+  task_goal?: string | null;
 };
 
 async function resolveCurrentJobId(
@@ -49,7 +51,7 @@ async function getTaskScope(
 ): Promise<TaskScope | null> {
   const { data, error } = await db
     .from("sprint_items")
-    .select("id, project_id, status, title, assignee_agent_id")
+    .select("id, project_id, status, title, assignee_agent_id, task_type, task_goal")
     .eq("id", taskId)
     .single();
 
@@ -229,8 +231,9 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "Task does not belong to the provided project" }, { status: 409 });
         }
 
+        const isStructuredTask = Boolean(existingTask.task_type || existingTask.task_goal);
         const update: { status: string; description?: string } = { status };
-        if (typeof payload.description === "string" && payload.description.trim()) {
+        if (!isStructuredTask && typeof payload.description === "string" && payload.description.trim()) {
           update.description = payload.description.trim();
         }
 

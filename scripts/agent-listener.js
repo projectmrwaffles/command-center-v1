@@ -745,7 +745,11 @@ async function finalizeTaskRun(adminSupabase, agentId, taskId, projectId, taskTi
   const taskStatus = result.taskStatus;
   const jobStatus = taskStatus === "done" ? "completed" : taskStatus === "blocked" ? "blocked" : "in_progress";
 
-  const taskUpdate = await adminSupabase.from("sprint_items").update({ status: taskStatus, description: result.summary }).eq("id", taskId).eq("assignee_agent_id", agentId);
+  const taskLookup = await adminSupabase.from("sprint_items").select("id, task_type, task_goal").eq("id", taskId).eq("assignee_agent_id", agentId).maybeSingle();
+  if (taskLookup.error) console.error(`[Listener] Failed to inspect task ${taskId} before fallback finalization:`, taskLookup.error);
+  const isStructuredTask = Boolean(taskLookup.data?.task_type || taskLookup.data?.task_goal);
+  const taskUpdatePayload = isStructuredTask ? { status: taskStatus } : { status: taskStatus, description: result.summary };
+  const taskUpdate = await adminSupabase.from("sprint_items").update(taskUpdatePayload).eq("id", taskId).eq("assignee_agent_id", agentId);
   if (taskUpdate.error) console.error(`[Listener] Failed to finalize task ${taskId}:`, taskUpdate.error);
 
   const existingJob = await adminSupabase.from("jobs").select("id").eq("summary", summaryKey).eq("owner_agent_id", agentId).limit(1).maybeSingle();

@@ -173,12 +173,16 @@ try {
 
   const kickoffAfter = payload.sprints.find((sprint) => sprint.id === kickoffSprint.id);
   const reviewAfter = payload.sprints.find((sprint) => sprint.id === reviewSprint.id);
-  assert.equal(kickoffAfter?.status, "completed", "GET detail should self-heal the completed kickoff sprint");
-  assert.equal(reviewAfter?.status, "active", "GET detail should activate the next sprint after reconciliation");
-  assert.ok(
-    !payload.executionVisibility?.queuedReasons?.some((reason) => reason.taskId === taskInsert.data[1].id && reason.status === "waiting_for_kickoff_completion"),
-    "Later-phase task should no longer stay blocked on stale kickoff completion after GET reconciliation",
-  );
+  assert.equal(kickoffAfter?.status, "active", "GET detail should remain read-only and preserve persisted sprint state");
+  assert.equal(reviewAfter?.status, "draft", "GET detail should not activate the next sprint as a side effect");
+  const sprintRowsAfterGet = await db
+    .from("sprints")
+    .select("id, status")
+    .in("id", [kickoffSprint.id, reviewSprint.id]);
+  assert.equal(sprintRowsAfterGet.error, null, sprintRowsAfterGet.error?.message || "Failed to reload sprint state after GET");
+  const persistedById = new Map((sprintRowsAfterGet.data || []).map((row) => [row.id, row.status]));
+  assert.equal(persistedById.get(kickoffSprint.id), "active", "GET detail must not mutate the persisted kickoff sprint state");
+  assert.equal(persistedById.get(reviewSprint.id), "draft", "GET detail must not mutate the persisted next sprint state");
 
   const finalizedAttachmentState = payload.project?.intake?.attachmentKickoffState;
   assert.equal(shouldShowAttachmentKickoffBanner(finalizedAttachmentState), false, "Finalized attachment intake state should not render as the main header banner");

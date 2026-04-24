@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowUpRight,
+  ChevronDown,
   Clock3,
   FileText,
   FolderKanban,
@@ -1056,9 +1057,9 @@ export default function ProjectDetailPage() {
               };
   const heroSummary = summaryText || attentionState.summary;
   const operationalDetails = [
-    { label: "Review signals", value: String(projectWorkSignalCount) },
-    { label: "Queued work", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
-    { label: "Running work", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
+    { label: "Signals surfaced", value: String(projectWorkSignalCount) },
+    { label: "Queued runtime work", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
+    { label: "Active runtime work", value: String(Math.max(truth?.counts.jobs.running ?? 0, truth?.counts.delivery.running ?? 0)) },
   ];
   const recentSignalItems = resolveProjectDetailRecentUpdates({
     recentSignals: data?.recentSignals,
@@ -1589,12 +1590,31 @@ export default function ProjectDetailPage() {
           </div>
         </Section>
 
-        <Section title="Project details" description="Secondary metadata and operational details live here instead of competing with the core work and decision flow.">
-          <div className="grid gap-4 xl:grid-cols-2">
+        <Section title="Project details" description="Secondary metadata stays available here, while operational diagnostics are tucked behind lighter disclosure.">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
             <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Project type</div>
+                  <div className="mt-1 text-sm font-medium text-zinc-950">{project.type ? formatIntakeValue(project.type) : "Not set"}</div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Status</div>
+                  <div className="mt-1 text-sm font-medium text-zinc-950">{statusBadgeLabel}</div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Created</div>
+                  <div className="mt-1 text-sm font-medium text-zinc-950">{formatUpdatedDate(project.created_at || project.updated_at).replace(/^Updated\s+/i, "")}</div>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Last updated</div>
+                  <div className="mt-1 text-sm font-medium text-zinc-950">{updatedLabel}</div>
+                </div>
+              </div>
+
               <div>
                 <h3 className="text-sm font-semibold text-zinc-900">Team & ownership</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Who is attached to the work and how the load is shaping up.</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Who is attached to the work and how the current load is distributed.</p>
               </div>
               {Array.isArray(data?.teams) && data.teams.length > 0 ? (
                 <div className="space-y-2">
@@ -1621,57 +1641,66 @@ export default function ProjectDetailPage() {
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-900">Operational details</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Retained for support and debugging, but moved below the primary project narrative.</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">Available when needed for support or debugging, but collapsed by default so the page stays focused on project work.</p>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {operationalDetails.map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
-                      <div className="mt-1 text-xl font-semibold text-zinc-950">{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 space-y-3 text-sm text-zinc-600">
-                  {deliveryIntegrity?.blockingReason ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Delivery hold:</span> {deliveryIntegrity.blockingReason}</div> : null}
-                  {deliveryIntegrity?.pendingProvisioningReason ? <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900"><span className="font-medium">Repo provisioning:</span> {deliveryIntegrity.pendingProvisioningReason}</div> : null}
-                  {visibleAttachmentProcessingState ? (
-                    <div className={cn("rounded-2xl border px-4 py-3", attachmentProcessingTone)}>
-                      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
-                        <span>{visibleAttachmentProcessingState.label || "Attachment processing"}</span>
-                        {visibleAttachmentProcessingState.fileCount ? <span>· {visibleAttachmentProcessingState.fileCount} file{visibleAttachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
+              <details className="group rounded-2xl border border-zinc-200 bg-zinc-50/70 shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-900 marker:content-none">
+                  <div>
+                    <div>Runtime and delivery diagnostics</div>
+                    <div className="mt-1 text-xs font-normal text-zinc-500">Queue state, provisioning, attachment processing, and workflow blockers.</div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-zinc-400 transition group-open:rotate-180" />
+                </summary>
+                <div className="border-t border-zinc-200 bg-white p-4">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {operationalDetails.map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
+                        <div className="mt-1 text-lg font-semibold text-zinc-950">{item.value}</div>
                       </div>
-                      <p className="mt-1 text-sm leading-6">{visibleAttachmentProcessingState.error || visibleAttachmentProcessingState.detail || "Attached materials are still being processed."}</p>
-                      {visibleAttachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(visibleAttachmentProcessingState.updatedAt)}</p> : null}
-                    </div>
-                  ) : null}
-                  {exceptionalQueuedHoldReasons.length ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
-                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</div>
-                      <ul className="mt-2 space-y-2 text-xs leading-5">
-                        {exceptionalQueuedHoldReasons.map((reason) => {
-                          const shortDetail = reason.status === "waiting_for_approval"
-                            ? `${reason.label}. This phase cannot start until approval is complete.`
-                            : reason.status === "waiting_for_repo"
-                              ? `${reason.label}. Required repo setup is still incomplete.`
-                              : reason.status === "waiting_for_worker_capacity"
-                                ? `${reason.label}. The assigned owner is still busy with active work.`
-                                : reason.detail;
+                    ))}
+                  </div>
+                  <div className="mt-4 space-y-3 text-sm text-zinc-600">
+                    {deliveryIntegrity?.blockingReason ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Delivery hold:</span> {deliveryIntegrity.blockingReason}</div> : null}
+                    {deliveryIntegrity?.pendingProvisioningReason ? <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900"><span className="font-medium">Repo provisioning:</span> {deliveryIntegrity.pendingProvisioningReason}</div> : null}
+                    {visibleAttachmentProcessingState ? (
+                      <div className={cn("rounded-2xl border px-4 py-3", attachmentProcessingTone)}>
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
+                          <span>{visibleAttachmentProcessingState.label || "Attachment processing"}</span>
+                          {visibleAttachmentProcessingState.fileCount ? <span>· {visibleAttachmentProcessingState.fileCount} file{visibleAttachmentProcessingState.fileCount === 1 ? "" : "s"}</span> : null}
+                        </div>
+                        <p className="mt-1 text-sm leading-6">{visibleAttachmentProcessingState.error || visibleAttachmentProcessingState.detail || "Attached materials are still being processed."}</p>
+                        {visibleAttachmentProcessingState.updatedAt ? <p className="mt-1 text-xs text-current/70">{formatRelativeTimestamp(visibleAttachmentProcessingState.updatedAt)}</p> : null}
+                      </div>
+                    ) : null}
+                    {exceptionalQueuedHoldReasons.length ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
+                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Needs attention</div>
+                        <ul className="mt-2 space-y-2 text-xs leading-5">
+                          {exceptionalQueuedHoldReasons.map((reason) => {
+                            const shortDetail = reason.status === "waiting_for_approval"
+                              ? `${reason.label}. This phase cannot start until approval is complete.`
+                              : reason.status === "waiting_for_repo"
+                                ? `${reason.label}. Required repo setup is still incomplete.`
+                                : reason.status === "waiting_for_worker_capacity"
+                                  ? `${reason.label}. The assigned owner is still busy with active work.`
+                                  : reason.detail;
 
-                          return (
-                            <li key={reason.taskId}>
-                              <span className="font-medium">{reason.taskTitle}</span>: {shortDetail}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {stuckWorkflowGuardrail ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Workflow guardrail:</span> {stuckWorkflowGuardrail.detail}</div> : null}
-                  {queuedPhaseHoldSummary ? <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3"><span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}</div> : null}
-                  <div className="text-xs text-zinc-400">Last updated {updatedLabel}</div>
+                            return (
+                              <li key={reason.taskId}>
+                                <span className="font-medium">{reason.taskTitle}</span>: {shortDetail}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {stuckWorkflowGuardrail ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Workflow guardrail:</span> {stuckWorkflowGuardrail.detail}</div> : null}
+                    {queuedPhaseHoldSummary ? <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3"><span className="font-medium text-zinc-900">Phase sequencing:</span> {queuedPhaseHoldSummary}</div> : null}
+                    <div className="text-xs text-zinc-400">Last updated {updatedLabel}</div>
+                  </div>
                 </div>
-              </div>
+              </details>
             </div>
           </div>
         </Section>

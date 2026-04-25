@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { createRouteHandlerClient } from "./supabase-server.ts";
 
 const AGENT_MAP: Record<string, string> = {
@@ -21,6 +24,68 @@ export function getAgentNameFromId(agentId: string): string {
   return AGENT_MAP[agentId] || "product-lead";
 }
 
+function firstAbsolutePath(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    if (!value) continue;
+    const trimmed = String(value).trim();
+    if (!trimmed) continue;
+    if (path.isAbsolute(trimmed)) return trimmed;
+  }
+
+  return null;
+}
+
+function deriveOpenClawRootFromAbsolutePath(sourcePath: string | null): string | null {
+  if (!sourcePath) return null;
+
+  const normalized = path.resolve(sourcePath);
+  const marker = `${path.sep}.openclaw`;
+  const index = normalized.indexOf(marker);
+  if (index >= 0) return normalized.slice(0, index + marker.length);
+  if (path.basename(normalized) === ".openclaw") return normalized;
+  return null;
+}
+
+export function resolveOpenClawRoot(): string {
+  const explicitRoot = firstAbsolutePath(process.env.OPENCLAW_ROOT);
+  if (explicitRoot) return explicitRoot;
+
+  const homeRoot = firstAbsolutePath(process.env.HOME, os.homedir());
+  if (homeRoot) return path.join(homeRoot, ".openclaw");
+
+  const derivedRoot = deriveOpenClawRootFromAbsolutePath(firstAbsolutePath(process.cwd(), __dirname));
+  if (derivedRoot) return derivedRoot;
+
+  return path.join(os.tmpdir(), ".openclaw");
+}
+
+export function resolveAgentWorkspacePath(agentName: string): string {
+  const workspaceDirName = agentName === "main" ? "workspace" : `workspace-${agentName}`;
+  return path.join(resolveOpenClawRoot(), workspaceDirName);
+}
+
+export async function getAgentWorkspaceBootstrapState(agentId: string): Promise<
+  | { ready: true; agentName: string; workspacePath: string }
+  | { ready: false; agentName: string; workspacePath: string; bootstrapPath: string; reason: string }
+> {
+  const agentName = getAgentNameFromId(agentId);
+  const workspacePath = resolveAgentWorkspacePath(agentName);
+  const bootstrapPath = path.join(workspacePath, "BOOTSTRAP.md");
+
+  try {
+    await fs.access(bootstrapPath);
+    return {
+      ready: false,
+      agentName,
+      workspacePath,
+      bootstrapPath,
+      reason: `bootstrap_pending:${agentName}:${bootstrapPath}`,
+    };
+  } catch {
+    return { ready: true, agentName, workspacePath };
+  }
+}
+
 export async function triggerAgentWork(
   db: ReturnType<typeof createRouteHandlerClient>,
   agentId: string,
@@ -32,8 +97,35 @@ export async function triggerAgentWork(
   if (!db) return { dispatched: false, error: "db_unavailable" };
 
   try {
-    const agentName = getAgentNameFromId(agentId);
+    const readiness = await getAgentWorkspaceBootstrapState(agentId);
+    const agentName = readiness.agentName;
     const triggeredAt = new Date().toISOString();
+
+    if (!readiness.ready) {
+      const errorMessage = `Agent workspace bootstrap pending for ${agentName}. Complete or remove ${readiness.bootstrapPath} before dispatching work.`;
+
+      try {
+        await db.from("agent_events").insert({
+          agent_id: agentId,
+          project_id: projectId ?? null,
+          event_type: "task_dispatch_blocked",
+          payload: {
+            task_id: taskId,
+            title: taskTitle,
+            status: "blocked",
+            reason: "bootstrap_pending",
+            message: errorMessage,
+            workspace_path: readiness.workspacePath,
+            bootstrap_path: readiness.bootstrapPath,
+          },
+        });
+      } catch {
+        // Ignore secondary logging failures.
+      }
+
+      return { dispatched: false, error: errorMessage };
+    }
+
     const message = `New task for project "${projectName}": ${taskTitle}. Start working on this and update the task status to "in_progress" when you begin.`;
     const payload = {
       agent_id: agentId,

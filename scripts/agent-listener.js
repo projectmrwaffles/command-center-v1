@@ -882,6 +882,20 @@ async function isRunnableTask(adminSupabase, task) {
   return (data?.status || "active") === "active";
 }
 
+function rememberProcessedTask(processedTasks, taskId) {
+  if (!processedTasks || !taskId) return;
+  processedTasks.add(taskId);
+  if (processedTasks.size > 100) {
+    const iterator = processedTasks.values();
+    for (let i = 0; i < 50; i++) processedTasks.delete(iterator.next().value);
+  }
+}
+
+function releaseProcessedTask(processedTasks, taskId) {
+  if (!processedTasks || !taskId) return;
+  processedTasks.delete(taskId);
+}
+
 async function reconcilePendingTasks(adminSupabase, realtimeSupabase, agentId, agentName, processedTasks, enqueueTask) {
   const recoverableTasks = await fetchRecoverableInProgressTasks(adminSupabase, agentId);
   const pendingTasks = await fetchPendingTasks(adminSupabase, agentId);
@@ -898,7 +912,7 @@ async function reconcilePendingTasks(adminSupabase, realtimeSupabase, agentId, a
         console.log(`[Listener] Skipping non-runnable in-progress future-sprint task ${task.id} for ${agentName}`);
         continue;
       }
-      processedTasks.add(task.id);
+      rememberProcessedTask(processedTasks, task.id);
       const project = await getProjectExecutionContext(adminSupabase || realtimeSupabase, task.project_id);
       enqueueTask(project, task.title, task.id, task.project_id);
     }
@@ -914,7 +928,7 @@ async function reconcilePendingTasks(adminSupabase, realtimeSupabase, agentId, a
     }
     const claimed = await markTaskInProgress(adminSupabase, agentId, task.id, task.project_id, task.title);
     if (!claimed) continue;
-    processedTasks.add(task.id);
+    rememberProcessedTask(processedTasks, task.id);
     const project = await getProjectExecutionContext(adminSupabase || realtimeSupabase, task.project_id);
     await markNotificationDelivered(adminSupabase, agentId, task.id);
     enqueueTask(project, task.title, task.id, task.project_id);
@@ -1048,6 +1062,7 @@ async function startListener() {
         } finally {
           if (progressHeartbeat) clearInterval(progressHeartbeat);
           queuedTasks.delete(nextTask.taskId);
+          releaseProcessedTask(processedTasks, nextTask.taskId);
         }
       }
     } finally {
@@ -1082,11 +1097,7 @@ async function startListener() {
     const claimed = await markTaskInProgress(adminSupabase, agentId, record.id, record.project_id, record.title);
     if (!claimed) return;
 
-    processedTasks.add(record.id);
-    if (processedTasks.size > 100) {
-      const iterator = processedTasks.values();
-      for (let i = 0; i < 50; i++) processedTasks.delete(iterator.next().value);
-    }
+    rememberProcessedTask(processedTasks, record.id);
     const project = await getProjectExecutionContext(adminSupabase || supabase, record.project_id);
     await markNotificationDelivered(adminSupabase, agentId, record.id);
     enqueueOpenClawTask(project, record.title, record.id, record.project_id);
@@ -1119,7 +1130,7 @@ async function startListener() {
     Promise.resolve(markTaskInProgress(adminSupabase, agentId, taskId, payload.payload?.project_id || null, taskTitle || "New task"))
       .then((claimed) => {
         if (!claimed) return;
-        if (taskId) processedTasks.add(taskId);
+        rememberProcessedTask(processedTasks, taskId);
         return getProjectExecutionContext(adminSupabase || supabase, payload.payload?.project_id || null)
           .then((project) => markNotificationDelivered(adminSupabase, agentId, taskId)
             .catch((error) => console.error(`[Listener] Pre-trigger delivery update failed for task ${taskId}:`, error))
@@ -1166,5 +1177,7 @@ if (require.main === module) {
     inspectRepoTestContract,
     runAgentUntilStopCondition,
     finalizeTaskRun,
+    rememberProcessedTask,
+    releaseProcessedTask,
   };
 }

@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   ArrowUpRight,
   ChevronDown,
-  Clock3,
   FileText,
   FolderKanban,
   Link2,
@@ -1024,7 +1023,6 @@ export default function ProjectDetailPage() {
   });
   const projectWorkSignalCount = blockerOnlyMilestones.length + activeReviewMilestones.length;
 
-  const executionSummary = truth?.execution ?? { key: "idle", label: statusTone.label, description: "No project work is visible yet." };
   const openTaskCount = Math.max(0, (data?.stats.totalTasks ?? 0) - (data?.stats.doneTasks ?? 0));
   const pendingApprovalCount = data?.stats.pendingApprovals ?? 0;
   const reviewTaskCount = tasks.filter((task: any) => task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved").length;
@@ -1081,6 +1079,11 @@ export default function ProjectDetailPage() {
                 summary: "No open work is tracked yet.",
               };
   const heroSummary = summaryText || attentionState.summary;
+  const progressSummary = project.status === "completed"
+    ? "All tracked work is complete."
+    : openTaskCount > 0
+      ? `${openTaskCount} open task${openTaskCount === 1 ? "" : "s"} across active delivery.`
+      : "No open tasks are tracked yet.";
   const operationalDetails = [
     { label: "Signals surfaced", value: String(projectWorkSignalCount) },
     { label: "Queued operations", value: String(Math.max(truth?.counts.jobs.queued ?? 0, truth?.counts.delivery.queued ?? 0)) },
@@ -1174,7 +1177,7 @@ export default function ProjectDetailPage() {
               <div>
                 <h1 className="break-words text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">{project.name}</h1>
                 <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block sm:text-base">
-                  {heroSummary || "Track project context, active tasks, approvals, review, and signals from one page."}
+                  {heroSummary || "Project summary and current delivery state."}
                 </p>
               </div>
             </div>
@@ -1193,7 +1196,7 @@ export default function ProjectDetailPage() {
                     </div>
                     <div>
                       <p className="text-base font-medium text-zinc-950">{attentionState.summary}</p>
-                      <p className="mt-1 text-sm leading-6 text-zinc-600">{executionSummary.description}</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-600">{progressSummary}</p>
                     </div>
                   </div>
                   <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm text-zinc-600 shadow-sm">
@@ -1208,12 +1211,12 @@ export default function ProjectDetailPage() {
                       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Tracked progress</div>
                       <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{visibleProgressPct}%</div>
                     </div>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone.pill)}>{executionSummary.label}</span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone.pill)}>{statusTone.label}</span>
                   </div>
                   <div className={cn("mt-3 h-2 overflow-hidden rounded-full", statusTone.progressTrack)}>
                     <div className={cn("h-full rounded-full transition-all", statusTone.progress)} style={{ width: `${visibleProgressPct}%` }} />
                   </div>
-                  <p className="mt-2 text-xs text-zinc-500">Based on completed visible tasks, with review/acceptance holds preventing misleading 100% states.</p>
+                  <p className="mt-2 text-xs text-zinc-500">Progress reflects tracked work completion and review holds.</p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1230,36 +1233,37 @@ export default function ProjectDetailPage() {
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[320px] lg:max-w-sm">
             <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-                <Clock3 className="h-4 w-4 text-red-500" />
-                Project summary
-              </div>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Primary actions and current project state live here; deeper operational details move lower on the page.</p>
-
-              <div className="mt-4 border-t border-zinc-200 pt-4">
-                <div className="text-sm font-medium text-zinc-900">Project actions</div>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Add tasks, adjust delivery state, or remove the project without leaving this workspace.</p>
-                <div className="mt-4 grid gap-2">
-                  {actionTargetStatus && actionLabel ? (
-                    <Button
-                      onClick={() => handleStatusChange(actionTargetStatus)}
-                      disabled={isStatusActionLoading}
-                      variant={actionTargetStatus === "paused" ? "outline" : "secondary"}
-                      className="w-full justify-center rounded-xl"
-                    >
-                      {actionTargetStatus === "paused" ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
-                      {isStatusActionLoading ? "Updating..." : actionLabel}
-                    </Button>
-                  ) : null}
-                  <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" variant="warm" className="w-full rounded-xl">
-                    <Plus className="h-4 w-4" />
-                    Add follow-up work
-                  </Button>
-                  <Button onClick={() => setShowDeleteConfirm(true)} variant="outline" className="w-full justify-center rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">
-                    <Trash2 className="h-4 w-4" />
-                    Delete project
-                  </Button>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-zinc-900">Project actions</div>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">Keep delivery moving from here.</p>
                 </div>
+                <div className="text-right text-xs text-zinc-500">
+                  <div className="font-semibold uppercase tracking-[0.14em] text-zinc-400">Updated</div>
+                  <div className="mt-1 text-sm font-medium text-zinc-950">{updatedLabel}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                {actionTargetStatus && actionLabel ? (
+                  <Button
+                    onClick={() => handleStatusChange(actionTargetStatus)}
+                    disabled={isStatusActionLoading}
+                    variant={actionTargetStatus === "paused" ? "outline" : "secondary"}
+                    className="w-full justify-center rounded-xl"
+                  >
+                    {actionTargetStatus === "paused" ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
+                    {isStatusActionLoading ? "Updating..." : actionLabel}
+                  </Button>
+                ) : null}
+                <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" variant="warm" className="w-full rounded-xl">
+                  <Plus className="h-4 w-4" />
+                  Add follow-up work
+                </Button>
+                <Button onClick={() => setShowDeleteConfirm(true)} variant="outline" className="w-full justify-center rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">
+                  <Trash2 className="h-4 w-4" />
+                  Delete project
+                </Button>
               </div>
             </div>
           </div>

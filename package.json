@@ -44,6 +44,7 @@
     "verify:blocker-only-review-checkpoint-section": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-blocker-only-review-checkpoint-section.mjs",
     "verify:project-detail-revision-flow": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-project-detail-revision-flow.mjs",
     "verify:agent-listener-processed-tasks": "node scripts/verify-agent-listener-processed-tasks.mjs",
+    "verify:agent-listener-design-context": "node scripts/verify-agent-listener-design-context.mjs",
     "verify:agent-workspace-bootstrap-guard": "node --experimental-strip-types scripts/verify-agent-workspace-bootstrap-guard.mjs"
   },
   "dependencies": {

@@ -437,6 +437,109 @@ function inspectRepoTestContract(repoWorkspacePath) {
   };
 }
 
+function normalizeSelectorValue(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function listRepoDesignDocs(repoWorkspacePath) {
+  const designRoot = repoWorkspacePath ? path.join(repoWorkspacePath, "docs", "design") : null;
+  if (!designRoot || !fs.existsSync(designRoot)) return [];
+
+  const matches = [];
+  function walk(currentPath) {
+    const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const entryPath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith(".")) continue;
+        walk(entryPath);
+        continue;
+      }
+      if (entry.isFile() && entry.name === "DESIGN.md") {
+        matches.push(entryPath);
+      }
+    }
+  }
+
+  walk(designRoot);
+  return matches;
+}
+
+function summarizeDesignMarkdown(content, maxBullets = 6) {
+  const lines = String(content || "").split(/\r?\n/);
+  const bullets = [];
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (/^#/.test(line)) {
+      bullets.push(line.replace(/^#+\s*/, ""));
+    } else if (/^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line)) {
+      bullets.push(line.replace(/^([-*]|\d+\.)\s+/, ""));
+    } else if (bullets.length === 0) {
+      bullets.push(line);
+    }
+    if (bullets.length >= maxBullets) break;
+  }
+  return bullets;
+}
+
+function resolveRepoDesignContext({ repoWorkspacePath, projectName, taskTitle, taskType }) {
+  if (!repoWorkspacePath) return null;
+
+  const candidates = listRepoDesignDocs(repoWorkspacePath)
+    .filter((candidate) => !candidate.includes(`${path.sep}_template${path.sep}`));
+  if (!candidates.length) return null;
+
+  const selectors = [projectName, taskTitle, taskType]
+    .map(normalizeSelectorValue)
+    .filter(Boolean);
+
+  const scored = candidates.map((candidate) => {
+    const relativePath = path.relative(repoWorkspacePath, candidate);
+    const normalizedPath = normalizeSelectorValue(relativePath);
+    let score = 0;
+    const reasons = [];
+    for (const selector of selectors) {
+      if (!selector) continue;
+      if (normalizedPath.includes(selector)) {
+        score += 10;
+        reasons.push(`path matched \"${selector}\"`);
+      }
+    }
+    const depth = relativePath.split(path.sep).length;
+    score -= depth;
+    reasons.push(`shallower path preference (depth ${depth})`);
+    if (relativePath === path.join("docs", "design", "DESIGN.md")) {
+      score += 3;
+      reasons.push("preferred canonical root design doc");
+    }
+    return { candidate, relativePath, score, reasons };
+  }).sort((a, b) => b.score - a.score || a.relativePath.localeCompare(b.relativePath));
+
+  const selected = scored[0];
+  let content = "";
+  try {
+    content = fs.readFileSync(selected.candidate, "utf8");
+  } catch (error) {
+    console.warn(`[Listener] Failed to read DESIGN.md candidate ${selected.relativePath}:`, error?.message || error);
+    return null;
+  }
+
+  const bullets = summarizeDesignMarkdown(content);
+  if (!bullets.length) return null;
+
+  return {
+    relativePath: selected.relativePath,
+    absolutePath: selected.candidate,
+    selectionReason: selected.reasons[0] || "best available docs/design DESIGN.md",
+    bullets,
+    candidateCount: scored.length,
+  };
+}
+
 function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, taskMetadata }) {
   const projectName = project?.name || "Unknown Project";
   const githubRepoUrl = resolveGithubRepoUrl(project);
@@ -455,6 +558,10 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     ...(repoPackage?.dependencies || {}),
     ...(repoPackage?.devDependencies || {}),
   };
+  const designContextTaskTypes = new Set(["build_implementation", "qa_validation", "discovery_plan"]);
+  const repoDesignContext = codeHeavy && designContextTaskTypes.has(taskType)
+    ? resolveRepoDesignContext({ repoWorkspacePath, projectName, taskTitle, taskType })
+    : null;
   const nextJsSeedVersion = readProvisionedNextJsSeedVersion();
   const nextVersionGuidance = requiredFrameworks.includes("nextjs")
     ? (repoDependencies.next
@@ -480,6 +587,8 @@ function buildAgentMessage({ project, taskTitle, taskId, projectId, taskType, ta
     qaMode ? `QA mode: ${qaMode}.` : null,
     githubRepoUrl ? `GitHub repo: ${githubRepoUrl}` : null,
     repoWorkspacePath ? `Repo workspace path: ${repoWorkspacePath}` : null,
+    repoDesignContext ? `Selected DESIGN.md context: ${repoDesignContext.relativePath} (${repoDesignContext.selectionReason}; ${repoDesignContext.candidateCount} candidate${repoDesignContext.candidateCount === 1 ? "" : "s"} scanned).` : null,
+    repoDesignContext ? `DESIGN context to follow:\n${repoDesignContext.bullets.map((item) => `- ${item}`).join("\n")}` : null,
     requirements?.summary?.length ? `Project requirements summary:\n${requirements.summary.map((item) => `- ${item}`).join("\n")}` : null,
     formattedTechnologyContract ? `Technology contract from PRD/spec:\n${formattedTechnologyContract}` : null,
     requirements?.constraints?.length ? `Critical constraints:\n${requirements.constraints.slice(0, 8).map((item) => `- ${item}`).join("\n")}` : null,
@@ -1175,6 +1284,7 @@ if (require.main === module) {
     resolveRepoWorkspacePath,
     buildAgentMessage,
     inspectRepoTestContract,
+    resolveRepoDesignContext,
     runAgentUntilStopCondition,
     finalizeTaskRun,
     rememberProcessedTask,

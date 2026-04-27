@@ -32,6 +32,7 @@ import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_LABELS, 
 import { getGroupedProjectLinks, getWorkingProjectLinkCount } from "@/lib/project-detail-context";
 import { parseGitHubRepoUrl, type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
+import { TaskDetailModal } from "@/components/project/task-detail-modal";
 import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-bootstrap";
 import { useRealtimeStore } from "@/lib/realtime-store";
@@ -551,9 +552,7 @@ export default function ProjectDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
-  const [taskModalMode, setTaskModalMode] = useState<"view" | "edit">("view");
   const [creatingTask, setCreatingTask] = useState(false);
-  const [taskDesc, setTaskDesc] = useState("");
   const [dismissedUpdateIds, setDismissedUpdateIds] = useState<string[]>([]);
   const [clearedFeedAt, setClearedFeedAt] = useState<string | null>(null);
   const [createdFromIntake, setCreatedFromIntake] = useState(createdFromIntakeQuery);
@@ -837,7 +836,6 @@ export default function ProjectDetailPage() {
       if (!res.ok) throw new Error(json.error || "Failed to create task");
       setSelectedTask(null);
       setShowTaskModal(false);
-      setTaskModalMode("view");
       await fetchProject(false);
     } catch (e: any) {
       setError(e.message);
@@ -846,43 +844,8 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleUpdateTask = async () => {
-    if (!selectedTask) return;
-    try {
-      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: taskDesc, status: selectedTask.status }),
-      });
-      if (!res.ok) throw new Error("Failed to save task");
-      setShowTaskModal(false);
-      setTaskModalMode("view");
-      await fetchProject(false);
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  const handleDeleteTask = async () => {
-    if (!selectedTask) return;
-    try {
-      const res = await fetch(`/api/projects/${projectId}/tasks/${selectedTask.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete task");
-      setSelectedTask(null);
-      setShowTaskModal(false);
-      setTaskModalMode("view");
-      await fetchProject(false);
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
-    setTaskDesc(task.description || "");
-    setTaskModalMode("view");
     setShowTaskModal(true);
   };
 
@@ -920,7 +883,6 @@ export default function ProjectDetailPage() {
       if (event.key !== "Escape") return;
       setSelectedTask(null);
       setShowTaskModal(false);
-      setTaskModalMode("view");
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -974,7 +936,6 @@ export default function ProjectDetailPage() {
     truth,
     attachmentKickoffState: attachmentProcessingState,
   });
-  const selectedTaskTypeConfig = selectedTask?.task_type ? TASK_TYPE_CONFIG[selectedTask.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
   const pendingRealtimeApprovals = Array.from(approvalsById.values())
     .filter((approval) => approval.project_id === projectId && approval.status === "pending")
     .sort((a, b) => {
@@ -1751,6 +1712,17 @@ export default function ProjectDetailPage() {
         </Section>
 
       </div>
+
+      <TaskDetailModal
+        open={showTaskModal && !!selectedTask}
+        onClose={() => {
+          setSelectedTask(null);
+          setShowTaskModal(false);
+        }}
+        task={selectedTask}
+        milestone={selectedTask?.sprint_id ? milestones.find((milestone) => milestone.id === selectedTask.sprint_id) ?? null : null}
+        assignee={selectedTask?.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id) ?? null : null}
+      />
 
       <StructuredTaskModal
         open={showTaskModal && !selectedTask}

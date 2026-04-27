@@ -1,0 +1,253 @@
+"use client";
+
+import { X } from "lucide-react";
+import { TASK_TYPE_CONFIG, humanizeTaskValue } from "@/lib/task-model";
+import { cn } from "@/lib/utils";
+import { deriveMilestoneDisplayState } from "@/lib/project-detail-state";
+
+type MilestoneReviewSummary = {
+  latestSubmissionStatus?: string | null;
+  latestDecision?: string | null;
+  latestDecisionNotes?: string | null;
+  latestRejectionComment?: string | null;
+  latestSubmissionSummary?: string | null;
+  latestRevisionNumber?: number | null;
+};
+
+type MilestoneLike = {
+  id: string;
+  name: string;
+  approvalGateRequired?: boolean;
+  approvalGateStatus?: string | null;
+  deliveryReviewRequired?: boolean;
+  deliveryReviewStatus?: string | null;
+  reviewSummary?: MilestoneReviewSummary | null;
+  reviewRequest?: {
+    id?: string | null;
+    status?: string | null;
+    summary?: string | null;
+  } | null;
+  preBuildCheckpoint?: {
+    outcome?: "match" | "mismatch" | "manual_review" | null;
+    status?: "approved" | "pending" | "not_requested" | null;
+    reasons?: string[] | null;
+  } | null;
+  totalTasks?: number;
+  doneTasks?: number;
+};
+
+type TaskLike = {
+  id: string;
+  title: string;
+  status: string;
+  description?: string | null;
+  updated_at?: string | null;
+  sprint_id?: string | null;
+  task_type?: string | null;
+  task_goal?: string | null;
+  task_metadata?: Record<string, string> | null;
+  assignee_agent_id?: string | null;
+  review_required?: boolean | null;
+  review_status?: string | null;
+};
+
+type AssigneeLike = {
+  name?: string | null;
+  title?: string | null;
+} | null;
+
+function formatStatusLabel(value?: string | null) {
+  if (!value) return "Unknown";
+  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatTimestamp(value?: string | null) {
+  if (!value) return "No recent update";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getReviewState(task: TaskLike, milestone: MilestoneLike | null) {
+  if (!task.review_required) {
+    return {
+      badge: null,
+      title: "Review not required",
+      detail: "This task does not require a delivery review handoff.",
+      tone: "border-zinc-200 bg-zinc-50 text-zinc-700",
+    };
+  }
+
+  const milestoneState = milestone ? deriveMilestoneDisplayState(milestone) : null;
+  const stageKey = milestoneState?.stageState.key;
+  const taskReviewStatus = task.review_status || "not_requested";
+
+  if (stageKey === "revision_cycle") {
+    return {
+      badge: milestoneState?.stageState.label || "Revision cycle",
+      title: "Revision requested",
+      detail: milestone?.reviewRequest?.summary || milestone?.reviewSummary?.latestDecisionNotes || milestone?.reviewSummary?.latestRejectionComment || "Changes were requested on delivered work. Complete the revision, then send it back for review.",
+      tone: "border-amber-200 bg-amber-50 text-amber-800",
+    };
+  }
+
+  if (stageKey === "delivery_review_active" || stageKey === "rereview_active") {
+    return {
+      badge: milestoneState?.stageState.label || "In review",
+      title: stageKey === "rereview_active" ? "Re-review in progress" : "Delivery review in progress",
+      detail: milestone?.reviewSummary?.latestSubmissionSummary || "Completed work is with the reviewer right now.",
+      tone: "border-violet-200 bg-violet-50 text-violet-800",
+    };
+  }
+
+  if (stageKey === "qa_ready" || taskReviewStatus === "requested") {
+    return {
+      badge: milestoneState?.stageState.label || "Ready for review",
+      title: "Ready for delivery review",
+      detail: "The work is complete enough to review without relying on the milestone card.",
+      tone: "border-sky-200 bg-sky-50 text-sky-800",
+    };
+  }
+
+  if (taskReviewStatus === "approved" || stageKey === "iteration_shipped") {
+    return {
+      badge: milestoneState?.stageState.label || "Approved",
+      title: "Review approved",
+      detail: milestone?.reviewSummary?.latestDecisionNotes || "This task's delivered work has already been accepted.",
+      tone: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }
+
+  if (task.status === "review") {
+    return {
+      badge: "In review",
+      title: "Review in progress",
+      detail: "This task is currently in a review step.",
+      tone: "border-violet-200 bg-violet-50 text-violet-800",
+    };
+  }
+
+  return {
+    badge: formatStatusLabel(taskReviewStatus === "not_requested" ? "review pending" : taskReviewStatus),
+    title: "Review still ahead",
+    detail: "Finish the task work first, then use delivery review as the acceptance surface.",
+    tone: "border-zinc-200 bg-zinc-50 text-zinc-700",
+  };
+}
+
+export function TaskDetailModal({
+  open,
+  onClose,
+  task,
+  milestone,
+  assignee,
+}: {
+  open: boolean;
+  onClose: () => void;
+  task: TaskLike | null;
+  milestone: MilestoneLike | null;
+  assignee: AssigneeLike;
+}) {
+  if (!open || !task) return null;
+
+  const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
+  const reviewState = getReviewState(task, milestone);
+  const metadataEntries = taskTypeConfig
+    ? taskTypeConfig.metadataFields
+        .map((field) => ({
+          label: field.label,
+          value: task.task_metadata?.[field.key],
+        }))
+        .filter((entry) => entry.value)
+    : [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-zinc-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-zinc-200 bg-white/95 px-6 py-5 backdrop-blur">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Task detail</div>
+            <h2 className="mt-1 text-xl font-semibold text-zinc-950">{task.title}</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+              <span>{taskTypeConfig?.label || "Task"}</span>
+              {milestone?.name ? <span>• Stage: {milestone.name}</span> : null}
+              <span>• Updated {formatTimestamp(task.updated_at)}</span>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700" aria-label="Close task detail modal">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-6 px-6 py-6">
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-700">{formatStatusLabel(task.status)}</span>
+            {task.review_required ? <span className={cn("rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", reviewState.tone)}>{reviewState.badge || "Review required"}</span> : null}
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Type</div>
+              <div className="mt-1 text-sm font-medium text-zinc-900">{taskTypeConfig?.label || "Unstructured task"}</div>
+            </div>
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Owner</div>
+              <div className="mt-1 text-sm font-medium text-zinc-900">{assignee?.name || "Unassigned"}</div>
+              {assignee?.title ? <div className="mt-1 text-xs text-zinc-500">{assignee.title}</div> : null}
+            </div>
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Stage</div>
+              <div className="mt-1 text-sm font-medium text-zinc-900">{milestone?.name || "Not assigned"}</div>
+            </div>
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Last updated</div>
+              <div className="mt-1 text-sm font-medium text-zinc-900">{formatTimestamp(task.updated_at)}</div>
+            </div>
+          </div>
+
+          {task.review_required ? (
+            <section className={cn("rounded-3xl border px-5 py-4", reviewState.tone)}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-current/20 bg-white/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]">Delivery review</span>
+                {reviewState.badge ? <span className="text-xs font-medium">{reviewState.badge}</span> : null}
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">{reviewState.title}</h3>
+              <p className="mt-2 text-sm leading-6">{reviewState.detail}</p>
+            </section>
+          ) : null}
+
+          <section className="rounded-3xl border border-zinc-200 bg-white px-5 py-4">
+            <h3 className="text-sm font-semibold text-zinc-900">Task summary</h3>
+            {task.task_goal ? <p className="mt-2 text-sm font-medium text-zinc-900">{task.task_goal}</p> : null}
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600">{task.description || "No task description yet."}</p>
+          </section>
+
+          {metadataEntries.length > 0 ? (
+            <section className="rounded-3xl border border-zinc-200 bg-zinc-50 px-5 py-4">
+              <h3 className="text-sm font-semibold text-zinc-900">Structured context</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {metadataEntries.map((entry) => (
+                  <div key={entry.label} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{entry.label}</div>
+                    <div className="mt-1 text-sm font-medium text-zinc-900">{humanizeTaskValue(String(entry.value))}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section className="rounded-3xl border border-zinc-200 bg-zinc-50 px-5 py-4">
+            <h3 className="text-sm font-semibold text-zinc-900">Notes & history</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-600">This task was last updated {formatTimestamp(task.updated_at)}. More detailed history can stay in the existing review and activity surfaces for now.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}

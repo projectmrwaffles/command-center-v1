@@ -71,5 +71,6 @@ List the most important reusable patterns and how they should feel in use.
 ## Do's and Don'ts
 - **Do** capture the stable design decisions that other teams should preserve.
 - **Do** link out to implementation specs, issues, or code when details live elsewhere.
+- **Do** run `npm run design:lint` before opening a PR so the repo-wide DESIGN.md check stays green.
 - **Don't** duplicate every engineering detail in the design artifact.
 - **Don't** leave unresolved placeholders in a finalized design doc.

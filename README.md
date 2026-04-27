@@ -12,6 +12,7 @@ npm run build
 npm run design:lint
 npm run design:diff
 npm run design:export
+npm run verify:design
 npm run verify:closeout
 npm run verify:smoke
 ```
@@ -68,8 +69,9 @@ Runs a disposable end-to-end backend smoke pass against local or provided app UR
 
 - Initiative design docs live at `docs/design/<initiative-slug>/DESIGN.md`.
 - Start from `docs/design/_template/DESIGN.md`.
+- Run `npm run design:lint` to validate every repo design doc before opening a PR.
+- `npm run verify:design` is the repo gate used by CI.
 - See `docs/design/README.md` for the repo convention and current workflow.
-- The `design:*` scripts are safe placeholders until the team wires in the upstream Google design.md tooling.
 
 ## Notes
 

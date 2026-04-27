@@ -11,6 +11,7 @@
     "design:lint": "node scripts/design-md-lint.mjs",
     "design:diff": "node scripts/design-md-diff.mjs",
     "design:export": "node scripts/design-md-export.mjs",
+    "verify:design": "npm run design:lint",
     "verify:checkpoint-approval": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-checkpoint-approval-progression.mjs",
     "verify:phase-progression-guardrails": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-phase-progression-guardrails.mjs",
     "verify:delivery-review-workflow": "node --import ./scripts/register-ts-aliases.mjs --experimental-strip-types scripts/verify-delivery-review-workflow.mjs",

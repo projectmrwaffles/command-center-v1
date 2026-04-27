@@ -1,0 +1,38 @@
+name: design-md
+
+on:
+  pull_request:
+    paths:
+      - "docs/design/**"
+      - "scripts/design-md-*.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/design-md.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/design/**"
+      - "scripts/design-md-*.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/design-md.yml"
+
+jobs:
+  lint-design-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint all repo DESIGN.md docs
+        run: npm run verify:design

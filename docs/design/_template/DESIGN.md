@@ -1,75 +1,75 @@
-# DESIGN.md Template
+---
+version: alpha
+name: Example Initiative
+colors:
+  primary: "#1F2937"
+  secondary: "#6B7280"
+  accent: "#2563EB"
+  surface: "#F9FAFB"
+  on-primary: "#FFFFFF"
+  on-accent: "#FFFFFF"
+typography:
+  title:
+    fontFamily: Inter
+    fontSize: 2rem
+    fontWeight: "700"
+    lineHeight: "1.2"
+  body:
+    fontFamily: Inter
+    fontSize: 1rem
+    fontWeight: "400"
+    lineHeight: "1.5"
+rounded:
+  sm: 8px
+  md: 12px
+spacing:
+  sm: 8px
+  md: 16px
+  lg: 24px
+components:
+  page:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.primary}"
+    typography: "{typography.body}"
+    padding: 24px
+  page-header:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.title}"
+    rounded: "{rounded.md}"
+    padding: 16px
+  note:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.secondary}"
+    rounded: "{rounded.sm}"
+    padding: 8px
+  callout:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
+    rounded: "{rounded.md}"
+    padding: 16px
+---
 
-## TL;DR
-- **Initiative:** <name>
-- **Owner:** <team or person>
-- **Status:** Draft | In review | Approved | In rollout | Superseded
-- **Last updated:** YYYY-MM-DD
-- **Related links:** <PRD / issue / board / repo / Figma>
+## Overview
+Summarize the initiative, why it exists, and the intended user experience or operational outcome.
 
-## Problem
-What problem are we solving, for whom, and why now?
+## Colors
+Explain the palette and what each token is for.
 
-## Context
-What is true today? Include product, user, technical, or operational context that matters for the decision.
+## Typography
+Describe the type system and emphasis rules.
 
-## Goals
-- Goal 1
-- Goal 2
-- Goal 3
+## Layout
+Document spacing, density, and page structure expectations.
 
-## Non-goals
-- Non-goal 1
-- Non-goal 2
+## Shapes
+Describe corner radius and shape language.
 
-## Users / operators affected
-- Primary users:
-- Internal operators:
-- Reviewers / approvers:
+## Components
+List the most important reusable patterns and how they should feel in use.
 
-## Proposed approach
-Describe the intended solution in enough detail that design, product, engineering, and operations can align on the plan.
-
-## Key decisions
-| Decision | Choice | Why |
-| --- | --- | --- |
-| Example | Choose X | It best fits the rollout constraints |
-
-## Alternatives considered
-1. **Option A** — why it was considered, why it was not chosen.
-2. **Option B** — why it was considered, why it was not chosen.
-
-## Scope
-### In scope
-- Item 1
-- Item 2
-
-### Out of scope
-- Item 1
-- Item 2
-
-## Delivery plan
-### Phase 1
-- Milestone / output
-- Verification
-
-### Phase 2
-- Milestone / output
-- Verification
-
-## Risks and mitigations
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| Example risk | Medium | Add a guardrail |
-
-## Open questions
-- Question 1
-- Question 2
-
-## Rollout and verification
-- How will we validate the change?
-- What scripts, tests, or manual checks prove readiness?
-- What follow-up metrics or signals matter after launch?
-
-## Change log
-- YYYY-MM-DD — Initial draft created.
+## Do's and Don'ts
+- **Do** capture the stable design decisions that other teams should preserve.
+- **Do** link out to implementation specs, issues, or code when details live elsewhere.
+- **Don't** duplicate every engineering detail in the design artifact.
+- **Don't** leave unresolved placeholders in a finalized design doc.

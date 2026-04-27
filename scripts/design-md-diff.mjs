@@ -1,31 +1,24 @@
 #!/usr/bin/env node
-import { access, readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const [fromArg = "docs/design/_template/DESIGN.md", toArg = "docs/design/project-intake/DESIGN.md"] = process.argv.slice(2);
-const fromPath = path.resolve(process.cwd(), fromArg);
-const toPath = path.resolve(process.cwd(), toArg);
+const defaults = [
+  "docs/design/_template/DESIGN.md",
+  "docs/design/project-intake/DESIGN.md",
+];
+const args = process.argv.slice(2);
+const cliArgs = args.length > 0 ? ["diff", ...args] : ["diff", ...defaults];
+const cliPath = path.resolve(process.cwd(), "node_modules/.bin/design.md");
 
-async function ensure(filePath) {
-  try {
-    await access(filePath);
-  } catch {
-    console.error(`Missing file: ${filePath}`);
-    process.exit(1);
-  }
+const result = spawnSync(cliPath, cliArgs, {
+  cwd: process.cwd(),
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
+
+if (result.error) {
+  console.error(result.error.message);
+  process.exit(1);
 }
 
-await ensure(fromPath);
-await ensure(toPath);
-
-const [fromText, toText] = await Promise.all([
-  readFile(fromPath, "utf8"),
-  readFile(toPath, "utf8"),
-]);
-
-console.log("design-md diff placeholder");
-console.log(`- baseline: ${fromPath}`);
-console.log(`- candidate: ${toPath}`);
-console.log(`- baseline lines: ${fromText.split("\n").length}`);
-console.log(`- candidate lines: ${toText.split("\n").length}`);
-console.log("- next: wire this script to the official Google design.md diff/review flow once the team adopts the upstream package or CLI");
+process.exit(result.status ?? 1);

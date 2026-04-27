@@ -1,35 +1,21 @@
 #!/usr/bin/env node
-import { access } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const targetArg = process.argv[2] || "docs/design";
-const target = path.resolve(process.cwd(), targetArg);
+const defaultTarget = "docs/design/project-intake/DESIGN.md";
+const args = process.argv.slice(2);
+const cliArgs = args.length > 0 ? ["lint", ...args] : ["lint", defaultTarget];
+const cliPath = path.resolve(process.cwd(), "node_modules/.bin/design.md");
 
-async function exists(filePath) {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
+const result = spawnSync(cliPath, cliArgs, {
+  cwd: process.cwd(),
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
 
-const templatePath = path.resolve(process.cwd(), "docs/design/_template/DESIGN.md");
-const hasTarget = await exists(target);
-const hasTemplate = await exists(templatePath);
-
-if (!hasTemplate) {
-  console.error(`Missing design template: ${templatePath}`);
+if (result.error) {
+  console.error(result.error.message);
   process.exit(1);
 }
 
-if (!hasTarget) {
-  console.error(`Design docs path not found: ${target}`);
-  process.exit(1);
-}
-
-console.log("design-md lint placeholder");
-console.log(`- target: ${target}`);
-console.log(`- template: ${templatePath}`);
-console.log("- status: repo foundation is ready for Google design.md tooling hookup");
-console.log("- next: replace this placeholder with the upstream design.md linter/validator once the team chooses the installation path");
+process.exit(result.status ?? 1);

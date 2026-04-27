@@ -22,7 +22,7 @@ Examples:
 
 ## Current repo support
 
-This rollout slice adds repo-local scripts so the team can start using the convention immediately:
+This repo now wires the convention to the native Google `@google/design.md` tooling:
 
 ```bash
 npm run design:lint
@@ -30,4 +30,9 @@ npm run design:diff
 npm run design:export
 ```
 
-These are safe placeholders today. They verify the repo structure and make room for the official Google design.md tooling hookup later, without blocking adoption now.
+Defaults:
+- `design:lint` validates `docs/design/project-intake/DESIGN.md`
+- `design:diff` compares `docs/design/_template/DESIGN.md` against the pilot doc
+- `design:export` writes a DTCG token export to `docs/design/project-intake/DESIGN.dtcg.json`
+
+Each wrapper also accepts explicit file arguments when a future initiative needs a different target.

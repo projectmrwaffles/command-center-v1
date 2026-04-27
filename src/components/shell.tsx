@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
@@ -103,8 +104,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="border-t border-border px-5 py-4 text-xs text-text-muted">
-            <div className="flex items-center justify-between">
+          <div className="border-t border-border px-5 py-4">
+            <ThemeToggle className="mb-4" />
+            <div className="flex items-center justify-between text-xs text-text-muted">
               <span className="uppercase tracking-[0.18em]">API</span>
               <span className="font-mono text-text-secondary">v1</span>
             </div>
@@ -113,6 +115,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="min-w-0 flex-1">
           <main className="min-h-screen px-3 py-5 pb-24 sm:px-4 sm:py-6 md:px-8 md:py-8 md:pb-8">
+            <div className="mb-4 md:hidden">
+              <ThemeToggle />
+            </div>
             {children}
           </main>
         </div>

@@ -32,10 +32,10 @@ function StatusDot({ status }: { status: string }) {
 
 function BentoBadge({ children, color }: { children: React.ReactNode; color: "red" | "amber" | "blue" | "green" }) {
   const styles = {
-    red: "border-red-200 bg-red-50 text-zinc-700",
-    amber: "border-amber-200 bg-amber-50 text-amber-700",
-    blue: "border-sky-200 bg-sky-50 text-sky-700",
-    green: "border-emerald-200 bg-emerald-50 text-zinc-700",
+    red: "border-accent/15 bg-accent-soft text-text-secondary",
+    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
+    blue: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200",
+    green: "border-emerald-200 bg-emerald-50 text-text-secondary dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200",
   };
   return <span className={cn("rounded-full border px-2 py-1 text-[11px] font-medium", styles[color])}>{children}</span>;
 }
@@ -43,8 +43,8 @@ function BentoBadge({ children, color }: { children: React.ReactNode; color: "re
 function SectionTitle({ children, meta }: { children: React.ReactNode; meta?: string }) {
   return (
     <div className="space-y-1">
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{children}</h2>
-      {meta ? <p className="text-sm text-zinc-500">{meta}</p> : null}
+      <h2 className="text-lg font-semibold tracking-tight text-text">{children}</h2>
+      {meta ? <p className="text-sm text-text-muted">{meta}</p> : null}
     </div>
   );
 }
@@ -182,44 +182,44 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Dashboard</h1>
-              <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
+              <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">Dashboard</h1>
+              <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
                 What needs attention, which projects are moving, and where to jump in.
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <PageHeroStat className="border-zinc-200 bg-zinc-50/70 shadow-none">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">
-                  <AlertTriangle className="h-4 w-4 text-zinc-500" />
+              <PageHeroStat className="shadow-none">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
+                  <AlertTriangle className="h-4 w-4 text-accent" />
                   Needs attention
                 </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{needsAttentionCount}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{needsAttentionCount}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-zinc-200 bg-zinc-50/70 shadow-none">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">
-                  <Layers3 className="h-4 w-4 text-zinc-500" />
+              <PageHeroStat className="shadow-none">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
+                  <Layers3 className="h-4 w-4 text-accent" />
                   Active work
                 </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{projectCards.length}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{projectCards.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-zinc-200 bg-zinc-50/70 shadow-none">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">
-                  <Bot className="h-4 w-4 text-zinc-500" />
+              <PageHeroStat className="shadow-none">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
+                  <Bot className="h-4 w-4 text-accent" />
                   Agents active
                 </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{activeAgents}</div>
               </PageHeroStat>
             </div>
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:items-end">
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-3 lg:max-w-sm">
-              <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-                <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-zinc-500" : connectionStatus === "connecting" ? "text-amber-500" : "text-zinc-500")} />
+            <div className="rounded-2xl border border-border bg-panel-elevated p-3 lg:max-w-sm">
+              <div className="flex items-center gap-2 text-sm font-medium text-text">
+                <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-accent" : connectionStatus === "connecting" ? "text-amber-500" : "text-text-muted")} />
                 {connectionStatus === "connected" ? "Live updates on" : connectionStatus === "connecting" ? "Connecting live feed..." : "Live feed offline"}
               </div>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">
+              <p className="mt-1 text-sm leading-6 text-text-muted">
                 Open a project or jump into the project list.
               </p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
@@ -229,14 +229,14 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 </Button>
                 <Link
                   href="/projects"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-panel px-6 text-sm font-medium text-text-secondary transition-colors hover:border-accent/25 hover:bg-accent-soft/60 hover:text-text"
                 >
                   <Briefcase className="h-4 w-4" />
                   All projects
                 </Link>
               </div>
             </div>
-            <p className="px-1 text-xs text-zinc-500">{teams.length} teams • {usage24h.totalTokens.toLocaleString()} tokens in the last 24h</p>
+            <p className="px-1 text-xs text-text-muted">{teams.length} teams • {usage24h.totalTokens.toLocaleString()} tokens in the last 24h</p>
           </div>
         </div>
       </PageHero>
@@ -248,7 +248,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <SectionTitle meta="Active work, current state, and open flags.">Active Work ({projectCards.length})</SectionTitle>
-              <Link href="/projects" className="text-sm font-medium text-zinc-700 transition-colors hover:text-red-800">
+              <Link href="/projects" className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-strong">
                 View all
               </Link>
             </div>
@@ -282,7 +282,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <SectionTitle meta="Team availability, project load, and approvals needing attention.">Teams ({teams.length})</SectionTitle>
-              <Link href="/teams" className="text-sm font-medium text-zinc-700 transition-colors hover:text-red-800">View all</Link>
+              <Link href="/teams" className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-strong">View all</Link>
             </div>
 
             {teams.length === 0 ? (
@@ -312,9 +312,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                               <StatusDot status={teamStatus} />
-                              <p className="text-sm font-semibold tracking-tight text-zinc-950">{team.name}</p>
+                              <p className="text-sm font-semibold tracking-tight text-text">{team.name}</p>
                             </div>
-                            <span className="text-xs text-zinc-400">{teamStatus}</span>
+                            <span className="text-xs text-text-muted">{teamStatus}</span>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <BentoBadge color={onlineCount > 0 ? "green" : "red"}>{onlineCount}/{teamAgents.length} online</BentoBadge>
@@ -341,32 +341,32 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
   const hasFlags = (project.approvalCount ?? 0) + (project.blockedCount ?? 0) > 0;
 
   return (
-    <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-red-200">
+    <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-accent/20">
       <Card variant="featured" className="relative h-full rounded-[24px] overflow-hidden">
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start gap-3">
             <div className="min-w-0">
-              <p className="truncate text-base font-semibold tracking-tight text-zinc-950 transition-colors group-hover:text-zinc-700">{project.name}</p>
-              <p className="mt-1 text-sm text-zinc-500">
-                {project.type ? <span className="uppercase tracking-[0.14em] text-[11px] text-zinc-400">{project.type}</span> : null}
+              <p className="truncate text-base font-semibold tracking-tight text-text transition-colors group-hover:text-text-secondary">{project.name}</p>
+              <p className="mt-1 text-sm text-text-muted">
+                {project.type ? <span className="uppercase tracking-[0.14em] text-[11px] text-text-muted">{project.type}</span> : null}
                 {project.type && project.teamName ? <span> • </span> : null}
                 {project.teamName ? <span>{project.teamName}</span> : null}
               </p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-2xl border border-border bg-panel-elevated p-4">
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Progress</p>
-                <p className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">{progress}% complete</p>
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Progress</p>
+                <p className="mt-1 text-lg font-semibold tracking-tight text-text">{progress}% complete</p>
               </div>
               <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", hasFlags ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-zinc-700")}>
                 {hasFlags ? `${(project.approvalCount ?? 0) + (project.blockedCount ?? 0)} active flags` : "Healthy"}
               </span>
             </div>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-red-100">
-              <div className="h-2 rounded-full bg-red-500 transition-all" style={{ width: `${progress}%` }} />
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-accent-soft">
+              <div className="h-2 rounded-full bg-accent transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
@@ -376,9 +376,9 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             {!hasFlags ? <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-zinc-700">No active flags</span> : null}
           </div>
 
-          <div className="flex items-center justify-between border-t border-zinc-100 pt-1 text-sm text-zinc-500">
+          <div className="flex items-center justify-between border-t border-border/70 pt-1 text-sm text-text-muted">
             <span>Open project workspace</span>
-            <span className="inline-flex items-center gap-1 font-medium text-zinc-700 transition-colors group-hover:text-red-800">
+            <span className="inline-flex items-center gap-1 font-medium text-text-secondary transition-colors group-hover:text-accent-strong">
               View project
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </span>
@@ -391,40 +391,40 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
 function UsageCard({ usage }: { usage: UsageModel }) {
   return (
-    <Card variant="soft" className="rounded-[24px] border-zinc-200 bg-white">
+    <Card variant="soft" className="rounded-[24px]">
       <CardContent className="space-y-5 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-700">24h summary</p>
-            <p className="mt-2 text-sm text-zinc-500">Usage totals and the models carrying most of the load.</p>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">24h summary</p>
+            <p className="mt-2 text-sm text-text-muted">Usage totals and the models carrying most of the load.</p>
           </div>
-          <span className="rounded-full border border-red-100 bg-white px-3 py-1 text-xs font-medium text-zinc-700">Live rollup</span>
+          <span className="rounded-full border border-accent/15 bg-panel px-3 py-1 text-xs font-medium text-text-secondary">Live rollup</span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-red-100 bg-white p-4">
-            <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Tokens</div>
-            <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{usage.totalTokens.toLocaleString()}</div>
+          <div className="rounded-2xl border border-accent/15 bg-panel p-4">
+            <div className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Tokens</div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{usage.totalTokens.toLocaleString()}</div>
           </div>
-          <div className="rounded-2xl border border-red-100 bg-white p-4">
-            <div className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Cost</div>
-            <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">${usage.totalCost.toFixed(4)}</div>
+          <div className="rounded-2xl border border-accent/15 bg-panel p-4">
+            <div className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Cost</div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight text-text">${usage.totalCost.toFixed(4)}</div>
           </div>
         </div>
 
         {usage.topModels.length > 0 ? (
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Top models</p>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Top models</p>
             <div className="space-y-2">
               {usage.topModels.map((model) => (
-                <div key={`${model.provider}:${model.model}`} className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm">
+                <div key={`${model.provider}:${model.model}`} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-panel px-4 py-3 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-zinc-900">{model.model}</p>
-                    <p className="text-xs text-zinc-500">{model.provider}</p>
+                    <p className="truncate font-medium text-text">{model.model}</p>
+                    <p className="text-xs text-text-muted">{model.provider}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-zinc-900">{model.tokens.toLocaleString()}</p>
-                    <p className="text-xs text-zinc-500">${model.cost.toFixed(4)}</p>
+                    <p className="font-medium text-text">{model.tokens.toLocaleString()}</p>
+                    <p className="text-xs text-text-muted">${model.cost.toFixed(4)}</p>
                   </div>
                 </div>
               ))}

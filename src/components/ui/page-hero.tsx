@@ -5,7 +5,7 @@ export function PageHero({ children, className }: { children: ReactNode; classNa
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_10px_28px_rgba(24,24,27,0.05)]",
+        "overflow-hidden rounded-[28px] border border-border bg-panel text-text shadow-[var(--shadow-panel)]",
         className,
       )}
     >
@@ -16,7 +16,7 @@ export function PageHero({ children, className }: { children: ReactNode; classNa
 
 export function PageHeroStat({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_6px_18px_rgba(24,24,27,0.04)]", className)}>
+    <div className={cn("rounded-2xl border border-border bg-panel-elevated p-4 text-text shadow-[var(--shadow-panel-soft)]", className)}>
       {children}
     </div>
   );

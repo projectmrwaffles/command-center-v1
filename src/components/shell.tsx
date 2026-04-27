@@ -8,7 +8,6 @@ function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
-// Icon components (inline for self-contained shell)
 function OverviewIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -60,7 +59,6 @@ function TeamsIcon({ className }: { className?: string }) {
   );
 }
 
-// Full navigation (used on mobile + desktop sidebar)
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: OverviewIcon },
   { href: "/projects", label: "Projects", icon: ProjectsIcon },
@@ -74,18 +72,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
 
   return (
-    <div className="bg-zinc-50 text-zinc-950">
+    <div className="bg-page text-text">
       <div className="flex w-full">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-zinc-200 md:bg-white">
-          {/* Header */}
-          <div className="px-5 py-5">
-            <div className="text-sm font-semibold tracking-tight">Command Center</div>
-            <div className="text-xs text-zinc-500">V1</div>
+        <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border md:bg-shell md:shadow-[var(--shadow-shell)]">
+          <div className="border-b border-border/80 px-5 py-5">
+            <div className="text-sm font-semibold tracking-[0.01em] text-text">Command Center</div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-text-muted">V1</div>
           </div>
 
-          {/* Nav */}
-          <nav className="flex flex-col gap-0.5 px-3 pb-2 flex-1">
+          <nav className="flex flex-1 flex-col gap-1 px-3 py-3">
             {NAV.map((item) => {
               const active = isActive(item.href);
               const Icon = item.icon;
@@ -94,33 +89,28 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    "relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
                     active
-                      ? "bg-zinc-900/5 text-zinc-900"
-                      : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                      ? "bg-accent-soft text-accent-soft-foreground"
+                      : "text-text-secondary hover:bg-panel hover:text-text"
                   )}
                 >
-                  {/* Red left indicator for active state */}
-                  {active && (
-                    <span className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r bg-red-600" />
-                  )}
-                  <Icon className={cn("h-5 w-5", active ? "text-red-600" : "text-zinc-400")} />
+                  {active && <span className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r bg-accent" />}
+                  <Icon className={cn("h-5 w-5", active ? "text-accent" : "text-text-muted")} />
                   <span>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* Footer */}
-          <div className="border-t border-zinc-200 px-5 py-4 text-xs text-zinc-500">
+          <div className="border-t border-border px-5 py-4 text-xs text-text-muted">
             <div className="flex items-center justify-between">
-              <span>API</span>
-              <span className="font-mono text-zinc-400">v1</span>
+              <span className="uppercase tracking-[0.18em]">API</span>
+              <span className="font-mono text-text-secondary">v1</span>
             </div>
           </div>
         </aside>
 
-        {/* Main */}
         <div className="min-w-0 flex-1">
           <main className="min-h-screen px-3 py-5 pb-24 sm:px-4 sm:py-6 md:px-8 md:py-8 md:pb-8">
             {children}
@@ -128,12 +118,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      {/* Mobile bottom tabs - horizontal scroll */}
-      <nav
-        data-testid="mobile-tabs"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white md:hidden"
-      >
-        <div className="flex overflow-x-auto scrollbar-hide justify-around py-1">
+      <nav data-testid="mobile-tabs" className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-shell/95 backdrop-blur md:hidden">
+        <div className="flex justify-around overflow-x-auto py-1 scrollbar-hide">
           {NAV.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -142,11 +128,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-2 text-[10px] font-medium transition-colors shrink-0",
-                  active ? "text-zinc-900" : "text-zinc-400"
+                  "flex shrink-0 flex-col items-center gap-0.5 rounded-xl px-3 py-2 text-[10px] font-medium transition-colors",
+                  active ? "bg-accent-soft text-accent-soft-foreground" : "text-text-muted"
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "text-red-600")} />
+                <Icon className={cn("h-5 w-5", active ? "text-accent" : "text-text-muted")} />
                 <span className="whitespace-nowrap">{item.label}</span>
               </Link>
             );

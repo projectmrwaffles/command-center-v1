@@ -31,16 +31,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const base =
-      "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ring-offset-background";
+      "inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50";
 
     const variants: Record<ButtonVariant, string> = {
-      default: "bg-zinc-900 text-white hover:bg-zinc-800",
-      secondary: "bg-zinc-100 text-zinc-900 hover:bg-zinc-200",
+      default: "bg-accent text-white hover:bg-accent-strong",
+      secondary: "bg-panel-elevated text-text hover:bg-panel",
       outline:
-        "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
-      destructive: "bg-red-600 text-white hover:bg-red-700",
-      ghost: "text-zinc-900 hover:bg-zinc-100",
-      warm: "border border-red-600 bg-red-600 text-white shadow-[0_8px_20px_rgba(220,38,38,0.16)] hover:border-red-700 hover:bg-red-700 hover:shadow-[0_10px_24px_rgba(185,28,28,0.18)]", 
+        "border border-border bg-panel text-text hover:border-accent/30 hover:bg-accent-soft/60",
+      destructive: "bg-accent-strong text-white hover:bg-accent-strong/90",
+      ghost: "text-text hover:bg-accent-soft/50",
+      warm: "border border-accent bg-accent text-white shadow-[var(--shadow-accent)] hover:border-accent-strong hover:bg-accent-strong",
     };
 
     const sizes: Record<ButtonSize, string> = {

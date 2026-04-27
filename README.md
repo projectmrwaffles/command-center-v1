@@ -9,6 +9,9 @@ npm run dev
 npm run lint
 npm run typecheck
 npm run build
+npm run design:lint
+npm run design:diff
+npm run design:export
 npm run verify:closeout
 npm run verify:smoke
 ```
@@ -60,6 +63,13 @@ Runs a disposable end-to-end backend smoke pass against local or provided app UR
 - if `AGENT_AUTH_TOKEN` is present: proves `/api/agent/log` rejects cross-project task tampering, scoped task updates succeed, and usage validation rejects negative metrics
 - if `AGENT_AUTH_TOKEN` is absent: proves anon cannot write `agent_events`/`ai_usage` directly while service-role backends can
 - cleans up all disposable records afterward
+
+## Design doc workflow
+
+- Initiative design docs live at `docs/design/<initiative-slug>/DESIGN.md`.
+- Start from `docs/design/_template/DESIGN.md`.
+- See `docs/design/README.md` for the repo convention and current workflow.
+- The `design:*` scripts are safe placeholders until the team wires in the upstream Google design.md tooling.
 
 ## Notes
 

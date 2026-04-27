@@ -26,16 +26,16 @@ function cn(...classes: Array<string | undefined | false | null>) {
 }
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === "active" ? "bg-emerald-500" : status === "idle" ? "bg-zinc-400" : "bg-zinc-400";
+  const color = status === "active" ? "bg-success" : status === "idle" ? "bg-text-muted" : "bg-text-muted";
   return <span className={cn("h-2.5 w-2.5 rounded-full", color)} />;
 }
 
 function BentoBadge({ children, color }: { children: React.ReactNode; color: "red" | "amber" | "blue" | "green" }) {
   const styles = {
-    red: "border-accent/15 bg-accent-soft text-text-secondary",
-    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
-    blue: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200",
-    green: "border-emerald-200 bg-emerald-50 text-text-secondary dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200",
+    red: "border-accent/15 bg-accent-soft text-accent-soft-foreground",
+    amber: "border-[color:color-mix(in_srgb,var(--color-warning)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-warning)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-warning)_72%,var(--color-text))]",
+    blue: "border-[color:color-mix(in_srgb,var(--color-info)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-info)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-info)_72%,var(--color-text))]",
+    green: "border-[color:color-mix(in_srgb,var(--color-success)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-success)_72%,var(--color-text))]",
   };
   return <span className={cn("rounded-full border px-2 py-1 text-[11px] font-medium", styles[color])}>{children}</span>;
 }
@@ -216,7 +216,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:items-end">
             <div className="rounded-2xl border border-border bg-panel-elevated p-3 lg:max-w-sm">
               <div className="flex items-center gap-2 text-sm font-medium text-text">
-                <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-accent" : connectionStatus === "connecting" ? "text-amber-500" : "text-text-muted")} />
+                <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-accent" : connectionStatus === "connecting" ? "text-warning" : "text-text-muted")} />
                 {connectionStatus === "connected" ? "Live updates on" : connectionStatus === "connecting" ? "Connecting live feed..." : "Live feed offline"}
               </div>
               <p className="mt-1 text-sm leading-6 text-text-muted">
@@ -255,7 +255,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             {projectCards.length === 0 ? (
               <BrandedEmptyState
                 className="items-start px-6 py-10 text-left"
-                icon={<Layers3 className="h-7 w-7 text-red-600" />}
+                icon={<Layers3 className="h-7 w-7" />}
                 title="No active projects yet"
                 description="Create a project to start routing work, tracking progress, and surfacing dashboard health here."
                 action={
@@ -288,7 +288,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             {teams.length === 0 ? (
               <BrandedEmptyState
                 className="items-start px-6 py-10 text-left"
-                icon={<Users2 className="h-7 w-7 text-red-600" />}
+                icon={<Users2 className="h-7 w-7" />}
                 title="No teams yet"
                 description="Teams will show up here with online coverage, project counts, and pending approvals once configured."
               />
@@ -361,7 +361,14 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Progress</p>
                 <p className="mt-1 text-lg font-semibold tracking-tight text-text">{progress}% complete</p>
               </div>
-              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", hasFlags ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-zinc-700")}>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  hasFlags
+                    ? "bg-[color:color-mix(in_srgb,var(--color-warning)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-warning)_72%,var(--color-text))]"
+                    : "bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-success)_72%,var(--color-text))]",
+                )}
+              >
                 {hasFlags ? `${(project.approvalCount ?? 0) + (project.blockedCount ?? 0)} active flags` : "Healthy"}
               </span>
             </div>
@@ -371,9 +378,9 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
           </div>
 
           <div className="mt-auto flex flex-wrap gap-2">
-            {(project.approvalCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-red-100 bg-red-50 px-2.5 py-1 text-[11px] font-medium text-zinc-700">{project.approvalCount} approvals</span> : null}
-            {(project.blockedCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">{project.blockedCount} blocked</span> : null}
-            {!hasFlags ? <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-zinc-700">No active flags</span> : null}
+            {(project.approvalCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-accent/15 bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-accent-soft-foreground">{project.approvalCount} approvals</span> : null}
+            {(project.blockedCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--color-warning)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-warning)_14%,var(--color-panel))] px-2.5 py-1 text-[11px] font-medium text-[color:color-mix(in_srgb,var(--color-warning)_72%,var(--color-text))]">{project.blockedCount} blocked</span> : null}
+            {!hasFlags ? <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--color-success)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-panel))] px-2.5 py-1 text-[11px] font-medium text-[color:color-mix(in_srgb,var(--color-success)_72%,var(--color-text))]">No active flags</span> : null}
           </div>
 
           <div className="flex items-center justify-between border-t border-border/70 pt-1 text-sm text-text-muted">
@@ -433,7 +440,7 @@ function UsageCard({ usage }: { usage: UsageModel }) {
         ) : (
           <BrandedEmptyState
             className="px-6 py-10"
-            icon={<Workflow className="h-7 w-7 text-red-600" />}
+            icon={<Workflow className="h-7 w-7" />}
             title="No usage yet"
             description="Model usage will populate here once jobs begin spending tokens."
           />

@@ -75,8 +75,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="bg-page text-text">
       <div className="flex w-full">
-        <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border md:bg-shell md:shadow-[var(--shadow-shell)]">
-          <div className="border-b border-border/80 px-5 py-5">
+        <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border/80 md:bg-shell md:shadow-[var(--shadow-shell)]">
+          <div className="border-b border-border/70 px-5 py-5">
             <div className="text-sm font-semibold tracking-[0.01em] text-text">Command Center</div>
             <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-text-muted">V1</div>
           </div>
@@ -93,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     "relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
                     active
                       ? "bg-accent-soft text-accent-soft-foreground"
-                      : "text-text-secondary hover:bg-panel hover:text-text"
+                      : "text-text-secondary hover:bg-[color:color-mix(in_srgb,var(--color-panel)_88%,white)] hover:text-text"
                   )}
                 >
                   {active && <span className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r bg-accent" />}
@@ -104,7 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="border-t border-border px-5 py-4">
+          <div className="border-t border-border/70 px-5 py-4">
             <ThemeToggle className="mb-4" />
             <div className="flex items-center justify-between text-xs text-text-muted">
               <span className="uppercase tracking-[0.18em]">API</span>
@@ -123,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <nav data-testid="mobile-tabs" className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-shell/95 backdrop-blur md:hidden">
+      <nav data-testid="mobile-tabs" className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-[color:color-mix(in_srgb,var(--color-panel)_88%,white)]/95 backdrop-blur md:hidden">
         <div className="flex justify-around overflow-x-auto py-1 scrollbar-hide">
           {NAV.map((item) => {
             const active = isActive(item.href);

@@ -214,7 +214,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:items-end">
-            <div className="rounded-2xl border border-border bg-panel-elevated p-3 lg:max-w-sm">
+            <div className="rounded-2xl border border-border/70 bg-panel-elevated p-3 shadow-[var(--shadow-panel-soft)] lg:max-w-sm">
               <div className="flex items-center gap-2 text-sm font-medium text-text">
                 <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-accent" : connectionStatus === "connecting" ? "text-warning" : "text-text-muted")} />
                 {connectionStatus === "connected" ? "Live updates on" : connectionStatus === "connecting" ? "Connecting live feed..." : "Live feed offline"}
@@ -229,7 +229,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 </Button>
                 <Link
                   href="/projects"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-panel px-6 text-sm font-medium text-text-secondary transition-colors hover:border-accent/25 hover:bg-accent-soft/60 hover:text-text"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border/75 bg-panel px-6 text-sm font-medium text-text-secondary transition-colors hover:border-accent/25 hover:bg-accent-soft/60 hover:text-text"
                 >
                   <Briefcase className="h-4 w-4" />
                   All projects
@@ -355,7 +355,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+          <div className="rounded-2xl border border-border/70 bg-panel-elevated p-4 shadow-[var(--shadow-panel-soft)]">
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Progress</p>
@@ -383,7 +383,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             {!hasFlags ? <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--color-success)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-panel))] px-2.5 py-1 text-[11px] font-medium text-[color:color-mix(in_srgb,var(--color-success)_72%,var(--color-text))]">No active flags</span> : null}
           </div>
 
-          <div className="flex items-center justify-between border-t border-border/70 pt-1 text-sm text-text-muted">
+          <div className="flex items-center justify-between border-t border-border/60 pt-1 text-sm text-text-muted">
             <span>Open project workspace</span>
             <span className="inline-flex items-center gap-1 font-medium text-text-secondary transition-colors group-hover:text-accent-strong">
               View project
@@ -405,15 +405,15 @@ function UsageCard({ usage }: { usage: UsageModel }) {
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">24h summary</p>
             <p className="mt-2 text-sm text-text-muted">Usage totals and the models carrying most of the load.</p>
           </div>
-          <span className="rounded-full border border-accent/15 bg-panel px-3 py-1 text-xs font-medium text-text-secondary">Live rollup</span>
+          <span className="rounded-full border border-accent/15 bg-panel-elevated px-3 py-1 text-xs font-medium text-text-secondary">Live rollup</span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-accent/15 bg-panel p-4">
+          <div className="rounded-2xl border border-accent/15 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Tokens</div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{usage.totalTokens.toLocaleString()}</div>
           </div>
-          <div className="rounded-2xl border border-accent/15 bg-panel p-4">
+          <div className="rounded-2xl border border-accent/15 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Cost</div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-text">${usage.totalCost.toFixed(4)}</div>
           </div>
@@ -424,7 +424,7 @@ function UsageCard({ usage }: { usage: UsageModel }) {
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Top models</p>
             <div className="space-y-2">
               {usage.topModels.map((model) => (
-                <div key={`${model.provider}:${model.model}`} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-panel px-4 py-3 text-sm">
+                <div key={`${model.provider}:${model.model}`} className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-panel px-4 py-3 text-sm shadow-[var(--shadow-panel-soft)]">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-text">{model.model}</p>
                     <p className="text-xs text-text-muted">{model.provider}</p>

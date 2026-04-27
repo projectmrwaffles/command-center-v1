@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 export type CardVariant = "default" | "featured" | "soft";
 
 const cardVariants: Record<CardVariant, string> = {
-  default: "border-border bg-panel text-text shadow-[var(--shadow-panel-soft)]",
+  default: "border border-border/80 bg-panel text-text shadow-[var(--shadow-panel-soft)]",
   featured:
-    "border-border bg-panel text-text shadow-[var(--shadow-panel)] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[var(--shadow-panel)]",
-  soft: "border-border bg-panel-elevated text-text shadow-[var(--shadow-panel-soft)]",
+    "border border-border/75 bg-panel text-text shadow-[var(--shadow-panel)] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[var(--shadow-panel)]",
+  soft: "border border-border/70 bg-panel-elevated text-text shadow-[var(--shadow-panel-soft)]",
 };
 
 export function Card({
@@ -15,7 +15,7 @@ export function Card({
   variant = "default",
   ...props
 }: React.HTMLAttributes<HTMLDivElement> & { variant?: CardVariant }) {
-  return <div className={cn("rounded-xl border", cardVariants[variant], className)} {...props} />;
+  return <div className={cn("rounded-xl", cardVariants[variant], className)} {...props} />;
 }
 
 export function CardHeader({

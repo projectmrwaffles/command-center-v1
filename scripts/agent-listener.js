@@ -444,6 +444,17 @@ function normalizeSelectorValue(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+const DESIGN_SELECTOR_STOP_WORDS = new Set([
+  "a", "an", "and", "build", "design", "doc", "docs", "flow", "flows", "for", "implementation",
+  "implement", "in", "of", "or", "project", "qa", "task", "the", "to", "validation",
+]);
+
+function getSelectorTerms(value) {
+  return normalizeSelectorValue(value)
+    .split("-")
+    .filter((term) => term.length >= 3 && !DESIGN_SELECTOR_STOP_WORDS.has(term));
+}
+
 function listRepoDesignDocs(repoWorkspacePath) {
   const designRoot = repoWorkspacePath ? path.join(repoWorkspacePath, "docs", "design") : null;
   if (!designRoot || !fs.existsSync(designRoot)) return [];
@@ -496,6 +507,11 @@ function resolveRepoDesignContext({ repoWorkspacePath, projectName, taskTitle, t
   const selectors = [projectName, taskTitle, taskType]
     .map(normalizeSelectorValue)
     .filter(Boolean);
+  const selectorTerms = Array.from(new Set([
+    ...getSelectorTerms(projectName),
+    ...getSelectorTerms(taskTitle),
+    ...getSelectorTerms(taskType),
+  ]));
 
   const scored = candidates.map((candidate) => {
     const relativePath = path.relative(repoWorkspacePath, candidate);
@@ -507,6 +523,12 @@ function resolveRepoDesignContext({ repoWorkspacePath, projectName, taskTitle, t
       if (normalizedPath.includes(selector)) {
         score += 10;
         reasons.push(`path matched \"${selector}\"`);
+      }
+    }
+    for (const term of selectorTerms) {
+      if (normalizedPath.includes(term)) {
+        score += 4;
+        reasons.push(`path matched term \"${term}\"`);
       }
     }
     const depth = relativePath.split(path.sep).length;

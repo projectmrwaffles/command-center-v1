@@ -11,6 +11,7 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "listener-design-context-
 const repoRoot = path.join(tempRoot, "workspace-tech-lead-architect", "projects", "acme-notes");
 fs.mkdirSync(path.join(repoRoot, "docs", "design", "notes-vault"), { recursive: true });
 fs.mkdirSync(path.join(repoRoot, "docs", "design", "_template"), { recursive: true });
+fs.writeFileSync(path.join(repoRoot, "docs", "design", "DESIGN.md"), `# Generic Design\n\n- High-level repository guidance only\n`);
 fs.writeFileSync(path.join(repoRoot, "docs", "design", "notes-vault", "DESIGN.md"), `# Notes Vault Design\n\n- Use Supabase auth\n- Ship repo-backed implementation\n- Validate QA flows\n`);
 fs.writeFileSync(path.join(repoRoot, "docs", "design", "_template", "DESIGN.md"), `# Template\n- Ignore me\n`);
 
@@ -38,6 +39,9 @@ if (!context) throw new Error("Expected design context to resolve");
 if (context.relativePath !== path.join("docs", "design", "notes-vault", "DESIGN.md")) {
   throw new Error(`Unexpected design path: ${context.relativePath}`);
 }
+if (context.candidateCount !== 2) {
+  throw new Error(`Expected competing design candidates, got ${context.candidateCount}`);
+}
 
 const message = buildAgentMessage({
   project,
@@ -56,6 +60,32 @@ if (!message.includes("DESIGN context to follow:")) {
 }
 if (!message.includes("Use Supabase auth")) {
   throw new Error("Prompt missing DESIGN summary bullet");
+}
+
+const qaMessage = buildAgentMessage({
+  project,
+  taskTitle: "Acceptance review for Notes Vault flows",
+  taskId: "task-qa-123",
+  projectId: "project-123",
+  taskType: "qa_validation",
+  taskMetadata: { qa_mode: "acceptance_review" },
+});
+
+if (!qaMessage.includes("Selected DESIGN.md context: docs/design/notes-vault/DESIGN.md")) {
+  throw new Error("QA prompt missing selected DESIGN.md path");
+}
+
+const discoveryMessage = buildAgentMessage({
+  project,
+  taskTitle: "Discovery plan for Notes Vault launch",
+  taskId: "task-discovery-123",
+  projectId: "project-123",
+  taskType: "discovery_plan",
+  taskMetadata: {},
+});
+
+if (!discoveryMessage.includes("Selected DESIGN.md context: docs/design/notes-vault/DESIGN.md")) {
+  throw new Error("Discovery prompt missing selected DESIGN.md path");
 }
 
 fs.rmSync(tempRoot, { recursive: true, force: true });

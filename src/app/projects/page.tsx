@@ -107,8 +107,8 @@ function ProjectsContent() {
         <div className="pointer-events-none absolute" />
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-2xl space-y-4">
-            <div className="ds-accent-badge inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-              <Sparkles className="h-3.5 w-3.5 text-accent" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-panel-subtle px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
+              <Sparkles className="h-3.5 w-3.5 text-text-secondary" />
               Project workspace
             </div>
             <div className="space-y-2">
@@ -119,16 +119,16 @@ function ProjectsContent() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <PageHeroStat className="border-accent/15">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">
-                  <Layers3 className="h-4 w-4 text-accent" />
+              <PageHeroStat className="border-border/70">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
+                  <Layers3 className="h-4 w-4 text-text-secondary" />
                   Total projects
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{stats.total}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-accent/15">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">
-                  <FolderKanban className="h-4 w-4 text-accent" />
+              <PageHeroStat className="border-border/70">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
+                  <FolderKanban className="h-4 w-4 text-text-secondary" />
                   Active now
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{stats.active}</div>

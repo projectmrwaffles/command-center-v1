@@ -191,21 +191,21 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <PageHeroStat className="shadow-none">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
-                  <AlertTriangle className="h-4 w-4 text-accent" />
+                  <AlertTriangle className="h-4 w-4 text-warning" />
                   Needs attention
                 </div>
                 <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{needsAttentionCount}</div>
               </PageHeroStat>
-              <PageHeroStat className="shadow-none">
+              <PageHeroStat className="shadow-none border-border/70">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
-                  <Layers3 className="h-4 w-4 text-accent" />
+                  <Layers3 className="h-4 w-4 text-text-secondary" />
                   Active work
                 </div>
                 <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{projectCards.length}</div>
               </PageHeroStat>
-              <PageHeroStat className="shadow-none">
+              <PageHeroStat className="shadow-none border-border/70">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">
-                  <Bot className="h-4 w-4 text-accent" />
+                  <Bot className="h-4 w-4 text-text-secondary" />
                   Agents active
                 </div>
                 <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{activeAgents}</div>
@@ -409,15 +409,15 @@ function UsageCard({ usage }: { usage: UsageModel }) {
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">24h summary</p>
             <p className="mt-2 text-sm text-text-muted">Usage totals and the models carrying most of the load.</p>
           </div>
-          <span className="rounded-full border border-accent/15 bg-panel px-3 py-1 text-xs font-medium text-text-secondary">Live rollup</span>
+          <span className="rounded-full border border-border/70 bg-panel-subtle px-3 py-1 text-xs font-medium text-text-secondary">Live rollup</span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-accent/15 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
+          <div className="rounded-2xl border border-border/70 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Tokens</div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-text">{usage.totalTokens.toLocaleString()}</div>
           </div>
-          <div className="rounded-2xl border border-accent/15 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
+          <div className="rounded-2xl border border-border/70 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
             <div className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Cost</div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-text">${usage.totalCost.toFixed(4)}</div>
           </div>

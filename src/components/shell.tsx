@@ -79,7 +79,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       <div
         className={cn(
           "relative shrink-0 overflow-hidden rounded-[1.25rem] border border-border/70 bg-white shadow-sm transition-transform group-hover:scale-[1.01]",
-          compact ? "h-12 w-[8.5rem]" : "h-20 w-full"
+          compact ? "h-14 w-40" : "h-20 w-full"
         )}
       >
         <Image
@@ -87,10 +87,10 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
           alt="Command Center logo"
           fill
           className={cn(
-            compact ? "object-contain px-3 py-2" : "object-cover object-center px-1 py-0.5 scale-[1.12]",
+            compact ? "object-contain px-2 py-1.5 scale-[1.06]" : "object-cover object-center px-1 py-0.5 scale-[1.12]",
             "transition-transform duration-200 group-hover:scale-[1.15]"
           )}
-          sizes={compact ? "136px" : "216px"}
+          sizes={compact ? "160px" : "216px"}
           priority
         />
       </div>

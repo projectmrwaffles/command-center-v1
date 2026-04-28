@@ -51,7 +51,7 @@ export function TabsList({
   return (
     <div
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-lg border border-border/70 bg-panel-elevated p-1 text-text-secondary",
+        "inline-flex h-10 items-center justify-center rounded-xl border border-border/70 bg-panel/88 p-1 text-text-secondary shadow-[var(--shadow-panel-soft)] backdrop-blur-sm",
         className,
       )}
       {...props}
@@ -78,7 +78,7 @@ export function TabsTrigger({
       onClick={() => ctx.setValue(value)}
       className={cn(
         "inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors",
-        active ? "bg-panel text-text shadow-[var(--shadow-panel-soft)]" : "text-text-secondary hover:text-text",
+        active ? "bg-panel text-text shadow-[var(--shadow-panel-soft)]" : "text-text-secondary hover:bg-accent-soft/40 hover:text-text",
         className,
       )}
     >

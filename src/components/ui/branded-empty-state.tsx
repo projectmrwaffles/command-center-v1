@@ -5,7 +5,7 @@ export function BrandedEmptyState({ icon, title, description, action, className 
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-[28px] border border-dashed border-border bg-panel px-6 py-16 text-center text-text shadow-[var(--shadow-panel-soft)]",
+        "flex flex-col items-center justify-center rounded-[28px] border border-dashed border-border bg-panel/95 px-6 py-16 text-center text-text shadow-[var(--shadow-panel-soft)] backdrop-blur-sm",
         className,
       )}
     >

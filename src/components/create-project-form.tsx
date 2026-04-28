@@ -1061,7 +1061,7 @@ export function CreateProjectForm({
                     <button
                       type="button"
                       onClick={requireAndAdvance}
-                      className="rounded-2xl bg-text px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                      className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-accent)] transition hover:bg-accent-strong"
                     >
                       Review project
                     </button>
@@ -1069,7 +1069,7 @@ export function CreateProjectForm({
                     <button
                       type="button"
                       onClick={requireAndAdvance}
-                      className="rounded-2xl bg-text px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                      className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-accent)] transition hover:bg-accent-strong"
                     >
                       Continue
                     </button>

@@ -10,13 +10,13 @@ export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className={cn("flex items-center justify-between gap-3 rounded-2xl border border-border/75 bg-panel px-3 py-2 shadow-[var(--shadow-panel-soft)]", className)}>
+    <div className={cn("flex items-center justify-between gap-3 rounded-2xl border border-border/75 bg-panel/92 px-3 py-2 shadow-[var(--shadow-panel-soft)] backdrop-blur-sm", className)}>
       <div>
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">Theme</div>
         <div className="text-sm font-medium text-text">{theme === "dark" ? "Dark" : "Light"} mode</div>
       </div>
 
-      <div className="inline-flex rounded-xl border border-border/70 bg-[color:color-mix(in_srgb,var(--color-shell)_72%,white)] p-1">
+      <div className="inline-flex rounded-xl border border-border/70 bg-[color:color-mix(in_srgb,var(--color-shell)_76%,white)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
         {(["light", "dark"] as const).map((option) => {
           const active = theme === option;
           return (

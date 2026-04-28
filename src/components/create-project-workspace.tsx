@@ -77,12 +77,10 @@ function SuccessState({
       : "Project created. Open the workspace to review kickoff and execution state.";
   const statusTone = dispatchStarted > 0
     ? {
-        badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
         dot: "bg-emerald-500",
         summary: workflowSummary,
       }
     : {
-        badge: "border-amber-200 bg-amber-50 text-amber-700",
         dot: "bg-amber-500",
         summary: workflowSummary,
       };
@@ -117,14 +115,10 @@ function SuccessState({
               </div>
               <div className="mt-3 text-sm leading-6 text-text-secondary">Success state stays here until you open the workspace.</div>
             </PageHeroStat>
-            <button
-              type="button"
-              onClick={onOpenProject}
-              className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${statusTone.badge}`}
-            >
+            <Button type="button" onClick={onOpenProject} className="rounded-2xl px-4 py-3 text-sm font-semibold">
               Open workspace
               <ArrowUpRight className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         </div>
       </PageHero>
@@ -425,7 +419,7 @@ export function CreateProjectWorkspace({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-[rgba(24,12,8,0.48)] backdrop-blur-[4px]" onClick={() => !createdProject && onOpenChange?.(false)} />
+      <div className="absolute inset-0 bg-[rgba(15,23,42,0.38)] backdrop-blur-[4px]" onClick={() => !createdProject && onOpenChange?.(false)} />
 
       <div className={mobile ? undefined : "fixed inset-0 flex items-center justify-center px-6 py-6 xl:px-8"}>
         <div

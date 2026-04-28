@@ -71,23 +71,23 @@ const NAV = [
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center">
+    <Link href="/dashboard" aria-label="Go to dashboard" className="group inline-flex items-center">
       <div
         className={cn(
-          "relative shrink-0 overflow-hidden rounded-2xl border border-border/70 bg-white shadow-sm",
-          compact ? "h-12 w-12" : "h-16 w-16"
+          "relative shrink-0 overflow-hidden rounded-[1.25rem] border border-border/70 bg-white shadow-sm transition-transform group-hover:scale-[1.01]",
+          compact ? "h-12 w-[8.5rem]" : "h-16 w-[11.5rem]"
         )}
       >
         <Image
           src="/brand/command-center-logo.jpg"
           alt="Command Center logo"
           fill
-          className="object-contain p-1.5"
-          sizes={compact ? "48px" : "64px"}
+          className="object-contain px-3 py-2"
+          sizes={compact ? "136px" : "176px"}
           priority
         />
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -100,7 +100,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex w-full">
         <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border/80 md:bg-shell md:shadow-[var(--shadow-shell)]">
           <div className="border-b border-border/70 px-5 py-5">
-            <BrandMark />
+            <div className="flex items-center justify-between gap-3">
+              <BrandMark />
+              <ThemeToggle compact className="shrink-0" />
+            </div>
           </div>
 
           <nav className="flex flex-1 flex-col gap-1 px-3 py-3">
@@ -127,7 +130,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="border-t border-border/70 px-5 py-4">
-            <ThemeToggle className="mb-4" />
             <div className="flex items-center justify-between text-xs text-text-muted">
               <span className="uppercase tracking-[0.18em]">API</span>
               <span className="font-mono text-text-secondary">v1</span>
@@ -137,9 +139,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="min-w-0 flex-1">
           <main className="min-h-screen px-3 py-5 pb-24 sm:px-4 sm:py-6 md:px-8 md:py-8 md:pb-8">
-            <div className="mb-4 space-y-3 md:hidden">
-              <BrandMark compact />
-              <ThemeToggle />
+            <div className="mb-4 md:hidden">
+              <div className="flex items-center justify-between gap-3">
+                <BrandMark compact />
+                <ThemeToggle compact className="shrink-0" />
+              </div>
             </div>
             {children}
           </main>

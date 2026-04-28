@@ -71,20 +71,21 @@ const NAV = [
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-white shadow-sm">
+    <div className="flex items-center">
+      <div
+        className={cn(
+          "relative shrink-0 overflow-hidden rounded-2xl border border-border/70 bg-white shadow-sm",
+          compact ? "h-12 w-12" : "h-16 w-16"
+        )}
+      >
         <Image
           src="/brand/command-center-logo.jpg"
           alt="Command Center logo"
           fill
-          className="object-contain p-1"
-          sizes="44px"
+          className="object-contain p-1.5"
+          sizes={compact ? "48px" : "64px"}
           priority
         />
-      </div>
-      <div className="min-w-0">
-        <div className={cn("truncate font-semibold tracking-[0.01em] text-text", compact ? "text-base" : "text-sm")}>Command Center</div>
-        <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-text-muted">V1</div>
       </div>
     </div>
   );

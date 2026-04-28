@@ -1,7 +1,5 @@
-"use client";
-
-import { CreateProjectWorkspace } from "@/components/create-project-workspace";
+import { redirect } from "next/navigation";
 
 export default function NewProjectPage() {
-  return <CreateProjectWorkspace mode="page" />;
+  redirect("/projects?new=true");
 }

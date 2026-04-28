@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
@@ -68,6 +69,27 @@ const NAV = [
   { href: "/teams", label: "Teams", icon: TeamsIcon },
 ] as const;
 
+function BrandMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-white shadow-sm">
+        <Image
+          src="/brand/command-center-logo.jpg"
+          alt="Command Center logo"
+          fill
+          className="object-contain p-1"
+          sizes="44px"
+          priority
+        />
+      </div>
+      <div className="min-w-0">
+        <div className={cn("truncate font-semibold tracking-[0.01em] text-text", compact ? "text-base" : "text-sm")}>Command Center</div>
+        <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-text-muted">V1</div>
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
@@ -77,8 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex w-full">
         <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border/80 md:bg-shell md:shadow-[var(--shadow-shell)]">
           <div className="border-b border-border/70 px-5 py-5">
-            <div className="text-sm font-semibold tracking-[0.01em] text-text">Command Center</div>
-            <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-text-muted">V1</div>
+            <BrandMark />
           </div>
 
           <nav className="flex flex-1 flex-col gap-1 px-3 py-3">
@@ -115,7 +136,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="min-w-0 flex-1">
           <main className="min-h-screen px-3 py-5 pb-24 sm:px-4 sm:py-6 md:px-8 md:py-8 md:pb-8">
-            <div className="mb-4 md:hidden">
+            <div className="mb-4 space-y-3 md:hidden">
+              <BrandMark compact />
               <ThemeToggle />
             </div>
             {children}

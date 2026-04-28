@@ -2,8 +2,17 @@ import Link from "next/link";
 import { ArrowRight, FolderKanban, Sparkles, Users } from "lucide-react";
 import { DbBanner } from "@/components/db-banner";
 import { ErrorState } from "@/components/error-state";
-import { Card, CardContent } from "@/components/ui/card";
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
+import {
+  EntityCard,
+  EntityCardAction,
+  EntityCardFooterCta,
+  EntityCardHeader,
+  EntityCardIdentity,
+  EntityCardMetric,
+  EntityCardSubtitle,
+  EntityCardTitle,
+} from "@/components/ui/entity-card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
 import { createServerClient } from "@/lib/supabase-server";
 
@@ -97,35 +106,27 @@ export default async function TeamsPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {teams.map((t) => (
             <Link key={t.id} href={`/teams/${t.id}`} className="group block h-full">
-              <Card variant="featured" className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px]">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-500 to-rose-400 opacity-70 transition-opacity duration-200 group-hover:opacity-100" />
-                <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 space-y-2">
-                      <div>
-                        <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{t.name}</h2>
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-zinc-600">
-                          {t.description ?? "No description yet"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-500 transition-colors group-hover:border-zinc-300 group-hover:text-zinc-700">
-                      <ArrowRight className="h-4 w-4" />
-                    </div>
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-between rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              <EntityCard interactive>
+                <EntityCardHeader>
+                  <EntityCardIdentity className="space-y-2">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Rollups</p>
-                      <p className="mt-1 text-sm text-zinc-600">Members, projects, and current work</p>
+                      <EntityCardTitle>{t.name}</EntityCardTitle>
+                      <EntityCardSubtitle className="mt-2 line-clamp-3 leading-6 text-zinc-600">
+                        {t.description ?? "No description yet"}
+                      </EntityCardSubtitle>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700">
-                      View details
-                      <ArrowRight className="h-4 w-4" />
-                    </span>
+                  </EntityCardIdentity>
+                  <EntityCardAction accent="zinc" />
+                </EntityCardHeader>
+
+                <EntityCardMetric accent="zinc" className="mt-auto flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Rollups</p>
+                    <p className="mt-1 text-sm text-zinc-600">Members, projects, and current work</p>
                   </div>
-                </CardContent>
-              </Card>
+                  <EntityCardFooterCta>View details</EntityCardFooterCta>
+                </EntityCardMetric>
+              </EntityCard>
             </Link>
           ))}
         </div>

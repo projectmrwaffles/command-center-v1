@@ -4,8 +4,21 @@ import { DbBanner } from "@/components/db-banner";
 import { ErrorState } from "@/components/error-state";
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  EntityCard,
+  EntityCardAction,
+  EntityCardAvatar,
+  EntityCardFooterCta,
+  EntityCardHeader,
+  EntityCardIdentity,
+  EntityCardMetric,
+  EntityCardStatus,
+  EntityCardSubtitle,
+  EntityCardTitle,
+} from "@/components/ui/entity-card";
 import { PageHero, PageHeroStat } from "@/components/ui/page-hero";
 import { createServerClient } from "@/lib/supabase-server";
+import { formatEventType, formatLastSeen, getAgentDisplayName, getAgentEmoji, getAgentStatusLabel, statusClasses } from "@/app/agents/agent-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -14,16 +27,6 @@ type Team = {
   name: string;
   description: string | null;
 };
-
-function formatEventType(eventType: string) {
-  return eventType.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function statusClasses(status?: string | null) {
-  if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "idle") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-zinc-200 bg-zinc-100 text-zinc-700";
-}
 
 export default async function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -229,20 +232,29 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                   ) : (
                     <div className="space-y-3">
                       {memberAgents.map((agent) => (
-                        <div key={agent.id} className="rounded-[22px] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-zinc-950">{agent.name}</p>
-                              <p className="mt-1 text-xs text-zinc-500">{agent.title || "Agent"}</p>
-                            </div>
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${statusClasses(agent.status)}`}>
-                              {agent.status}
-                            </span>
-                          </div>
-                          {agent.last_seen ? (
-                            <p className="mt-3 text-[11px] text-zinc-400">Last seen {new Date(agent.last_seen).toLocaleString()}</p>
-                          ) : null}
-                        </div>
+                        <EntityCard key={agent.id} accent="zinc">
+                          <EntityCardHeader>
+                            <EntityCardIdentity>
+                              <div className="flex items-center gap-3">
+                                <EntityCardAvatar className="h-10 w-10 text-xl">
+                                  <span aria-hidden="true">{getAgentEmoji(agent.name)}</span>
+                                </EntityCardAvatar>
+                                <div className="min-w-0">
+                                  <EntityCardTitle className="text-base">{getAgentDisplayName(agent.name)}</EntityCardTitle>
+                                  <EntityCardSubtitle>{agent.title || "Agent"}</EntityCardSubtitle>
+                                </div>
+                              </div>
+                              <EntityCardStatus className={statusClasses(agent.status)}>
+                                {getAgentStatusLabel(agent.status)}
+                              </EntityCardStatus>
+                            </EntityCardIdentity>
+                            <EntityCardAction accent="zinc" />
+                          </EntityCardHeader>
+                          <EntityCardMetric accent="zinc" className="mt-auto">
+                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Last seen</p>
+                            <p className="mt-1 text-sm text-zinc-700">{formatLastSeen(agent.last_seen)}</p>
+                          </EntityCardMetric>
+                        </EntityCard>
                       ))}
                     </div>
                   )}
@@ -271,20 +283,40 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                   ) : (
                     <div className="space-y-3">
                       {approvals.map((approval) => (
-                        <div key={approval.id} className="rounded-[22px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,1),rgba(255,255,255,0.98))] p-4 shadow-sm">
-                          <div className="inline-flex rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">
-                            Pending approval
-                          </div>
-                          <p className="mt-3 text-sm font-semibold text-amber-950">{approval.summary || "Approval requested"}</p>
-                          <p className="mt-2 text-xs text-amber-700">{approval.severity || "medium"} priority • {new Date(approval.created_at).toLocaleString()}</p>
-                        </div>
+                        <EntityCard key={approval.id} accent="amber">
+                          <EntityCardHeader>
+                            <EntityCardIdentity>
+                              <EntityCardStatus className="border-amber-200 bg-white text-amber-700">Pending approval</EntityCardStatus>
+                              <EntityCardTitle className="text-base text-amber-950">{approval.summary || "Approval requested"}</EntityCardTitle>
+                              <EntityCardSubtitle className="text-amber-700">
+                                {(approval.severity || "medium").toString()} priority
+                              </EntityCardSubtitle>
+                            </EntityCardIdentity>
+                          </EntityCardHeader>
+                          <EntityCardMetric accent="amber" className="mt-auto">
+                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-700">Requested</p>
+                            <p className="mt-1 text-sm text-amber-900">{new Date(approval.created_at).toLocaleString()}</p>
+                          </EntityCardMetric>
+                        </EntityCard>
                       ))}
                       {events.slice(0, 6).map((event) => (
-                        <div key={event.id} className="rounded-[22px] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                          <p className="text-sm font-semibold text-zinc-950">{formatEventType(event.event_type)}</p>
-                          <p className="mt-2 text-xs leading-5 text-zinc-500">{event.payload?.title || event.payload?.message || "Recent project activity"}</p>
-                          <p className="mt-2 text-[11px] text-zinc-400">{new Date(event.timestamp).toLocaleString()}</p>
-                        </div>
+                        <EntityCard key={event.id} accent="zinc">
+                          <EntityCardHeader>
+                            <EntityCardIdentity>
+                              <EntityCardTitle className="text-base">{formatEventType(event.event_type)}</EntityCardTitle>
+                              <EntityCardSubtitle className="line-clamp-3 leading-5 text-zinc-500">
+                                {event.payload?.title || event.payload?.message || "Recent project activity"}
+                              </EntityCardSubtitle>
+                            </EntityCardIdentity>
+                          </EntityCardHeader>
+                          <EntityCardMetric accent="zinc" className="mt-auto flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Observed</p>
+                              <p className="mt-1 text-sm text-zinc-700">{new Date(event.timestamp).toLocaleString()}</p>
+                            </div>
+                            <EntityCardFooterCta className="text-zinc-600">Recent signal</EntityCardFooterCta>
+                          </EntityCardMetric>
+                        </EntityCard>
                       ))}
                     </div>
                   )}

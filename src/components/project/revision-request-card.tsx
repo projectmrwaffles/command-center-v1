@@ -165,7 +165,7 @@ export function RevisionRequestCard({
 
       <div className="mt-4 flex items-center justify-between gap-3">
         {status ? <p className={cn("text-xs", status === "Revision request submitted" || status === "Files uploaded" ? "text-emerald-600" : "text-text-muted")}>{status}</p> : <span />}
-        <Button onClick={submit} disabled={saving || !message.trim()} variant={hasActiveRevisionCycle ? "warm" : "outline"} className="rounded-xl px-4">
+        <Button onClick={submit} disabled={saving || !message.trim()} variant={hasActiveRevisionCycle ? "default" : "outline"} className="rounded-xl px-4">
           {saving ? "Submitting..." : hasActiveRevisionCycle ? "Update revision request" : shippedApproved ? "Request revision" : "Submit revision request"}
         </Button>
       </div>

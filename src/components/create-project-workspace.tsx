@@ -132,7 +132,7 @@ function SuccessState({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <div className="rounded-[28px] border border-border bg-panel p-5 shadow-[var(--shadow-panel)] sm:p-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-[0_10px_24px_rgba(24,24,27,0.12)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-white shadow-[var(--shadow-accent)]">
               <Check className="h-6 w-6" strokeWidth={2.4} />
             </div>
             <div>
@@ -303,16 +303,16 @@ export function CreateProjectWorkspace({
   }));
 
   const docsSection = (
-    <div className="overflow-hidden rounded-[28px] border border-red-100/70 bg-panel p-4 shadow-[0_12px_30px_rgba(24,24,27,0.05)] sm:p-5">
-      <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
-        <Sparkles className="h-3.5 w-3.5 text-red-500" />
+    <div className="overflow-hidden rounded-[28px] border border-accent/15 bg-panel p-4 shadow-[var(--shadow-panel-soft)] sm:p-5">
+      <div className="ds-accent-badge inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm">
+        <Sparkles className="h-3.5 w-3.5 text-accent" />
         Supporting materials
       </div>
       <div className="mb-2 mt-4 text-sm font-semibold text-text">Supporting docs and images</div>
       <p className="mb-3 text-xs leading-5 text-text-muted">Attach PRDs, screenshots, or reference images. They upload after project creation and stay private in project_docs.</p>
 
       {docsError && (
-        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="ds-warning mb-3 rounded-md px-3 py-2 text-sm">
           {docsError}
         </div>
       )}
@@ -322,7 +322,7 @@ export function CreateProjectWorkspace({
         multiple
         accept="application/pdf,image/*"
         onChange={(e) => setDocs(Array.from(e.target.files ?? []))}
-        className="block w-full rounded-2xl border border-dashed border-red-200 bg-panel px-4 py-3 text-sm shadow-sm file:mr-3 file:rounded-full file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-red-700 hover:border-red-300"
+        className="block w-full rounded-2xl border border-dashed border-accent/25 bg-panel px-4 py-3 text-sm shadow-sm file:mr-3 file:rounded-full file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-accent-soft-foreground hover:border-accent/40"
       />
 
       {docs.length > 0 && (
@@ -392,11 +392,11 @@ export function CreateProjectWorkspace({
   if (mode === "page") {
     return (
       <div className="space-y-6 md:space-y-8">
-        <PageHero className="border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.6),rgba(255,255,255,0.98)_35%,rgba(255,241,242,0.72)_72%,rgba(255,250,250,0.96)_100%)] dark:border-red-900/40 dark:bg-[radial-gradient(circle_at_top_left,rgba(127,29,29,0.34),rgba(15,23,42,0.96)_35%,rgba(69,10,10,0.26)_72%,rgba(2,6,23,0.98)_100%)]">
+        <PageHero className="border-accent/15">
           <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
             <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
-                <Sparkles className="h-3.5 w-3.5 text-red-500" />
+              <div className="ds-accent-badge inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                <Sparkles className="h-3.5 w-3.5 text-accent" />
                 New project intake
               </div>
               <div className="space-y-2">
@@ -405,8 +405,8 @@ export function CreateProjectWorkspace({
               </div>
             </div>
             <div className="flex w-full max-w-sm flex-col gap-3">
-              <PageHeroStat className="border-red-100 bg-panel/90 shadow-sm">
-                <div className="text-xs font-medium uppercase tracking-[0.14em] text-red-700">Canonical intake surface</div>
+              <PageHeroStat className="border-accent/15 bg-panel/90 shadow-sm">
+                <div className="text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">Canonical intake surface</div>
                 <div className="mt-2 text-sm leading-6 text-text-secondary">Dashboard, projects, and floating create actions can all point here while keeping the same create-project behavior.</div>
               </PageHeroStat>
               <Button onClick={handleClose} variant="outline" className="justify-center rounded-2xl border-border bg-panel/90 text-text-secondary hover:bg-panel-elevated">
@@ -425,23 +425,23 @@ export function CreateProjectWorkspace({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-[2px]" onClick={() => !createdProject && onOpenChange?.(false)} />
+      <div className="absolute inset-0 bg-[rgba(24,12,8,0.48)] backdrop-blur-[4px]" onClick={() => !createdProject && onOpenChange?.(false)} />
 
       <div className={mobile ? undefined : "fixed inset-0 flex items-center justify-center px-6 py-6 xl:px-8"}>
         <div
           className={
             mobile
-              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-hidden rounded-t-[32px] border border-white/70 bg-panel shadow-[0_-14px_40px_rgba(24,24,27,0.16)]"
-              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/70 bg-panel shadow-[0_24px_72px_rgba(15,23,42,0.16)] xl:max-w-[1020px]"
+              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-hidden rounded-t-[32px] border border-white/20 bg-panel shadow-[0_-14px_40px_rgba(24,24,27,0.2)]"
+              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-accent/15 bg-panel shadow-[0_24px_72px_rgba(15,23,42,0.18)] xl:max-w-[1020px]"
           }
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-panel px-4 py-4 sm:px-6 sm:py-5">
-            <div className="absolute inset-x-0 bottom-0 h-px bg-red-100/80" />
+          <div className="relative shrink-0 overflow-hidden border-b border-accent/15 bg-panel px-4 py-4 sm:px-6 sm:py-5">
+            <div className="absolute inset-x-0 bottom-0 h-px bg-accent/10" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-panel/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
-                  <Sparkles className="h-3.5 w-3.5 text-red-500" />
+                <div className="ds-accent-badge inline-flex items-center gap-2 rounded-full bg-panel/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm backdrop-blur">
+                  <Sparkles className="h-3.5 w-3.5 text-accent" />
                   {createdProject ? "Project handoff" : "New project intake"}
                 </div>
                 <h2 className="mt-3 text-xl font-semibold tracking-tight text-text sm:text-[1.75rem]">
@@ -454,7 +454,7 @@ export function CreateProjectWorkspace({
                 </p>
               </div>
               {!createdProject ? (
-                <Button onClick={() => onOpenChange?.(false)} variant="outline" size="icon" className="rounded-2xl border-red-200 bg-panel/90 text-text-secondary shadow-sm hover:bg-red-50" aria-label="Close">
+                <Button onClick={() => onOpenChange?.(false)} variant="outline" size="icon" className="rounded-2xl border-accent/15 bg-panel/90 text-text-secondary shadow-sm hover:bg-accent-soft/50" aria-label="Close">
                   <X className="h-4 w-4" />
                 </Button>
               ) : null}

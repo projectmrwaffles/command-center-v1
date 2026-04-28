@@ -403,6 +403,8 @@ async function extractImageTextWithTesseract(image: Buffer) {
   }
 }
 
+// Reserved for scanned-PDF OCR fallback when runtime rasterization is re-enabled.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function renderPdfPagesToImages(buffer: Buffer, maxPages = SCANNED_PDF_OCR_PAGE_LIMIT) {
   if (!canRasterizePdfPages()) {
     console.warn("[project-requirements] scanned PDF rasterization skipped because @napi-rs/canvas is unavailable");

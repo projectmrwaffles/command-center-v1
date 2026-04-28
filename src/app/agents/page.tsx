@@ -66,14 +66,14 @@ export default async function AgentsPage() {
     return (
       <div className="space-y-6">
         <DbBanner />
-        <h1 className="text-2xl font-bold text-red-600">Agents</h1>
+        <h1 className="text-2xl font-bold text-accent">Agents</h1>
         <ErrorState title="Error loading data" message={error.message} details={error.details} />
       </div>
     );
   }
 
   const mockBanner = isMockMode() ? (
-    <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
+    <div className="rounded-[24px] border border-[color:color-mix(in_srgb,var(--color-warning)_28%,var(--color-border))] bg-[color:color-mix(in_srgb,var(--color-warning)_12%,white)] px-4 py-3 text-sm text-[color:color-mix(in_srgb,var(--color-warning)_84%,var(--color-text))] shadow-sm">
       <span className="font-medium">Demo mode</span> – backend not connected.
     </div>
   ) : null;
@@ -89,7 +89,7 @@ export default async function AgentsPage() {
       <PageHero>
         <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-text-secondary shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-panel/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-text-secondary shadow-sm backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
               Agent workspace
             </div>
@@ -106,15 +106,15 @@ export default async function AgentsPage() {
           <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
             <PageHeroStat className="border-border bg-panel">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
-                <Bot className="h-4 w-4 text-red-500" />
+                <Bot className="h-4 w-4 text-accent" />
                 Agents
               </div>
               <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{agents.length}</div>
               <p className="mt-1 text-xs text-text-muted">Registered in the workspace.</p>
             </PageHeroStat>
-            <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+            <PageHeroStat className="border-[color:color-mix(in_srgb,var(--color-success)_22%,var(--color-border))] shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
-                <Radar className="h-4 w-4 text-emerald-500" />
+                <Radar className="h-4 w-4 text-success" />
                 Active now
               </div>
               <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{activeAgents}</div>
@@ -122,7 +122,7 @@ export default async function AgentsPage() {
             </PageHeroStat>
             <PageHeroStat className="border-border bg-panel">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
-                <Workflow className="h-4 w-4 text-red-500" />
+                <Workflow className="h-4 w-4 text-accent" />
                 Idle / standby
               </div>
               <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{idleAgents}</div>
@@ -134,7 +134,7 @@ export default async function AgentsPage() {
 
       {agents.length === 0 ? (
         <BrandedEmptyState
-          icon={<Bot className="h-8 w-8 text-red-600" />}
+          icon={<Bot className="h-8 w-8 text-accent" />}
           title="No agents registered"
           description="Agents will appear here once they connect and begin reporting presence to the workspace."
         />

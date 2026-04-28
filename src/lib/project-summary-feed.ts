@@ -10,8 +10,6 @@ import {
 } from "@/lib/project-db-compat";
 import { buildProjectTruthIndex } from "@/lib/project-summary-truth";
 
-type DbClient = ReturnType<typeof createRouteHandlerClient> | ReturnType<typeof createServerClient>;
-
 type ProjectSummaryFeedOptions = {
   type?: string | null;
   useRouteHandlerClient?: boolean;

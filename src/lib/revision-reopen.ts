@@ -35,7 +35,6 @@ export async function reopenProjectSprintForRevision(db: DbClient, input: {
   const targetIndex = ordered.findIndex((sprint) => sprint.id === input.sprintId);
   if (targetIndex === -1) throw new Error("Milestone not found while reopening revision work");
 
-  const targetSprint = ordered[targetIndex];
   const laterSprintIds = ordered.slice(targetIndex + 1).map((sprint) => sprint.id).filter(Boolean);
 
   const projectUpdate = await db

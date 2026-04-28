@@ -73,9 +73,9 @@ function SelectionCard({
       className={cn(
         "group relative block w-full min-w-0 overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
         compact ? "min-h-[180px] md:min-h-[220px]" : "",
-        "focus:outline-none focus:ring-2 focus:ring-red-300 dark:focus:ring-red-900/60",
+        "focus:outline-none focus:ring-2 focus:ring-accent/20",
         selected
-          ? "border-red-400 bg-panel shadow-[0_10px_28px_rgba(24,24,27,0.07)] dark:border-red-900/60"
+          ? "ds-selected-card"
           : "border-border bg-panel hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_30px_rgba(24,24,27,0.08)]"
       )}
     >
@@ -87,7 +87,7 @@ function SelectionCard({
         <div
           className={cn(
             "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-            selected ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500 text-white dark:border-red-500 dark:bg-red-500" : "border-border bg-panel text-transparent"
+            selected ? "border-accent bg-accent text-white" : "border-border bg-panel text-transparent"
           )}
         >
           <span className="text-xs font-bold">{multi ? "✓" : "•"}</span>
@@ -100,7 +100,7 @@ function SelectionCard({
             key={example}
             className={cn(
               "rounded-full px-2.5 py-1 text-[11px] font-medium",
-              selected ? "bg-panel/90 text-red-700" : "bg-panel-elevated text-text-muted"
+              selected ? "bg-panel/90 text-accent-soft-foreground" : "bg-panel-elevated text-text-muted"
             )}
           >
             {example}
@@ -108,7 +108,7 @@ function SelectionCard({
         ))}
       </div>
 
-      {hint ? <p className="mt-3 text-xs font-medium text-red-700">{hint}</p> : null}
+      {hint ? <p className="mt-3 text-xs font-medium text-accent-soft-foreground">{hint}</p> : null}
     </button>
   );
 }
@@ -129,7 +129,7 @@ function OptionBrowser({
 }
 
 function FieldHint({ children, tone = "muted" }: { children: string; tone?: "muted" | "error" }) {
-  return <p className={cn("mt-2 text-xs", tone === "error" ? "text-red-600" : "text-text-muted")}>{children}</p>;
+  return <p className={cn("mt-2 text-xs", tone === "error" ? "text-accent" : "text-text-muted")}>{children}</p>;
 }
 
 function getProjectLinkPlaceholder(key: (typeof PROJECT_LINK_FIELDS)[number]) {
@@ -471,34 +471,34 @@ export function CreateProjectForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error ? <div className="whitespace-pre-wrap rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {error ? <div className="ds-danger whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm">{error}</div> : null}
 
       <div className="min-w-0 px-1 sm:px-0">
-        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 dark:border-red-900/50 bg-panel px-3 py-3 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
-          <div className="border-b border-red-100/80 dark:border-red-900/50 px-1 pb-3 sm:px-0 sm:pb-4">
+        <section className="min-w-0 overflow-hidden rounded-[28px] border border-accent/15 bg-panel px-3 py-3 shadow-[var(--shadow-panel)] sm:px-6 sm:pt-4 sm:pb-5">
+          <div className="border-b border-accent/12 px-1 pb-3 sm:px-0 sm:pb-4">
             <div className="hidden sm:block">
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-red-500">Progress</p>
-                  <div className="shrink-0 rounded-full border border-red-100 bg-panel dark:border-red-900/50 px-2.5 py-1 text-[11px] font-medium text-text-secondary shadow-sm">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-accent">Progress</p>
+                  <div className="shrink-0 rounded-full border border-accent/12 bg-panel px-2.5 py-1 text-[11px] font-medium text-text-secondary shadow-sm">
                     {stepCounter}
                   </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-red-100/55">
-                  <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
+                <div className="ds-progress-track h-2 w-full overflow-hidden rounded-full">
+                  <div className="ds-progress-fill h-full rounded-full transition-all duration-300" style={{ width: `${stepProgress}%` }} />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <div className="shrink-0 rounded-full border border-red-100 bg-panel dark:border-red-900/50 px-2.5 py-1 text-[11px] font-medium text-text-secondary shadow-sm">
+                <div className="shrink-0 rounded-full border border-accent/12 bg-panel px-2.5 py-1 text-[11px] font-medium text-text-secondary shadow-sm">
                   {stepCounter}
                 </div>
                 <p className="text-[11px] font-medium text-text-muted">Progress</p>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-border/80">
-                <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
+                <div className="ds-progress-fill h-full rounded-full transition-all duration-300" style={{ width: `${stepProgress}%` }} />
               </div>
             </div>
 
@@ -520,7 +520,7 @@ export function CreateProjectForm({
                     className={cn(
                       "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                       isActive
-                        ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
+                        ? "border-accent/18 bg-accent-soft text-accent-soft-foreground"
                         : isCompleted
                           ? "border-border bg-panel text-text-secondary hover:border-border"
                           : "border-border bg-panel-elevated text-text-secondary hover:border-border hover:text-text"
@@ -567,7 +567,7 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "quick"
-                            ? "border-red-400 bg-panel shadow-[0_10px_28px_rgba(24,24,27,0.07)] dark:border-red-900/60"
+                            ? "ds-selected-card"
                             : "border-border bg-panel hover:border-border hover:shadow-sm"
                         )}
                       >
@@ -576,7 +576,7 @@ export function CreateProjectForm({
                             <p className="text-base font-semibold text-text">Quick brief</p>
                             <p className="mt-2 text-sm leading-6 text-text-secondary">Write the project in your own words, add any context you already have, and keep moving.</p>
                           </div>
-                          <div className={cn("h-6 w-6 rounded-full border", mode === "quick" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
+                          <div className={cn("h-6 w-6 rounded-full border", mode === "quick" ? "border-accent bg-accent" : "border-border bg-panel")} />
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
                           <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Free-form</span>
@@ -591,7 +591,7 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "guided"
-                            ? "border-red-400 bg-panel shadow-[0_10px_28px_rgba(24,24,27,0.07)] dark:border-red-900/60"
+                            ? "ds-selected-card"
                             : "border-border bg-panel hover:border-border hover:shadow-sm"
                         )}
                       >
@@ -600,7 +600,7 @@ export function CreateProjectForm({
                             <p className="text-base font-semibold text-text">Guided setup</p>
                             <p className="mt-2 text-sm leading-6 text-text-secondary">Choose the closest project type first, then add a short brief with a little more structure.</p>
                           </div>
-                          <div className={cn("h-6 w-6 rounded-full border", mode === "guided" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
+                          <div className={cn("h-6 w-6 rounded-full border", mode === "guided" ? "border-accent bg-accent" : "border-border bg-panel")} />
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
                           <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Structured</span>
@@ -638,7 +638,7 @@ export function CreateProjectForm({
                   <div className="space-y-6">
                     <section className="rounded-[24px] border border-border bg-panel-elevated/80 p-4">
                       <label className="block text-sm font-medium text-text-secondary">
-                        Project name <span className="text-red-500">*</span>
+                        Project name <span className="text-accent">*</span>
                       </label>
                       <input
                         type="text"
@@ -648,7 +648,7 @@ export function CreateProjectForm({
                           setShowValidation(false);
                         }}
                         required
-                        className="mt-2 w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                        className="ds-input mt-2 w-full rounded-2xl px-4 py-3 text-base"
                         placeholder="e.g., Command Center V2"
                       />
                       {showValidation && !name.trim() ? (
@@ -673,7 +673,7 @@ export function CreateProjectForm({
                           className={cn(
                             "rounded-[24px] border p-4 text-left transition-all",
                             projectOrigin === "new"
-                              ? "border-red-400 bg-panel shadow-[0_8px_22px_rgba(24,24,27,0.06)] dark:border-red-900/60"
+                              ? "ds-selected-card"
                               : "border-border bg-panel hover:border-border"
                           )}
                         >
@@ -682,7 +682,7 @@ export function CreateProjectForm({
                               <p className="text-sm font-semibold text-text">Net-new project</p>
                               <p className="mt-2 text-sm leading-6 text-text-secondary">This is a fresh initiative, new build, or first version. No existing repo or live product needs to be referenced right now.</p>
                             </div>
-                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "new" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
+                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "new" ? "border-accent bg-accent" : "border-border bg-panel")} />
                           </div>
                         </button>
 
@@ -692,7 +692,7 @@ export function CreateProjectForm({
                           className={cn(
                             "rounded-[24px] border p-4 text-left transition-all",
                             projectOrigin === "existing"
-                              ? "border-red-400 bg-panel shadow-[0_8px_22px_rgba(24,24,27,0.06)] dark:border-red-900/60"
+                              ? "ds-selected-card"
                               : "border-border bg-panel hover:border-border"
                           )}
                         >
@@ -701,7 +701,7 @@ export function CreateProjectForm({
                               <p className="text-sm font-semibold text-text">Improve an existing project</p>
                               <p className="mt-2 text-sm leading-6 text-text-secondary">There’s already a site, app, workflow, or repo in place, and this work will improve or extend it using the current materials as reference.</p>
                             </div>
-                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "existing" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
+                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "existing" ? "border-accent bg-accent" : "border-border bg-panel")} />
                           </div>
                         </button>
                       </div>
@@ -736,7 +736,7 @@ export function CreateProjectForm({
                                     return next;
                                   });
                                 }}
-                                className="w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                className="ds-input w-full rounded-2xl px-4 py-3 text-base"
                                 placeholder={getProjectLinkPlaceholder(key)}
                               />
                             </label>
@@ -757,7 +757,7 @@ export function CreateProjectForm({
                               : "Add goals, constraints, urgency, or anything the team should know right away."}
                           </p>
                         </div>
-                        {mode === "quick" ? <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">Required in Quick brief</div> : null}
+                        {mode === "quick" ? <div className="ds-accent-badge rounded-full px-3 py-1 text-xs font-medium">Required in Quick brief</div> : null}
                       </div>
                       <textarea
                         value={goals}
@@ -766,7 +766,7 @@ export function CreateProjectForm({
                           setShowValidation(false);
                         }}
                         rows={mode === "quick" ? 7 : 5}
-                        className="mt-4 w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                        className="ds-input mt-4 w-full rounded-2xl px-4 py-3 text-base"
                         placeholder={mode === "quick" ? "Example: We need a cleaner new project intake that feels easier. The current flow has too many decisions up front. I want a simple way to describe the need, upload a PRD and screenshots, and still route it to the right teams." : "Example: We need something client-ready in 2 weeks. It should feel premium, work beautifully on mobile, and eventually connect to HubSpot."}
                       />
                       {mode === "quick" ? (
@@ -804,7 +804,7 @@ export function CreateProjectForm({
                                   <p className="mt-1 text-sm text-text-muted">We suggest a starting set based on project type. Change it only if it will materially affect routing.</p>
                                 </div>
                                 {shape ? (
-                                  <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                                  <div className="ds-accent-badge rounded-full px-3 py-1 text-xs font-medium">
                                     Suggested for {PROJECT_SHAPES.find((item) => item.value === shape)?.label}
                                   </div>
                                 ) : null}
@@ -898,7 +898,7 @@ export function CreateProjectForm({
                                 <select
                                   value={shape}
                                   onChange={(e) => setShape(e.target.value)}
-                                  className="w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                  className="ds-input w-full rounded-2xl px-4 py-3 text-base"
                                 >
                                   {PROJECT_SHAPES.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -915,10 +915,10 @@ export function CreateProjectForm({
 
                 {activeStep.id === "review" ? (
                   <div className="space-y-6">
-                    <section className="rounded-[28px] border border-red-100/70 dark:border-red-900/50 bg-panel p-5">
+                    <section className="rounded-[28px] border border-accent/15 bg-panel p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Routing preview</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">Routing preview</p>
                           <h4 className="mt-2 text-xl font-semibold tracking-tight text-text">{name.trim() || "Untitled project"}</h4>
                           <p className="mt-2 text-sm leading-6 text-text-secondary">{goals.trim() || intake.summary}</p>
                         </div>
@@ -1021,7 +1021,7 @@ export function CreateProjectForm({
               </div>
 
               <div className="mt-8 flex flex-col gap-3 border-t border-border/60 px-1 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-0">
-                <div className={cn("text-sm", showValidation && !currentStepValid ? "text-red-600" : "text-text-muted")}>
+                <div className={cn("text-sm", showValidation && !currentStepValid ? "text-accent" : "text-text-muted")}>
                   {activeStep.id === "review"
                     ? "Looks good? Create the project."
                     : activeStep.id === "brief"
@@ -1037,7 +1037,7 @@ export function CreateProjectForm({
                   <button
                     type="button"
                     onClick={currentStep === 0 ? onCancel : goBack}
-                    className="rounded-2xl border border-border bg-panel px-4 py-2.5 text-sm font-medium text-text-secondary shadow-sm transition hover:border-red-200 hover:bg-red-50 dark:hover:bg-red-950/40"
+                    className="rounded-2xl border border-border bg-panel px-4 py-2.5 text-sm font-medium text-text-secondary shadow-sm transition hover:border-accent/20 hover:bg-accent-soft/60"
                   >
                     {currentStep === 0 ? "Cancel" : "Back"}
                   </button>
@@ -1049,7 +1049,7 @@ export function CreateProjectForm({
                         submitIntentRef.current = true;
                       }}
                       disabled={isSubmitting || !name.trim() || (mode === "quick" && !goals.trim()) || (mode === "guided" && capabilities.length === 0)}
-                      className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-accent)] transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSubmitting ? "Creating..." : "Confirm and create project"}
                     </button>
@@ -1061,7 +1061,7 @@ export function CreateProjectForm({
                     <button
                       type="button"
                       onClick={requireAndAdvance}
-                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+                      className="rounded-2xl bg-text px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
                     >
                       Review project
                     </button>
@@ -1069,7 +1069,7 @@ export function CreateProjectForm({
                     <button
                       type="button"
                       onClick={requireAndAdvance}
-                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+                      className="rounded-2xl bg-text px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
                     >
                       Continue
                     </button>

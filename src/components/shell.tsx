@@ -92,8 +92,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   className={cn(
                     "relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
                     active
-                      ? "bg-accent-soft text-accent-soft-foreground"
-                      : "text-text-secondary hover:bg-[color:color-mix(in_srgb,var(--color-panel)_88%,white)] hover:text-text"
+                      ? "bg-accent-soft/80 text-accent-soft-foreground"
+                      : "text-text-secondary hover:bg-panel-subtle hover:text-text"
                   )}
                 >
                   {active && <span className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r bg-accent" />}
@@ -123,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <nav data-testid="mobile-tabs" className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-[color:color-mix(in_srgb,var(--color-panel)_88%,white)]/95 backdrop-blur md:hidden">
+      <nav data-testid="mobile-tabs" className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-panel/95 backdrop-blur md:hidden">
         <div className="flex justify-around overflow-x-auto py-1 scrollbar-hide">
           {NAV.map((item) => {
             const active = isActive(item.href);

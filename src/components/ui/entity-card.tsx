@@ -13,24 +13,24 @@ type EntityCardProps = React.ComponentPropsWithoutRef<typeof Card> & {
 
 const accentClasses: Record<EntityCardAccent, { rail: string; icon: string; metric: string }> = {
   red: {
-    rail: "from-red-500 via-red-500 to-rose-400",
-    icon: "group-hover:border-red-200 group-hover:text-red-600 dark:group-hover:border-red-900/60 dark:group-hover:text-red-300",
-    metric: "border-red-100/80 bg-[linear-gradient(180deg,rgba(254,242,242,0.72),rgba(255,255,255,0.98))] dark:border-red-900/50 dark:bg-[linear-gradient(180deg,rgba(69,10,10,0.78),rgba(24,24,27,0.96))]",
+    rail: "from-[var(--color-accent)] via-[var(--color-accent)] to-[color:color-mix(in_srgb,var(--color-accent)_55%,white)]",
+    icon: "group-hover:border-accent/20 group-hover:text-accent",
+    metric: "border-accent/15 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-accent-soft)_68%,white),rgba(255,255,255,0.98))]",
   },
   emerald: {
-    rail: "from-emerald-500 via-emerald-500 to-teal-400",
-    icon: "group-hover:border-emerald-200 group-hover:text-emerald-600 dark:group-hover:border-emerald-900/60 dark:group-hover:text-emerald-300",
-    metric: "border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.72),rgba(255,255,255,0.98))] dark:border-emerald-900/50 dark:bg-[linear-gradient(180deg,rgba(2,44,34,0.78),rgba(24,24,27,0.96))]",
+    rail: "from-[var(--color-success)] via-[var(--color-success)] to-[color:color-mix(in_srgb,var(--color-success)_55%,white)]",
+    icon: "group-hover:border-[color:color-mix(in_srgb,var(--color-success)_22%,var(--color-border))] group-hover:text-[color:color-mix(in_srgb,var(--color-success)_84%,var(--color-text))]",
+    metric: "border-[color:color-mix(in_srgb,var(--color-success)_18%,var(--color-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-success)_10%,white),rgba(255,255,255,0.98))]",
   },
   amber: {
-    rail: "from-amber-500 via-amber-400 to-orange-300",
-    icon: "group-hover:border-amber-200 group-hover:text-amber-600 dark:group-hover:border-amber-900/60 dark:group-hover:text-amber-300",
-    metric: "border-amber-100/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.82),rgba(255,255,255,0.98))] dark:border-amber-900/50 dark:bg-[linear-gradient(180deg,rgba(69,26,3,0.82),rgba(24,24,27,0.96))]",
+    rail: "from-[var(--color-warning)] via-[var(--color-warning)] to-[color:color-mix(in_srgb,var(--color-warning)_55%,white)]",
+    icon: "group-hover:border-[color:color-mix(in_srgb,var(--color-warning)_24%,var(--color-border))] group-hover:text-[color:color-mix(in_srgb,var(--color-warning)_84%,var(--color-text))]",
+    metric: "border-[color:color-mix(in_srgb,var(--color-warning)_18%,var(--color-border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-warning)_10%,white),rgba(255,255,255,0.98))]",
   },
   zinc: {
-    rail: "from-zinc-400 via-zinc-400 to-zinc-300",
-    icon: "group-hover:border-zinc-300 group-hover:text-zinc-700 dark:group-hover:border-zinc-700 dark:group-hover:text-zinc-200",
-    metric: "border-border/80 bg-panel-elevated",
+    rail: "from-[var(--color-border)] via-[var(--color-border)] to-[var(--color-panel-subtle-strong)]",
+    icon: "group-hover:border-accent/16 group-hover:text-text",
+    metric: "border-border bg-panel-subtle",
   },
 };
 
@@ -64,7 +64,7 @@ export function EntityCardIdentity({ className, ...props }: React.HTMLAttributes
 export function EntityCardAvatar({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex h-11 w-11 items-center justify-center rounded-2xl border border-border/80 bg-panel-elevated text-2xl text-text", className)}
+      className={cn("flex h-11 w-11 items-center justify-center rounded-2xl border border-border/80 bg-panel-subtle text-2xl text-text", className)}
       {...props}
     />
   );
@@ -107,7 +107,7 @@ export function EntityCardAction({ className, accent = "red", ...props }: React.
   return (
     <div
       className={cn(
-        "rounded-full border border-border/80 bg-panel-elevated p-2 text-text-muted shadow-sm transition-colors",
+        "rounded-full border border-border/80 bg-panel-subtle p-2 text-text-muted shadow-sm transition-colors",
         accentClasses[accent].icon,
         className,
       )}

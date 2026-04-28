@@ -2,30 +2,30 @@
 
 :root,
 html[data-theme="light"] {
-  --background: #fcfdfe;
+  --background: #fafafa;
   --foreground: #0f172a;
-  --color-page: #fcfdfe;
-  --color-shell: #eef2f7;
+  --color-page: #fafafa;
+  --color-shell: #ffffff;
   --color-panel: #ffffff;
-  --color-panel-elevated: #fbfcfd;
-  --color-panel-subtle: #f4f7fb;
-  --color-panel-subtle-strong: #eef3f8;
-  --color-border: #d9e1ea;
+  --color-panel-elevated: #ffffff;
+  --color-panel-subtle: #f6f6f7;
+  --color-panel-subtle-strong: #f1f2f4;
+  --color-border: #e6e6e8;
   --color-text: #0f172a;
   --color-text-muted: #64748b;
-  --color-text-secondary: #475569;
-  --color-accent: #dc2626;
-  --color-accent-strong: #b91c1c;
-  --color-accent-soft: #fee2e2;
-  --color-accent-soft-foreground: #0f172a;
-  --color-info: #38bdf8;
+  --color-text-secondary: #64748b;
+  --color-accent: #e11d2e;
+  --color-accent-strong: #c91a26;
+  --color-accent-soft: #fdecec;
+  --color-accent-soft-foreground: #991b1b;
+  --color-info: #64748b;
   --color-success: #10b981;
   --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --shadow-shell: 0 18px 42px rgba(15, 23, 42, 0.045);
-  --shadow-panel: 0 12px 30px rgba(15, 23, 42, 0.04);
-  --shadow-panel-soft: 0 8px 20px rgba(15, 23, 42, 0.03);
-  --shadow-accent: 0 10px 24px rgba(220, 38, 38, 0.16);
+  --color-danger: #e11d2e;
+  --shadow-shell: 0 18px 40px rgba(15, 23, 42, 0.05);
+  --shadow-panel: 0 14px 34px rgba(15, 23, 42, 0.06);
+  --shadow-panel-soft: 0 8px 20px rgba(15, 23, 42, 0.045);
+  --shadow-accent: 0 10px 22px rgba(225, 29, 46, 0.14);
 }
 
 @theme inline {
@@ -54,24 +54,24 @@ html[data-theme="light"] {
 }
 
 html[data-theme="dark"] {
-  --background: #050816;
-  --foreground: #e5eef8;
-  --color-page: #050816;
-  --color-shell: #0b1220;
-  --color-panel: #0f172a;
-  --color-panel-elevated: #111827;
-  --color-panel-subtle: #111827;
-  --color-panel-subtle-strong: #0f172a;
-  --color-border: #1f2937;
-  --color-text: #e5eef8;
+  --background: #09090b;
+  --foreground: #f8fafc;
+  --color-page: #09090b;
+  --color-shell: #111827;
+  --color-panel: #111827;
+  --color-panel-elevated: #172033;
+  --color-panel-subtle: #0f172a;
+  --color-panel-subtle-strong: #172033;
+  --color-border: #263244;
+  --color-text: #f8fafc;
   --color-text-muted: #94a3b8;
-  --color-text-secondary: #94a3b8;
-  --color-accent-soft: #450a0a;
-  --color-accent-soft-foreground: #f8fafc;
-  --shadow-shell: 0 20px 48px rgba(2, 6, 23, 0.4);
-  --shadow-panel: 0 14px 34px rgba(2, 6, 23, 0.3);
-  --shadow-panel-soft: 0 8px 22px rgba(2, 6, 23, 0.24);
-  --shadow-accent: 0 12px 28px rgba(127, 29, 29, 0.32);
+  --color-text-secondary: #cbd5e1;
+  --color-accent-soft: rgba(225, 29, 46, 0.2);
+  --color-accent-soft-foreground: #fecaca;
+  --shadow-shell: 0 24px 52px rgba(0, 0, 0, 0.35);
+  --shadow-panel: 0 16px 38px rgba(0, 0, 0, 0.28);
+  --shadow-panel-soft: 0 10px 24px rgba(0, 0, 0, 0.2);
+  --shadow-accent: 0 12px 26px rgba(225, 29, 46, 0.22);
 }
 
 html {
@@ -83,6 +83,71 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.ds-hero-gradient {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-panel) 88%, var(--color-accent-soft)) 0%, var(--color-panel) 36%, var(--color-panel-subtle) 100%);
+}
+
+.ds-accent-badge {
+  border: 1px solid color-mix(in srgb, var(--color-accent) 20%, var(--color-border));
+  background: color-mix(in srgb, var(--color-panel) 82%, var(--color-accent-soft));
+  color: var(--color-accent-soft-foreground);
+}
+
+.ds-accent-tint {
+  border-color: color-mix(in srgb, var(--color-accent) 16%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-soft) 78%, var(--color-panel));
+}
+
+.ds-selected-card {
+  border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-panel) 82%, var(--color-accent-soft)) 0%, var(--color-panel) 100%);
+  box-shadow: var(--shadow-panel-soft);
+}
+
+.ds-progress-track {
+  background: color-mix(in srgb, var(--color-accent-soft) 70%, var(--color-panel-subtle));
+}
+
+.ds-progress-fill {
+  background: linear-gradient(90deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 78%, white) 100%);
+}
+
+.ds-input {
+  border: 1px solid color-mix(in srgb, var(--color-border) 96%, transparent);
+  background: color-mix(in srgb, var(--color-panel) 96%, var(--color-panel-subtle));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.ds-input:focus {
+  border-color: color-mix(in srgb, var(--color-accent) 42%, var(--color-border));
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.ds-warning {
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 14%, var(--color-panel));
+  color: color-mix(in srgb, var(--color-warning) 78%, var(--color-text));
+}
+
+.ds-danger {
+  border: 1px solid color-mix(in srgb, var(--color-danger) 26%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-panel));
+  color: color-mix(in srgb, var(--color-danger) 82%, var(--color-text));
+}
+
+.ds-success {
+  border: 1px solid color-mix(in srgb, var(--color-success) 24%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-panel));
+  color: color-mix(in srgb, var(--color-success) 84%, var(--color-text));
+}
+
+.ds-neutral {
+  border: 1px solid var(--color-border);
+  background: var(--color-panel-subtle);
+  color: var(--color-text-secondary);
 }
 
 @keyframes celebration-card-rise {
@@ -129,7 +194,6 @@ body {
   }
 }
 
-/* Hide scrollbar but allow scrolling */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

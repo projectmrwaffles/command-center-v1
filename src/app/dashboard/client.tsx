@@ -34,7 +34,7 @@ function BentoBadge({ children, color }: { children: React.ReactNode; color: "re
   const styles = {
     red: "border-accent/15 bg-accent-soft text-accent-soft-foreground",
     amber: "border-[color:color-mix(in_srgb,var(--color-warning)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-warning)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-warning)_72%,var(--color-text))]",
-    blue: "border-[color:color-mix(in_srgb,var(--color-info)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-info)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-info)_72%,var(--color-text))]",
+    blue: "border-border bg-panel-subtle text-text-secondary",
     green: "border-[color:color-mix(in_srgb,var(--color-success)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-panel))] text-[color:color-mix(in_srgb,var(--color-success)_72%,var(--color-text))]",
   };
   return <span className={cn("rounded-full border px-2 py-1 text-[11px] font-medium", styles[color])}>{children}</span>;
@@ -223,7 +223,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 Open a project or jump into the project list.
               </p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <Button asChild size="lg" variant="warm" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm">
+                <Button asChild size="lg" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm">
                   <Link href="/projects/new">
                     <Plus className="h-4 w-4" />
                     New project
@@ -261,7 +261,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 title="No active projects yet"
                 description="Create a project to start routing work, tracking progress, and surfacing dashboard health here."
                 action={
-                  <Button asChild size="lg" variant="warm" className="rounded-xl px-5">
+                  <Button asChild size="lg" className="rounded-xl px-5">
                     <Link href="/projects/new">
                       <Plus className="h-4 w-4" />
                       Create project

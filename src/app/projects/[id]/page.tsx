@@ -16,7 +16,6 @@ import {
   Plus,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,16 +27,15 @@ import {
   formatIntakeValue,
 } from "@/lib/project-intake";
 import { getProjectStatusTone } from "@/lib/project-ui";
-import { getProjectLinkEntries, getProjectLinkSuggestions, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
+import { getProjectLinkSuggestions, PROJECT_LINK_LABELS, type ProjectLinks } from "@/lib/project-links";
 import { getGroupedProjectLinks, getWorkingProjectLinkCount } from "@/lib/project-detail-context";
-import { parseGitHubRepoUrl, type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
+import { type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
 import { TaskDetailModal } from "@/components/project/task-detail-modal";
 import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-bootstrap";
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
-import { deriveReviewCheckpointState } from "@/lib/review-checkpoint-state";
 import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, getCompletedProjectRevisionMilestones, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
 import { resolveProjectDetailRecentUpdates } from "@/lib/project-detail-truth";
 
@@ -64,10 +62,6 @@ type ProofItem = {
   metadata?: Record<string, unknown> | null;
   sortOrder?: number;
 };
-
-function proofItemHref(item: ProofItem) {
-  return item.url || null;
-}
 
 type MilestoneReviewSummary = {
   checkpointType?: string | null;
@@ -235,11 +229,11 @@ type ProjectDetail = {
 function TaskStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     todo: "border-border bg-panel-elevated text-text-secondary",
-    in_progress: "border-blue-200 bg-blue-100 text-blue-700",
-    review: "border-purple-200 bg-purple-100 text-purple-700",
+    in_progress: "border-accent/18 bg-accent-soft text-accent-soft-foreground",
+    review: "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground",
     done: "border-emerald-200 bg-emerald-100 text-emerald-700",
     blocked: "border-red-200 bg-red-100 text-red-700",
-    cancelled: "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300",
+    cancelled: "border-border bg-panel-subtle text-text-secondary",
   };
   return (
     <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", styles[status] || styles.todo)}>
@@ -253,41 +247,18 @@ function formatReviewStatus(value?: string | null) {
   return value.replace(/_/g, " ");
 }
 
-function formatProofItemKind(kind?: string | null) {
-  if (!kind) return "Artifact";
-  switch (kind) {
-    case "staging_url":
-      return "Staging URL";
-    case "github_pr":
-      return "GitHub PR";
-    default:
-      return kind.replace(/_/g, " ");
-  }
-}
-
 function checkpointTone(value?: string | null) {
   switch (value) {
     case "approved":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "pending":
     case "ready_for_review":
-      return "border-violet-200 bg-violet-50 text-violet-700";
+      return "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground";
     case "rejected":
     case "changes_requested":
       return "border-red-200 bg-red-50 text-red-700";
     case "awaiting_evidence":
     case "setup_required":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    default:
-      return "border-border bg-panel-elevated text-text-secondary";
-  }
-}
-
-function proofTone(value?: string | null) {
-  switch (value) {
-    case "ready":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "needs_update":
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
       return "border-border bg-panel-elevated text-text-secondary";
@@ -304,44 +275,6 @@ function isBlockerOnlyCheckpoint(milestone: Milestone) {
     && milestone.preBuildCheckpoint?.outcome != null
     && milestone.preBuildCheckpoint.outcome !== "match"
     && !milestone.reviewRequest;
-}
-
-function checkpointSummaryCopy(input: {
-  summary?: MilestoneReviewSummary | null;
-  preBuildCheckpoint?: PreBuildCheckpointView | null;
-  checkpointState: ReturnType<typeof deriveReviewCheckpointState>;
-  fallbackArtifactsCount?: number;
-}) {
-  if (input.preBuildCheckpoint?.outcome && input.preBuildCheckpoint.outcome !== "match") {
-    return input.preBuildCheckpoint.summary || input.summary?.latestSubmissionSummary || "Build is blocked until the repo and stack contract are resolved.";
-  }
-  if (input.summary?.latestSubmissionSummary) return input.summary.latestSubmissionSummary;
-  if (input.preBuildCheckpoint?.summary) return input.preBuildCheckpoint.summary;
-
-  switch (input.checkpointState.key) {
-    case "awaiting_submission":
-      return input.fallbackArtifactsCount && input.fallbackArtifactsCount > 0
-        ? "Work is ready for review, but the formal review request has not been created yet. Open details to inspect the available materials."
-        : "No review request has been created yet.";
-    case "setup_required":
-      return "This work is blocked on repo setup, so review cannot start yet.";
-    case "awaiting_evidence":
-      return "A review request exists, but the review materials are not complete yet.";
-    case "changes_requested":
-      return "This work is waiting on updates before it can be approved.";
-    case "approved":
-      return "This work is approved and ready to move forward.";
-    default:
-      return "This work is ready for review and decision.";
-  }
-}
-
-function isCheckpointApproved(summary?: MilestoneReviewSummary | null, approvalGateStatus?: string | null) {
-  return summary?.latestDecision === "approve" || approvalGateStatus === "approved";
-}
-
-function shouldShowCheckpointDecisionMetadata(summary?: MilestoneReviewSummary | null, approvalGateStatus?: string | null) {
-  return !isCheckpointApproved(summary, approvalGateStatus);
 }
 
 function formatCheckpointReason(reason?: string | null) {
@@ -1002,7 +935,7 @@ export default function ProjectDetailPage() {
     : project.status === "paused"
       ? "border-amber-200 bg-amber-50 text-amber-700"
       : project.status === "active"
-        ? "border-blue-200 bg-blue-50 text-blue-700"
+        ? "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground"
         : "border-border bg-panel-elevated text-text-secondary";
   const attentionState = blockedWorkCount > 0
     ? {
@@ -1019,13 +952,13 @@ export default function ProjectDetailPage() {
       : reviewCount > 0
         ? {
             label: "Review follow-through",
-            tone: "border-violet-200 bg-violet-50 text-violet-700",
+            tone: "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground",
             summary: reviewCount === 1 ? "1 item is in or ready for review." : `${reviewCount} items are in or ready for review.`,
           }
         : openTaskCount > 0
           ? {
               label: "Active work",
-              tone: "border-blue-200 bg-blue-50 text-blue-700",
+              tone: "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground",
               summary: openTaskCount === 1 ? "1 task is still open." : `${openTaskCount} tasks are still open.`,
             }
           : project.status === "completed"
@@ -1097,7 +1030,7 @@ export default function ProjectDetailPage() {
     : attachmentProcessingState?.status === "retryable_failure"
       ? "border-amber-200 bg-amber-50 text-amber-900"
       : attachmentProcessingState?.active
-        ? "border-sky-200 bg-sky-50 text-sky-900"
+        ? "border-border bg-panel-subtle text-text"
         : "border-emerald-200 bg-emerald-50 text-emerald-900";
 
   return (
@@ -1121,7 +1054,7 @@ export default function ProjectDetailPage() {
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/projects" className="inline-flex items-center gap-2 rounded-full border border-border bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary transition hover:border-red-200 hover:text-red-700">
+              <Link href="/projects" className="inline-flex items-center gap-2 rounded-full border border-border bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary transition hover:border-accent/25 hover:text-red-700">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to projects
               </Link>
@@ -1160,13 +1093,13 @@ export default function ProjectDetailPage() {
                       <p className="mt-1 text-sm leading-6 text-text-secondary">{progressSummary}</p>
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/80 bg-panel/80 px-4 py-3 text-sm text-text-secondary shadow-sm">
+                  <div className="rounded-2xl border border-border/80 bg-panel/80 px-4 py-3 text-sm text-text-secondary shadow-sm">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Updated</div>
                     <div className="mt-1 font-medium text-text">{updatedLabel}</div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/80 bg-panel/80 px-4 py-3 shadow-sm">
+                <div className="rounded-2xl border border-border/80 bg-panel/80 px-4 py-3 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Tracked progress</div>
@@ -1182,7 +1115,7 @@ export default function ProjectDetailPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {summaryMetrics.map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-white/80 bg-panel/80 px-4 py-3 shadow-sm">
+                    <div key={item.label} className="rounded-2xl border border-border/80 bg-panel/80 px-4 py-3 shadow-sm">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{item.label}</div>
                       <div className="mt-1 text-2xl font-semibold tracking-tight text-text">{item.value}</div>
                     </div>
@@ -1217,7 +1150,7 @@ export default function ProjectDetailPage() {
                     {isStatusActionLoading ? "Updating..." : actionLabel}
                   </Button>
                 ) : null}
-                <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" variant="warm" className="w-full rounded-xl">
+                <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" className="w-full rounded-xl">
                   <Plus className="h-4 w-4" />
                   Add follow-up work
                 </Button>
@@ -1240,13 +1173,13 @@ export default function ProjectDetailPage() {
               icon={<FolderKanban className="h-7 w-7" />}
               title="No project work yet"
               description="Add the first task to move this project from setup into active delivery. Work items will update here as they move across lanes."
-              action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} variant="warm" className="rounded-xl px-4">Add first task</Button>}
+              action={<Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} className="rounded-xl px-4">Add first task</Button>}
             />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
                 ["Queued work", taskGroups.todo, "border-border bg-panel-subtle", "queued"],
-                ["Active work", taskGroups.inProgress, "border-blue-100 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/20", "in_flight"],
+                ["Active work", taskGroups.inProgress, "border-accent/14 bg-accent-soft/60", "in_flight"],
                 ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/70 dark:border-amber-900/40 dark:bg-amber-950/20", "stalled"],
                 ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
               ].map(([label, bucket, bucketClass, bucketKey]) => (
@@ -1297,7 +1230,7 @@ export default function ProjectDetailPage() {
                         const blocker = bucketKey === "stalled" ? truth?.taskBoard?.blockers?.[task.id] : null;
                         const taskCardSummary = getTaskCardSummary(task, blocker);
                         return (
-                          <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-border bg-panel p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
+                          <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-border bg-panel p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-start justify-between gap-2">
@@ -1311,8 +1244,8 @@ export default function ProjectDetailPage() {
                                 </div>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
-                                  {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-border bg-panel-subtle-strong px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">Active work</span>}
-                                  {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
+                                  {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-border bg-panel-subtle px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-border bg-panel-subtle-strong px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Queued next</span> : <span className="rounded-full border border-accent/16 bg-accent-soft px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">Active work</span>}
+                                  {showTaskReviewBadge ? <span className="rounded-full border border-accent/16 bg-accent-soft/80 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">{formatReviewStatus(task.review_status)}</span> : null}
                                   {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>{checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>
                                 {bucketKey === "stalled" && blocker ? (
@@ -1486,7 +1419,7 @@ export default function ProjectDetailPage() {
                       {group.entries.length > 0 ? (
                         <div className="mt-3 space-y-2">
                           {group.entries.map((link) => (
-                            <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-border bg-panel-elevated px-4 py-3 transition hover:border-red-200 hover:bg-panel">
+                            <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-border bg-panel-elevated px-4 py-3 transition hover:border-accent/25 hover:bg-panel">
                               <div className="min-w-0">
                                 <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">{link.label}</div>
                                 <div className="mt-1 break-all text-sm font-medium text-text">{link.url}</div>
@@ -1537,7 +1470,7 @@ export default function ProjectDetailPage() {
                     {documents.length > 0 ? (
                       <div className="mt-3 space-y-2">
                         {documents.map((doc) => (
-                          <a key={doc.id} href={doc.url || undefined} target={doc.url ? "_blank" : undefined} rel={doc.url ? "noreferrer" : undefined} className={cn("flex items-start justify-between gap-3 rounded-2xl border border-border px-4 py-3", doc.url ? "bg-panel-elevated transition hover:border-red-200 hover:bg-panel" : "bg-panel")}>
+                          <a key={doc.id} href={doc.url || undefined} target={doc.url ? "_blank" : undefined} rel={doc.url ? "noreferrer" : undefined} className={cn("flex items-start justify-between gap-3 rounded-2xl border border-border px-4 py-3", doc.url ? "bg-panel-elevated transition hover:border-accent/25 hover:bg-panel" : "bg-panel")}>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="rounded-full border border-border bg-panel-elevated px-2 py-0.5 text-[10px] font-medium uppercase text-text-secondary">{doc.type.replace(/_/g, " ")}</span>
@@ -1668,7 +1601,7 @@ export default function ProjectDetailPage() {
                   </div>
                   <div className="mt-4 space-y-3 text-sm text-text-secondary">
                     {deliveryIntegrity?.blockingReason ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Delivery hold:</span> {deliveryIntegrity.blockingReason}</div> : null}
-                    {deliveryIntegrity?.pendingProvisioningReason ? <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900"><span className="font-medium">Repo provisioning:</span> {deliveryIntegrity.pendingProvisioningReason}</div> : null}
+                    {deliveryIntegrity?.pendingProvisioningReason ? <div className="rounded-2xl border border-border bg-panel-subtle px-4 py-3 text-text"><span className="font-medium">Repo provisioning:</span> {deliveryIntegrity.pendingProvisioningReason}</div> : null}
                     {visibleAttachmentProcessingState ? (
                       <div className={cn("rounded-2xl border px-4 py-3", attachmentProcessingTone)}>
                         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">

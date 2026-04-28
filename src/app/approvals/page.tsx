@@ -478,7 +478,7 @@ export default async function ApprovalsPage({
                             name="decision"
                             value="approve"
                             size="lg"
-                            variant="warm"
+                           
                             className="min-h-12 w-full rounded-xl px-6 text-base font-semibold shadow-sm sm:w-auto"
                           >
                             <CheckCircle2 className="h-4 w-4" />

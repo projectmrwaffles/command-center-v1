@@ -43,9 +43,9 @@ export function getAgentStatusLabel(status?: string | null) {
 
 export function statusClasses(status?: string | null) {
   const presence = getAgentPresenceStatus(status);
-  if (presence === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (presence === "idle") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-zinc-200 bg-zinc-100 text-zinc-700";
+  if (presence === "active") return "ds-success";
+  if (presence === "idle") return "ds-warning";
+  return "border-border bg-panel-subtle text-text-secondary";
 }
 
 export function formatEventType(eventType: string) {

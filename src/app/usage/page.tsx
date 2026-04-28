@@ -175,10 +175,10 @@ export default async function UsagePage() {
                 Metrics stay scoped to the latest day so spend and model mix are easy to compare at a glance.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-zinc-700">
+                <span className="rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-text-secondary">
                   {totalTokens.toLocaleString()} tokens
                 </span>
-                <span className="rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-zinc-700">
+                <span className="rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-text-secondary">
                   ${totalCost.toFixed(4)} total cost
                 </span>
               </div>

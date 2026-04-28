@@ -107,8 +107,8 @@ function ProjectsContent() {
         <div className="pointer-events-none absolute" />
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
-              <Sparkles className="h-3.5 w-3.5 text-red-500" />
+            <div className="ds-accent-badge inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+              <Sparkles className="h-3.5 w-3.5 text-accent" />
               Project workspace
             </div>
             <div className="space-y-2">
@@ -119,23 +119,23 @@ function ProjectsContent() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <PageHeroStat className="border-red-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
-                  <Layers3 className="h-4 w-4 text-red-500" />
+              <PageHeroStat className="border-accent/15">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">
+                  <Layers3 className="h-4 w-4 text-accent" />
                   Total projects
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{stats.total}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-rose-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-rose-700">
-                  <FolderKanban className="h-4 w-4 text-rose-500" />
+              <PageHeroStat className="border-accent/15">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">
+                  <FolderKanban className="h-4 w-4 text-accent" />
                   Active now
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{stats.active}</div>
               </PageHeroStat>
-              <PageHeroStat className="border-emerald-100">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
-                  <Target className="h-4 w-4 text-emerald-500" />
+              <PageHeroStat className="border-[color:color-mix(in_srgb,var(--color-success)_22%,var(--color-border))]">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[color:color-mix(in_srgb,var(--color-success)_84%,var(--color-text))]">
+                  <Target className="h-4 w-4 text-success" />
                   Avg. progress
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{stats.avgProgress}%</div>
@@ -147,7 +147,7 @@ function ProjectsContent() {
             <div className="rounded-2xl border border-border bg-panel p-3 sm:p-4 lg:max-w-xs">
               <div className="text-sm font-medium text-text">Start something new</div>
               <p className="mt-1 text-sm leading-6 text-text-muted">Create a project from here instead of relying on a floating action button.</p>
-              <Button asChild size="lg" variant="warm" className="mt-4 w-full rounded-xl">
+              <Button asChild size="lg" className="mt-4 w-full rounded-xl">
                 <Link href="/projects/new">
                   <Plus className="h-4 w-4" />
                   New project
@@ -177,14 +177,14 @@ function ProjectsContent() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-[24px] border border-red-200 bg-red-50 px-6 py-12 text-center text-red-700 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{error}</div>
+        <div className="ds-danger rounded-[24px] px-6 py-12 text-center shadow-sm">{error}</div>
       ) : projects.length === 0 ? (
         <BrandedEmptyState
-          icon={<FolderKanban className="h-8 w-8 text-red-600" />}
+          icon={<FolderKanban className="h-8 w-8 text-accent" />}
           title="No projects yet"
           description="Create your first project to start routing work, tracking delivery, and building a more useful overview here."
           action={
-            <Button asChild size="lg" variant="warm" className="rounded-xl px-5">
+            <Button asChild size="lg" className="rounded-xl px-5">
               <Link href="/projects/new">
                 <Plus className="h-4 w-4" />
                 Create your first project
@@ -208,7 +208,7 @@ function ProjectsContent() {
                       <div className="min-w-0 space-y-3">
                         <ProjectTypeBadge type={project.type} status={project.status} />
                         <div>
-                          <h2 className="text-lg font-semibold tracking-tight text-text transition-colors group-hover:text-red-700">{project.name}</h2>
+                          <h2 className="text-lg font-semibold tracking-tight text-text transition-colors group-hover:text-accent">{project.name}</h2>
                           <p className="mt-2 mobile-summary-clamp text-sm leading-6 text-text-secondary">{summary}</p>
                         </div>
                       </div>
@@ -240,9 +240,9 @@ function ProjectsContent() {
                       </div>
                     </div>
 
-                    <div className="mt-auto flex items-center justify-between gap-3 border-t border-zinc-100 pt-1 text-sm text-text-muted">
+                    <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/70 pt-1 text-sm text-text-muted">
                       <span>{project.created_at ? `Created ${new Date(project.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Recently created"}</span>
-                      <span className="inline-flex items-center gap-1 font-medium text-red-700 transition-colors group-hover:text-red-800">
+                      <span className="inline-flex items-center gap-1 font-medium text-accent transition-colors group-hover:text-accent-strong">
                         View project
                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                       </span>

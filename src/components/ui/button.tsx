@@ -6,8 +6,7 @@ export type ButtonVariant =
   | "secondary"
   | "outline"
   | "destructive"
-  | "ghost"
-  | "warm";
+  | "ghost";
 
 export type ButtonSize = "default" | "sm" | "lg" | "icon";
 
@@ -34,13 +33,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       "inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50";
 
     const variants: Record<ButtonVariant, string> = {
-      default: "bg-accent text-white hover:bg-accent-strong",
-      secondary: "bg-panel-elevated text-text hover:bg-panel",
+      default: "bg-accent text-white shadow-[var(--shadow-accent)] hover:bg-accent-strong",
+      secondary: "bg-panel-subtle text-text shadow-[var(--shadow-panel-soft)] hover:bg-panel",
       outline:
-        "border border-border bg-panel text-text hover:border-accent/30 hover:bg-accent-soft/60",
+        "border border-border/85 bg-panel text-text shadow-[var(--shadow-panel-soft)] hover:border-accent/25 hover:bg-accent-soft/45",
       destructive: "bg-accent-strong text-white hover:bg-accent-strong/90",
-      ghost: "text-text hover:bg-accent-soft/50",
-      warm: "border border-accent bg-accent text-white shadow-[var(--shadow-accent)] hover:border-accent-strong hover:bg-accent-strong",
+      ghost: "text-text hover:bg-accent-soft/45",
     };
 
     const sizes: Record<ButtonSize, string> = {

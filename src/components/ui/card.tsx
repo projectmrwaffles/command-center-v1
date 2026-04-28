@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 export type CardVariant = "default" | "featured" | "soft";
 
 const cardVariants: Record<CardVariant, string> = {
-  default: "border border-border/80 bg-panel text-text shadow-[var(--shadow-panel-soft)]",
+  default: "border border-border/85 bg-panel text-text shadow-[var(--shadow-panel-soft)]",
   featured:
-    "border border-border/75 bg-panel text-text shadow-[var(--shadow-panel)] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[var(--shadow-panel)]",
-  soft: "border border-border/70 bg-panel-subtle text-text shadow-[var(--shadow-panel-soft)]",
+    "border border-border/80 bg-panel text-text shadow-[var(--shadow-panel-soft)] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-[var(--shadow-panel)]",
+  soft: "border border-border/75 bg-panel-subtle text-text shadow-[var(--shadow-panel-soft)]",
 };
 
 export function Card({

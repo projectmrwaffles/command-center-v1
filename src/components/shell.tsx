@@ -86,7 +86,10 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
           src="/brand/command-center-logo.jpg"
           alt="Command Center logo"
           fill
-          className={cn("object-contain", compact ? "px-3 py-2" : "px-3.5 py-2.5")}
+          className={cn(
+            compact ? "object-contain px-3 py-2" : "object-cover object-center px-1 py-0.5 scale-[1.12]",
+            "transition-transform duration-200 group-hover:scale-[1.15]"
+          )}
           sizes={compact ? "136px" : "216px"}
           priority
         />
@@ -104,12 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex w-full">
         <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-border/80 md:bg-shell md:shadow-[var(--shadow-shell)]">
           <div className="border-b border-border/70 px-5 py-5">
-            <div className="flex flex-col gap-4">
-              <BrandMark />
-              <div className="flex justify-end">
-                <ThemeToggle compact className="shrink-0" />
-              </div>
-            </div>
+            <BrandMark />
           </div>
 
           <nav className="flex flex-1 flex-col gap-1 px-3 py-3">
@@ -136,9 +134,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="border-t border-border/70 px-5 py-4">
-            <div className="flex items-center justify-between text-xs text-text-muted">
-              <span className="uppercase tracking-[0.18em]">API</span>
-              <span className="font-mono text-text-secondary">v1</span>
+            <div className="flex flex-col items-start gap-3">
+              <ThemeToggle compact className="shrink-0" />
+              <div className="flex w-full items-center justify-between text-xs text-text-muted">
+                <span className="uppercase tracking-[0.18em]">API</span>
+                <span className="font-mono text-text-secondary">v1</span>
+              </div>
             </div>
           </div>
         </aside>

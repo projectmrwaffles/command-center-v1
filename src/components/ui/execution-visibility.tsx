@@ -54,7 +54,7 @@ export function getExecutionTone(input: {
   if (input.blocked || input.status === "blocked") {
     return {
       label: "Blocked",
-      badgeClassName: "border-red-200 bg-red-50 text-red-700",
+      badgeClassName: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200",
       description: "Needs attention before work can continue.",
     } satisfies ExecutionTone;
   }
@@ -62,7 +62,7 @@ export function getExecutionTone(input: {
   if ((input.approvalCount ?? 0) > 0) {
     return {
       label: "Needs review",
-      badgeClassName: "border-amber-200 bg-amber-50 text-amber-700",
+      badgeClassName: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
       description: "There is at least one pending decision or approval.",
     } satisfies ExecutionTone;
   }
@@ -71,14 +71,14 @@ export function getExecutionTone(input: {
     if (reviewPending) {
       return {
         label: "Awaiting review",
-        badgeClassName: "border-purple-200 bg-purple-50 text-purple-700",
+        badgeClassName: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-200",
         description: "Implementation is finished, but review has not cleared yet.",
       } satisfies ExecutionTone;
     }
 
     return {
       label: "Completed",
-      badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200",
       description: "This work is finished with no open review signal.",
     } satisfies ExecutionTone;
   }
@@ -86,7 +86,7 @@ export function getExecutionTone(input: {
   if (reviewActive) {
     return {
       label: reviewState === "revision_requested" || reviewState === "in_revision" ? "In revision" : "In review",
-      badgeClassName: "border-purple-200 bg-purple-50 text-purple-700",
+      badgeClassName: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-200",
       description: "Execution is in an active review loop.",
     } satisfies ExecutionTone;
   }
@@ -95,14 +95,14 @@ export function getExecutionTone(input: {
     if (input.stale) {
       return {
         label: "Needs update",
-        badgeClassName: "border-amber-200 bg-amber-50 text-amber-700",
+        badgeClassName: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
         description: "Marked in progress, but there has not been a recent execution update.",
       } satisfies ExecutionTone;
     }
 
     return {
       label: "Executing now",
-      badgeClassName: "border-blue-200 bg-blue-50 text-blue-700",
+      badgeClassName: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200",
       description: "Actively moving with a live in-progress status.",
     } satisfies ExecutionTone;
   }
@@ -110,7 +110,7 @@ export function getExecutionTone(input: {
   if (input.status === "paused") {
     return {
       label: "Paused",
-      badgeClassName: "border-amber-200 bg-amber-50 text-amber-700",
+      badgeClassName: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
       description: "Execution is paused right now.",
     } satisfies ExecutionTone;
   }
@@ -118,14 +118,14 @@ export function getExecutionTone(input: {
   if (reviewPending) {
     return {
       label: "Awaiting review",
-      badgeClassName: "border-purple-200 bg-purple-50 text-purple-700",
+      badgeClassName: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-200",
       description: "This task is queued behind an outstanding review step.",
     } satisfies ExecutionTone;
   }
 
   return {
     label: "Queued",
-    badgeClassName: "border-zinc-200 bg-zinc-50 text-zinc-700",
+    badgeClassName: "border-border bg-panel-elevated text-text-secondary",
     description: "Not started yet with current project data.",
   } satisfies ExecutionTone;
 }
@@ -139,20 +139,20 @@ export function ProgressRing({ value, size = 44, strokeWidth = 4, shellClassName
   return (
     <div className={cn("relative inline-flex items-center justify-center", shellClassName)} style={{ width: size, height: size }} aria-label={`Progress ${normalized}%`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} className="stroke-zinc-200" fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} className="stroke-border/80 dark:stroke-border" fill="none" />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           strokeWidth={strokeWidth}
-          className={cn("stroke-red-500 transition-all duration-500", normalized === 0 && "stroke-zinc-300")}
+          className={cn("stroke-red-500 transition-all duration-500", normalized === 0 && "stroke-zinc-300 dark:stroke-zinc-700")}
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
         />
       </svg>
-      <span className="absolute text-[10px] font-semibold tracking-tight text-zinc-700">{normalized}%</span>
+      <span className="absolute text-[10px] font-semibold tracking-tight text-text-secondary">{normalized}%</span>
     </div>
   );
 }

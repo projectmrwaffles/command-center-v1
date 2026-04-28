@@ -234,7 +234,7 @@ type ProjectDetail = {
 
 function TaskStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    todo: "border-zinc-200 bg-zinc-100 text-zinc-600",
+    todo: "border-border bg-panel-elevated text-text-secondary",
     in_progress: "border-blue-200 bg-blue-100 text-blue-700",
     review: "border-purple-200 bg-purple-100 text-purple-700",
     done: "border-emerald-200 bg-emerald-100 text-emerald-700",
@@ -279,7 +279,7 @@ function checkpointTone(value?: string | null) {
     case "setup_required":
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
-      return "border-zinc-200 bg-zinc-100 text-zinc-600";
+      return "border-border bg-panel-elevated text-text-secondary";
   }
 }
 
@@ -290,7 +290,7 @@ function proofTone(value?: string | null) {
     case "needs_update":
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
-      return "border-zinc-200 bg-zinc-100 text-zinc-600";
+      return "border-border bg-panel-elevated text-text-secondary";
   }
 }
 
@@ -441,17 +441,17 @@ function formatUpdatedDate(value?: string | null) {
 }
 
 function EmptySectionState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
-  return <BrandedEmptyState icon={icon} title={title} description={description} action={action} className="border-zinc-200 bg-zinc-50 py-12" />;
+  return <BrandedEmptyState icon={icon} title={title} description={description} action={action} className="border-border bg-panel-elevated py-12" />;
 }
 
 function Section({ title, description, children, className, action }: { title: string; description?: string; children: ReactNode; className?: string; action?: ReactNode }) {
   return (
-    <Card variant="soft" className={cn("overflow-hidden rounded-[24px] border-zinc-200/90", className)}>
+    <Card variant="soft" className={cn("overflow-hidden rounded-[24px] border-border/90", className)}>
       <CardContent className="p-5 sm:p-6">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{title}</h2>
-            {description ? <p className="mt-1 text-sm leading-6 text-zinc-500">{description}</p> : null}
+            <h2 className="text-lg font-semibold tracking-tight text-text">{title}</h2>
+            {description ? <p className="mt-1 text-sm leading-6 text-text-muted">{description}</p> : null}
           </div>
           {action}
         </div>
@@ -479,18 +479,18 @@ function MilestoneReviewCard({
   const stateBadge = milestoneDisplayState.stageState;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-panel p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Completed work review</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Completed work review</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-zinc-900">{milestone.name}</p>
-            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{milestone.progressPct}% complete</span>
+            <p className="text-sm font-semibold text-text">{milestone.name}</p>
+            <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-text-secondary">{milestone.progressPct}% complete</span>
             <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", stateBadge.className)}>{stateBadge.label}</span>
             {revisionCycleActive ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-red-700">Revision requested</span> : null}
           </div>
-          {milestone.goal ? <p className="mt-2 text-sm leading-6 text-zinc-600">{milestone.goal}</p> : null}
-          <p className="mt-2 text-sm leading-6 text-zinc-600">{summaryCopy}</p>
+          {milestone.goal ? <p className="mt-2 text-sm leading-6 text-text-secondary">{milestone.goal}</p> : null}
+          <p className="mt-2 text-sm leading-6 text-text-secondary">{summaryCopy}</p>
         </div>
         <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
       </div>
@@ -508,7 +508,7 @@ function MilestoneReviewCard({
           />
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-3 text-sm text-text-muted">
           {helperCopy}
         </div>
       )}
@@ -893,7 +893,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-red-200 border-t-red-600" />
-        <div className="text-zinc-500">Loading project…</div>
+        <div className="text-text-muted">Loading project…</div>
       </div>
     );
   }
@@ -910,7 +910,7 @@ export default function ProjectDetailPage() {
             <p className="mt-2 text-sm text-red-600">{error}</p>
             <div className="mt-4 flex gap-3">
               <Button onClick={() => fetchProject(true)} variant="destructive" className="rounded-xl">Retry</Button>
-              <Link href="/projects" className="inline-flex items-center rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+              <Link href="/projects" className="inline-flex items-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-panel-elevated">
                 ← Back to Projects
               </Link>
             </div>
@@ -1003,7 +1003,7 @@ export default function ProjectDetailPage() {
       ? "border-amber-200 bg-amber-50 text-amber-700"
       : project.status === "active"
         ? "border-blue-200 bg-blue-50 text-blue-700"
-        : "border-zinc-200 bg-zinc-100 text-zinc-700";
+        : "border-border bg-panel-elevated text-text-secondary";
   const attentionState = blockedWorkCount > 0
     ? {
         label: "Needs unblock",
@@ -1036,7 +1036,7 @@ export default function ProjectDetailPage() {
               }
             : {
                 label: "Ready for next step",
-                tone: "border-zinc-200 bg-zinc-100 text-zinc-700",
+                tone: "border-border bg-panel-elevated text-text-secondary",
                 summary: "No open work is tracked yet.",
               };
   const heroSummary = summaryText || attentionState.summary;
@@ -1104,9 +1104,9 @@ export default function ProjectDetailPage() {
     <div className="min-w-0 space-y-6 overflow-x-hidden pb-10 md:space-y-8">
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-zinc-900">Delete this project?</h3>
-            <p className="mt-2 text-sm text-zinc-600">This cannot be undone.</p>
+          <div className="w-full max-w-md rounded-[24px] bg-panel p-6 shadow-[var(--shadow-panel)]">
+            <h3 className="text-lg font-semibold text-text">Delete this project?</h3>
+            <p className="mt-2 text-sm text-text-secondary">This cannot be undone.</p>
             <div className="mt-4 flex gap-3">
               <Button onClick={() => setShowDeleteConfirm(false)} variant="outline" className="flex-1 rounded-xl">Cancel</Button>
               <Button onClick={handleDelete} disabled={actionLoading === "delete"} variant="destructive" className="flex-1 rounded-xl">
@@ -1121,11 +1121,11 @@ export default function ProjectDetailPage() {
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/projects" className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-700 transition hover:border-red-200 hover:text-red-700">
+              <Link href="/projects" className="inline-flex items-center gap-2 rounded-full border border-border bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary transition hover:border-red-200 hover:text-red-700">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to projects
               </Link>
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
+              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
                 <Sparkles className="h-3.5 w-3.5 text-red-500" />
                 Project detail
               </div>
@@ -1136,8 +1136,8 @@ export default function ProjectDetailPage() {
                 {project.type ? <ProjectTypeBadge type={project.type} status={project.status} className="normal-case tracking-normal" /> : null}
               </div>
               <div>
-                <h1 className="break-words text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">{project.name}</h1>
-                <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block sm:text-base">
+                <h1 className="break-words text-3xl font-semibold tracking-tight text-text sm:text-4xl">{project.name}</h1>
+                <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-text-secondary sm:block sm:text-base">
                   {heroSummary || "Project summary and current delivery state."}
                 </p>
               </div>
@@ -1156,35 +1156,35 @@ export default function ProjectDetailPage() {
                       </span>
                     </div>
                     <div>
-                      <p className="text-base font-medium text-zinc-950">{attentionState.summary}</p>
-                      <p className="mt-1 text-sm leading-6 text-zinc-600">{progressSummary}</p>
+                      <p className="text-base font-medium text-text">{attentionState.summary}</p>
+                      <p className="mt-1 text-sm leading-6 text-text-secondary">{progressSummary}</p>
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm text-zinc-600 shadow-sm">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Updated</div>
-                    <div className="mt-1 font-medium text-zinc-950">{updatedLabel}</div>
+                  <div className="rounded-2xl border border-white/80 bg-panel/80 px-4 py-3 text-sm text-text-secondary shadow-sm">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Updated</div>
+                    <div className="mt-1 font-medium text-text">{updatedLabel}</div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
+                <div className="rounded-2xl border border-white/80 bg-panel/80 px-4 py-3 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Tracked progress</div>
-                      <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{visibleProgressPct}%</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Tracked progress</div>
+                      <div className="mt-1 text-2xl font-semibold tracking-tight text-text">{visibleProgressPct}%</div>
                     </div>
                     <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone.pill)}>{statusTone.label}</span>
                   </div>
                   <div className={cn("mt-3 h-2 overflow-hidden rounded-full", statusTone.progressTrack)}>
                     <div className={cn("h-full rounded-full transition-all", statusTone.progress)} style={{ width: `${visibleProgressPct}%` }} />
                   </div>
-                  <p className="mt-2 text-xs text-zinc-500">Progress reflects tracked work completion and review holds.</p>
+                  <p className="mt-2 text-xs text-text-muted">Progress reflects tracked work completion and review holds.</p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {summaryMetrics.map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
-                      <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{item.value}</div>
+                    <div key={item.label} className="rounded-2xl border border-white/80 bg-panel/80 px-4 py-3 shadow-sm">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{item.label}</div>
+                      <div className="mt-1 text-2xl font-semibold tracking-tight text-text">{item.value}</div>
                     </div>
                   ))}
                 </div>
@@ -1193,15 +1193,15 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[320px] lg:max-w-sm">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+            <div className="rounded-2xl border border-border bg-panel p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium text-zinc-900">Project actions</div>
-                  <p className="mt-1 text-sm leading-6 text-zinc-500">Keep delivery moving from here.</p>
+                  <div className="text-sm font-medium text-text">Project actions</div>
+                  <p className="mt-1 text-sm leading-6 text-text-muted">Keep delivery moving from here.</p>
                 </div>
-                <div className="text-right text-xs text-zinc-500">
-                  <div className="font-semibold uppercase tracking-[0.14em] text-zinc-400">Updated</div>
-                  <div className="mt-1 text-sm font-medium text-zinc-950">{updatedLabel}</div>
+                <div className="text-right text-xs text-text-muted">
+                  <div className="font-semibold uppercase tracking-[0.14em] text-text-muted">Updated</div>
+                  <div className="mt-1 text-sm font-medium text-text">{updatedLabel}</div>
                 </div>
               </div>
 
@@ -1245,19 +1245,19 @@ export default function ProjectDetailPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
-                ["Queued work", taskGroups.todo, "border-zinc-200 bg-zinc-50", "queued"],
-                ["Active work", taskGroups.inProgress, "border-blue-100 bg-blue-50/60", "in_flight"],
-                ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/70", "stalled"],
-                ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/70", "done"],
+                ["Queued work", taskGroups.todo, "border-border bg-panel-elevated", "queued"],
+                ["Active work", taskGroups.inProgress, "border-blue-100 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/20", "in_flight"],
+                ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/70 dark:border-amber-900/40 dark:bg-amber-950/20", "stalled"],
+                ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
               ].map(([label, bucket, bucketClass, bucketKey]) => (
                 <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-zinc-900">{label}</h3>
-                    <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">{(bucket as any[]).length}</span>
+                    <h3 className="text-sm font-semibold text-text">{label}</h3>
+                    <span className="rounded-full border border-border bg-panel px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-text-muted">{(bucket as any[]).length}</span>
                   </div>
                   <div className="space-y-2">
                     {(bucket as any[]).length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-3 py-4 text-xs text-zinc-400">No work items</div>
+                      <div className="rounded-xl border border-dashed border-border bg-panel px-3 py-4 text-xs text-text-muted">No work items</div>
                     ) : (
                       (bucket as any[]).map((task: any) => {
                         const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
@@ -1297,29 +1297,29 @@ export default function ProjectDetailPage() {
                         const blocker = bucketKey === "stalled" ? truth?.taskBoard?.blockers?.[task.id] : null;
                         const taskCardSummary = getTaskCardSummary(task, blocker);
                         return (
-                          <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
+                          <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-border bg-panel p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-start justify-between gap-2">
-                                  <span className="line-clamp-2 text-sm font-medium text-zinc-900">{task.title}</span>
+                                  <span className="line-clamp-2 text-sm font-medium text-text">{task.title}</span>
                                   <TaskStatusBadge status={effectiveTaskStatus} />
                                 </div>
                                 <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
-                                  <span className="text-zinc-500">Task</span>
+                                  <span className="text-text-muted">Task</span>
                                   {taskTypeConfig ? <span className="text-red-600">{taskTypeConfig.label}</span> : null}
-                                  {taskMilestone?.name ? <span className="text-zinc-400">Stage: {taskMilestone.name}</span> : null}
+                                  {taskMilestone?.name ? <span className="text-text-muted">Stage: {taskMilestone.name}</span> : null}
                                 </div>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
-                                  {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-700">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700">Active work</span>}
+                                  {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Queued next</span> : <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">Active work</span>}
                                   {showTaskReviewBadge ? <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-purple-700">{formatReviewStatus(task.review_status)}</span> : null}
                                   {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>{checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>
                                 {bucketKey === "stalled" && blocker ? (
-                                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
-                                    <div className="font-semibold text-amber-800">{blocker.label}</div>
+                                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                                    <div className="font-semibold text-amber-800 dark:text-amber-200">{blocker.label}</div>
                                     <div className="mt-1">{blocker.detail}</div>
-                                    {blocker.resolution ? <div className="mt-2 text-amber-700">Next: {blocker.resolution}</div> : null}
+                                    {blocker.resolution ? <div className="mt-2 text-amber-700 dark:text-amber-300">Next: {blocker.resolution}</div> : null}
                                   </div>
                                 ) : null}
                               </div>
@@ -1327,8 +1327,8 @@ export default function ProjectDetailPage() {
                             </div>
                             {(taskCardSummary || assignee || task.updated_at) && (
                               <div className="mt-2 space-y-1">
-                                {taskCardSummary ? <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{taskCardSummary}</p> : null}
-                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                                {taskCardSummary ? <p className="line-clamp-2 text-xs leading-5 text-text-muted">{taskCardSummary}</p> : null}
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted">
                                   {assignee ? <p>Owner: {assignee.name}</p> : null}
                                   {task.updated_at ? <p>{formatRelativeTimestamp(task.updated_at)}</p> : null}
                                 </div>
@@ -1347,39 +1347,39 @@ export default function ProjectDetailPage() {
 
         <Section title="Approvals & review" description="Keep permission decisions and completed-work review in one place, without blending them into the work board.">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+            <div className="rounded-2xl border border-border bg-panel-elevated/70 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">Pending approvals</h3>
-                  <p className="mt-1 text-sm leading-6 text-zinc-500">Permission and risk gates that must be decided before work can proceed.</p>
+                  <h3 className="text-sm font-semibold text-text">Pending approvals</h3>
+                  <p className="mt-1 text-sm leading-6 text-text-muted">Permission and risk gates that must be decided before work can proceed.</p>
                 </div>
                 <Link href="/approvals" className="text-xs font-medium text-red-600 hover:text-red-700">Open approvals</Link>
               </div>
-              <div className="mt-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Pending approvals</div>
-                <div className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{data?.stats.pendingApprovals ?? 0}</div>
-                <p className="mt-2 text-xs leading-5 text-zinc-500">Use approvals when the question is whether the team may proceed, not whether delivered work is acceptable.</p>
+              <div className="mt-3 rounded-2xl border border-border bg-panel px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Pending approvals</div>
+                <div className="mt-1 text-2xl font-semibold tracking-tight text-text">{data?.stats.pendingApprovals ?? 0}</div>
+                <p className="mt-2 text-xs leading-5 text-text-muted">Use approvals when the question is whether the team may proceed, not whether delivered work is acceptable.</p>
               </div>
               <div className="mt-3 space-y-3">
                 {pendingRealtimeApprovals.length > 0 ? pendingRealtimeApprovals.slice(0, 4).map((approval) => (
-                  <div key={approval.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                  <div key={approval.id} className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">Approval gate</span>
-                      {approval.severity ? <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">{approval.severity} risk</span> : null}
-                      <span className="ml-auto text-xs text-zinc-400">{formatRelativeTimestamp(approval.created_at)}</span>
+                      {approval.severity ? <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">{approval.severity} risk</span> : null}
+                      <span className="ml-auto text-xs text-text-muted">{formatRelativeTimestamp(approval.created_at)}</span>
                     </div>
-                    <p className="mt-2 text-sm font-medium text-zinc-900">{approval.summary || "Approval decision needed"}</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">Decide this gate before more work moves forward.</p>
+                    <p className="mt-2 text-sm font-medium text-text">{approval.summary || "Approval decision needed"}</p>
+                    <p className="mt-1 text-xs leading-5 text-text-muted">Decide this gate before more work moves forward.</p>
                   </div>
                 )) : (
-                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-500">No permission or risk gates are waiting right now.</div>
+                  <div className="rounded-2xl border border-dashed border-border bg-panel px-4 py-4 text-sm text-text-muted">No permission or risk gates are waiting right now.</div>
                 )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <h3 className="text-sm font-semibold text-zinc-900">Review & revisions</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Review completed work, confirm what shipped, and track any requested follow-up changes.</p>
+            <div className="rounded-2xl border border-border bg-panel p-4">
+              <h3 className="text-sm font-semibold text-text">Review & revisions</h3>
+              <p className="mt-1 text-sm leading-6 text-text-muted">Review completed work, confirm what shipped, and track any requested follow-up changes.</p>
               <div className="mt-3 space-y-3">
                 {reviewableMilestones.length > 0 ? reviewableMilestones.map((milestone) => (
                   <MilestoneReviewCard
@@ -1392,13 +1392,13 @@ export default function ProjectDetailPage() {
                     }}
                   />
                 )) : (
-                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No completed work is waiting for review yet.</div>
+                  <div className="rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-4 text-sm text-text-muted">No completed work is waiting for review yet.</div>
                 )}
 
                 {completedProjectRevisionMilestones.length > 0 ? (
-                  <div className="border-t border-zinc-200 pt-4">
-                    <h4 className="text-sm font-semibold text-zinc-900">Revision requests</h4>
-                    <p className="mt-1 text-sm leading-6 text-zinc-500">Use this when accepted work needs another pass after review, not as a substitute for approval.</p>
+                  <div className="border-t border-border pt-4">
+                    <h4 className="text-sm font-semibold text-text">Revision requests</h4>
+                    <p className="mt-1 text-sm leading-6 text-text-muted">Use this when accepted work needs another pass after review, not as a substitute for approval.</p>
                     <div className="mt-3 space-y-3">
                       {completedProjectRevisionMilestones.map((milestone) => {
                         const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
@@ -1431,13 +1431,13 @@ export default function ProjectDetailPage() {
           {recentSignalItems.length > 0 ? (
             <div className="space-y-3">
               {recentSignalItems.slice(0, 8).map((signal) => (
-                <div key={signal.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                <div key={signal.id} className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-700">{signal.label}</span>
-                    <span className="text-sm font-medium text-zinc-900">{signal.title}</span>
-                    <span className="ml-auto text-xs text-zinc-400">{formatRelativeTimestamp(signal.timestamp)}</span>
+                    <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-secondary">{signal.label}</span>
+                    <span className="text-sm font-medium text-text">{signal.title}</span>
+                    <span className="ml-auto text-xs text-text-muted">{formatRelativeTimestamp(signal.timestamp)}</span>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-600">{signal.detail}</p>
+                  <p className="mt-2 text-sm leading-6 text-text-secondary">{signal.detail}</p>
                 </div>
               ))}
             </div>
@@ -1453,9 +1453,9 @@ export default function ProjectDetailPage() {
               { label: "Uploaded files", value: documents.length },
               { label: "Extracted notes", value: attachmentRequirementSources.length },
             ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
-                <div className="mt-1 text-xl font-semibold text-zinc-950">{item.value}</div>
+              <div key={item.label} className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{item.label}</div>
+                <div className="mt-1 text-xl font-semibold text-text">{item.value}</div>
               </div>
             ))}
           </div>
@@ -1463,33 +1463,33 @@ export default function ProjectDetailPage() {
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Links</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Separate active delivery surfaces from reference material so operators can get where they need faster.</p>
+                <h3 className="text-sm font-semibold text-text">Links</h3>
+                <p className="mt-1 text-sm leading-6 text-text-muted">Separate active delivery surfaces from reference material so operators can get where they need faster.</p>
               </div>
               {project.links && Object.keys(project.links).length > 0 ? (
                 <div className="grid gap-3 lg:grid-cols-2">
                   {groupedProjectLinks.map((group) => (
-                    <div key={group.id} className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div key={group.id} className="rounded-[24px] border border-border bg-panel p-4 shadow-sm">
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+                        <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-panel-elevated text-text-secondary">
                           <Link2 className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-sm font-semibold text-zinc-900">{group.title}</h4>
-                            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{getDocumentCollectionLabel(group.entries.length)}</span>
+                            <h4 className="text-sm font-semibold text-text">{group.title}</h4>
+                            <span className="rounded-full border border-border bg-panel-elevated px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-text-secondary">{getDocumentCollectionLabel(group.entries.length)}</span>
                           </div>
-                          <p className="mt-1 text-sm leading-6 text-zinc-500">{group.description}</p>
+                          <p className="mt-1 text-sm leading-6 text-text-muted">{group.description}</p>
                         </div>
                       </div>
 
                       {group.entries.length > 0 ? (
                         <div className="mt-3 space-y-2">
                           {group.entries.map((link) => (
-                            <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 transition hover:border-red-200 hover:bg-white">
+                            <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-border bg-panel-elevated px-4 py-3 transition hover:border-red-200 hover:bg-panel">
                               <div className="min-w-0">
-                                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">{link.label}</div>
-                                <div className="mt-1 break-all text-sm font-medium text-zinc-900">{link.url}</div>
+                                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">{link.label}</div>
+                                <div className="mt-1 break-all text-sm font-medium text-text">{link.url}</div>
                               </div>
                               <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
                                 Open
@@ -1499,7 +1499,7 @@ export default function ProjectDetailPage() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No {group.title.toLowerCase()} added yet.</div>
+                        <div className="mt-3 rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-4 text-sm text-text-muted">No {group.title.toLowerCase()} added yet.</div>
                       )}
                     </div>
                   ))}
@@ -1515,36 +1515,36 @@ export default function ProjectDetailPage() {
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Documents & uploads</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Uploads and derived notes stay together here so reference files and extracted context scan as one set.</p>
+                <h3 className="text-sm font-semibold text-text">Documents & uploads</h3>
+                <p className="mt-1 text-sm leading-6 text-text-muted">Uploads and derived notes stay together here so reference files and extracted context scan as one set.</p>
               </div>
               {(documents.length > 0 || attachmentRequirementSources.length > 0 || createdFromIntake) ? (
                 <div className="space-y-3">
-                  <div className="rounded-[24px] border border-zinc-200 bg-white p-4 shadow-sm">
+                  <div className="rounded-[24px] border border-border bg-panel p-4 shadow-sm">
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+                      <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-panel-elevated text-text-secondary">
                         <FileText className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-sm font-semibold text-zinc-900">Uploaded files</h4>
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">{getDocumentCollectionLabel(documents.length)}</span>
+                          <h4 className="text-sm font-semibold text-text">Uploaded files</h4>
+                          <span className="rounded-full border border-border bg-panel-elevated px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-text-secondary">{getDocumentCollectionLabel(documents.length)}</span>
                         </div>
-                        <p className="mt-1 text-sm leading-6 text-zinc-500">Project files, references, and source materials attached to this workspace.</p>
+                        <p className="mt-1 text-sm leading-6 text-text-muted">Project files, references, and source materials attached to this workspace.</p>
                       </div>
                     </div>
 
                     {documents.length > 0 ? (
                       <div className="mt-3 space-y-2">
                         {documents.map((doc) => (
-                          <a key={doc.id} href={doc.url || undefined} target={doc.url ? "_blank" : undefined} rel={doc.url ? "noreferrer" : undefined} className={cn("flex items-start justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-3", doc.url ? "bg-zinc-50 transition hover:border-red-200 hover:bg-white" : "bg-white")}>
+                          <a key={doc.id} href={doc.url || undefined} target={doc.url ? "_blank" : undefined} rel={doc.url ? "noreferrer" : undefined} className={cn("flex items-start justify-between gap-3 rounded-2xl border border-border px-4 py-3", doc.url ? "bg-panel-elevated transition hover:border-red-200 hover:bg-panel" : "bg-panel")}>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase text-zinc-700">{doc.type.replace(/_/g, " ")}</span>
-                                <p className="truncate text-sm font-medium text-zinc-900">{doc.title}</p>
+                                <span className="rounded-full border border-border bg-panel-elevated px-2 py-0.5 text-[10px] font-medium uppercase text-text-secondary">{doc.type.replace(/_/g, " ")}</span>
+                                <p className="truncate text-sm font-medium text-text">{doc.title}</p>
                               </div>
-                              <p className="mt-1 text-xs text-zinc-500">{doc.mime_type ? `${doc.mime_type} • ` : ""}{doc.size_bytes ? `${formatBytes(doc.size_bytes)} • ` : ""}Added {new Date(doc.created_at).toLocaleDateString()}</p>
-                              {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-zinc-400">{doc.storage_path}</p> : null}
+                              <p className="mt-1 text-xs text-text-muted">{doc.mime_type ? `${doc.mime_type} • ` : ""}{doc.size_bytes ? `${formatBytes(doc.size_bytes)} • ` : ""}Added {new Date(doc.created_at).toLocaleDateString()}</p>
+                              {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-text-muted">{doc.storage_path}</p> : null}
                             </div>
                             {doc.url ? (
                               <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
@@ -1556,24 +1556,24 @@ export default function ProjectDetailPage() {
                         ))}
                       </div>
                     ) : (
-                      <div className="mt-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No uploaded files attached yet.</div>
+                      <div className="mt-3 rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-4 text-sm text-text-muted">No uploaded files attached yet.</div>
                     )}
                   </div>
 
                   {attachmentRequirementSources.length > 0 ? (
                     <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Extracted notes</span>
+                        <span className="rounded-full border border-emerald-200 bg-panel px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Extracted notes</span>
                         <span className="text-xs text-emerald-800/80">{attachmentRequirementSources.length} source{attachmentRequirementSources.length === 1 ? "" : "s"} parsed into intake requirements</span>
                       </div>
                       <div className="mt-3 space-y-3">
                         {attachmentRequirementSources.map((source: any) => (
-                          <div key={`${source.title}-${source.type}`} className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 shadow-sm">
+                          <div key={`${source.title}-${source.type}`} className="rounded-2xl border border-emerald-200/80 bg-panel px-4 py-3 shadow-sm">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase text-emerald-700">{String(source.type || "document").replace(/_/g, " ")}</span>
-                              <p className="text-sm font-medium text-zinc-900">{source.title}</p>
+                              <p className="text-sm font-medium text-text">{source.title}</p>
                             </div>
-                            <ul className="mt-2 space-y-1 text-sm leading-6 text-zinc-700">
+                            <ul className="mt-2 space-y-1 text-sm leading-6 text-text-secondary">
                               {(source.evidence || []).slice(0, 4).map((item: string) => (
                                 <li key={item} className="flex gap-2">
                                   <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
@@ -1600,37 +1600,37 @@ export default function ProjectDetailPage() {
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Project type</div>
-                  <div className="mt-1 text-sm font-medium text-zinc-950">{project.type ? formatIntakeValue(project.type) : "Not set"}</div>
+                <div className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Project type</div>
+                  <div className="mt-1 text-sm font-medium text-text">{project.type ? formatIntakeValue(project.type) : "Not set"}</div>
                 </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Status</div>
-                  <div className="mt-1 text-sm font-medium text-zinc-950">{statusBadgeLabel}</div>
+                <div className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Status</div>
+                  <div className="mt-1 text-sm font-medium text-text">{statusBadgeLabel}</div>
                 </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Created</div>
-                  <div className="mt-1 text-sm font-medium text-zinc-950">{formatUpdatedDate(project.created_at || project.updated_at).replace(/^Updated\s+/i, "")}</div>
+                <div className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Created</div>
+                  <div className="mt-1 text-sm font-medium text-text">{formatUpdatedDate(project.created_at || project.updated_at).replace(/^Updated\s+/i, "")}</div>
                 </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Last updated</div>
-                  <div className="mt-1 text-sm font-medium text-zinc-950">{updatedLabel}</div>
+                <div className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Last updated</div>
+                  <div className="mt-1 text-sm font-medium text-text">{updatedLabel}</div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Team & ownership</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Who is attached to the work and how the current load is distributed.</p>
+                <h3 className="text-sm font-semibold text-text">Team & ownership</h3>
+                <p className="mt-1 text-sm leading-6 text-text-muted">Who is attached to the work and how the current load is distributed.</p>
               </div>
               {Array.isArray(data?.teams) && data.teams.length > 0 ? (
                 <div className="space-y-2">
                   {data.teams.map((team: any) => (
-                    <div key={team.id} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                    <div key={team.id} className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-zinc-900">{team.name}</p>
-                        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-700">{team.status === "on_track" ? "On track" : team.status === "waiting" ? "Waiting" : formatIntakeValue(team.status)}</span>
+                        <p className="text-sm font-medium text-text">{team.name}</p>
+                        <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-text-secondary">{team.status === "on_track" ? "On track" : team.status === "waiting" ? "Waiting" : formatIntakeValue(team.status)}</span>
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500">
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-text-muted">
                         <span>{team.memberCount} members</span>
                         <span>{team.activeAgents} active now</span>
                         <span>{team.taskCount} owned tasks</span>
@@ -1640,33 +1640,33 @@ export default function ProjectDetailPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-500">No team assignments are attached to this project yet.</div>
+                <div className="rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-4 text-sm text-text-muted">No team assignments are attached to this project yet.</div>
               )}
             </div>
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Operational details</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">Available when needed for support or debugging, but collapsed by default so the page stays focused on project work.</p>
+                <h3 className="text-sm font-semibold text-text">Operational details</h3>
+                <p className="mt-1 text-sm leading-6 text-text-muted">Available when needed for support or debugging, but collapsed by default so the page stays focused on project work.</p>
               </div>
-              <details className="group rounded-2xl border border-zinc-200 bg-zinc-50/70 shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-900 marker:content-none">
+              <details className="group rounded-2xl border border-border bg-panel-elevated/70 shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-text marker:content-none">
                   <div>
                     <div>Operational diagnostics</div>
-                    <div className="mt-1 text-xs font-normal text-zinc-500">Queue state, provisioning, attachment processing, and workflow blockers.</div>
+                    <div className="mt-1 text-xs font-normal text-text-muted">Queue state, provisioning, attachment processing, and workflow blockers.</div>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-zinc-400 transition group-open:rotate-180" />
+                  <ChevronDown className="h-4 w-4 text-text-muted transition group-open:rotate-180" />
                 </summary>
-                <div className="border-t border-zinc-200 bg-white p-4">
+                <div className="border-t border-border bg-panel p-4">
                   <div className="grid gap-3 sm:grid-cols-3">
                     {operationalDetails.map((item) => (
-                      <div key={item.label} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
-                        <div className="mt-1 text-lg font-semibold text-zinc-950">{item.value}</div>
+                      <div key={item.label} className="rounded-2xl border border-border bg-panel-elevated px-3 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{item.label}</div>
+                        <div className="mt-1 text-lg font-semibold text-text">{item.value}</div>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 space-y-3 text-sm text-zinc-600">
+                  <div className="mt-4 space-y-3 text-sm text-text-secondary">
                     {deliveryIntegrity?.blockingReason ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Delivery hold:</span> {deliveryIntegrity.blockingReason}</div> : null}
                     {deliveryIntegrity?.pendingProvisioningReason ? <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900"><span className="font-medium">Repo provisioning:</span> {deliveryIntegrity.pendingProvisioningReason}</div> : null}
                     {visibleAttachmentProcessingState ? (
@@ -1702,8 +1702,8 @@ export default function ProjectDetailPage() {
                       </div>
                     ) : null}
                     {stuckWorkflowGuardrail ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"><span className="font-medium">Workflow sequencing hold:</span> {stuckWorkflowGuardrail.detail}</div> : null}
-                    {queuedPhaseHoldSummary ? <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3"><span className="font-medium text-zinc-900">Stage sequencing:</span> {queuedPhaseHoldSummary}</div> : null}
-                    <div className="text-xs text-zinc-400">Last updated {updatedLabel}</div>
+                    {queuedPhaseHoldSummary ? <div className="rounded-2xl border border-border bg-panel-elevated px-4 py-3"><span className="font-medium text-text">Stage sequencing:</span> {queuedPhaseHoldSummary}</div> : null}
+                    <div className="text-xs text-text-muted">Last updated {updatedLabel}</div>
                   </div>
                 </div>
               </details>

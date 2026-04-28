@@ -92,7 +92,7 @@ function severityTone(severity?: string | null) {
     case "medium":
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
-      return "border-zinc-200 bg-white text-zinc-700";
+      return "border-border bg-panel text-text-secondary";
   }
 }
 
@@ -103,7 +103,7 @@ function decisionTone(status?: string | null) {
     case "changes_requested":
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
-      return "border-zinc-200 bg-zinc-100 text-zinc-700";
+      return "border-border bg-panel-elevated text-text-secondary";
   }
 }
 
@@ -249,8 +249,8 @@ export default async function ApprovalsPage({
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Approvals</h1>
-              <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
+              <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">Approvals</h1>
+              <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
                 Review decisions that need approval, see recent outcomes, and keep the audit trail clear.
               </p>
             </div>
@@ -261,32 +261,32 @@ export default async function ApprovalsPage({
                   <ShieldAlert className="h-4 w-4 text-red-500" />
                   Needs attention
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{pending.length}</div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{pending.length}</div>
               </PageHeroStat>
               <PageHeroStat className="border-emerald-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   Approved
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{approvedCount}</div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{approvedCount}</div>
               </PageHeroStat>
               <PageHeroStat className="border-amber-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
                   <MessageSquareMore className="h-4 w-4 text-amber-500" />
                   Changes requested
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{changesRequestedCount}</div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{changesRequestedCount}</div>
               </PageHeroStat>
             </div>
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:max-w-sm">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="text-sm font-medium text-zinc-900">Approval queue</div>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">
+            <div className="rounded-2xl border border-border bg-panel p-4">
+              <div className="text-sm font-medium text-text">Approval queue</div>
+              <p className="mt-1 text-sm leading-6 text-text-muted">
                 Approve to move work forward, or request changes with a note so the team knows what to fix.
               </p>
-              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
+              <div className="mt-4 rounded-2xl border border-border bg-panel-elevated p-3 text-sm text-text-secondary">
                 {pending.length > 0
                   ? `${pending.length} item${pending.length === 1 ? " is" : "s are"} waiting for operator action right now.`
                   : "The queue is clear. Resolved approvals remain below as the audit trail."}
@@ -311,8 +311,8 @@ export default async function ApprovalsPage({
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Pending approvals</h2>
-            <p className="mt-1 text-sm leading-6 text-zinc-500">Act on live requests while keeping all existing project links, notes, and decision actions intact.</p>
+            <h2 className="text-lg font-semibold tracking-tight text-text">Pending approvals</h2>
+            <p className="mt-1 text-sm leading-6 text-text-muted">Act on live requests while keeping all existing project links, notes, and decision actions intact.</p>
           </div>
           <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-red-700">
             {pending.length} open
@@ -355,11 +355,11 @@ export default async function ApprovalsPage({
                               {a.severity}
                             </span>
                           ) : null}
-                          <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+                          <span className="rounded-full border border-border bg-panel px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-text-muted">
                             Pending
                           </span>
                           {approvalType ? (
-                            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-700">
+                            <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-text-secondary">
                               {formatCheckpointTypeLabel(approvalType)}
                             </span>
                           ) : null}
@@ -371,47 +371,47 @@ export default async function ApprovalsPage({
                         </div>
 
                         <div>
-                          <h3 className="text-lg font-semibold tracking-tight text-zinc-950">{a.summary || "Approval requested"}</h3>
-                          <p className="mt-2 text-sm leading-6 text-zinc-600">
+                          <h3 className="text-lg font-semibold tracking-tight text-text">{a.summary || "Approval requested"}</h3>
+                          <p className="mt-2 text-sm leading-6 text-text-secondary">
                             Review the attached delivery context, add an optional decision note, and send the job forward or back for changes.
                           </p>
                         </div>
                       </div>
 
-                      <div className="shrink-0 rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-right">
-                        <div className="flex items-center justify-end gap-1 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-400">
+                      <div className="shrink-0 rounded-2xl border border-border bg-panel px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1 text-[11px] font-medium uppercase tracking-[0.12em] text-text-muted">
                           {selectedApprovalId === a.id ? <Sparkles className="h-3.5 w-3.5 text-red-500" /> : <Clock3 className="h-3.5 w-3.5" />}
                           {selectedApprovalId === a.id ? "Opened from project" : "Submitted"}
                         </div>
-                        <div className="mt-1 text-sm font-medium text-zinc-900">{selectedApprovalId === a.id ? "Linked request" : timeAgo(a.created_at)}</div>
+                        <div className="mt-1 text-sm font-medium text-text">{selectedApprovalId === a.id ? "Linked request" : timeAgo(a.created_at)}</div>
                       </div>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Project</div>
-                        <div className="mt-1 text-sm font-medium text-zinc-900">{project?.name || "Unknown project"}</div>
+                      <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Project</div>
+                        <div className="mt-1 text-sm font-medium text-text">{project?.name || "Unknown project"}</div>
                       </div>
-                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Milestone</div>
-                        <div className="mt-1 text-sm font-medium text-zinc-900">{a.context?.sprint_name || sprint?.name || "Project review"}</div>
+                      <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Milestone</div>
+                        <div className="mt-1 text-sm font-medium text-text">{a.context?.sprint_name || sprint?.name || "Project review"}</div>
                       </div>
-                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Agent</div>
-                        <div className="mt-1 text-sm font-medium text-zinc-900">{agent?.name || "Unknown agent"}</div>
+                      <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Agent</div>
+                        <div className="mt-1 text-sm font-medium text-text">{agent?.name || "Unknown agent"}</div>
                       </div>
-                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Execution job</div>
-                        <div className="mt-1 text-sm font-medium text-zinc-900">{job?.title || "Unknown job"}</div>
-                        <div className="mt-1 text-xs capitalize text-zinc-500">{formatStatus(job?.status)}</div>
+                      <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Execution job</div>
+                        <div className="mt-1 text-sm font-medium text-text">{job?.title || "Unknown job"}</div>
+                        <div className="mt-1 text-xs capitalize text-text-muted">{formatStatus(job?.status)}</div>
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-4">
+                    <div className="rounded-2xl border border-border bg-panel p-4 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Requester</div>
-                          <div className="mt-1 text-sm text-zinc-700">{a.requester_name || "Unknown requester"}</div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Requester</div>
+                          <div className="mt-1 text-sm text-text-secondary">{a.requester_name || "Unknown requester"}</div>
                         </div>
                         {a.project_id ? (
                           <Link href={`/projects/${a.project_id}`} className="inline-flex items-center gap-1 text-sm font-medium text-red-700 transition hover:text-red-800">
@@ -422,8 +422,8 @@ export default async function ApprovalsPage({
                       </div>
                       {a.context?.note ? (
                         <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Review note</div>
-                          <p className="mt-1 text-sm leading-6 text-zinc-600">{a.context.note}</p>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Review note</div>
+                          <p className="mt-1 text-sm leading-6 text-text-secondary">{a.context.note}</p>
                         </div>
                       ) : null}
                       {evidenceRequirements.screenshotRequired ? (
@@ -433,29 +433,29 @@ export default async function ApprovalsPage({
                         </div>
                       ) : null}
                       <div>
-                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Artifact links</div>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Artifact links</div>
                         {reviewLinks.length > 0 ? (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {reviewLinks.map((link) => (
-                              <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700 hover:border-red-200 hover:text-red-700">
+                              <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-text-secondary hover:border-red-200 hover:text-red-700">
                                 {link.label}
                                 <ArrowRight className="h-3.5 w-3.5" />
                               </a>
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-1 text-sm text-zinc-500">No external artifact links attached.</p>
+                          <p className="mt-1 text-sm text-text-muted">No external artifact links attached.</p>
                         )}
                       </div>
                       {Array.isArray(a.context?.artifacts) && a.context.artifacts.length > 0 ? (
                         <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Attached review artifacts</div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Attached review artifacts</div>
                           <div className="mt-2 space-y-2">
                             {a.context.artifacts.map((artifact: any) => (
-                              <div key={`${artifact.kind}-${artifact.value}`} className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
-                                <div className="font-medium text-zinc-900">{artifact.label}</div>
+                              <div key={`${artifact.kind}-${artifact.value}`} className="rounded-2xl border border-border bg-panel-elevated px-3 py-2 text-xs text-text-secondary">
+                                <div className="font-medium text-text">{artifact.label}</div>
                                 <div className="mt-1 break-all">{artifact.value}</div>
-                                {artifact.sourceTaskTitle ? <div className="mt-1 text-[11px] text-zinc-500">From {artifact.sourceTaskTitle}</div> : null}
+                                {artifact.sourceTaskTitle ? <div className="mt-1 text-[11px] text-text-muted">From {artifact.sourceTaskTitle}</div> : null}
                               </div>
                             ))}
                           </div>
@@ -486,19 +486,19 @@ export default async function ApprovalsPage({
                           </Button>
                         </div>
 
-                        <details className="mt-4 rounded-2xl border border-white/80 bg-white/80 p-4">
-                          <summary className="cursor-pointer list-none text-sm font-medium text-zinc-900">
+                        <details className="mt-4 rounded-2xl border border-white/80 bg-panel/80 p-4">
+                          <summary className="cursor-pointer list-none text-sm font-medium text-text">
                             Add optional approval note
                           </summary>
                           <div className="mt-3">
-                            <label htmlFor={`approve-note-${a.id}`} className="mb-2 block text-sm font-medium text-zinc-900">
+                            <label htmlFor={`approve-note-${a.id}`} className="mb-2 block text-sm font-medium text-text">
                               Approval note
                             </label>
                             <textarea
                               id={`approve-note-${a.id}`}
                               name="approval_note"
                               placeholder="Optional context to store with the approval."
-                              className="min-h-24 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                              className="min-h-24 w-full rounded-2xl border border-border bg-panel px-4 py-3 text-sm text-text shadow-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
                               rows={3}
                             />
                           </div>
@@ -518,7 +518,7 @@ export default async function ApprovalsPage({
                               id={`changes-note-${a.id}`}
                               name="change_note"
                               placeholder="Required. Explain what should change before this checkpoint can be approved."
-                              className="min-h-28 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                              className="min-h-28 w-full rounded-2xl border border-amber-200 bg-panel px-4 py-3 text-sm text-text shadow-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                               rows={4}
                             />
                           </div>
@@ -533,7 +533,7 @@ export default async function ApprovalsPage({
                               value="changes_requested"
                               size="lg"
                               variant="outline"
-                              className="min-h-11 w-full rounded-xl border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                              className="min-h-11 w-full rounded-xl border-amber-300 bg-panel text-amber-900 hover:bg-amber-100"
                             >
                               <AlertTriangle className="h-4 w-4" />
                               Send change request
@@ -553,16 +553,16 @@ export default async function ApprovalsPage({
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Audit trail</h2>
-            <p className="mt-1 text-sm leading-6 text-zinc-500">Resolved decisions stay readable here with the original summary, related project, and any operator note.</p>
+            <h2 className="text-lg font-semibold tracking-tight text-text">Audit trail</h2>
+            <p className="mt-1 text-sm leading-6 text-text-muted">Resolved decisions stay readable here with the original summary, related project, and any operator note.</p>
           </div>
-          <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          <span className="rounded-full border border-border bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">
             {resolved.length} resolved
           </span>
         </div>
 
         {resolved.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-sm text-zinc-500">
+          <div className="rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-8 text-sm text-text-muted">
             No resolved approvals yet.
           </div>
         ) : (
@@ -572,7 +572,7 @@ export default async function ApprovalsPage({
               const project = getJoinedRow(a.projects);
 
               return (
-                <div key={a.id} className="rounded-[24px] border border-zinc-200 bg-white p-5">
+                <div key={a.id} className="rounded-[24px] border border-border bg-panel p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -585,31 +585,31 @@ export default async function ApprovalsPage({
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-3 text-base font-semibold tracking-tight text-zinc-950">{a.summary || "Approval requested"}</p>
-                      <div className="mt-3 grid gap-2 text-sm text-zinc-500 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2">
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Project</div>
-                          <div className="mt-1 text-zinc-700">{project?.name || "Unknown project"}</div>
+                      <p className="mt-3 text-base font-semibold tracking-tight text-text">{a.summary || "Approval requested"}</p>
+                      <div className="mt-3 grid gap-2 text-sm text-text-muted sm:grid-cols-2">
+                        <div className="rounded-2xl border border-border bg-panel-elevated px-3 py-2">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Project</div>
+                          <div className="mt-1 text-text-secondary">{project?.name || "Unknown project"}</div>
                         </div>
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2">
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Agent</div>
-                          <div className="mt-1 text-zinc-700">{agent?.name || "Unknown agent"}</div>
+                        <div className="rounded-2xl border border-border bg-panel-elevated px-3 py-2">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Agent</div>
+                          <div className="mt-1 text-text-secondary">{agent?.name || "Unknown agent"}</div>
                         </div>
                       </div>
                       {a.note ? (
-                        <div className="mt-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-600">
-                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Decision note</div>
+                        <div className="mt-3 rounded-2xl border border-border bg-panel px-4 py-3 text-sm leading-6 text-text-secondary">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">Decision note</div>
                           <p className="mt-1 whitespace-pre-wrap">{a.note}</p>
                         </div>
                       ) : null}
                     </div>
 
-                    <div className="shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-right text-xs text-zinc-500">
-                      <div className="flex items-center justify-end gap-1 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-400">
+                    <div className="shrink-0 rounded-2xl border border-border bg-panel-elevated px-3 py-2 text-right text-xs text-text-muted">
+                      <div className="flex items-center justify-end gap-1 text-[11px] font-medium uppercase tracking-[0.12em] text-text-muted">
                         <ClipboardList className="h-3.5 w-3.5" />
                         Decided
                       </div>
-                      <div className="mt-1 max-w-[160px] text-wrap text-zinc-700">{formatTimestamp(a.decided_at)}</div>
+                      <div className="mt-1 max-w-[160px] text-wrap text-text-secondary">{formatTimestamp(a.decided_at)}</div>
                     </div>
                   </div>
                 </div>

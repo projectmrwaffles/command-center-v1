@@ -89,33 +89,33 @@ function SuccessState({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <PageHero className="border-emerald-100/80 bg-[radial-gradient(circle_at_top,rgba(220,252,231,0.9),rgba(255,255,255,0.98)_42%,rgba(240,253,250,0.95)_100%)]">
+      <PageHero className="border-emerald-100/80 bg-[radial-gradient(circle_at_top,rgba(220,252,231,0.9),rgba(255,255,255,0.98)_42%,rgba(240,253,250,0.95)_100%)] dark:border-emerald-900/40 dark:bg-[radial-gradient(circle_at_top,rgba(6,95,70,0.32),rgba(15,23,42,0.96)_42%,rgba(6,78,59,0.28)_100%)]">
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between lg:p-8">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-panel/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 shadow-sm">
               <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
               Project handoff
             </div>
             <div className="space-y-2">
-              <h2 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
+              <h2 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">
                 {dispatchStarted > 0 ? `${project.name || "Your project"} kickoff started.` : `${project.name || "Your project"} was created.`}
               </h2>
-              <p className="max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">{statusTone.summary}</p>
+              <p className="max-w-xl text-sm leading-6 text-text-secondary sm:text-base">{statusTone.summary}</p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
-              {dispatch ? <span className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-700">dispatch attempted: {dispatchAttempted}</span> : null}
-              {dispatch ? <span className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-700">started: {dispatchStarted}</span> : null}
+              {dispatch ? <span className="rounded-full border border-border bg-panel px-3 py-1.5 text-text-secondary">dispatch attempted: {dispatchAttempted}</span> : null}
+              {dispatch ? <span className="rounded-full border border-border bg-panel px-3 py-1.5 text-text-secondary">started: {dispatchStarted}</span> : null}
               {dispatchBlocked > 0 ? <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-700">blocked: {dispatchBlocked}</span> : null}
             </div>
           </div>
 
           <div className="flex w-full max-w-sm flex-col gap-3">
-            <PageHeroStat className="border-emerald-100 bg-white/90 shadow-sm">
+            <PageHeroStat className="border-emerald-100 bg-panel/90 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
                 <span className={`inline-flex h-2.5 w-2.5 rounded-full ${statusTone.dot}`} />
                 Workspace ready
               </div>
-              <div className="mt-3 text-sm leading-6 text-zinc-600">Success state stays here until you open the workspace.</div>
+              <div className="mt-3 text-sm leading-6 text-text-secondary">Success state stays here until you open the workspace.</div>
             </PageHeroStat>
             <button
               type="button"
@@ -130,14 +130,14 @@ function SuccessState({
       </PageHero>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <div className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-[var(--shadow-panel)] sm:p-6">
+        <div className="rounded-[28px] border border-border bg-panel p-5 shadow-[var(--shadow-panel)] sm:p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-[0_10px_24px_rgba(24,24,27,0.12)]">
               <Check className="h-6 w-6" strokeWidth={2.4} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-zinc-950">Project record created</p>
-              <p className="text-sm text-zinc-500">Routing, kickoff, and attachments preserved from the intake flow.</p>
+              <p className="text-sm font-semibold text-text">Project record created</p>
+              <p className="text-sm text-text-muted">Routing, kickoff, and attachments preserved from the intake flow.</p>
             </div>
           </div>
 
@@ -149,10 +149,10 @@ function SuccessState({
           ) : null}
         </div>
 
-        <div className="rounded-[28px] border border-zinc-200 bg-zinc-50/80 p-5 shadow-[var(--shadow-panel-soft)] sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Next step</p>
-          <h3 className="mt-2 text-lg font-semibold tracking-tight text-zinc-950">Jump into the workspace</h3>
-          <p className="mt-2 text-sm leading-6 text-zinc-600">Open the project to review kickoff state, current tasks, and any attachment-derived requirements.</p>
+        <div className="rounded-[28px] border border-border bg-panel-elevated/80 p-5 shadow-[var(--shadow-panel-soft)] sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">Next step</p>
+          <h3 className="mt-2 text-lg font-semibold tracking-tight text-text">Jump into the workspace</h3>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">Open the project to review kickoff state, current tasks, and any attachment-derived requirements.</p>
         </div>
       </div>
     </div>
@@ -303,13 +303,13 @@ export function CreateProjectWorkspace({
   }));
 
   const docsSection = (
-    <div className="overflow-hidden rounded-[28px] border border-red-100/70 bg-white p-4 shadow-[0_12px_30px_rgba(24,24,27,0.05)] sm:p-5">
-      <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
+    <div className="overflow-hidden rounded-[28px] border border-red-100/70 bg-panel p-4 shadow-[0_12px_30px_rgba(24,24,27,0.05)] sm:p-5">
+      <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
         <Sparkles className="h-3.5 w-3.5 text-red-500" />
         Supporting materials
       </div>
-      <div className="mb-2 mt-4 text-sm font-semibold text-zinc-900">Supporting docs and images</div>
-      <p className="mb-3 text-xs leading-5 text-zinc-500">Attach PRDs, screenshots, or reference images. They upload after project creation and stay private in project_docs.</p>
+      <div className="mb-2 mt-4 text-sm font-semibold text-text">Supporting docs and images</div>
+      <p className="mb-3 text-xs leading-5 text-text-muted">Attach PRDs, screenshots, or reference images. They upload after project creation and stay private in project_docs.</p>
 
       {docsError && (
         <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -322,20 +322,20 @@ export function CreateProjectWorkspace({
         multiple
         accept="application/pdf,image/*"
         onChange={(e) => setDocs(Array.from(e.target.files ?? []))}
-        className="block w-full rounded-2xl border border-dashed border-red-200 bg-white px-4 py-3 text-sm shadow-sm file:mr-3 file:rounded-full file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-red-700 hover:border-red-300"
+        className="block w-full rounded-2xl border border-dashed border-red-200 bg-panel px-4 py-3 text-sm shadow-sm file:mr-3 file:rounded-full file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-red-700 hover:border-red-300"
       />
 
       {docs.length > 0 && (
-        <ul className="mt-3 space-y-1 text-xs text-zinc-600">
+        <ul className="mt-3 space-y-1 text-xs text-text-secondary">
           {docs.map((f) => (
             <li key={`${f.name}-${f.size}`} className="flex items-center justify-between gap-3">
               <span className="truncate">{f.name}</span>
               <div className="flex items-center gap-2">
-                <span className="text-zinc-400">{Math.round(f.size / 1024)}KB</span>
+                <span className="text-text-muted">{Math.round(f.size / 1024)}KB</span>
                 <button
                   type="button"
                   onClick={() => setDocs((current) => current.filter((doc) => !(doc.name === f.name && doc.size === f.size && doc.lastModified === f.lastModified)))}
-                  className="rounded px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
+                  className="rounded px-2 py-0.5 text-[11px] text-text-muted hover:bg-panel-elevated"
                 >
                   Remove
                 </button>
@@ -392,24 +392,24 @@ export function CreateProjectWorkspace({
   if (mode === "page") {
     return (
       <div className="space-y-6 md:space-y-8">
-        <PageHero className="border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.6),rgba(255,255,255,0.98)_35%,rgba(255,241,242,0.72)_72%,rgba(255,250,250,0.96)_100%)]">
+        <PageHero className="border-red-100/80 bg-[radial-gradient(circle_at_top_left,rgba(254,226,226,0.6),rgba(255,255,255,0.98)_35%,rgba(255,241,242,0.72)_72%,rgba(255,250,250,0.96)_100%)] dark:border-red-900/40 dark:bg-[radial-gradient(circle_at_top_left,rgba(127,29,29,0.34),rgba(15,23,42,0.96)_35%,rgba(69,10,10,0.26)_72%,rgba(2,6,23,0.98)_100%)]">
           <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
             <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
+              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
                 <Sparkles className="h-3.5 w-3.5 text-red-500" />
                 New project intake
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Start a project in the redesigned workspace flow.</h1>
-                <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">Use the shared intake system, review routing before creation, and hand the project off without changing backend contracts or submission logic.</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">Start a project in the redesigned workspace flow.</h1>
+                <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">Use the shared intake system, review routing before creation, and hand the project off without changing backend contracts or submission logic.</p>
               </div>
             </div>
             <div className="flex w-full max-w-sm flex-col gap-3">
-              <PageHeroStat className="border-red-100 bg-white/90 shadow-sm">
+              <PageHeroStat className="border-red-100 bg-panel/90 shadow-sm">
                 <div className="text-xs font-medium uppercase tracking-[0.14em] text-red-700">Canonical intake surface</div>
-                <div className="mt-2 text-sm leading-6 text-zinc-600">Dashboard, projects, and floating create actions can all point here while keeping the same create-project behavior.</div>
+                <div className="mt-2 text-sm leading-6 text-text-secondary">Dashboard, projects, and floating create actions can all point here while keeping the same create-project behavior.</div>
               </PageHeroStat>
-              <Button onClick={handleClose} variant="outline" className="justify-center rounded-2xl border-zinc-200 bg-white/90 text-zinc-700 hover:bg-zinc-50">
+              <Button onClick={handleClose} variant="outline" className="justify-center rounded-2xl border-border bg-panel/90 text-text-secondary hover:bg-panel-elevated">
                 Back to projects
               </Button>
             </div>
@@ -431,37 +431,37 @@ export function CreateProjectWorkspace({
         <div
           className={
             mobile
-              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-hidden rounded-t-[32px] border border-white/70 bg-white shadow-[0_-14px_40px_rgba(24,24,27,0.16)]"
-              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/70 bg-white shadow-[0_24px_72px_rgba(15,23,42,0.16)] xl:max-w-[1020px]"
+              ? "fixed inset-x-0 bottom-0 flex max-h-[92dvh] min-w-0 flex-col overflow-hidden rounded-t-[32px] border border-white/70 bg-panel shadow-[0_-14px_40px_rgba(24,24,27,0.16)]"
+              : "flex max-h-[calc(100dvh-48px)] w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-[32px] border border-red-100/70 bg-panel shadow-[0_24px_72px_rgba(15,23,42,0.16)] xl:max-w-[1020px]"
           }
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-white px-4 py-4 sm:px-6 sm:py-5">
+          <div className="relative shrink-0 overflow-hidden border-b border-red-100/80 bg-panel px-4 py-4 sm:px-6 sm:py-5">
             <div className="absolute inset-x-0 bottom-0 h-px bg-red-100/80" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
+                <div className="inline-flex items-center gap-2 rounded-full border border-red-200/80 bg-panel/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm backdrop-blur">
                   <Sparkles className="h-3.5 w-3.5 text-red-500" />
                   {createdProject ? "Project handoff" : "New project intake"}
                 </div>
-                <h2 className="mt-3 text-xl font-semibold tracking-tight text-zinc-950 sm:text-[1.75rem]">
+                <h2 className="mt-3 text-xl font-semibold tracking-tight text-text sm:text-[1.75rem]">
                   {createdProject ? "Project ready" : "Start a project"}
                 </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
                   {createdProject
                     ? "Review the handoff card or jump straight into the workspace."
                     : "Add the essentials, attach supporting materials, and review the routing before you create it."}
                 </p>
               </div>
               {!createdProject ? (
-                <Button onClick={() => onOpenChange?.(false)} variant="outline" size="icon" className="rounded-2xl border-red-200 bg-white/90 text-zinc-600 shadow-sm hover:bg-red-50" aria-label="Close">
+                <Button onClick={() => onOpenChange?.(false)} variant="outline" size="icon" className="rounded-2xl border-red-200 bg-panel/90 text-text-secondary shadow-sm hover:bg-red-50" aria-label="Close">
                   <X className="h-4 w-4" />
                 </Button>
               ) : null}
             </div>
           </div>
 
-          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-white px-3 py-3 pb-20 sm:px-6 sm:py-5">
+          <div ref={contentRef} className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-panel px-3 py-3 pb-20 sm:px-6 sm:py-5">
             {formContent}
           </div>
         </div>

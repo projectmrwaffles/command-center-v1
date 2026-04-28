@@ -73,21 +73,21 @@ function SelectionCard({
       className={cn(
         "group relative block w-full min-w-0 overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-200",
         compact ? "min-h-[180px] md:min-h-[220px]" : "",
-        "focus:outline-none focus:ring-2 focus:ring-red-300",
+        "focus:outline-none focus:ring-2 focus:ring-red-300 dark:focus:ring-red-900/60",
         selected
-          ? "border-red-400 bg-white shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
-          : "border-zinc-200 bg-white hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_12px_30px_rgba(24,24,27,0.08)]"
+          ? "border-red-400 bg-panel shadow-[0_10px_28px_rgba(24,24,27,0.07)] dark:border-red-900/60"
+          : "border-border bg-panel hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_30px_rgba(24,24,27,0.08)]"
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <div className="text-sm font-semibold text-zinc-950">{label}</div>
-          <p className="text-sm leading-6 text-zinc-600">{description}</p>
+          <div className="text-sm font-semibold text-text">{label}</div>
+          <p className="text-sm leading-6 text-text-secondary">{description}</p>
         </div>
         <div
           className={cn(
             "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-            selected ? "border-red-600 bg-red-600 text-white" : "border-zinc-300 bg-white text-transparent"
+            selected ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500 text-white dark:border-red-500 dark:bg-red-500" : "border-border bg-panel text-transparent"
           )}
         >
           <span className="text-xs font-bold">{multi ? "✓" : "•"}</span>
@@ -100,7 +100,7 @@ function SelectionCard({
             key={example}
             className={cn(
               "rounded-full px-2.5 py-1 text-[11px] font-medium",
-              selected ? "bg-white/90 text-red-700" : "bg-zinc-100 text-zinc-500"
+              selected ? "bg-panel/90 text-red-700" : "bg-panel-elevated text-text-muted"
             )}
           >
             {example}
@@ -129,7 +129,7 @@ function OptionBrowser({
 }
 
 function FieldHint({ children, tone = "muted" }: { children: string; tone?: "muted" | "error" }) {
-  return <p className={cn("mt-2 text-xs", tone === "error" ? "text-red-600" : "text-zinc-500")}>{children}</p>;
+  return <p className={cn("mt-2 text-xs", tone === "error" ? "text-red-600" : "text-text-muted")}>{children}</p>;
 }
 
 function getProjectLinkPlaceholder(key: (typeof PROJECT_LINK_FIELDS)[number]) {
@@ -474,13 +474,13 @@ export function CreateProjectForm({
       {error ? <div className="whitespace-pre-wrap rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <div className="min-w-0 px-1 sm:px-0">
-        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 bg-white px-3 py-3 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
-          <div className="border-b border-red-100/80 px-1 pb-3 sm:px-0 sm:pb-4">
+        <section className="min-w-0 overflow-hidden rounded-[28px] border border-red-100/70 dark:border-red-900/50 bg-panel px-3 py-3 shadow-[0_14px_34px_rgba(24,24,27,0.05)] sm:px-6 sm:pt-4 sm:pb-5">
+          <div className="border-b border-red-100/80 dark:border-red-900/50 px-1 pb-3 sm:px-0 sm:pb-4">
             <div className="hidden sm:block">
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-red-500">Progress</p>
-                  <div className="shrink-0 rounded-full border border-red-100 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
+                  <div className="shrink-0 rounded-full border border-red-100 bg-panel dark:border-red-900/50 px-2.5 py-1 text-[11px] font-medium text-text-secondary shadow-sm">
                     {stepCounter}
                   </div>
                 </div>
@@ -492,12 +492,12 @@ export function CreateProjectForm({
 
             <div className="space-y-2 sm:hidden">
               <div className="flex items-center justify-between gap-3">
-                <div className="shrink-0 rounded-full border border-red-100 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
+                <div className="shrink-0 rounded-full border border-red-100 bg-panel dark:border-red-900/50 px-2.5 py-1 text-[11px] font-medium text-text-secondary shadow-sm">
                   {stepCounter}
                 </div>
-                <p className="text-[11px] font-medium text-zinc-500">Progress</p>
+                <p className="text-[11px] font-medium text-text-muted">Progress</p>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-zinc-200">
+              <div className="h-1 overflow-hidden rounded-full bg-border/80">
                 <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${stepProgress}%` }} />
               </div>
             </div>
@@ -520,10 +520,10 @@ export function CreateProjectForm({
                     className={cn(
                       "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                       isActive
-                        ? "border-red-200 bg-red-50 text-red-700"
+                        ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
                         : isCompleted
-                          ? "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                          : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                          ? "border-border bg-panel text-text-secondary hover:border-border"
+                          : "border-border bg-panel-elevated text-text-secondary hover:border-border hover:text-text"
                     )}
                   >
                     {desktopStepNumber}. {getDesktopStepNavLabel(step)}
@@ -531,7 +531,7 @@ export function CreateProjectForm({
                 ) : (
                   <div
                     key={step.id}
-                    className="shrink-0 rounded-full border border-dashed border-zinc-200 bg-transparent px-3 py-1.5 text-xs font-medium text-zinc-400"
+                    className="shrink-0 rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 text-xs font-medium text-text-muted"
                   >
                     {desktopStepNumber}. {getDesktopStepNavLabel(step)}
                   </div>
@@ -541,23 +541,23 @@ export function CreateProjectForm({
           </div>
 
           <div className="mt-4 min-h-0 sm:mt-4">
-            <div className="min-w-0 max-w-full rounded-[24px] bg-zinc-50/35 px-1 py-1 sm:max-w-4xl sm:border sm:border-zinc-200 sm:bg-zinc-50/50 sm:p-5">
+            <div className="min-w-0 max-w-full rounded-[24px] bg-panel-elevated/35 px-1 py-1 sm:max-w-4xl sm:border sm:border-border sm:bg-panel-elevated/50 sm:p-5">
               <div className={cn("flex flex-col gap-3 md:flex-row md:items-start md:justify-between", isDesktopModeStep && "md:hidden")}>
                 <div className="max-w-2xl">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">{activeStep.eyebrow}</p>
-                  <h3 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-zinc-950 sm:text-[1.95rem]">{activeStep.title}</h3>
-                  <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-zinc-600 sm:block">{activeStep.description}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-text-muted">{activeStep.eyebrow}</p>
+                  <h3 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-text sm:text-[1.95rem]">{activeStep.title}</h3>
+                  <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-text-secondary sm:block">{activeStep.description}</p>
                 </div>
                 {null}
               </div>
 
-              <div className={cn("mt-3 text-sm leading-6 text-zinc-600 sm:hidden", isDesktopModeStep && "hidden")}>{activeStep.description}</div>
+              <div className={cn("mt-3 text-sm leading-6 text-text-secondary sm:hidden", isDesktopModeStep && "hidden")}>{activeStep.description}</div>
 
               <div className={cn("mt-5 px-1 sm:px-0", isDesktopModeStep && "md:mt-0")}>
                 {activeStep.id === "mode" ? (
                   <div className="space-y-4">
                     <div className="hidden md:block">
-                      <h3 className="text-lg font-semibold tracking-tight text-zinc-950">Choose how to start</h3>
+                      <h3 className="text-lg font-semibold tracking-tight text-text">Choose how to start</h3>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
@@ -567,21 +567,21 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "quick"
-                            ? "border-red-400 bg-white shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
-                            : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
+                            ? "border-red-400 bg-panel shadow-[0_10px_28px_rgba(24,24,27,0.07)] dark:border-red-900/60"
+                            : "border-border bg-panel hover:border-border hover:shadow-sm"
                         )}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-base font-semibold text-zinc-950">Quick brief</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-600">Write the project in your own words, add any context you already have, and keep moving.</p>
+                            <p className="text-base font-semibold text-text">Quick brief</p>
+                            <p className="mt-2 text-sm leading-6 text-text-secondary">Write the project in your own words, add any context you already have, and keep moving.</p>
                           </div>
-                          <div className={cn("h-6 w-6 rounded-full border", mode === "quick" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                          <div className={cn("h-6 w-6 rounded-full border", mode === "quick" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Free-form</span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Plain language</span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Docs + images</span>
+                          <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Free-form</span>
+                          <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Plain language</span>
+                          <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Docs + images</span>
                         </div>
                       </button>
 
@@ -591,21 +591,21 @@ export function CreateProjectForm({
                         className={cn(
                           "rounded-[28px] border p-5 text-left transition-all",
                           mode === "guided"
-                            ? "border-red-400 bg-white shadow-[0_10px_28px_rgba(24,24,27,0.07)]"
-                            : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
+                            ? "border-red-400 bg-panel shadow-[0_10px_28px_rgba(24,24,27,0.07)] dark:border-red-900/60"
+                            : "border-border bg-panel hover:border-border hover:shadow-sm"
                         )}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-base font-semibold text-zinc-950">Guided setup</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-600">Choose the closest project type first, then add a short brief with a little more structure.</p>
+                            <p className="text-base font-semibold text-text">Guided setup</p>
+                            <p className="mt-2 text-sm leading-6 text-text-secondary">Choose the closest project type first, then add a short brief with a little more structure.</p>
                           </div>
-                          <div className={cn("h-6 w-6 rounded-full border", mode === "guided" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                          <div className={cn("h-6 w-6 rounded-full border", mode === "guided" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Structured</span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Team signals</span>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Still lightweight</span>
+                          <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Structured</span>
+                          <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Team signals</span>
+                          <span className="rounded-full bg-panel px-2.5 py-1 text-text-secondary">Still lightweight</span>
                         </div>
                       </button>
                     </div>
@@ -636,8 +636,8 @@ export function CreateProjectForm({
 
                 {activeStep.id === "brief" ? (
                   <div className="space-y-6">
-                    <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
-                      <label className="block text-sm font-medium text-zinc-700">
+                    <section className="rounded-[24px] border border-border bg-panel-elevated/80 p-4">
+                      <label className="block text-sm font-medium text-text-secondary">
                         Project name <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -648,7 +648,7 @@ export function CreateProjectForm({
                           setShowValidation(false);
                         }}
                         required
-                        className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                        className="mt-2 w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
                         placeholder="e.g., Command Center V2"
                       />
                       {showValidation && !name.trim() ? (
@@ -658,11 +658,11 @@ export function CreateProjectForm({
                       )}
                     </section>
 
-                    <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                    <section className="rounded-[24px] border border-border bg-panel-elevated/80 p-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <h4 className="text-sm font-semibold text-zinc-900">What are we starting from?</h4>
-                          <p className="mt-1 text-sm text-zinc-500">Tell us whether this is brand new work or an improvement to something that already exists.</p>
+                          <h4 className="text-sm font-semibold text-text">What are we starting from?</h4>
+                          <p className="mt-1 text-sm text-text-muted">Tell us whether this is brand new work or an improvement to something that already exists.</p>
                         </div>
                       </div>
 
@@ -673,16 +673,16 @@ export function CreateProjectForm({
                           className={cn(
                             "rounded-[24px] border p-4 text-left transition-all",
                             projectOrigin === "new"
-                              ? "border-red-400 bg-white shadow-[0_8px_22px_rgba(24,24,27,0.06)]"
-                              : "border-zinc-200 bg-white hover:border-zinc-300"
+                              ? "border-red-400 bg-panel shadow-[0_8px_22px_rgba(24,24,27,0.06)] dark:border-red-900/60"
+                              : "border-border bg-panel hover:border-border"
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-zinc-950">Net-new project</p>
-                              <p className="mt-2 text-sm leading-6 text-zinc-600">This is a fresh initiative, new build, or first version. No existing repo or live product needs to be referenced right now.</p>
+                              <p className="text-sm font-semibold text-text">Net-new project</p>
+                              <p className="mt-2 text-sm leading-6 text-text-secondary">This is a fresh initiative, new build, or first version. No existing repo or live product needs to be referenced right now.</p>
                             </div>
-                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "new" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "new" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
                           </div>
                         </button>
 
@@ -692,16 +692,16 @@ export function CreateProjectForm({
                           className={cn(
                             "rounded-[24px] border p-4 text-left transition-all",
                             projectOrigin === "existing"
-                              ? "border-red-400 bg-white shadow-[0_8px_22px_rgba(24,24,27,0.06)]"
-                              : "border-zinc-200 bg-white hover:border-zinc-300"
+                              ? "border-red-400 bg-panel shadow-[0_8px_22px_rgba(24,24,27,0.06)] dark:border-red-900/60"
+                              : "border-border bg-panel hover:border-border"
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-zinc-950">Improve an existing project</p>
-                              <p className="mt-2 text-sm leading-6 text-zinc-600">There’s already a site, app, workflow, or repo in place, and this work will improve or extend it using the current materials as reference.</p>
+                              <p className="text-sm font-semibold text-text">Improve an existing project</p>
+                              <p className="mt-2 text-sm leading-6 text-text-secondary">There’s already a site, app, workflow, or repo in place, and this work will improve or extend it using the current materials as reference.</p>
                             </div>
-                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "existing" ? "border-red-600 bg-red-600" : "border-zinc-300 bg-white")} />
+                            <div className={cn("mt-0.5 h-6 w-6 rounded-full border", projectOrigin === "existing" ? "border-red-600 bg-red-600 dark:border-red-500 dark:bg-red-500" : "border-border bg-panel")} />
                           </div>
                         </button>
                       </div>
@@ -714,16 +714,16 @@ export function CreateProjectForm({
                     </section>
 
                     {showExistingProjectLinks ? (
-                      <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
+                      <section className="rounded-[24px] border border-border bg-panel p-4">
                         <div>
-                          <h4 className="text-sm font-semibold text-zinc-900">Existing project links</h4>
-                          <p className="mt-1 text-sm text-zinc-500">Optional, but especially helpful when there’s an existing repo, live environment, docs, or designs the team should review and use as source material.</p>
+                          <h4 className="text-sm font-semibold text-text">Existing project links</h4>
+                          <p className="mt-1 text-sm text-text-muted">Optional, but especially helpful when there’s an existing repo, live environment, docs, or designs the team should review and use as source material.</p>
                         </div>
 
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                           {PROJECT_LINK_FIELDS.map((key) => (
                             <label key={key} className="block">
-                              <span className="mb-1 block text-sm font-medium text-zinc-700">{PROJECT_LINK_LABELS[key]} URL</span>
+                              <span className="mb-1 block text-sm font-medium text-text-secondary">{PROJECT_LINK_LABELS[key]} URL</span>
                               <input
                                 type="url"
                                 value={projectLinks[key] || ""}
@@ -736,7 +736,7 @@ export function CreateProjectForm({
                                     return next;
                                   });
                                 }}
-                                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                className="w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
                                 placeholder={getProjectLinkPlaceholder(key)}
                               />
                             </label>
@@ -747,11 +747,11 @@ export function CreateProjectForm({
                       </section>
                     ) : null}
 
-                    <section className="rounded-[24px] border border-zinc-200 bg-white p-4">
+                    <section className="rounded-[24px] border border-border bg-panel p-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <h4 className="text-sm font-semibold text-zinc-900">{mode === "quick" ? "What do you need?" : "Optional notes"}</h4>
-                          <p className="mt-1 text-sm text-zinc-500">
+                          <h4 className="text-sm font-semibold text-text">{mode === "quick" ? "What do you need?" : "Optional notes"}</h4>
+                          <p className="mt-1 text-sm text-text-muted">
                             {mode === "quick"
                               ? "Describe the goal, problem, urgency, constraints, or desired outcome in plain language."
                               : "Add goals, constraints, urgency, or anything the team should know right away."}
@@ -766,7 +766,7 @@ export function CreateProjectForm({
                           setShowValidation(false);
                         }}
                         rows={mode === "quick" ? 7 : 5}
-                        className="mt-4 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                        className="mt-4 w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
                         placeholder={mode === "quick" ? "Example: We need a cleaner new project intake that feels easier. The current flow has too many decisions up front. I want a simple way to describe the need, upload a PRD and screenshots, and still route it to the right teams." : "Example: We need something client-ready in 2 weeks. It should feel premium, work beautifully on mobile, and eventually connect to HubSpot."}
                       />
                       {mode === "quick" ? (
@@ -775,33 +775,33 @@ export function CreateProjectForm({
                     </section>
 
                     {mode === "guided" ? (
-                      <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                      <section className="rounded-[24px] border border-border bg-panel-elevated/80 p-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <h4 className="text-sm font-semibold text-zinc-900">Routing details</h4>
-                            <p className="mt-1 text-sm text-zinc-500">We already suggested a sensible starting route from the project type you chose. We also infer how ready it is from your brief, so open this only if the routing looks off.</p>
+                            <h4 className="text-sm font-semibold text-text">Routing details</h4>
+                            <p className="mt-1 text-sm text-text-muted">We already suggested a sensible starting route from the project type you chose. We also infer how ready it is from your brief, so open this only if the routing looks off.</p>
                           </div>
                           <button
                             type="button"
                             onClick={() => setShowAdvancedGuidedRouting((current) => !current)}
-                            className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400"
+                            className="rounded-full border border-border bg-panel px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:border-border"
                           >
                             {showAdvancedGuidedRouting ? "Hide routing details" : "Fine-tune routing"}
                           </button>
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Capabilities: {capabilities.length}</span>
-                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Context: {context.length || 0}</span>
+                          <span className="rounded-full bg-panel px-3 py-1.5 text-text-secondary">Capabilities: {capabilities.length}</span>
+                          <span className="rounded-full bg-panel px-3 py-1.5 text-text-secondary">Context: {context.length || 0}</span>
                         </div>
 
                         {showAdvancedGuidedRouting ? (
                           <div className="mt-5 space-y-6">
-                            <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
+                            <section className="space-y-4 rounded-[20px] border border-border bg-panel p-4">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                  <h5 className="text-sm font-semibold text-zinc-900">Capabilities needed</h5>
-                                  <p className="mt-1 text-sm text-zinc-500">We suggest a starting set based on project type. Change it only if it will materially affect routing.</p>
+                                  <h5 className="text-sm font-semibold text-text">Capabilities needed</h5>
+                                  <p className="mt-1 text-sm text-text-muted">We suggest a starting set based on project type. Change it only if it will materially affect routing.</p>
                                 </div>
                                 {shape ? (
                                   <div className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
@@ -834,10 +834,10 @@ export function CreateProjectForm({
                               {capabilities.length === 0 ? <FieldHint tone="error">Choose at least one capability before submitting.</FieldHint> : null}
                             </section>
 
-                            <section className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4">
+                            <section className="space-y-4 rounded-[20px] border border-border bg-panel p-4">
                               <div>
-                                <h5 className="text-sm font-semibold text-zinc-900">Context</h5>
-                                <p className="mt-1 text-sm text-zinc-500">Optional. Add context only if it meaningfully changes how the team should approach the work.</p>
+                                <h5 className="text-sm font-semibold text-text">Context</h5>
+                                <p className="mt-1 text-sm text-text-muted">Optional. Add context only if it meaningfully changes how the team should approach the work.</p>
                               </div>
                               <OptionBrowser columns={2}>
                                 {PROJECT_CONTEXTS.map((option) => {
@@ -871,34 +871,34 @@ export function CreateProjectForm({
                     {docsSection ? <section>{docsSection}</section> : null}
 
                     {mode === "quick" ? (
-                      <section className="rounded-[24px] border border-zinc-200 bg-zinc-50/80 p-4">
+                      <section className="rounded-[24px] border border-border bg-panel-elevated/80 p-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <h4 className="text-sm font-semibold text-zinc-900">Routing defaults</h4>
-                            <p className="mt-1 text-sm text-zinc-500">We’ll infer routing from your brief and start safe unless you want to adjust the project shape.</p>
+                            <h4 className="text-sm font-semibold text-text">Routing defaults</h4>
+                            <p className="mt-1 text-sm text-text-muted">We’ll infer routing from your brief and start safe unless you want to adjust the project shape.</p>
                           </div>
                           <button
                             type="button"
                             onClick={() => setShowAdvancedQuickRouting((current) => !current)}
-                            className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-400"
+                            className="rounded-full border border-border bg-panel px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:border-border"
                           >
                             {showAdvancedQuickRouting ? "Hide routing controls" : "Refine routing"}
                           </button>
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full bg-white px-3 py-1.5 text-zinc-700">Shape: {PROJECT_SHAPES.find((item) => item.value === shape)?.label}</span>
+                          <span className="rounded-full bg-panel px-3 py-1.5 text-text-secondary">Shape: {PROJECT_SHAPES.find((item) => item.value === shape)?.label}</span>
                         </div>
 
                         {showAdvancedQuickRouting ? (
                           <div className="mt-5 space-y-5">
                             <div className="grid gap-4 md:grid-cols-1">
                               <label className="block">
-                                <span className="mb-1 block text-sm font-medium text-zinc-700">Project shape</span>
+                                <span className="mb-1 block text-sm font-medium text-text-secondary">Project shape</span>
                                 <select
                                   value={shape}
                                   onChange={(e) => setShape(e.target.value)}
-                                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-base focus:border-red-500 focus:outline-none"
+                                  className="w-full rounded-2xl border border-border bg-panel px-4 py-3 text-base focus:border-red-500 focus:outline-none"
                                 >
                                   {PROJECT_SHAPES.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -915,83 +915,83 @@ export function CreateProjectForm({
 
                 {activeStep.id === "review" ? (
                   <div className="space-y-6">
-                    <section className="rounded-[28px] border border-red-100/70 bg-white p-5">
+                    <section className="rounded-[28px] border border-red-100/70 dark:border-red-900/50 bg-panel p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">Routing preview</p>
-                          <h4 className="mt-2 text-xl font-semibold tracking-tight text-zinc-950">{name.trim() || "Untitled project"}</h4>
-                          <p className="mt-2 text-sm leading-6 text-zinc-600">{goals.trim() || intake.summary}</p>
+                          <h4 className="mt-2 text-xl font-semibold tracking-tight text-text">{name.trim() || "Untitled project"}</h4>
+                          <p className="mt-2 text-sm leading-6 text-text-secondary">{goals.trim() || intake.summary}</p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-200/80 bg-white/88 px-4 py-3 text-sm text-zinc-600 shadow-sm">
+                        <div className="rounded-2xl border border-border/80 bg-panel/88 px-4 py-3 text-sm text-text-secondary shadow-sm">
                           <div className="flex items-center justify-between gap-4">
                             <span>Legacy type</span>
-                            <span className="font-medium text-zinc-900">{deriveLegacyProjectType(intake).replace(/_/g, " ")}</span>
+                            <span className="font-medium text-text">{deriveLegacyProjectType(intake).replace(/_/g, " ")}</span>
                           </div>
                         </div>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">Primary route: {routing.ownerTeam}</span>
-                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm">QC: {routing.qcTeam}</span>
+                        <span className="rounded-full bg-panel px-3 py-1.5 text-xs font-medium text-text-secondary shadow-sm">Primary route: {routing.ownerTeam}</span>
+                        <span className="rounded-full bg-panel px-3 py-1.5 text-xs font-medium text-text-secondary shadow-sm">QC: {routing.qcTeam}</span>
                       </div>
-                      <p className="mt-3 text-sm text-zinc-600">{routing.rationale}</p>
+                      <p className="mt-3 text-sm text-text-secondary">{routing.rationale}</p>
                     </section>
 
                     <section className="grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
-                        <p className="text-sm font-semibold text-zinc-900">Intake summary</p>
-                        <dl className="mt-4 space-y-4 text-sm text-zinc-600">
+                      <div className="rounded-[28px] border border-border bg-panel p-4">
+                        <p className="text-sm font-semibold text-text">Intake summary</p>
+                        <dl className="mt-4 space-y-4 text-sm text-text-secondary">
                           <div>
-                            <dt className="font-medium text-zinc-900">Path</dt>
+                            <dt className="font-medium text-text">Path</dt>
                             <dd className="mt-1">{mode === "quick" ? "Quick brief" : "Guided setup"}</dd>
                           </div>
                           <div>
-                            <dt className="font-medium text-zinc-900">Project shape</dt>
+                            <dt className="font-medium text-text">Project shape</dt>
                             <dd className="mt-1">{PROJECT_SHAPES.find((item) => item.value === shape)?.label}</dd>
                           </div>
                           <div>
-                            <dt className="font-medium text-zinc-900">Starting point</dt>
+                            <dt className="font-medium text-text">Starting point</dt>
                             <dd className="mt-1">{projectOrigin === "existing" ? "Improving an existing project" : "Net-new project"}</dd>
                           </div>
                           <div>
-                            <dt className="font-medium text-zinc-900">Capabilities</dt>
+                            <dt className="font-medium text-text">Capabilities</dt>
                             <dd className="mt-2 flex flex-wrap gap-2">
                               {capabilities.map((value) => (
-                                <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                <span key={value} className="rounded-full bg-panel-elevated px-2.5 py-1 text-xs text-text-secondary">
                                   {PROJECT_CAPABILITIES.find((item) => item.value === value)?.label}
                                 </span>
                               ))}
                             </dd>
                           </div>
                           <div>
-                            <dt className="font-medium text-zinc-900">Context</dt>
+                            <dt className="font-medium text-text">Context</dt>
                             <dd className="mt-2 flex flex-wrap gap-2">
                               {context.length > 0 ? (
                                 context.map((value) => (
-                                  <span key={value} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                  <span key={value} className="rounded-full bg-panel-elevated px-2.5 py-1 text-xs text-text-secondary">
                                     {PROJECT_CONTEXTS.find((item) => item.value === value)?.label}
                                   </span>
                                 ))
                               ) : (
-                                <span className="text-zinc-500">No extra context added.</span>
+                                <span className="text-text-muted">No extra context added.</span>
                               )}
                             </dd>
                           </div>
                         </dl>
                       </div>
 
-                      <div className="rounded-[28px] border border-zinc-200 bg-white p-4">
-                        <p className="text-sm font-semibold text-zinc-900">Brief</p>
-                        <div className="mt-4 space-y-4 text-sm text-zinc-600">
+                      <div className="rounded-[28px] border border-border bg-panel p-4">
+                        <p className="text-sm font-semibold text-text">Brief</p>
+                        <div className="mt-4 space-y-4 text-sm text-text-secondary">
                           <div>
-                            <p className="font-medium text-zinc-900">Notes</p>
-                            <p className="mt-1 whitespace-pre-wrap leading-6 text-zinc-600">{goals.trim() || "No additional notes added."}</p>
+                            <p className="font-medium text-text">Notes</p>
+                            <p className="mt-1 whitespace-pre-wrap leading-6 text-text-secondary">{goals.trim() || "No additional notes added."}</p>
                           </div>
                           {showExistingProjectLinks && Object.keys(projectLinks).length > 0 ? (
                             <div>
-                              <p className="font-medium text-zinc-900">Existing project links</p>
+                              <p className="font-medium text-text">Existing project links</p>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {PROJECT_LINK_FIELDS.filter((key) => Boolean(projectLinks[key])).map((key) => (
-                                  <span key={key} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                                  <span key={key} className="rounded-full bg-panel-elevated px-2.5 py-1 text-xs text-text-secondary">
                                     {PROJECT_LINK_LABELS[key]}
                                   </span>
                                 ))}
@@ -999,18 +999,18 @@ export function CreateProjectForm({
                             </div>
                           ) : null}
                           <div>
-                            <p className="font-medium text-zinc-900">Attached intake files</p>
+                            <p className="font-medium text-text">Attached intake files</p>
                             {reviewAttachments.length > 0 ? (
                               <ul className="mt-2 space-y-2">
                                 {reviewAttachments.map((file) => (
-                                  <li key={`${file.name}-${file.sizeLabel}`} className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                                  <li key={`${file.name}-${file.sizeLabel}`} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-panel-elevated px-3 py-2 text-xs text-text-secondary">
                                     <span className="truncate">{file.name}</span>
-                                    <span className="shrink-0 text-zinc-500">{file.sizeLabel}</span>
+                                    <span className="shrink-0 text-text-muted">{file.sizeLabel}</span>
                                   </li>
                                 ))}
                               </ul>
                             ) : (
-                              <p className="mt-1 text-zinc-500">No intake files attached.</p>
+                              <p className="mt-1 text-text-muted">No intake files attached.</p>
                             )}
                           </div>
                         </div>
@@ -1020,8 +1020,8 @@ export function CreateProjectForm({
                 ) : null}
               </div>
 
-              <div className="mt-8 flex flex-col gap-3 border-t border-zinc-100 px-1 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-0">
-                <div className={cn("text-sm", showValidation && !currentStepValid ? "text-red-600" : "text-zinc-500")}>
+              <div className="mt-8 flex flex-col gap-3 border-t border-border/60 px-1 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-0">
+                <div className={cn("text-sm", showValidation && !currentStepValid ? "text-red-600" : "text-text-muted")}>
                   {activeStep.id === "review"
                     ? "Looks good? Create the project."
                     : activeStep.id === "brief"
@@ -1037,7 +1037,7 @@ export function CreateProjectForm({
                   <button
                     type="button"
                     onClick={currentStep === 0 ? onCancel : goBack}
-                    className="rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-red-200 hover:bg-red-50"
+                    className="rounded-2xl border border-border bg-panel px-4 py-2.5 text-sm font-medium text-text-secondary shadow-sm transition hover:border-red-200 hover:bg-red-50 dark:hover:bg-red-950/40"
                   >
                     {currentStep === 0 ? "Cancel" : "Back"}
                   </button>
@@ -1049,19 +1049,19 @@ export function CreateProjectForm({
                         submitIntentRef.current = true;
                       }}
                       disabled={isSubmitting || !name.trim() || (mode === "quick" && !goals.trim()) || (mode === "guided" && capabilities.length === 0)}
-                      className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-2xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSubmitting ? "Creating..." : "Confirm and create project"}
                     </button>
                   ) : activeStep.id === "shape" ? (
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
+                    <div className="rounded-2xl border border-border bg-panel-elevated px-4 py-2.5 text-sm text-text-muted">
                       Choose the closest fit below to continue
                     </div>
                   ) : activeStep.id === "brief" && mode === "quick" ? (
                     <button
                       type="button"
                       onClick={requireAndAdvance}
-                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
                     >
                       Review project
                     </button>
@@ -1069,7 +1069,7 @@ export function CreateProjectForm({
                     <button
                       type="button"
                       onClick={requireAndAdvance}
-                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+                      className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
                     >
                       Continue
                     </button>

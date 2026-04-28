@@ -29,7 +29,7 @@ function kindTone(kind: ProofKind) {
     case "handoff":
       return "bg-violet-50 text-violet-700 border-violet-200";
     default:
-      return "bg-zinc-100 text-zinc-700 border-zinc-200";
+      return "bg-panel-elevated text-text-secondary border-border";
   }
 }
 
@@ -71,18 +71,18 @@ export function ProofReviewClient({ initialProofs }: { initialProofs: ProofRecor
       <PageHero>
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
               <ShieldCheck className="h-3.5 w-3.5 text-red-500" />
               Proof review queue
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">GitHub-only final proof</h1>
-              <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
+              <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">GitHub-only final proof</h1>
+              <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
                 Inspect persisted review evidence from the live approval inbox without mutating status from this surface.
               </p>
             </div>
           </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 lg:max-w-sm">
+          <div className="rounded-2xl border border-border bg-panel p-4 text-sm text-text-muted lg:max-w-sm">
             This slice is read-only. Records below are loaded from Supabase approvals with their linked project, milestone, and repository metadata.
           </div>
         </div>
@@ -91,37 +91,37 @@ export function ProofReviewClient({ initialProofs }: { initialProofs: ProofRecor
       <div className="grid gap-4 md:grid-cols-3">
         <PageHeroStat className="border-amber-100">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-amber-700"><ShieldQuestion className="h-4 w-4" />Pending</div>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{pendingCount}</div>
+          <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{pendingCount}</div>
         </PageHeroStat>
         <PageHeroStat className="border-emerald-100">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700"><CheckCircle2 className="h-4 w-4" />Approved</div>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{approvedCount}</div>
+          <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{approvedCount}</div>
         </PageHeroStat>
         <PageHeroStat className="border-red-100">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700"><ShieldAlert className="h-4 w-4" />Rejected</div>
-          <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{rejectedCount}</div>
+          <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{rejectedCount}</div>
         </PageHeroStat>
       </div>
 
-      <Card variant="soft" className="rounded-[24px] border-zinc-200 bg-white">
+      <Card variant="soft" className="rounded-[24px] border-border bg-panel">
         <CardContent className="grid gap-3 p-4 md:grid-cols-[minmax(0,2fr)_180px_180px] md:p-5">
           <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <input
               aria-label="Search proofs"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by proof title, owner, project, or repo"
-              className="h-11 w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-3 text-sm text-zinc-900 outline-none ring-0 transition focus:border-red-200"
+              className="h-11 w-full rounded-xl border border-border bg-panel pl-10 pr-3 text-sm text-text outline-none ring-0 transition focus:border-red-200"
             />
           </label>
-          <select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value as ProofStatus | "all")} className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-red-200">
+          <select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value as ProofStatus | "all")} className="h-11 rounded-xl border border-border bg-panel px-3 text-sm text-text outline-none transition focus:border-red-200">
             <option value="all">All statuses</option>
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
-          <select aria-label="Filter by kind" value={kind} onChange={(event) => setKind(event.target.value as ProofKind | "all")} className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-red-200">
+          <select aria-label="Filter by kind" value={kind} onChange={(event) => setKind(event.target.value as ProofKind | "all")} className="h-11 rounded-xl border border-border bg-panel px-3 text-sm text-text outline-none transition focus:border-red-200">
             <option value="all">All proof kinds</option>
             <option value="owner">Owner</option>
             <option value="artifact">Artifact</option>
@@ -134,7 +134,7 @@ export function ProofReviewClient({ initialProofs }: { initialProofs: ProofRecor
         <section className="space-y-3">
           {filteredProofs.length === 0 ? (
             <BrandedEmptyState
-              className="rounded-[24px] border border-zinc-200 bg-white px-6 py-10 text-left"
+              className="rounded-[24px] border border-border bg-panel px-6 py-10 text-left"
               icon={<FileStack className="h-7 w-7 text-red-600" />}
               title="No proof records match these filters"
               description="Clear the current search or widen the selected status and kind filters to inspect more persisted proof records."
@@ -144,7 +144,7 @@ export function ProofReviewClient({ initialProofs }: { initialProofs: ProofRecor
               {filteredProofs.map((proof) => {
                 const isSelected = proof.id === selectedProof?.id;
                 return (
-                  <Card key={proof.id} variant="featured" className={cn("rounded-[24px] border-zinc-200", isSelected && "border-red-200 ring-1 ring-red-100")}>
+                  <Card key={proof.id} variant="featured" className={cn("rounded-[24px] border-border", isSelected && "border-red-200 ring-1 ring-red-100")}>
                     <CardContent className="space-y-4 p-5">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <button className="min-w-0 text-left" onClick={() => setSelectedId(proof.id)}>
@@ -152,26 +152,26 @@ export function ProofReviewClient({ initialProofs }: { initialProofs: ProofRecor
                             <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", kindTone(proof.kind))}>{proof.kind}</span>
                             <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", statusTone(proof.status))}>{proof.status}</span>
                           </div>
-                          <h2 className="mt-3 text-base font-semibold tracking-tight text-zinc-950">{proof.title}</h2>
-                          <p className="mt-1 text-sm leading-6 text-zinc-500">{proof.summary}</p>
+                          <h2 className="mt-3 text-base font-semibold tracking-tight text-text">{proof.title}</h2>
+                          <p className="mt-1 text-sm leading-6 text-text-muted">{proof.summary}</p>
                         </button>
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-right text-xs text-zinc-500">
-                          <div className="font-semibold uppercase tracking-[0.14em] text-zinc-400">Source</div>
-                          <div className="mt-1 font-medium text-zinc-900">{proof.sourceTable}</div>
+                        <div className="rounded-2xl border border-border bg-panel-elevated px-3 py-2 text-right text-xs text-text-muted">
+                          <div className="font-semibold uppercase tracking-[0.14em] text-text-muted">Source</div>
+                          <div className="mt-1 font-medium text-text">{proof.sourceTable}</div>
                         </div>
                       </div>
-                      <div className="grid gap-3 text-sm text-zinc-500 md:grid-cols-3">
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400"><UserRound className="h-3.5 w-3.5" />Owner</div>
-                          <p className="mt-2 font-medium text-zinc-900">{proof.owner}</p>
+                      <div className="grid gap-3 text-sm text-text-muted md:grid-cols-3">
+                        <div className="rounded-2xl border border-border bg-panel-elevated px-3 py-3">
+                          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted"><UserRound className="h-3.5 w-3.5" />Owner</div>
+                          <p className="mt-2 font-medium text-text">{proof.owner}</p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400"><GitBranch className="h-3.5 w-3.5" />Repository</div>
-                          <p className="mt-2 font-medium text-zinc-900">{proof.repository}</p>
+                        <div className="rounded-2xl border border-border bg-panel-elevated px-3 py-3">
+                          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted"><GitBranch className="h-3.5 w-3.5" />Repository</div>
+                          <p className="mt-2 font-medium text-text">{proof.repository}</p>
                         </div>
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Updated</div>
-                          <p className="mt-2 font-medium text-zinc-900">{formatDate(proof.updatedAt)}</p>
+                        <div className="rounded-2xl border border-border bg-panel-elevated px-3 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Updated</div>
+                          <p className="mt-2 font-medium text-text">{formatDate(proof.updatedAt)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -183,63 +183,63 @@ export function ProofReviewClient({ initialProofs }: { initialProofs: ProofRecor
         </section>
 
         <aside>
-          <Card variant="soft" className="sticky top-8 rounded-[24px] border-zinc-200 bg-white">
+          <Card variant="soft" className="sticky top-8 rounded-[24px] border-border bg-panel">
             <CardContent className="space-y-4 p-5">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-red-700">Selected proof</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-tight text-zinc-950">{selectedProof?.title ?? "No proof selected"}</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">{selectedProof?.detail ?? "Select a proof record to inspect persisted approval metadata, repository context, and review timestamps."}</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight text-text">{selectedProof?.title ?? "No proof selected"}</h2>
+                <p className="mt-2 text-sm leading-6 text-text-muted">{selectedProof?.detail ?? "Select a proof record to inspect persisted approval metadata, repository context, and review timestamps."}</p>
               </div>
-              <div className="space-y-3 rounded-[20px] border border-zinc-200 bg-zinc-50 p-4 text-sm">
+              <div className="space-y-3 rounded-[20px] border border-border bg-panel-elevated p-4 text-sm">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Status</div>
-                  <div className="mt-1 font-medium text-zinc-900">{selectedProof?.status ?? "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Status</div>
+                  <div className="mt-1 font-medium text-text">{selectedProof?.status ?? "—"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Kind</div>
-                  <div className="mt-1 font-medium text-zinc-900">{selectedProof?.kind ?? "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Kind</div>
+                  <div className="mt-1 font-medium text-text">{selectedProof?.kind ?? "—"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Project</div>
-                  <div className="mt-1 font-medium text-zinc-900">{selectedProof?.projectName ?? "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Project</div>
+                  <div className="mt-1 font-medium text-text">{selectedProof?.projectName ?? "—"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Milestone</div>
-                  <div className="mt-1 font-medium text-zinc-900">{selectedProof?.sprintName ?? "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Milestone</div>
+                  <div className="mt-1 font-medium text-text">{selectedProof?.sprintName ?? "—"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Execution job</div>
-                  <div className="mt-1 font-medium text-zinc-900">{selectedProof?.jobTitle ?? "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Execution job</div>
+                  <div className="mt-1 font-medium text-text">{selectedProof?.jobTitle ?? "—"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Requester</div>
-                  <div className="mt-1 font-medium text-zinc-900">{selectedProof?.requesterName ?? "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Requester</div>
+                  <div className="mt-1 font-medium text-text">{selectedProof?.requesterName ?? "—"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Reviewed by</div>
-                  <div className="mt-1 font-medium text-zinc-900">{selectedProof?.reviewerName ?? "Pending decision"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Reviewed by</div>
+                  <div className="mt-1 font-medium text-text">{selectedProof?.reviewerName ?? "Pending decision"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Created</div>
-                  <div className="mt-1 font-medium text-zinc-900">{formatDate(selectedProof?.createdAt)}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Created</div>
+                  <div className="mt-1 font-medium text-text">{formatDate(selectedProof?.createdAt)}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Decided</div>
-                  <div className="mt-1 font-medium text-zinc-900">{formatDate(selectedProof?.decidedAt)}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Decided</div>
+                  <div className="mt-1 font-medium text-text">{formatDate(selectedProof?.decidedAt)}</div>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400"><Database className="h-3.5 w-3.5" />Source record</div>
-                  <div className="mt-1 break-all font-medium text-zinc-900">{selectedProof ? `${selectedProof.sourceTable}:${selectedProof.sourceId}` : "—"}</div>
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted"><Database className="h-3.5 w-3.5" />Source record</div>
+                  <div className="mt-1 break-all font-medium text-text">{selectedProof ? `${selectedProof.sourceTable}:${selectedProof.sourceId}` : "—"}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Repository URL</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Repository URL</div>
                   {selectedProof?.sourceUrl ? (
                     <a href={selectedProof.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 break-all font-medium text-red-700 hover:text-red-800">
                       {selectedProof.sourceUrl}
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   ) : (
-                    <div className="mt-1 font-medium text-zinc-900">—</div>
+                    <div className="mt-1 font-medium text-text">—</div>
                   )}
                 </div>
               </div>

@@ -21,7 +21,7 @@ type CreatedProject = {
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
 
-function writeProjectCreateHandoff(project: CreatedProject, source: "intake-modal" | "intake-page") {
+function writeProjectCreateHandoff(project: CreatedProject, source: "intake-modal") {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(
     PROJECT_CREATE_HANDOFF_KEY,
@@ -154,13 +154,11 @@ function SuccessState({
 }
 
 export function CreateProjectWorkspace({
-  mode = "page",
   open = true,
   onOpenChange,
   prefillName,
   prefillType,
 }: {
-  mode?: "page" | "modal";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   prefillName?: string;
@@ -179,16 +177,16 @@ export function CreateProjectWorkspace({
   const redirectTimeoutRef = useRef<number | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
-  const isOpen = mode === "page" ? true : open;
+  const isOpen = open;
 
   useEffect(() => {
-    if (mode !== "modal" || !isOpen || createdProject) return;
+    if (!isOpen || createdProject) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange?.(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [createdProject, isOpen, mode, onOpenChange]);
+  }, [createdProject, isOpen, onOpenChange]);
 
   useEffect(() => {
     return () => {
@@ -226,8 +224,7 @@ export function CreateProjectWorkspace({
   };
 
   const handleClose = () => {
-    if (mode === "modal") onOpenChange?.(false);
-    else router.push("/projects");
+    onOpenChange?.(false);
   };
 
   const navigateToProject = (project: CreatedProject) => {
@@ -235,7 +232,7 @@ export function CreateProjectWorkspace({
       window.clearTimeout(redirectTimeoutRef.current);
       redirectTimeoutRef.current = null;
     }
-    writeProjectCreateHandoff(project, mode === "modal" ? "intake-modal" : "intake-page");
+    writeProjectCreateHandoff(project, "intake-modal");
     router.push(`/projects/${project.id}?created=1`);
   };
 
@@ -383,40 +380,6 @@ export function CreateProjectWorkspace({
 
   if (!isOpen) return null;
 
-  if (mode === "page") {
-    return (
-      <div className="space-y-6 md:space-y-8">
-        <PageHero className="border-accent/15">
-          <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
-            <div className="max-w-3xl space-y-4">
-              <div className="ds-accent-badge inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-                <Sparkles className="h-3.5 w-3.5 text-accent" />
-                New project intake
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">Start a new project.</h1>
-                <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">Add the key details, attach anything helpful, and create the project when you&apos;re ready.</p>
-              </div>
-            </div>
-            <div className="flex w-full max-w-sm flex-col gap-3">
-              <PageHeroStat className="border-accent/15 bg-panel/90 shadow-sm">
-                <div className="text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">One place to start</div>
-                <div className="mt-2 text-sm leading-6 text-text-secondary">Everything you need to kick off a project is here.</div>
-              </PageHeroStat>
-              <Button onClick={handleClose} variant="outline" className="justify-center rounded-2xl border-border bg-panel/90 text-text-secondary hover:bg-panel-elevated">
-                Back to projects
-              </Button>
-            </div>
-          </div>
-        </PageHero>
-
-        <div ref={contentRef} className="min-w-0">
-          {formContent}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-[rgba(15,23,42,0.38)] backdrop-blur-[4px]" onClick={() => !createdProject && onOpenChange?.(false)} />
@@ -434,17 +397,13 @@ export function CreateProjectWorkspace({
             <div className="absolute inset-x-0 bottom-0 h-px bg-accent/10" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="ds-accent-badge inline-flex items-center gap-2 rounded-full bg-panel/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm backdrop-blur">
-                  <Sparkles className="h-3.5 w-3.5 text-accent" />
-                  {createdProject ? "Project handoff" : "New project intake"}
-                </div>
-                <h2 className="mt-3 text-xl font-semibold tracking-tight text-text sm:text-[1.75rem]">
-                  {createdProject ? "Project ready" : "Start a project"}
+                <h2 className="text-xl font-semibold tracking-tight text-text sm:text-[1.75rem]">
+                  {createdProject ? "Project ready" : "New project"}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
                   {createdProject
                     ? "Review the handoff card or jump straight into the workspace."
-                    : "Add the essentials, attach supporting materials, and review the routing before you create it."}
+                    : "Add the essentials, attach anything helpful, and create the project when you&apos;re ready."}
                 </p>
               </div>
               {!createdProject ? (

@@ -15,7 +15,6 @@ export function CreateProjectModal({
 }) {
   return (
     <CreateProjectWorkspace
-      mode="modal"
       open={open}
       onOpenChange={onOpenChange}
       prefillName={prefillName}

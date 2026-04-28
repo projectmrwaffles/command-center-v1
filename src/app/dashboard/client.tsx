@@ -214,7 +214,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px] lg:items-end">
-            <div className="rounded-2xl border border-border/70 bg-panel-elevated p-3 shadow-[var(--shadow-panel-soft)] lg:max-w-sm">
+            <div className="rounded-2xl border border-border/70 bg-panel p-3 shadow-[var(--shadow-panel-soft)] lg:max-w-sm">
               <div className="flex items-center gap-2 text-sm font-medium text-text">
                 <Radio className={cn("h-4 w-4", connectionStatus === "connected" ? "text-accent" : connectionStatus === "connecting" ? "text-warning" : "text-text-muted")} />
                 {connectionStatus === "connected" ? "Live updates on" : connectionStatus === "connecting" ? "Connecting live feed..." : "Live feed offline"}
@@ -359,7 +359,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-panel-elevated p-4 shadow-[var(--shadow-panel-soft)]">
+          <div className="rounded-2xl border border-border/70 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Progress</p>
@@ -409,7 +409,7 @@ function UsageCard({ usage }: { usage: UsageModel }) {
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-secondary">24h summary</p>
             <p className="mt-2 text-sm text-text-muted">Usage totals and the models carrying most of the load.</p>
           </div>
-          <span className="rounded-full border border-accent/15 bg-panel-elevated px-3 py-1 text-xs font-medium text-text-secondary">Live rollup</span>
+          <span className="rounded-full border border-accent/15 bg-panel px-3 py-1 text-xs font-medium text-text-secondary">Live rollup</span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

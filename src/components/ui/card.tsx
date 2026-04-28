@@ -7,7 +7,7 @@ const cardVariants: Record<CardVariant, string> = {
   default: "border border-border/80 bg-panel text-text shadow-[var(--shadow-panel-soft)]",
   featured:
     "border border-border/75 bg-panel text-text shadow-[var(--shadow-panel)] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[var(--shadow-panel)]",
-  soft: "border border-border/70 bg-panel-elevated text-text shadow-[var(--shadow-panel-soft)]",
+  soft: "border border-border/70 bg-panel-subtle text-text shadow-[var(--shadow-panel-soft)]",
 };
 
 export function Card({

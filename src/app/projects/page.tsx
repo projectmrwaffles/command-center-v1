@@ -147,9 +147,11 @@ function ProjectsContent() {
             <div className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4 lg:max-w-xs">
               <div className="text-sm font-medium text-zinc-900">Start something new</div>
               <p className="mt-1 text-sm leading-6 text-zinc-500">Create a project from here instead of relying on a floating action button.</p>
-              <Button onClick={() => setShowCreateModal(true)} size="lg" variant="warm" className="mt-4 w-full rounded-xl">
-                <Plus className="h-4 w-4" />
-                New project
+              <Button asChild size="lg" variant="warm" className="mt-4 w-full rounded-xl">
+                <Link href="/projects/new">
+                  <Plus className="h-4 w-4" />
+                  New project
+                </Link>
               </Button>
             </div>
             {stats.completed > 0 ? <p className="px-1 text-xs text-zinc-500">{stats.completed} completed project{stats.completed === 1 ? "" : "s"} in the archive-ready set.</p> : null}
@@ -182,9 +184,11 @@ function ProjectsContent() {
           title="No projects yet"
           description="Create your first project to start routing work, tracking delivery, and building a more useful overview here."
           action={
-            <Button onClick={() => setShowCreateModal(true)} size="lg" variant="warm" className="rounded-xl px-5">
-              <Plus className="h-4 w-4" />
-              Create your first project
+            <Button asChild size="lg" variant="warm" className="rounded-xl px-5">
+              <Link href="/projects/new">
+                <Plus className="h-4 w-4" />
+                Create your first project
+              </Link>
             </Button>
           }
         />

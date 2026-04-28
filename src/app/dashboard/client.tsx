@@ -223,9 +223,11 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 Open a project or jump into the project list.
               </p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <Button onClick={() => setShowCreateProject(true)} size="lg" variant="warm" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm">
-                  <Plus className="h-4 w-4" />
-                  New project
+                <Button asChild size="lg" variant="warm" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm">
+                  <Link href="/projects/new">
+                    <Plus className="h-4 w-4" />
+                    New project
+                  </Link>
                 </Button>
                 <Link
                   href="/projects"
@@ -259,9 +261,11 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 title="No active projects yet"
                 description="Create a project to start routing work, tracking progress, and surfacing dashboard health here."
                 action={
-                  <Button onClick={() => setShowCreateProject(true)} size="lg" variant="warm" className="rounded-xl px-5">
-                    <Plus className="h-4 w-4" />
-                    Create project
+                  <Button asChild size="lg" variant="warm" className="rounded-xl px-5">
+                    <Link href="/projects/new">
+                      <Plus className="h-4 w-4" />
+                      Create project
+                    </Link>
                   </Button>
                 }
               />

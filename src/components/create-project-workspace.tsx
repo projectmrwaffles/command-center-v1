@@ -394,14 +394,14 @@ export function CreateProjectWorkspace({
                 New project intake
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">Start a project in the redesigned workspace flow.</h1>
-                <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">Use the shared intake system, review routing before creation, and hand the project off without changing backend contracts or submission logic.</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">Start a new project.</h1>
+                <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">Add the key details, attach anything helpful, and create the project when you&apos;re ready.</p>
               </div>
             </div>
             <div className="flex w-full max-w-sm flex-col gap-3">
               <PageHeroStat className="border-accent/15 bg-panel/90 shadow-sm">
-                <div className="text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">Canonical intake surface</div>
-                <div className="mt-2 text-sm leading-6 text-text-secondary">Dashboard, projects, and floating create actions can all point here while keeping the same create-project behavior.</div>
+                <div className="text-xs font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">One place to start</div>
+                <div className="mt-2 text-sm leading-6 text-text-secondary">Everything you need to kick off a project is here.</div>
               </PageHeroStat>
               <Button onClick={handleClose} variant="outline" className="justify-center rounded-2xl border-border bg-panel/90 text-text-secondary hover:bg-panel-elevated">
                 Back to projects

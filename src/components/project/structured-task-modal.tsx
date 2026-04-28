@@ -266,15 +266,15 @@ export function StructuredTaskModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[min(75dvh,48rem)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-xl sm:max-h-[90vh] sm:rounded-2xl sm:p-0"
+        className="flex max-h-[min(75dvh,48rem)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-border bg-panel shadow-xl sm:max-h-[90vh] sm:rounded-2xl sm:p-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-200/80 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-6 sm:py-5">
           <div>
-            <h3 className="text-lg font-semibold text-zinc-900">{intentCopy.title}</h3>
-            <p className="mt-1 text-sm text-zinc-500">{intentCopy.description}</p>
+            <h3 className="text-lg font-semibold text-text">{intentCopy.title}</h3>
+            <p className="mt-1 text-sm text-text-muted">{intentCopy.description}</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600" aria-label="Close create task modal">
+          <button type="button" onClick={onClose} className="rounded-md p-2 text-text-muted transition hover:bg-panel-elevated hover:text-text" aria-label="Close create task modal">
             <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden="true">
               <path d="M4.22 4.22a.75.75 0 0 1 1.06 0L10 8.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L11.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06L10 11.06l-4.72 4.72a.75.75 0 1 1-1.06-1.06L8.94 10 4.22 5.28a.75.75 0 0 1 0-1.06Z" />
             </svg>
@@ -284,7 +284,7 @@ export function StructuredTaskModal({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5">
           <section>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-zinc-900">Follow-up intent</p>
+              <p className="text-sm font-medium text-text">Follow-up intent</p>
               {intent ? (
                 <button type="button" onClick={() => setIntent(null)} className="text-xs font-medium text-red-600 hover:text-red-700">
                   Change
@@ -299,11 +299,11 @@ export function StructuredTaskModal({
                   onClick={() => setIntent(option.value)}
                   className={cn(
                     "rounded-xl border px-3 py-3 text-left transition",
-                    option.value === intent ? "border-red-400 bg-red-50" : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50",
+                    option.value === intent ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40" : "border-border bg-panel hover:border-red-200 hover:bg-panel-elevated",
                   )}
                 >
-                  <div className="text-sm font-medium text-zinc-900">{option.label}</div>
-                  <p className="mt-1 text-xs leading-5 text-zinc-500">{option.description}</p>
+                  <div className="text-sm font-medium text-text">{option.label}</div>
+                  <p className="mt-1 text-xs leading-5 text-text-muted">{option.description}</p>
                 </button>
               ))}
             </div>
@@ -312,20 +312,20 @@ export function StructuredTaskModal({
           {intent ? (
             <>
               {intent === "revise_delivered_work" ? (
-                <section className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 sm:p-4">
+                <section className="rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-zinc-900">Delivered work to revise</p>
-                      <p className="mt-1 text-xs text-zinc-500">This keeps the new task anchored to work that already shipped through the project flow.</p>
+                      <p className="text-sm font-medium text-text">Delivered work to revise</p>
+                      <p className="mt-1 text-xs text-text-muted">This keeps the new task anchored to work that already shipped through the project flow.</p>
                     </div>
                   </div>
                   {revisionCandidateTasks.length > 0 ? (
                     <label className="mt-3 block">
-                      <span className="mb-1 block text-sm font-medium text-zinc-700">Existing delivered task</span>
+                      <span className="mb-1 block text-sm font-medium text-text-secondary">Existing delivered task</span>
                       <select
                         value={selectedRevisionTaskId}
                         onChange={(e) => setSelectedRevisionTaskId(e.target.value)}
-                        className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-border bg-panel text-text px-3 py-2 text-sm"
                       >
                         {revisionCandidateTasks.map((task) => {
                           const milestoneName = deliveryMilestones.find((milestone) => milestone.id === task.sprint_id)?.name;
@@ -338,7 +338,7 @@ export function StructuredTaskModal({
                       </select>
                     </label>
                   ) : (
-                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                       No completed delivered task is available yet, so the revision path is UI-only for now. Finish a deliverable first, then open a revision from here.
                     </div>
                   )}
@@ -346,21 +346,21 @@ export function StructuredTaskModal({
               ) : null}
 
               {intent !== "revise_delivered_work" ? (
-                <section className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 sm:p-4">
+                <section className="rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">{intent === "add_deliverable" ? "Delivery stage" : "Related stage"}</p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="text-sm font-medium text-text">{intent === "add_deliverable" ? "Delivery stage" : "Related stage"}</p>
+                    <p className="mt-1 text-xs text-text-muted">
                       {intent === "add_deliverable"
                         ? "Attach the new deliverable to the stage it belongs to."
                         : "Optional stage context helps support work stay connected to delivery."}
                     </p>
                   </div>
                   <label className="mt-3 block">
-                    <span className="mb-1 block text-sm font-medium text-zinc-700">{intent === "add_deliverable" ? "Stage" : "Stage (optional)"}</span>
+                    <span className="mb-1 block text-sm font-medium text-text-secondary">{intent === "add_deliverable" ? "Stage" : "Stage (optional)"}</span>
                     <select
                       value={selectedMilestoneId}
                       onChange={(e) => setSelectedMilestoneId(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                      className="w-full rounded-md border border-border bg-panel text-text px-3 py-2 text-sm"
                     >
                       {intent === "add_support_work" ? <option value="">No specific stage</option> : null}
                       {deliveryMilestones.map((milestone) => (
@@ -375,7 +375,7 @@ export function StructuredTaskModal({
 
               <section>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-zinc-900">Structured task type</p>
+                  <p className="text-sm font-medium text-text">Structured task type</p>
                   {taskType ? (
                     <button type="button" onClick={() => setTaskType(null)} className="text-xs font-medium text-red-600 hover:text-red-700">
                       Change
@@ -392,11 +392,11 @@ export function StructuredTaskModal({
                         onClick={() => setTaskType(type)}
                         className={cn(
                           "rounded-xl border px-3 py-3 text-left transition",
-                          type === taskType ? "border-red-400 bg-red-50" : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50",
+                          type === taskType ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40" : "border-border bg-panel hover:border-red-200 hover:bg-panel-elevated",
                         )}
                       >
-                        <div className="text-sm font-medium text-zinc-900">{item.label}</div>
-                        <p className="mt-0.5 text-xs text-zinc-500">{item.description}</p>
+                        <div className="text-sm font-medium text-text">{item.label}</div>
+                        <p className="mt-0.5 text-xs text-text-muted">{item.description}</p>
                       </button>
                     );
                   })}
@@ -407,14 +407,14 @@ export function StructuredTaskModal({
 
           {intent && taskType && config ? (
             <>
-              <section className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 sm:p-4">
+              <section className="space-y-3 rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="rounded-full bg-white px-2.5 py-1 font-medium text-zinc-700">{config.label}</span>
-                  {routing ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-zinc-500">{routing.ownerTeamLabel} → {routing.qcTeamLabel}</span> : null}
-                  {selectedMilestone?.name ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-zinc-500">Stage: {selectedMilestone.name}</span> : null}
+                  <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-secondary">{config.label}</span>
+                  {routing ? <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-muted">{routing.ownerTeamLabel} → {routing.qcTeamLabel}</span> : null}
+                  {selectedMilestone?.name ? <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-muted">Stage: {selectedMilestone.name}</span> : null}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700">{config.goalLabel || "What follow-up outcome should this work item accomplish?"}</label>
+                  <label className="block text-sm font-medium text-text-secondary">{config.goalLabel || "What follow-up outcome should this work item accomplish?"}</label>
                   <input
                     value={taskGoal}
                     onChange={(e) => setTaskGoal(e.target.value)}
@@ -423,18 +423,18 @@ export function StructuredTaskModal({
                         ? `Describe the revision needed for ${selectedRevisionTask?.title || "the delivered work"}`
                         : config.goalPlaceholder || "Describe the outcome"
                     }
-                    className="mt-1.5 w-full rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm"
+                    className="mt-1.5 w-full rounded-md border border-border bg-panel text-text px-3 py-2.5 text-sm"
                   />
                 </div>
                 {intent === "revise_delivered_work" && selectedRevisionTask ? (
-                  <div className="rounded-xl border border-red-100 bg-white px-3 py-3 text-sm text-zinc-700">
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600">Revision lineage</div>
-                    <p className="mt-1">This task will reference <span className="font-medium text-zinc-900">{selectedRevisionTask.title}</span>{selectedMilestone?.name ? ` in ${selectedMilestone.name}` : ""} so the UI clearly reads as a revision task, not a generic new work item.</p>
+                  <div className="rounded-xl border border-red-100 bg-panel px-3 py-3 text-sm text-text-secondary dark:border-red-900/60 dark:bg-red-950/20">
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600 dark:text-red-300">Revision lineage</div>
+                    <p className="mt-1">This task will reference <span className="font-medium text-text">{selectedRevisionTask.title}</span>{selectedMilestone?.name ? ` in ${selectedMilestone.name}` : ""} so the UI clearly reads as a revision task, not a generic new work item.</p>
                   </div>
                 ) : null}
               </section>
 
-              <section className="rounded-xl border border-zinc-200">
+              <section className="rounded-xl border border-border">
                 <button
                   type="button"
                   onClick={() => setShowDetails((current) => !current)}
@@ -442,22 +442,22 @@ export function StructuredTaskModal({
                   aria-expanded={showDetails}
                 >
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">{intentCopy.detailsLabel}</p>
-                    <p className="text-xs text-zinc-500">Type options, project context, review settings, and title override.</p>
+                    <p className="text-sm font-medium text-text">{intentCopy.detailsLabel}</p>
+                    <p className="text-xs text-text-muted">Type options, project context, review settings, and title override.</p>
                   </div>
-                  <span className="text-xs font-medium text-zinc-500">{showDetails ? "Hide" : "Show"}</span>
+                  <span className="text-xs font-medium text-text-muted">{showDetails ? "Hide" : "Show"}</span>
                 </button>
 
                 {showDetails ? (
-                  <div className="space-y-4 border-t border-zinc-200 px-4 py-4">
+                  <div className="space-y-4 border-t border-border px-4 py-4">
                     <section className="grid gap-4 sm:grid-cols-2">
                       {config.metadataFields.map((field) => (
                         <label key={field.key} className="block">
-                          <span className="mb-1 block text-sm font-medium text-zinc-700">{field.label}</span>
+                          <span className="mb-1 block text-sm font-medium text-text-secondary">{field.label}</span>
                           <select
                             value={metadata[field.key] || ""}
                             onChange={(e) => setMetadata((current) => ({ ...current, [field.key]: e.target.value }))}
-                            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                            className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text"
                           >
                             {field.options.map((option) => (
                               <option key={option.value} value={option.value}>{option.label}</option>
@@ -468,26 +468,26 @@ export function StructuredTaskModal({
                     </section>
 
                     <div>
-                      <label className="block text-sm font-medium text-zinc-700">Supporting context</label>
-                      <textarea value={contextNote} onChange={(e) => setContextNote(e.target.value)} rows={3} placeholder="References, acceptance notes, revision instructions, or constraints…" className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+                      <label className="block text-sm font-medium text-text-secondary">Supporting context</label>
+                      <textarea value={contextNote} onChange={(e) => setContextNote(e.target.value)} rows={3} placeholder="References, acceptance notes, revision instructions, or constraints…" className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text" />
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
                       <div>
-                        <label className="block text-sm font-medium text-zinc-700">Title override</label>
-                        <input value={titleOverride} onChange={(e) => setTitleOverride(e.target.value)} placeholder={generatedTitle} className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-                        <p className="mt-1 text-xs text-zinc-500">Default: {generatedTitle}</p>
+                        <label className="block text-sm font-medium text-text-secondary">Title override</label>
+                        <input value={titleOverride} onChange={(e) => setTitleOverride(e.target.value)} placeholder={generatedTitle} className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text" />
+                        <p className="mt-1 text-xs text-text-muted">Default: {generatedTitle}</p>
                       </div>
-                      <label className="flex items-center gap-2 text-sm text-zinc-700">
-                        <input type="checkbox" checked={reviewRequired} onChange={(e) => setReviewRequired(e.target.checked)} className="h-4 w-4 rounded border-zinc-300" />
+                      <label className="flex items-center gap-2 text-sm text-text-secondary">
+                        <input type="checkbox" checked={reviewRequired} onChange={(e) => setReviewRequired(e.target.checked)} className="h-4 w-4 rounded border-border bg-panel" />
                         Review required
                       </label>
                     </div>
 
-                    <div className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
+                    <div className="grid gap-2 text-xs text-text-muted sm:grid-cols-2">
                       {config.metadataFields.map((field) => (
-                        <div key={field.key} className="rounded-lg bg-zinc-50 px-3 py-2">
-                          <span className="font-medium text-zinc-700">{field.label}:</span> {humanizeTaskValue(metadata[field.key] || "")}
+                        <div key={field.key} className="rounded-lg border border-border bg-panel-elevated px-3 py-2">
+                          <span className="font-medium text-text-secondary">{field.label}:</span> {humanizeTaskValue(metadata[field.key] || "")}
                         </div>
                       ))}
                     </div>
@@ -498,8 +498,8 @@ export function StructuredTaskModal({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-200/80 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:flex-row sm:px-6 sm:py-5">
-          <button onClick={onClose} className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancel</button>
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-border/80 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:flex-row sm:px-6 sm:py-5">
+          <button onClick={onClose} className="flex-1 rounded-md border border-border bg-panel px-4 py-2 text-sm font-medium text-text-secondary hover:bg-panel-elevated">Cancel</button>
           <button
             onClick={submitPayload}
             disabled={!canSubmit || creating}

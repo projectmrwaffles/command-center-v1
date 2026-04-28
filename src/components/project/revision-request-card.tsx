@@ -101,29 +101,29 @@ export function RevisionRequestCard({
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-panel p-4 shadow-sm">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{headingEyebrow}</div>
-        <h3 className="mt-1 text-base font-semibold text-zinc-950">{headingTitle}</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">{helperCopy} You can upload files here or attach existing project documents.</p>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{headingEyebrow}</div>
+        <h3 className="mt-1 text-base font-semibold text-text">{headingTitle}</h3>
+        <p className="mt-2 text-sm leading-6 text-text-secondary">{helperCopy} You can upload files here or attach existing project documents.</p>
       </div>
 
       <div className="mt-4">
-        <label className="block text-sm font-medium text-zinc-700">Revision instructions</label>
+        <label className="block text-sm font-medium text-text-secondary">Revision instructions</label>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={5}
           placeholder={hasActiveRevisionCycle ? "Add more detail for the active revision cycle..." : "Describe what needs to change..."}
-          className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+          className="mt-1 w-full rounded-xl border border-border bg-panel text-text px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
         />
       </div>
 
-      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      <div className="mt-4 rounded-xl border border-border bg-panel-elevated p-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-medium text-zinc-700">Upload supporting files</div>
-            <p className="mt-1 text-xs text-zinc-500">Add screenshots, PDFs, or notes directly from this revision request.</p>
+            <div className="text-sm font-medium text-text-secondary">Upload supporting files</div>
+            <p className="mt-1 text-xs text-text-muted">Add screenshots, PDFs, or notes directly from this revision request.</p>
           </div>
           <div>
             <input
@@ -142,29 +142,29 @@ export function RevisionRequestCard({
       </div>
 
       <div className="mt-4">
-        <div className="text-sm font-medium text-zinc-700">Attach existing project files</div>
+        <div className="text-sm font-medium text-text-secondary">Attach existing project files</div>
         {attachmentOptions.length > 0 ? (
           <div className="mt-2 space-y-2">
             {attachmentOptions.map((doc) => {
               const checked = selectedIds.includes(doc.id);
               return (
-                <label key={doc.id} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm", checked ? "border-red-300 bg-red-50" : "border-zinc-200 bg-zinc-50")}>
+                <label key={doc.id} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm", checked ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40" : "border-border bg-panel-elevated")}>
                   <input type="checkbox" checked={checked} onChange={() => toggle(doc.id)} className="mt-1" />
                   <div className="min-w-0">
-                    <div className="font-medium text-zinc-900">{doc.title}</div>
-                    <div className="text-xs text-zinc-500">{doc.type}{doc.mime_type ? ` • ${doc.mime_type}` : ""}</div>
+                    <div className="font-medium text-text">{doc.title}</div>
+                    <div className="text-xs text-text-muted">{doc.type}{doc.mime_type ? ` • ${doc.mime_type}` : ""}</div>
                   </div>
                 </label>
               );
             })}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-zinc-500">No project documents uploaded yet.</p>
+          <p className="mt-2 text-sm text-text-muted">No project documents uploaded yet.</p>
         )}
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
-        {status ? <p className={cn("text-xs", status === "Revision request submitted" || status === "Files uploaded" ? "text-emerald-600" : "text-zinc-500")}>{status}</p> : <span />}
+        {status ? <p className={cn("text-xs", status === "Revision request submitted" || status === "Files uploaded" ? "text-emerald-600" : "text-text-muted")}>{status}</p> : <span />}
         <Button onClick={submit} disabled={saving || !message.trim()} variant={hasActiveRevisionCycle ? "warm" : "outline"} className="rounded-xl px-4">
           {saving ? "Submitting..." : hasActiveRevisionCycle ? "Update revision request" : shippedApproved ? "Request revision" : "Submit revision request"}
         </Button>

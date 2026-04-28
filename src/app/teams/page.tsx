@@ -45,15 +45,15 @@ export default async function TeamsPage() {
       <PageHero>
         <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-zinc-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-text-secondary shadow-sm backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
               Team workspace
             </div>
             <div className="space-y-3">
-              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">
                 Teams, ownership, and shared rollups in one place.
               </h1>
-              <p className="max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
+              <p className="max-w-xl text-sm leading-6 text-text-secondary sm:text-base">
                 Browse each team’s current coverage, see who is active, and jump straight into the projects they’re responsible for.
               </p>
             </div>
@@ -61,28 +61,28 @@ export default async function TeamsPage() {
 
           <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
             <PageHeroStat className="border-red-100">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
                 <Users className="h-4 w-4 text-red-500" />
                 Teams
               </div>
-              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{teams.length}</div>
-              <p className="mt-1 text-xs text-zinc-500">Configured groups in the system.</p>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{teams.length}</div>
+              <p className="mt-1 text-xs text-text-muted">Configured groups in the system.</p>
             </PageHeroStat>
             <PageHeroStat className="border-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.08)]">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
                 <FolderKanban className="h-4 w-4 text-red-500" />
                 Coverage
               </div>
-              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">Live</div>
-              <p className="mt-1 text-xs text-zinc-500">Project ownership and member activity.</p>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-text">Live</div>
+              <p className="mt-1 text-xs text-text-muted">Project ownership and member activity.</p>
             </PageHeroStat>
             <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
                 <ArrowRight className="h-4 w-4 text-emerald-500" />
                 Navigation
               </div>
-              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">Direct</div>
-              <p className="mt-1 text-xs text-zinc-500">Open any team detail route from here.</p>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-text">Direct</div>
+              <p className="mt-1 text-xs text-text-muted">Open any team detail route from here.</p>
             </PageHeroStat>
           </div>
         </div>
@@ -111,7 +111,7 @@ export default async function TeamsPage() {
                   <EntityCardIdentity className="space-y-2">
                     <div>
                       <EntityCardTitle>{t.name}</EntityCardTitle>
-                      <EntityCardSubtitle className="mt-2 line-clamp-3 leading-6 text-zinc-600">
+                      <EntityCardSubtitle className="mt-2 line-clamp-3 leading-6 text-text-secondary">
                         {t.description ?? "No description yet"}
                       </EntityCardSubtitle>
                     </div>
@@ -121,8 +121,8 @@ export default async function TeamsPage() {
 
                 <EntityCardMetric accent="zinc" className="mt-auto flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Rollups</p>
-                    <p className="mt-1 text-sm text-zinc-600">Members, projects, and current work</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-text-muted">Rollups</p>
+                    <p className="mt-1 text-sm text-text-secondary">Members, projects, and current work</p>
                   </div>
                   <EntityCardFooterCta>View details</EntityCardFooterCta>
                 </EntityCardMetric>

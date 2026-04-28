@@ -89,44 +89,44 @@ export default async function AgentsPage() {
       <PageHero>
         <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-zinc-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-text-secondary shadow-sm backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
               Agent workspace
             </div>
             <div className="space-y-3">
-              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">
                 Agents, presence, and execution context in one focused workspace.
               </h1>
-              <p className="max-w-xl text-sm leading-6 text-zinc-600 sm:text-base">
+              <p className="max-w-xl text-sm leading-6 text-text-secondary sm:text-base">
                 Review every registered agent, scan live presence, and open a detail route for recent activity without changing how the workspace behaves.
               </p>
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
-            <PageHeroStat className="border-zinc-200 bg-white">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+            <PageHeroStat className="border-border bg-panel">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
                 <Bot className="h-4 w-4 text-red-500" />
                 Agents
               </div>
-              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{agents.length}</div>
-              <p className="mt-1 text-xs text-zinc-500">Registered in the workspace.</p>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{agents.length}</div>
+              <p className="mt-1 text-xs text-text-muted">Registered in the workspace.</p>
             </PageHeroStat>
             <PageHeroStat className="border-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
                 <Radar className="h-4 w-4 text-emerald-500" />
                 Active now
               </div>
-              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{activeAgents}</div>
-              <p className="mt-1 text-xs text-zinc-500">Currently marked active.</p>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{activeAgents}</div>
+              <p className="mt-1 text-xs text-text-muted">Currently marked active.</p>
             </PageHeroStat>
-            <PageHeroStat className="border-zinc-200 bg-white">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+            <PageHeroStat className="border-border bg-panel">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
                 <Workflow className="h-4 w-4 text-red-500" />
                 Idle / standby
               </div>
-              <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{idleAgents}</div>
-              <p className="mt-1 text-xs text-zinc-500">Available but not actively running.</p>
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{idleAgents}</div>
+              <p className="mt-1 text-xs text-text-muted">Available but not actively running.</p>
             </PageHeroStat>
           </div>
         </div>
@@ -162,8 +162,8 @@ export default async function AgentsPage() {
                 </EntityCardHeader>
 
                 <EntityCardMetric accent="zinc" className="mt-auto">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">Last seen</p>
-                  <p className="mt-1 text-sm text-zinc-700">{formatLastSeen(agent.last_seen)}</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-text-muted">Last seen</p>
+                  <p className="mt-1 text-sm text-text-secondary">{formatLastSeen(agent.last_seen)}</p>
                   <EntityCardFooterCta className="mt-2">Open agent detail</EntityCardFooterCta>
                 </EntityCardMetric>
               </EntityCard>

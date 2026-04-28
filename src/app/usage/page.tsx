@@ -35,8 +35,8 @@ function cn(...classes: Array<string | undefined | false | null>) {
 function SectionTitle({ children, meta }: { children: ReactNode; meta?: string }) {
   return (
     <div className="space-y-1">
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{children}</h2>
-      {meta ? <p className="text-sm text-zinc-500">{meta}</p> : null}
+      <h2 className="text-lg font-semibold tracking-tight text-text">{children}</h2>
+      {meta ? <p className="text-sm text-text-muted">{meta}</p> : null}
     </div>
   );
 }
@@ -54,11 +54,11 @@ function SummaryCard({
 }) {
   const tones = {
     red: {
-      wrap: "border-red-100 bg-white",
+      wrap: "border-red-100 bg-panel",
       badge: "border-red-100 bg-red-50 text-red-700",
     },
     emerald: {
-      wrap: "border-emerald-100 bg-white",
+      wrap: "border-emerald-100 bg-panel",
       badge: "border-emerald-100 bg-emerald-50 text-emerald-700",
     },
   } satisfies Record<string, { wrap: string; badge: string }>;
@@ -68,8 +68,8 @@ function SummaryCard({
       <CardContent className="p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950">{value}</p>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">{label}</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-text">{value}</p>
           </div>
           <span className={cn("inline-flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm", tones[tone].badge)}>
             {icon}
@@ -128,14 +128,14 @@ export default async function UsagePage() {
       <PageHero>
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-panel px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
               <Sparkles className="h-3.5 w-3.5 text-red-500" />
               Usage intelligence
             </div>
 
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">Usage</h1>
-              <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
+              <h1 className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">Usage</h1>
+              <p className="max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
                 A 24-hour rollup of token spend, cost, and the models doing most of the work across the workspace.
               </p>
             </div>
@@ -146,44 +146,44 @@ export default async function UsagePage() {
                   <ReceiptText className="h-4 w-4 text-red-500" />
                   Records
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{rows.length}</div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{rows.length}</div>
               </PageHeroStat>
               <PageHeroStat className="border-red-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-red-700">
                   <BadgeDollarSign className="h-4 w-4 text-red-500" />
                   Spend window
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">24h</div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-text">24h</div>
               </PageHeroStat>
               <PageHeroStat className="border-emerald-100">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-700">
                   <BrainCircuit className="h-4 w-4 text-emerald-500" />
                   Distinct models
                 </div>
-                <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">{byModel.size}</div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-text">{byModel.size}</div>
               </PageHeroStat>
             </div>
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[290px] lg:items-end">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4 lg:max-w-sm">
-              <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
+            <div className="rounded-2xl border border-border bg-panel p-4 lg:max-w-sm">
+              <div className="flex items-center gap-2 text-sm font-medium text-text">
                 <BarChart3 className="h-4 w-4 text-red-500" />
                 Last 24 hours
               </div>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">
+              <p className="mt-1 text-sm leading-6 text-text-muted">
                 Metrics stay scoped to the latest day so spend and model mix are easy to compare at a glance.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700">
+                <span className="rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-zinc-700">
                   {totalTokens.toLocaleString()} tokens
                 </span>
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700">
+                <span className="rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-zinc-700">
                   ${totalCost.toFixed(4)} total cost
                 </span>
               </div>
             </div>
-            <p className="px-1 text-xs text-zinc-500">Existing usage data, content, and ranking logic preserved.</p>
+            <p className="px-1 text-xs text-text-muted">Existing usage data, content, and ranking logic preserved.</p>
           </div>
         </div>
       </PageHero>
@@ -205,7 +205,7 @@ export default async function UsagePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <SectionTitle meta="Same top-model ranking, now presented with the shared card and badge language.">Top models</SectionTitle>
-          {top.length > 0 ? <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">Top 8 by tokens</span> : null}
+          {top.length > 0 ? <span className="rounded-full border border-border bg-panel-elevated px-3 py-1 text-xs font-medium text-text-secondary">Top 8 by tokens</span> : null}
         </div>
 
         {top.length === 0 ? (
@@ -222,23 +222,23 @@ export default async function UsagePage() {
                                 <CardContent className="flex items-center justify-between gap-4 p-5">
                   <div className="min-w-0 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-700">
+                      <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
                         #{index + 1}
                       </span>
-                      <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+                      <span className="rounded-full border border-border bg-panel px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-muted">
                         {m.provider}
                       </span>
                     </div>
                     <div>
-                      <p className="truncate text-base font-semibold tracking-tight text-zinc-950">{m.model}</p>
-                      <p className="mt-1 text-sm text-zinc-500">Provider preserved from usage rollup.</p>
+                      <p className="truncate text-base font-semibold tracking-tight text-text">{m.model}</p>
+                      <p className="mt-1 text-sm text-text-muted">Provider preserved from usage rollup.</p>
                     </div>
                   </div>
 
-                  <div className="min-w-[120px] rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-right">
-                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">Tokens</p>
-                    <p className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">{m.tokens.toLocaleString()}</p>
-                    <p className="mt-2 text-xs text-zinc-500">${m.cost.toFixed(4)}</p>
+                  <div className="min-w-[120px] rounded-2xl border border-border bg-panel-elevated p-4 text-right">
+                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Tokens</p>
+                    <p className="mt-1 text-lg font-semibold tracking-tight text-text">{m.tokens.toLocaleString()}</p>
+                    <p className="mt-2 text-xs text-text-muted">${m.cost.toFixed(4)}</p>
                   </div>
                 </CardContent>
               </Card>

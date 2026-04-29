@@ -47,6 +47,7 @@ const shippedCopy = deriveMilestoneReviewCardCopy(shippedMilestone);
 const shippedState = deriveMilestoneDisplayState(shippedMilestone);
 const pageSource = fs.readFileSync(path.resolve("./src/app/projects/[id]/page.tsx"), "utf8");
 const modalSource = fs.readFileSync(path.resolve("./src/components/project/structured-task-modal.tsx"), "utf8");
+const taskDetailSource = fs.readFileSync(path.resolve("./src/components/project/task-detail-modal.tsx"), "utf8");
 const taskRouteSource = fs.readFileSync(path.resolve("./src/app/api/projects/[id]/tasks/route.ts"), "utf8");
 
 assert.equal(activeCopy.showRevisionRequestCard, false, "Ready-for-QC milestones should not show revision request controls before completion/shipping");
@@ -55,16 +56,23 @@ assert.equal(shippedState.stageState.key, "iteration_shipped", "Approved complet
 assert.equal(shippedCopy.showRevisionRequestCard, true, "Shipped milestones should expose explicit revision requests");
 assert.match(shippedCopy.summaryCopy, /shipped and QC-approved/i, "Shipped milestone copy should preserve the completed state");
 assert.match(pageSource, /<Section title="Project work"/, "Project detail page should frame the main board as project work");
-assert.match(pageSource, /<Section title="Approvals & review"/, "Project detail page should expose a dedicated approvals and review section");
+assert.doesNotMatch(pageSource, /<Section title="Approvals & review"/, "Project detail page should no longer expose a separate approvals and review section");
 assert.doesNotMatch(pageSource, /<Section title="Approvals & checkpoints"/, "Project detail page should not keep a separate approvals and checkpoints card once project work is canonical");
-assert.match(pageSource, /Review & revisions/, "Project detail page should keep review and revision controls in the decision section");
+assert.match(pageSource, /Capture the next work item, then use secondary controls only when needed\./, "Project actions should guide users into the message-first follow-up flow");
 assert.match(pageSource, /Add follow-up work/, "Project actions should expose the follow-up work entry point");
-assert.match(modalSource, /label: "Revise delivered work"/, "Follow-up modal should expose the revise-delivered-work path");
-assert.match(modalSource, /label: "Add deliverable"/, "Follow-up modal should expose the add-deliverable path");
-assert.match(modalSource, /label: "Add support work"/, "Follow-up modal should expose the support-work path");
+assert.match(modalSource, /Message-first intake/, "Follow-up modal should identify the message-first intake flow");
+assert.match(modalSource, /Automatic routing/, "Follow-up modal should explain that routing happens automatically");
+assert.match(modalSource, /What needs to change\?/, "Follow-up modal should collect the follow-up request as a single message");
+assert.match(modalSource, /You don’t need to choose the team or task type up front\./, "Follow-up modal should remove the old branch-picking burden");
+assert.match(modalSource, /Delivered work to revise or reference \(optional\)/, "Follow-up modal should allow optional linkage to delivered work");
+assert.match(modalSource, /Related stage \(optional\)/, "Follow-up modal should allow optional linkage to a stage");
+assert.doesNotMatch(modalSource, /Revise delivered work|Add deliverable|Add support work/, "Follow-up modal should not expose the removed branching labels");
 assert.match(modalSource, /revision_source_task_id/, "Revision modal payload should carry the selected delivered task id");
-assert.match(taskRouteSource, /metadata\.revision_source_task_id = revision_source_task_id\.trim\(\)/, "Task creation route should persist revision lineage in task metadata");
-assert.match(taskRouteSource, /metadata\.follow_up_intent = follow_up_intent\.trim\(\)/, "Task creation route should persist follow-up intent in task metadata");
+assert.match(taskDetailSource, /Follow-up context/, "Task detail modal should surface follow-up context for message-first tasks");
+assert.match(taskDetailSource, /Follow-up mode/, "Task detail modal should show the resolved follow-up mode");
+assert.match(taskRouteSource, /metadata\.follow_up_intent = resolvedFollowUpIntent/, "Task creation route should persist the resolved follow-up intent in task metadata");
+assert.match(taskRouteSource, /metadata\.intake_mode = "message_first"/, "Task creation route should tag follow-up tasks as message-first intake");
+assert.match(taskRouteSource, /metadata\.revision_source_task_id = revisionSourceTaskId/, "Task creation route should persist revision lineage in task metadata");
 
 const revisionMetadata = buildTaskMetadata("build_implementation", {
   implementation_kind: "bug_fix",

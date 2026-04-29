@@ -1050,7 +1050,7 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <PageHero>
+      <PageHero className="[background:var(--color-panel)]">
         <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between lg:p-8">
           <div className="max-w-3xl space-y-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -1076,7 +1076,7 @@ export default function ProjectDetailPage() {
               </div>
             </div>
 
-            <div className={cn("rounded-2xl border p-4 sm:p-5", statusTone.surface)}>
+            <div className="rounded-2xl border border-border bg-panel p-4 sm:p-5">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-3">
@@ -1179,7 +1179,7 @@ export default function ProjectDetailPage() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
                 ["Queued work", taskGroups.todo, "border-border bg-panel-subtle", "queued"],
-                ["Active work", taskGroups.inProgress, "border-accent/14 bg-accent-soft/60", "in_flight"],
+                ["Active work", taskGroups.inProgress, "border-border bg-panel-elevated/70", "in_flight"],
                 ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/70 dark:border-amber-900/40 dark:bg-amber-950/20", "stalled"],
                 ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
               ].map(([label, bucket, bucketClass, bucketKey]) => (

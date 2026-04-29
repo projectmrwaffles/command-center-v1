@@ -25,13 +25,13 @@ function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
-const activeWorkSectionClass = "rounded-[28px] border border-[color:color-mix(in_srgb,#2563eb_14%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_4%,var(--color-panel))]";
-const activeWorkCardClass = "border-[color:color-mix(in_srgb,#2563eb_14%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_3%,var(--color-panel))]";
-const activeWorkInnerCardClass = "rounded-2xl border border-[color:color-mix(in_srgb,#2563eb_12%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_2%,var(--color-panel))] p-4 shadow-[var(--shadow-panel-soft)]";
-const activeWorkLiveBadgeClass = "inline-flex items-center gap-2 rounded-full border border-[color:color-mix(in_srgb,#2563eb_18%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_10%,var(--color-panel))] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[color:color-mix(in_srgb,#2563eb_68%,var(--color-text))]";
-const activeWorkProgressTrackClass = "mt-3 h-2 w-full overflow-hidden rounded-full bg-[color:color-mix(in_srgb,#2563eb_14%,var(--color-panel-subtle))]";
-const activeWorkProgressFillClass = "h-2 rounded-full bg-[#2563eb] transition-all";
-const activeWorkFooterClass = "flex items-center justify-between border-t border-[color:color-mix(in_srgb,#2563eb_10%,var(--color-border))] pt-1 text-sm text-text-muted";
+const activeWorkSectionClass = "space-y-3";
+const activeWorkCardClass = "relative h-full overflow-hidden rounded-[24px]";
+const activeWorkInnerCardClass = "rounded-2xl border border-border/70 bg-panel p-4 shadow-[var(--shadow-panel-soft)]";
+const activeWorkLiveBadgeClass = "inline-flex items-center gap-2 rounded-full border border-border/70 bg-panel-subtle px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-text-secondary";
+const activeWorkProgressTrackClass = "mt-3 h-2 w-full overflow-hidden rounded-full bg-accent-soft";
+const activeWorkProgressFillClass = "h-2 rounded-full bg-accent transition-all";
+const activeWorkFooterClass = "flex items-center justify-between border-t border-border/60 pt-1 text-sm text-text-muted";
 
 function StatusDot({ status }: { status: string }) {
   const color = status === "active" ? "bg-success" : status === "idle" ? "bg-text-muted" : "bg-text-muted";
@@ -268,7 +268,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             </div>
             {projectCards.length === 0 ? (
               <BrandedEmptyState
-                className="items-start rounded-[24px] border border-[color:color-mix(in_srgb,#2563eb_10%,var(--color-border))] bg-panel px-6 py-10 text-left"
+                className="items-start px-6 py-10 text-left"
                 icon={<Layers3 className="h-7 w-7" />}
                 title="No active projects yet"
                 description="Create a project to start routing work, tracking progress, and surfacing dashboard health here."
@@ -356,7 +356,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
   return (
     <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-accent/20">
-      <Card variant="featured" className={cn("relative h-full overflow-hidden rounded-[24px]", activeWorkCardClass)}>
+      <Card variant="featured" className={activeWorkCardClass}>
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start gap-3">
             <div className="min-w-0">

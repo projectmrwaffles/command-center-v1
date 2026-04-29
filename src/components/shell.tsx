@@ -78,7 +78,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
     >
       <div
         className={cn(
-          "relative shrink-0 overflow-hidden rounded-[1.25rem] border border-border/70 bg-white transition-transform group-hover:scale-[1.01]",
+          "relative shrink-0 overflow-hidden rounded-[1.25rem] bg-white transition-transform group-hover:scale-[1.01]",
           compact ? "h-[3.25rem] w-[9.5rem]" : "h-20 w-full"
         )}
       >

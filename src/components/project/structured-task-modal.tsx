@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Upload } from "lucide-react";
 import {
   TASK_TYPE_CONFIG,
   generateTaskTitle,
@@ -21,6 +22,8 @@ export type StructuredTaskPayload = {
   follow_up_intent?: FollowUpIntent;
   revision_source_task_id?: string;
   revision_source_task_title?: string;
+  reference_document_ids?: string[];
+  reference_document_titles?: string[];
 };
 
 type FollowUpIntent = "revise_delivered_work" | "add_deliverable" | "add_support_work";
@@ -42,88 +45,72 @@ type ModalTask = {
   task_type?: string | null;
 };
 
-const INTENT_OPTIONS: Array<{
-  value: FollowUpIntent;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "revise_delivered_work",
-    label: "Revise delivered work",
-    description: "Target something already delivered, then open a clearly scoped revision task.",
-  },
-  {
-    value: "add_deliverable",
-    label: "Add deliverable",
-    description: "Create a new deliverable with the right work type and delivery stage context.",
-  },
-  {
-    value: "add_support_work",
-    label: "Add support work",
-    description: "Queue planning, QA, or internal support work that helps delivery move forward.",
-  },
-];
-
-const INTENT_TASK_TYPES: Record<FollowUpIntent, TaskType[]> = {
-  revise_delivered_work: ["design", "build_implementation", "content_messaging"],
-  add_deliverable: ["design", "build_implementation", "content_messaging"],
-  add_support_work: ["discovery_plan", "qa_validation", "internal_admin"],
+type ProjectDocument = {
+  id: string;
+  title: string;
+  type: string;
+  mime_type?: string | null;
+  size_bytes?: number | null;
+  created_at: string;
 };
+
+const DELIVERABLE_TASK_TYPES: TaskType[] = ["design", "build_implementation", "content_messaging"];
+const SUPPORT_TASK_TYPES: TaskType[] = ["discovery_plan", "qa_validation", "internal_admin"];
+const DEFAULT_TASK_TYPE: TaskType = "build_implementation";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function buildIntentCopy(intent: FollowUpIntent | null) {
-  switch (intent) {
-    case "revise_delivered_work":
-      return {
-        title: "Revise delivered work",
-        description: "Pick the delivered item this revision belongs to, then scope the next pass without treating it like a brand-new deliverable.",
-        submitLabel: "Create revision task",
-        detailsLabel: "Revision task details",
-      };
-    case "add_deliverable":
-      return {
-        title: "Add deliverable",
-        description: "Choose the delivery stage this new deliverable belongs to, then define the structured task that should be added.",
-        submitLabel: "Add deliverable task",
-        detailsLabel: "Deliverable task details",
-      };
-    case "add_support_work":
-      return {
-        title: "Add support work",
-        description: "Create planning, QA, or coordination work that supports the project without changing the deliverable framing.",
-        submitLabel: "Add support work",
-        detailsLabel: "Support work details",
-      };
-    default:
-      return {
-        title: "Add project work",
-        description: "Start by choosing the kind of task you need so the next form can stay project-aware.",
-        submitLabel: "Add task",
-        detailsLabel: "Task details",
-      };
+function buildModalCopy(input: { taskType: TaskType | null; isRevision: boolean }) {
+  if (input.isRevision) {
+    return {
+      title: "Add revision work",
+      description: "Pick the delivered task to revise, describe the next pass, and attach the right reference files.",
+      submitLabel: "Create revision task",
+      detailsLabel: "Optional details",
+    };
   }
+
+  if (input.taskType && SUPPORT_TASK_TYPES.includes(input.taskType)) {
+    return {
+      title: "Add follow-up work",
+      description: "Create support work with a clear outcome. Everything else can stay on defaults unless you need it.",
+      submitLabel: "Add follow-up",
+      detailsLabel: "Optional details",
+    };
+  }
+
+  return {
+    title: "Add follow-up work",
+    description: "Start with the next outcome. Change the work type only if the default does not fit.",
+    submitLabel: "Add follow-up",
+    detailsLabel: "Optional details",
+  };
 }
 
 export function StructuredTaskModal({
+  projectId,
   open,
   onClose,
   onCreate,
   creating,
   milestones,
   tasks,
+  documents,
+  onDocumentsChanged,
 }: {
+  projectId: string;
   open: boolean;
   onClose: () => void;
   onCreate: (payload: StructuredTaskPayload) => Promise<void>;
   creating?: boolean;
   milestones?: ModalMilestone[];
   tasks?: ModalTask[];
+  documents?: ProjectDocument[];
+  onDocumentsChanged?: () => void;
 }) {
-  const [intent, setIntent] = useState<FollowUpIntent | null>(null);
-  const [taskType, setTaskType] = useState<TaskType | null>(null);
+  const [taskType, setTaskType] = useState<TaskType | null>(DEFAULT_TASK_TYPE);
   const [taskGoal, setTaskGoal] = useState("");
   const [contextNote, setContextNote] = useState("");
   const [metadata, setMetadata] = useState<Record<string, string>>({});
@@ -132,13 +119,20 @@ export function StructuredTaskModal({
   const [showDetails, setShowDetails] = useState(false);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState("");
   const [selectedRevisionTaskId, setSelectedRevisionTaskId] = useState("");
+  const [isRevision, setIsRevision] = useState(false);
+  const [showTaskTypePicker, setShowTaskTypePicker] = useState(false);
+  const [availableDocuments, setAvailableDocuments] = useState<ProjectDocument[]>(documents ?? []);
+  const [selectedReferenceIds, setSelectedReferenceIds] = useState<string[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const deliveryMilestones = useMemo(() => (milestones ?? []).filter((milestone) => milestone.category !== "bootstrap"), [milestones]);
   const revisionCandidateTasks = useMemo(() => {
     const taskMilestones = new Map((milestones ?? []).map((milestone) => [milestone.id, milestone]));
     return (tasks ?? []).filter((task) => {
       if (task.status !== "done") return false;
-      if (!task.task_type || !INTENT_TASK_TYPES.revise_delivered_work.includes(task.task_type as TaskType)) return false;
+      if (!task.task_type || !DELIVERABLE_TASK_TYPES.includes(task.task_type as TaskType)) return false;
       const milestone = task.sprint_id ? taskMilestones.get(task.sprint_id) : null;
       return milestone?.category !== "bootstrap";
     });
@@ -154,11 +148,26 @@ export function StructuredTaskModal({
     [deliveryMilestones, selectedMilestoneId],
   );
 
-  const availableTaskTypes = useMemo(() => (intent ? INTENT_TASK_TYPES[intent] : []), [intent]);
+  const selectedReferenceDocuments = useMemo(
+    () => availableDocuments.filter((document) => selectedReferenceIds.includes(document.id)),
+    [availableDocuments, selectedReferenceIds],
+  );
+  const selectedReferenceSummary = selectedReferenceDocuments.length === 0
+    ? null
+    : `${selectedReferenceDocuments.length} reference file${selectedReferenceDocuments.length === 1 ? "" : "s"} attached`;
+
   const config = useMemo(() => (taskType ? getTaskTypeConfig(taskType) : null), [taskType]);
   const routing = useMemo(() => (taskType ? getRoutingPreview(taskType) : null), [taskType]);
   const generatedTitle = useMemo(() => (taskType ? generateTaskTitle(taskType, taskGoal, metadata) : ""), [taskType, taskGoal, metadata]);
-  const intentCopy = useMemo(() => buildIntentCopy(intent), [intent]);
+  const isDeliverableType = Boolean(taskType && DELIVERABLE_TASK_TYPES.includes(taskType));
+  const followUpIntent: FollowUpIntent | null = isRevision
+    ? "revise_delivered_work"
+    : taskType
+      ? isDeliverableType
+        ? "add_deliverable"
+        : "add_support_work"
+      : null;
+  const modalCopy = useMemo(() => buildModalCopy({ taskType, isRevision }), [isRevision, taskType]);
 
   useEffect(() => {
     if (!config) {
@@ -175,32 +184,33 @@ export function StructuredTaskModal({
   }, [config]);
 
   useEffect(() => {
-    if (!intent) {
-      setTaskType(null);
-      return;
+    if (!taskType || !isDeliverableType) {
+      setIsRevision(false);
+      setSelectedRevisionTaskId("");
     }
-    if (taskType && availableTaskTypes.includes(taskType)) return;
-    setTaskType(availableTaskTypes[0] ?? null);
-  }, [availableTaskTypes, intent, taskType]);
+  }, [isDeliverableType, taskType]);
 
   useEffect(() => {
-    if (!intent) {
+    if (!taskType) {
       setSelectedMilestoneId("");
-      setSelectedRevisionTaskId("");
       return;
     }
 
-    if (intent === "revise_delivered_work") {
+    if (isRevision) {
       const firstRevisionTask = revisionCandidateTasks[0] ?? null;
       setSelectedRevisionTaskId((current) => (current && revisionCandidateTasks.some((task) => task.id === current) ? current : firstRevisionTask?.id ?? ""));
       setSelectedMilestoneId(firstRevisionTask?.sprint_id ?? "");
       return;
     }
 
-    const firstMilestone = deliveryMilestones[0] ?? null;
-    setSelectedMilestoneId((current) => (current && deliveryMilestones.some((milestone) => milestone.id === current) ? current : firstMilestone?.id ?? ""));
-    setSelectedRevisionTaskId("");
-  }, [deliveryMilestones, intent, revisionCandidateTasks]);
+    if (isDeliverableType) {
+      const firstMilestone = deliveryMilestones[0] ?? null;
+      setSelectedMilestoneId((current) => (current && deliveryMilestones.some((milestone) => milestone.id === current) ? current : firstMilestone?.id ?? ""));
+      return;
+    }
+
+    setSelectedMilestoneId("");
+  }, [deliveryMilestones, isDeliverableType, isRevision, revisionCandidateTasks, taskType]);
 
   useEffect(() => {
     if (!selectedRevisionTask) return;
@@ -208,40 +218,93 @@ export function StructuredTaskModal({
   }, [selectedRevisionTask]);
 
   useEffect(() => {
+    setAvailableDocuments((documents ?? []).slice().sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)));
+  }, [documents]);
+
+  useEffect(() => {
     if (!open) {
-      setIntent(null);
-      setTaskType(null);
+      setTaskType(DEFAULT_TASK_TYPE);
       setTaskGoal("");
       setContextNote("");
       setTitleOverride("");
       setMetadata({});
+      setReviewRequired(true);
       setShowDetails(false);
       setSelectedMilestoneId("");
       setSelectedRevisionTaskId("");
+      setIsRevision(false);
+      setShowTaskTypePicker(false);
+      setSelectedReferenceIds([]);
+      setUploadStatus(null);
+      setAvailableDocuments((documents ?? []).slice().sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)));
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }, [open]);
+  }, [documents, open]);
 
   if (!open) return null;
 
-  const needsMilestone = intent === "add_deliverable";
-  const needsRevisionTarget = intent === "revise_delivered_work";
+  const needsMilestone = Boolean(taskType && isDeliverableType && !isRevision);
+  const needsRevisionTarget = isRevision;
+  const hasTaskType = Boolean(taskType && config);
   const hasIntentPrereqs = needsRevisionTarget ? Boolean(selectedRevisionTask) : needsMilestone ? Boolean(selectedMilestoneId) : true;
-  const canSubmit = Boolean(intent && taskType && config && hasIntentPrereqs && taskGoal.trim().length > 0 && config.metadataFields.every((field) => Boolean(metadata[field.key])));
+  const canSubmit = Boolean(hasTaskType && followUpIntent && hasIntentPrereqs && taskGoal.trim().length > 0 && config?.metadataFields.every((field) => Boolean(metadata[field.key])));
+
+  const toggleReferenceDocument = (documentId: string) => {
+    setSelectedReferenceIds((current) => current.includes(documentId) ? current.filter((value) => value !== documentId) : [...current, documentId]);
+  };
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadingFiles(true);
+    setUploadStatus(null);
+
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => formData.append("files", file));
+      const res = await fetch(`/api/projects/${projectId}/documents/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || "Failed to upload files");
+
+      const uploadedDocuments = Array.isArray(payload.documents) ? payload.documents.filter(Boolean) as ProjectDocument[] : [];
+      if (uploadedDocuments.length > 0) {
+        setAvailableDocuments((current) => {
+          const byId = new Map(current.map((document) => [document.id, document]));
+          uploadedDocuments.forEach((document) => byId.set(document.id, document));
+          return Array.from(byId.values()).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+        });
+        setSelectedReferenceIds((current) => Array.from(new Set([...current, ...uploadedDocuments.map((document) => document.id)])));
+      }
+
+      setUploadStatus("Files uploaded");
+      onDocumentsChanged?.();
+    } catch (error: any) {
+      setUploadStatus(error?.message || "Failed to upload files");
+    } finally {
+      setUploadingFiles(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const submitPayload = () => {
-    if (!taskType || !intent) return;
+    if (!taskType || !followUpIntent) return;
 
     const autoContext: string[] = [];
-    if (intent === "revise_delivered_work" && selectedRevisionTask) {
+    if (followUpIntent === "revise_delivered_work" && selectedRevisionTask) {
       autoContext.push(`Revision target: ${selectedRevisionTask.title}`);
       if (selectedMilestone?.name) autoContext.push(`Existing delivered milestone: ${selectedMilestone.name}`);
       autoContext.push("Lineage note: keep this work connected to the delivered item above.");
     }
-    if (intent === "add_deliverable" && selectedMilestone?.name) {
+    if (followUpIntent === "add_deliverable" && selectedMilestone?.name) {
       autoContext.push(`Milestone context: ${selectedMilestone.name}`);
     }
-    if (intent === "add_support_work" && selectedMilestone?.name) {
+    if (followUpIntent === "add_support_work" && selectedMilestone?.name) {
       autoContext.push(`Related stage: ${selectedMilestone.name}`);
+    }
+    if (selectedReferenceDocuments.length > 0) {
+      autoContext.push(`Reference files:\n${selectedReferenceDocuments.map((document) => `- ${document.title}`).join("\n")}`);
     }
 
     const combinedContext = [...autoContext, contextNote.trim()].filter(Boolean).join("\n\n");
@@ -254,9 +317,11 @@ export function StructuredTaskModal({
       context_note: combinedContext || undefined,
       review_required: reviewRequired,
       title_override: titleOverride.trim() || undefined,
-      follow_up_intent: intent,
-      revision_source_task_id: intent === "revise_delivered_work" ? selectedRevisionTask?.id : undefined,
-      revision_source_task_title: intent === "revise_delivered_work" ? selectedRevisionTask?.title : undefined,
+      follow_up_intent: followUpIntent,
+      revision_source_task_id: followUpIntent === "revise_delivered_work" ? selectedRevisionTask?.id : undefined,
+      revision_source_task_title: followUpIntent === "revise_delivered_work" ? selectedRevisionTask?.title : undefined,
+      reference_document_ids: selectedReferenceDocuments.map((document) => document.id),
+      reference_document_titles: selectedReferenceDocuments.map((document) => document.title),
     });
   };
 
@@ -271,8 +336,8 @@ export function StructuredTaskModal({
       >
         <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-6 sm:py-5">
           <div>
-            <h3 className="text-lg font-semibold text-text">{intentCopy.title}</h3>
-            <p className="mt-1 text-sm text-text-muted">{intentCopy.description}</p>
+            <h3 className="text-lg font-semibold text-text">{modalCopy.title}</h3>
+            <p className="mt-1 text-sm text-text-muted">{modalCopy.description}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-md p-2 text-text-muted transition hover:bg-panel-elevated hover:text-text" aria-label="Close create task modal">
             <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden="true">
@@ -284,134 +349,132 @@ export function StructuredTaskModal({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5">
           <section>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-text">Follow-up intent</p>
-              {intent ? (
-                <button type="button" onClick={() => setIntent(null)} className="text-xs font-medium text-red-600 hover:text-red-700">
-                  Change
-                </button>
-              ) : null}
+              <p className="text-sm font-medium text-text">Work type</p>
+              <button
+                type="button"
+                onClick={() => setShowTaskTypePicker((current) => !current)}
+                className="text-xs font-medium text-red-600 transition hover:text-red-700"
+              >
+                {showTaskTypePicker ? "Hide choices" : "Change"}
+              </button>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {INTENT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setIntent(option.value)}
-                  className={cn(
-                    "rounded-xl border px-3 py-3 text-left transition",
-                    option.value === intent ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40" : "border-border bg-panel hover:border-red-200 hover:bg-panel-elevated",
-                  )}
-                >
-                  <div className="text-sm font-medium text-text">{option.label}</div>
-                  <p className="mt-1 text-xs leading-5 text-text-muted">{option.description}</p>
-                </button>
-              ))}
-            </div>
+
+            {taskType ? (
+              <div className="mt-3 rounded-xl border border-border bg-panel-elevated/80 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-medium text-text">{config?.label}</div>
+                  <span className="rounded-full border border-border bg-panel px-2 py-0.5 text-[11px] font-medium text-text-muted">
+                    {isDeliverableType ? "Deliverable" : "Support"}
+                  </span>
+                  <span className="text-xs text-text-muted">Defaults applied automatically</span>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-text-muted">{config?.description}</p>
+              </div>
+            ) : null}
+
+            {showTaskTypePicker ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {Object.entries(TASK_TYPE_CONFIG).map(([type, item]) => {
+                  const typedType = type as TaskType;
+                  const isSelected = typedType === taskType;
+                  const toneClass = isSelected
+                    ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40"
+                    : "border-border bg-panel hover:border-red-200 hover:bg-panel-elevated";
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setTaskType(typedType);
+                        setShowTaskTypePicker(false);
+                      }}
+                      className={cn("rounded-xl border px-3 py-3 text-left transition", toneClass)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium text-text">{item.label}</div>
+                        <span className="rounded-full border border-border bg-panel px-2 py-0.5 text-[11px] font-medium text-text-muted">
+                          {DELIVERABLE_TASK_TYPES.includes(typedType) ? "Deliverable" : "Support"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-text-muted">{item.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </section>
 
-          {intent ? (
-            <>
-              {intent === "revise_delivered_work" ? (
-                <section className="rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-text">Delivered work to revise</p>
-                      <p className="mt-1 text-xs text-text-muted">This keeps the new task anchored to work that already shipped through the project flow.</p>
-                    </div>
-                  </div>
-                  {revisionCandidateTasks.length > 0 ? (
-                    <label className="mt-3 block">
-                      <span className="mb-1 block text-sm font-medium text-text-secondary">Existing delivered task</span>
-                      <select
-                        value={selectedRevisionTaskId}
-                        onChange={(e) => setSelectedRevisionTaskId(e.target.value)}
-                        className="w-full rounded-md border border-border bg-panel text-text px-3 py-2 text-sm"
-                      >
-                        {revisionCandidateTasks.map((task) => {
-                          const milestoneName = deliveryMilestones.find((milestone) => milestone.id === task.sprint_id)?.name;
-                          return (
-                            <option key={task.id} value={task.id}>
-                              {task.title}{milestoneName ? ` · ${milestoneName}` : ""}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </label>
-                  ) : (
-                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                      No completed delivered task is available yet, so the revision path is UI-only for now. Finish a deliverable first, then open a revision from here.
-                    </div>
-                  )}
-                </section>
-              ) : null}
+          {taskType && isDeliverableType ? (
+            <section className="rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={isRevision}
+                  onChange={(e) => setIsRevision(e.target.checked)}
+                  disabled={revisionCandidateTasks.length === 0}
+                  className="mt-0.5 h-4 w-4 rounded border-border bg-panel"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-text">This is a revision of delivered work</span>
+                  <span className="mt-1 block text-xs text-text-muted">
+                    {revisionCandidateTasks.length > 0
+                      ? "Turn this on only when you need to attach the follow-up to something already delivered."
+                      : "No completed deliverables are available to revise yet."}
+                  </span>
+                </span>
+              </label>
 
-              {intent !== "revise_delivered_work" ? (
-                <section className="rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
-                  <div>
-                    <p className="text-sm font-medium text-text">{intent === "add_deliverable" ? "Delivery stage" : "Related stage"}</p>
-                    <p className="mt-1 text-xs text-text-muted">
-                      {intent === "add_deliverable"
-                        ? "Attach the new deliverable to the stage it belongs to."
-                        : "Optional stage context helps support work stay connected to delivery."}
-                    </p>
-                  </div>
+              {isRevision ? (
+                revisionCandidateTasks.length > 0 ? (
                   <label className="mt-3 block">
-                    <span className="mb-1 block text-sm font-medium text-text-secondary">{intent === "add_deliverable" ? "Stage" : "Stage (optional)"}</span>
+                    <span className="mb-1 block text-sm font-medium text-text-secondary">Delivered task</span>
                     <select
-                      value={selectedMilestoneId}
-                      onChange={(e) => setSelectedMilestoneId(e.target.value)}
+                      value={selectedRevisionTaskId}
+                      onChange={(e) => setSelectedRevisionTaskId(e.target.value)}
                       className="w-full rounded-md border border-border bg-panel text-text px-3 py-2 text-sm"
                     >
-                      {intent === "add_support_work" ? <option value="">No specific stage</option> : null}
-                      {deliveryMilestones.map((milestone) => (
-                        <option key={milestone.id} value={milestone.id}>
-                          {milestone.name}
-                        </option>
-                      ))}
+                      {revisionCandidateTasks.map((task) => {
+                        const milestoneName = deliveryMilestones.find((milestone) => milestone.id === task.sprint_id)?.name;
+                        return (
+                          <option key={task.id} value={task.id}>
+                            {task.title}{milestoneName ? ` · ${milestoneName}` : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
-                </section>
-              ) : null}
-
-              <section>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-text">Structured task type</p>
-                  {taskType ? (
-                    <button type="button" onClick={() => setTaskType(null)} className="text-xs font-medium text-red-600 hover:text-red-700">
-                      Change
-                    </button>
-                  ) : null}
+                ) : null
+              ) : deliveryMilestones.length > 0 ? (
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-sm font-medium text-text-secondary">Stage</span>
+                  <select
+                    value={selectedMilestoneId}
+                    onChange={(e) => setSelectedMilestoneId(e.target.value)}
+                    className="w-full rounded-md border border-border bg-panel text-text px-3 py-2 text-sm"
+                  >
+                    {deliveryMilestones.map((milestone) => (
+                      <option key={milestone.id} value={milestone.id}>
+                        {milestone.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+                  Add or unlock a delivery stage first, then attach this follow-up to it.
                 </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {availableTaskTypes.map((type) => {
-                    const item = TASK_TYPE_CONFIG[type];
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setTaskType(type)}
-                        className={cn(
-                          "rounded-xl border px-3 py-3 text-left transition",
-                          type === taskType ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40" : "border-border bg-panel hover:border-red-200 hover:bg-panel-elevated",
-                        )}
-                      >
-                        <div className="text-sm font-medium text-text">{item.label}</div>
-                        <p className="mt-0.5 text-xs text-text-muted">{item.description}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            </>
+              )}
+            </section>
           ) : null}
 
-          {intent && taskType && config ? (
+          {taskType && config ? (
             <>
               <section className="space-y-3 rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-secondary">{config.label}</span>
                   {routing ? <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-muted">{routing.ownerTeamLabel} → {routing.qcTeamLabel}</span> : null}
-                  {selectedMilestone?.name ? <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-muted">Stage: {selectedMilestone.name}</span> : null}
+                  {selectedMilestone?.name && !isRevision ? <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-muted">Stage: {selectedMilestone.name}</span> : null}
+                  {isRevision && selectedRevisionTask ? <span className="rounded-full border border-border bg-panel px-2.5 py-1 font-medium text-text-muted">Revision of: {selectedRevisionTask.title}</span> : null}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-secondary">{config.goalLabel || "What follow-up outcome should this work item accomplish?"}</label>
@@ -419,20 +482,86 @@ export function StructuredTaskModal({
                     value={taskGoal}
                     onChange={(e) => setTaskGoal(e.target.value)}
                     placeholder={
-                      intent === "revise_delivered_work"
+                      isRevision
                         ? `Describe the revision needed for ${selectedRevisionTask?.title || "the delivered work"}`
                         : config.goalPlaceholder || "Describe the outcome"
                     }
                     className="mt-1.5 w-full rounded-md border border-border bg-panel text-text px-3 py-2.5 text-sm"
                   />
                 </div>
-                {intent === "revise_delivered_work" && selectedRevisionTask ? (
+                {isRevision && selectedRevisionTask ? (
                   <div className="rounded-xl border border-red-100 bg-panel px-3 py-3 text-sm text-text-secondary dark:border-red-900/60 dark:bg-red-950/20">
                     <div className="text-xs font-semibold uppercase tracking-[0.12em] text-red-600 dark:text-red-300">Revision lineage</div>
-                    <p className="mt-1">This task will reference <span className="font-medium text-text">{selectedRevisionTask.title}</span>{selectedMilestone?.name ? ` in ${selectedMilestone.name}` : ""} so the UI clearly reads as a revision task, not a generic new work item.</p>
+                    <p className="mt-1">This task will stay linked to <span className="font-medium text-text">{selectedRevisionTask.title}</span>{selectedMilestone?.name ? ` in ${selectedMilestone.name}` : ""}.</p>
+                  </div>
+                ) : null}
+                {selectedReferenceSummary ? (
+                  <div className="rounded-xl border border-border bg-panel px-3 py-3 text-sm text-text-secondary">
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">Attached context</div>
+                    <p className="mt-1">{selectedReferenceSummary}</p>
+                    <p className="mt-2 text-xs text-text-muted">These file names will carry into the created task so the next pass keeps the right references.</p>
                   </div>
                 ) : null}
               </section>
+
+              {isRevision ? (
+                <section className="rounded-xl border border-border bg-panel-elevated/80 p-3 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-text">Reference files</p>
+                      <p className="mt-1 text-xs text-text-muted">Upload screenshots, PDFs, or notes directly here, or attach existing project files.</p>
+                    </div>
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => void uploadFiles(e.target.files)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingFiles}
+                        className="inline-flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-panel-elevated disabled:opacity-50"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {uploadingFiles ? "Uploading..." : "Upload files"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {uploadStatus ? <p className={cn("mt-3 text-xs", uploadStatus === "Files uploaded" ? "text-emerald-600" : "text-text-muted")}>{uploadStatus}</p> : null}
+
+                  <div className="mt-3">
+                    <p className="text-sm font-medium text-text-secondary">Attach existing project files</p>
+                    {availableDocuments.length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        {availableDocuments.map((document) => {
+                          const checked = selectedReferenceIds.includes(document.id);
+                          return (
+                            <label
+                              key={document.id}
+                              className={cn(
+                                "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm",
+                                checked ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40" : "border-border bg-panel",
+                              )}
+                            >
+                              <input type="checkbox" checked={checked} onChange={() => toggleReferenceDocument(document.id)} className="mt-1" />
+                              <div className="min-w-0">
+                                <div className="font-medium text-text">{document.title}</div>
+                                <div className="text-xs text-text-muted">{document.type}{document.mime_type ? ` • ${document.mime_type}` : ""}</div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-text-muted">No project files uploaded yet.</p>
+                    )}
+                  </div>
+                </section>
+              ) : null}
 
               <section className="rounded-xl border border-border">
                 <button
@@ -442,14 +571,32 @@ export function StructuredTaskModal({
                   aria-expanded={showDetails}
                 >
                   <div>
-                    <p className="text-sm font-medium text-text">{intentCopy.detailsLabel}</p>
-                    <p className="text-xs text-text-muted">Type options, project context, review settings, and title override.</p>
+                    <p className="text-sm font-medium text-text">{modalCopy.detailsLabel}</p>
+                    <p className="text-xs text-text-muted">Notes, stage context for support work, type defaults, review setting, and title override.</p>
                   </div>
                   <span className="text-xs font-medium text-text-muted">{showDetails ? "Hide" : "Show"}</span>
                 </button>
 
                 {showDetails ? (
                   <div className="space-y-4 border-t border-border px-4 py-4">
+                    {!isDeliverableType ? (
+                      <label className="block">
+                        <span className="mb-1 block text-sm font-medium text-text-secondary">Related stage (optional)</span>
+                        <select
+                          value={selectedMilestoneId}
+                          onChange={(e) => setSelectedMilestoneId(e.target.value)}
+                          className="w-full rounded-md border border-border bg-panel text-text px-3 py-2 text-sm"
+                        >
+                          <option value="">No specific stage</option>
+                          {deliveryMilestones.map((milestone) => (
+                            <option key={milestone.id} value={milestone.id}>
+                              {milestone.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+
                     <section className="grid gap-4 sm:grid-cols-2">
                       {config.metadataFields.map((field) => (
                         <label key={field.key} className="block">
@@ -469,7 +616,7 @@ export function StructuredTaskModal({
 
                     <div>
                       <label className="block text-sm font-medium text-text-secondary">Supporting context</label>
-                      <textarea value={contextNote} onChange={(e) => setContextNote(e.target.value)} rows={3} placeholder="References, acceptance notes, revision instructions, or constraints…" className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text" />
+                      <textarea value={contextNote} onChange={(e) => setContextNote(e.target.value)} rows={3} placeholder="References, constraints, or acceptance notes…" className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text" />
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -505,7 +652,7 @@ export function StructuredTaskModal({
             disabled={!canSubmit || creating}
             className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
           >
-            {creating ? "Adding work..." : intentCopy.submitLabel}
+            {creating ? "Adding work..." : modalCopy.submitLabel}
           </button>
         </div>
       </div>

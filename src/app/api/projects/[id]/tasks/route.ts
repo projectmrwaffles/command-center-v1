@@ -32,6 +32,8 @@ export async function POST(
       follow_up_intent,
       revision_source_task_id,
       revision_source_task_title,
+      reference_document_ids,
+      reference_document_titles,
     } = body;
 
     if (!projectId) {
@@ -69,6 +71,13 @@ export async function POST(
       }
 
       const metadata = buildTaskMetadata(task_type as TaskType, task_metadata || {});
+      const normalizedReferenceIds = Array.isArray(reference_document_ids)
+        ? Array.from(new Set(reference_document_ids.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim())))
+        : [];
+      const normalizedReferenceTitles = Array.isArray(reference_document_titles)
+        ? Array.from(new Set(reference_document_titles.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim())))
+        : [];
+
       if (typeof follow_up_intent === "string" && follow_up_intent.trim()) {
         metadata.follow_up_intent = follow_up_intent.trim();
       }
@@ -77,6 +86,12 @@ export async function POST(
       }
       if (typeof revision_source_task_title === "string" && revision_source_task_title.trim()) {
         metadata.revision_source_task_title = revision_source_task_title.trim();
+      }
+      if (normalizedReferenceIds.length > 0) {
+        metadata.reference_document_ids = normalizedReferenceIds.join(",");
+      }
+      if (normalizedReferenceTitles.length > 0) {
+        metadata.reference_document_titles = normalizedReferenceTitles.join(" | ");
       }
 
       const routing = getRoutingPreview(task_type as TaskType);

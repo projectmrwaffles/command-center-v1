@@ -141,6 +141,19 @@ function getReviewState(task: TaskLike, milestone: MilestoneLike | null) {
   };
 }
 
+function getFollowUpIntentLabel(value?: string | null) {
+  switch (value) {
+    case "revise_delivered_work":
+      return "Revision follow-up";
+    case "add_deliverable":
+      return "New deliverable";
+    case "add_support_work":
+      return "Support work";
+    default:
+      return null;
+  }
+}
+
 export function TaskDetailModal({
   open,
   onClose,
@@ -166,6 +179,13 @@ export function TaskDetailModal({
         }))
         .filter((entry) => entry.value)
     : [];
+  const referenceDocumentTitles = task.task_metadata?.reference_document_titles
+    ? String(task.task_metadata.reference_document_titles).split("|").map((value) => value.trim()).filter(Boolean)
+    : [];
+  const followUpIntentLabel = getFollowUpIntentLabel(task.task_metadata?.follow_up_intent);
+  const revisionSourceTitle = task.task_metadata?.revision_source_task_title
+    ? String(task.task_metadata.revision_source_task_title).trim()
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" onClick={onClose}>
@@ -227,6 +247,32 @@ export function TaskDetailModal({
             {task.task_goal ? <p className="mt-2 text-sm font-medium text-text">{task.task_goal}</p> : null}
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-text-secondary">{task.description || "No task description yet."}</p>
           </section>
+
+          {followUpIntentLabel || revisionSourceTitle || referenceDocumentTitles.length > 0 ? (
+            <section className="rounded-3xl border border-border bg-panel-elevated px-5 py-4">
+              <h3 className="text-sm font-semibold text-text">Follow-up context</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-panel px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Follow-up mode</div>
+                  <div className="mt-1 text-sm font-medium text-text">{followUpIntentLabel || "Standard task"}</div>
+                </div>
+                {revisionSourceTitle ? (
+                  <div className="rounded-2xl border border-border bg-panel px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Revision target</div>
+                    <div className="mt-1 text-sm font-medium text-text">{revisionSourceTitle}</div>
+                  </div>
+                ) : null}
+              </div>
+              {referenceDocumentTitles.length > 0 ? (
+                <div className="mt-3 rounded-2xl border border-border bg-panel px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Reference files</div>
+                  <ul className="mt-2 space-y-1 text-sm text-text">
+                    {referenceDocumentTitles.map((title) => <li key={title}>• {title}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           {metadataEntries.length > 0 ? (
             <section className="rounded-3xl border border-border bg-panel-elevated px-5 py-4">

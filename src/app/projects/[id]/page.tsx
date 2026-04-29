@@ -1148,6 +1148,10 @@ export default function ProjectDetailPage() {
                         );
                         const blocker = bucketKey === "stalled" ? truth?.taskBoard?.blockers?.[task.id] : null;
                         const taskCardSummary = getTaskCardSummary(task, blocker);
+                        const followUpIntent = typeof task.task_metadata?.follow_up_intent === "string" ? task.task_metadata.follow_up_intent : null;
+                        const referenceFileCount = typeof task.task_metadata?.reference_document_titles === "string"
+                          ? task.task_metadata.reference_document_titles.split("|").map((value: string) => value.trim()).filter(Boolean).length
+                          : 0;
                         return (
                           <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-border bg-panel p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25">
                             <div className="flex items-start justify-between gap-3">
@@ -1163,6 +1167,8 @@ export default function ProjectDetailPage() {
                                 </div>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-border bg-panel-subtle px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Kickoff</span> : null}
+                                  {followUpIntent === "revise_delivered_work" ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">Revision</span> : null}
+                                  {referenceFileCount > 0 ? <span className="rounded-full border border-border bg-panel-subtle px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Refs · {referenceFileCount}</span> : null}
                                   {showTaskReviewBadge ? <span className="rounded-full border border-accent/16 bg-accent-soft/80 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">{formatReviewStatus(task.review_status)}</span> : null}
                                   {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>{checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>
@@ -1494,12 +1500,15 @@ export default function ProjectDetailPage() {
       />
 
       <StructuredTaskModal
+        projectId={projectId}
         open={showTaskModal && !selectedTask}
         onClose={() => setShowTaskModal(false)}
         onCreate={handleCreateTask}
         creating={creatingTask}
         milestones={milestones}
         tasks={tasks}
+        documents={documents}
+        onDocumentsChanged={fetchDocuments}
       />
     </div>
   );

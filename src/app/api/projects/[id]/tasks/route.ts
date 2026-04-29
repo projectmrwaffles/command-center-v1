@@ -1,6 +1,16 @@
 import { ensureDefaultSprint, getProjectTaskPosition, syncProjectState } from "@/lib/project-state";
 import { dispatchEligibleProjectTasks, getLeadAgentForTeam } from "@/lib/project-execution";
-import { buildTaskMetadata, generateTaskDescription, generateTaskTitle, getRoutingPreview, getTaskTemplateKey, isTaskType, type TaskType } from "@/lib/task-model";
+import {
+  buildTaskMetadata,
+  generateTaskDescription,
+  generateTaskTitle,
+  getRoutingPreview,
+  getTaskTemplateKey,
+  inferTaskMetadataFromRequest,
+  inferTaskTypeFromRequest,
+  isTaskType,
+  type TaskType,
+} from "@/lib/task-model";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { authorizeApiRequest } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -40,7 +50,8 @@ export async function POST(
       return NextResponse.json({ error: "Project ID required" }, { status: 400 });
     }
 
-    const structuredCreate = isTaskType(task_type);
+    const messageFirstCreate = typeof task_goal === "string" && task_goal.trim().length > 0;
+    const structuredCreate = isTaskType(task_type) || messageFirstCreate;
 
     if (!structuredCreate && !title?.trim()) {
       return NextResponse.json({ error: "Title required" }, { status: 400 });
@@ -70,7 +81,6 @@ export async function POST(
         return NextResponse.json({ error: "Task goal required" }, { status: 400 });
       }
 
-      const metadata = buildTaskMetadata(task_type as TaskType, task_metadata || {});
       const normalizedReferenceIds = Array.isArray(reference_document_ids)
         ? Array.from(new Set(reference_document_ids.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim())))
         : [];
@@ -78,11 +88,51 @@ export async function POST(
         ? Array.from(new Set(reference_document_titles.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim())))
         : [];
 
-      if (typeof follow_up_intent === "string" && follow_up_intent.trim()) {
-        metadata.follow_up_intent = follow_up_intent.trim();
+      const revisionSourceTaskId = typeof revision_source_task_id === "string" && revision_source_task_id.trim()
+        ? revision_source_task_id.trim()
+        : null;
+
+      let revisionSourceTaskType: string | null = null;
+      if (revisionSourceTaskId) {
+        const { data: revisionSourceTask } = await db
+          .from("sprint_items")
+          .select("id, task_type")
+          .eq("id", revisionSourceTaskId)
+          .maybeSingle();
+        revisionSourceTaskType = typeof revisionSourceTask?.task_type === "string" ? revisionSourceTask.task_type : null;
       }
-      if (typeof revision_source_task_id === "string" && revision_source_task_id.trim()) {
-        metadata.revision_source_task_id = revision_source_task_id.trim();
+
+      const resolvedTaskType = isTaskType(task_type)
+        ? (task_type as TaskType)
+        : inferTaskTypeFromRequest({
+            message: task_goal,
+            revisionSourceTaskType,
+            revisionSourceTaskId,
+          });
+
+      const inferredMetadata = inferTaskMetadataFromRequest({
+        taskType: resolvedTaskType,
+        message: task_goal,
+        revisionSourceTaskId,
+      });
+      const metadataInput = task_metadata && typeof task_metadata === "object"
+        ? { ...inferredMetadata, ...(task_metadata as Record<string, unknown>) }
+        : inferredMetadata;
+      const metadata = buildTaskMetadata(resolvedTaskType, metadataInput);
+
+      const resolvedFollowUpIntent = typeof follow_up_intent === "string" && follow_up_intent.trim()
+        ? follow_up_intent.trim()
+        : revisionSourceTaskId
+          ? "revise_delivered_work"
+          : typeof sprint_id === "string" && sprint_id.trim()
+            ? "add_deliverable"
+            : "add_support_work";
+
+      metadata.follow_up_intent = resolvedFollowUpIntent;
+      metadata.intake_mode = "message_first";
+
+      if (revisionSourceTaskId) {
+        metadata.revision_source_task_id = revisionSourceTaskId;
       }
       if (typeof revision_source_task_title === "string" && revision_source_task_title.trim()) {
         metadata.revision_source_task_title = revision_source_task_title.trim();
@@ -94,7 +144,7 @@ export async function POST(
         metadata.reference_document_titles = normalizedReferenceTitles.join(" | ");
       }
 
-      const routing = getRoutingPreview(task_type as TaskType);
+      const routing = getRoutingPreview(resolvedTaskType);
       const ownerTeamName = routing.ownerTeamLabel;
       const { data: ownerTeam } = await db
         .from("teams")
@@ -103,7 +153,7 @@ export async function POST(
         .limit(1)
         .maybeSingle();
 
-      const generatedTitle = generateTaskTitle(task_type as TaskType, task_goal, metadata);
+      const generatedTitle = generateTaskTitle(resolvedTaskType, task_goal, metadata);
       const effectiveTitle = typeof title_override === "string" && title_override.trim() ? title_override.trim() : generatedTitle;
       const effectiveReviewRequired = typeof review_required === "boolean" ? review_required : routing.reviewRequired;
 
@@ -112,13 +162,13 @@ export async function POST(
       insertPayload = {
         ...insertPayload,
         title: effectiveTitle,
-        description: generateTaskDescription({ taskType: task_type as TaskType, taskGoal: task_goal, metadata, contextNote: typeof context_note === "string" ? context_note : null }),
+        description: generateTaskDescription({ taskType: resolvedTaskType, taskGoal: task_goal, metadata, contextNote: typeof context_note === "string" ? context_note : null }),
         assignee_agent_id: resolvedAssigneeAgentId ?? null,
-        task_type,
+        task_type: resolvedTaskType,
         task_goal: task_goal.trim(),
         owner_team_id: ownerTeam?.id ?? null,
         review_required: effectiveReviewRequired,
-        task_template_key: getTaskTemplateKey(task_type as TaskType, metadata),
+        task_template_key: getTaskTemplateKey(resolvedTaskType, metadata),
         task_metadata: metadata,
         review_status: "not_requested",
       };

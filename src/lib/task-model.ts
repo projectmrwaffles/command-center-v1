@@ -210,6 +210,177 @@ export function getTaskTypeConfig(taskType: TaskType) {
   return TASK_TYPE_CONFIG[taskType];
 }
 
+export function getDefaultTaskMetadata(taskType: TaskType) {
+  const config = getTaskTypeConfig(taskType);
+  return config.metadataFields.reduce<Record<string, string>>((acc, field) => {
+    acc[field.key] = field.options[0]?.value || "";
+    return acc;
+  }, {});
+}
+
+export function inferTaskTypeFromRequest(input: {
+  message: string;
+  revisionSourceTaskType?: string | null;
+  revisionSourceTaskId?: string | null;
+}) {
+  const message = input.message.trim().toLowerCase();
+
+  if (input.revisionSourceTaskId && isTaskType(input.revisionSourceTaskType)) {
+    return input.revisionSourceTaskType;
+  }
+
+  if (/(wireframe|mockup|figma|ui\b|ux\b|screen|layout|brand|visual|design system)/i.test(message)) return "design";
+  if (/(copy|messaging|headline|email|ad\b|campaign|social|landing page copy|content)/i.test(message)) return "content_messaging";
+  if (/(qa|test|validate|validation|regression|acceptance|verify)/i.test(message)) return "qa_validation";
+  if (/(audit|scope|brief|plan|research|recommend|strategy|roadmap)/i.test(message)) return "discovery_plan";
+  if (/(setup|coordinate|coordination|cleanup|handoff|tracking|ops|operations)/i.test(message)) return "internal_admin";
+
+  return "build_implementation";
+}
+
+export function inferTaskMetadataFromRequest(input: {
+  taskType: TaskType;
+  message: string;
+  revisionSourceTaskId?: string | null;
+}) {
+  const message = input.message.trim().toLowerCase();
+  const defaults = getDefaultTaskMetadata(input.taskType);
+
+  switch (input.taskType) {
+    case "discovery_plan":
+      return {
+        planning_mode: /(audit|review current|assess)/i.test(message)
+          ? "audit_current_state"
+          : /(brief)/i.test(message)
+            ? "write_brief"
+            : /(scope|requirements)/i.test(message)
+              ? "define_scope"
+              : "recommend_next_steps",
+        target_area: /(design|ux|ui)/i.test(message)
+          ? "design"
+          : /(marketing|copy|campaign|content)/i.test(message)
+            ? "marketing"
+            : /(engineering|build|api|bug|integration|frontend|backend)/i.test(message)
+              ? "engineering"
+              : /(ops|operations)/i.test(message)
+                ? "operations"
+                : /(product)/i.test(message)
+                  ? "product"
+                  : "hybrid",
+      };
+    case "design":
+      return {
+        design_output_type: input.revisionSourceTaskId
+          ? "design_revision"
+          : /(wireframe)/i.test(message)
+            ? "wireframes"
+            : /(flow)/i.test(message)
+              ? "flow_map"
+              : /(design system)/i.test(message)
+                ? "design_system_update"
+                : "ui_mockups",
+        surface: /(mobile|ios|android)/i.test(message)
+          ? "mobile"
+          : /(email)/i.test(message)
+            ? "email"
+            : /(dashboard)/i.test(message)
+              ? "dashboard"
+              : /(brand)/i.test(message)
+                ? "brand_asset"
+                : /(other)/i.test(message)
+                  ? "other"
+                  : "web",
+      };
+    case "build_implementation":
+      return {
+        implementation_kind: /(bug|fix|broken|issue)/i.test(message)
+          ? "bug_fix"
+          : /(api|backend|server|database)/i.test(message)
+            ? "backend_or_api"
+            : /(integrat|automation|webhook|sync)/i.test(message)
+              ? "integration_or_automation"
+              : /(page|landing page|website)/i.test(message)
+                ? "website_page"
+                : /(setup|configure|provision)/i.test(message)
+                  ? "system_setup"
+                  : "frontend_feature",
+        target_environment: /(mobile|ios|android)/i.test(message)
+          ? "mobile_app"
+          : /(marketing|landing page|website)/i.test(message)
+            ? "marketing_site"
+            : /(ops|internal)/i.test(message)
+              ? "internal_ops"
+              : /(data|etl|warehouse|analytics)/i.test(message)
+                ? "data_system"
+                : /(other)/i.test(message)
+                  ? "other"
+                  : "web_app",
+      };
+    case "content_messaging":
+      return {
+        content_type: input.revisionSourceTaskId
+          ? "content_revision"
+          : /(email)/i.test(message)
+            ? "email_copy"
+            : /(ad|campaign)/i.test(message)
+              ? "ad_or_campaign_asset"
+              : /(social)/i.test(message)
+                ? "social_copy"
+                : /(launch)/i.test(message)
+                  ? "launch_messaging"
+                  : "website_copy",
+        channel_or_surface: /(email)/i.test(message)
+          ? "email"
+          : /(ad|campaign)/i.test(message)
+            ? "ads"
+            : /(social)/i.test(message)
+              ? "social"
+              : /(sales)/i.test(message)
+                ? "sales"
+                : /(other)/i.test(message)
+                  ? "other"
+                  : "site",
+      };
+    case "qa_validation":
+      return {
+        qa_mode: /(regression)/i.test(message)
+          ? "regression_check"
+          : /(bug)/i.test(message)
+            ? "bug_validation"
+            : /(launch)/i.test(message)
+              ? "launch_check"
+              : /(acceptance|sign off)/i.test(message)
+                ? "acceptance_review"
+                : "qa_pass",
+        subject_ref: /(landing page|website)/i.test(message)
+          ? "landing_page"
+          : /(integrat|automation|webhook|sync)/i.test(message)
+            ? "integration"
+            : /(bug)/i.test(message)
+              ? "bug_fix"
+              : /(launch)/i.test(message)
+                ? "launch_candidate"
+                : /(other)/i.test(message)
+                  ? "other"
+                  : "new_feature",
+      };
+    case "internal_admin":
+      return {
+        admin_action_type: /(tracking)/i.test(message)
+          ? "tracking_update"
+          : /(handoff)/i.test(message)
+            ? "handoff"
+            : /(setup|configure)/i.test(message)
+              ? "setup"
+              : /(cleanup)/i.test(message)
+                ? "cleanup"
+                : "coordination",
+      };
+    default:
+      return defaults;
+  }
+}
+
 export function buildTaskMetadata(taskType: TaskType, input: Record<string, unknown>) {
   const config = getTaskTypeConfig(taskType);
   const metadata: Record<string, string> = {};

@@ -223,11 +223,9 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
                 Open a project or jump into the project list.
               </p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <Button asChild size="lg" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm">
-                  <Link href="/projects/new">
-                    <Plus className="h-4 w-4" />
-                    New project
-                  </Link>
+                <Button type="button" size="lg" className="min-h-12 w-full justify-center rounded-xl px-5 text-base sm:flex-1 sm:text-sm" onClick={() => setShowCreateProject(true)}>
+                  <Plus className="h-4 w-4" />
+                  New project
                 </Button>
                 <Link
                   href="/projects"
@@ -247,25 +245,29 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="space-y-6">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
+          <section className="space-y-3 rounded-[28px] border border-accent/12 bg-[color:color-mix(in_srgb,var(--color-accent)_5%,var(--color-panel))] p-4 shadow-[var(--shadow-panel-soft)] sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <SectionTitle meta="Active work, current state, and open flags.">Active Work ({projectCards.length})</SectionTitle>
-              <Link href="/projects" className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-strong">
-                View all
-              </Link>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent-soft px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">
+                  <Radio className="h-3.5 w-3.5" />
+                  Live
+                </span>
+                <Link href="/projects" className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-strong">
+                  View all
+                </Link>
+              </div>
             </div>
             {projectCards.length === 0 ? (
               <BrandedEmptyState
-                className="items-start px-6 py-10 text-left"
+                className="items-start rounded-[24px] border border-accent/10 bg-panel px-6 py-10 text-left"
                 icon={<Layers3 className="h-7 w-7" />}
                 title="No active projects yet"
                 description="Create a project to start routing work, tracking progress, and surfacing dashboard health here."
                 action={
-                  <Button asChild size="lg" className="rounded-xl px-5">
-                    <Link href="/projects/new">
-                      <Plus className="h-4 w-4" />
-                      Create project
-                    </Link>
+                  <Button type="button" size="lg" className="rounded-xl px-5" onClick={() => setShowCreateProject(true)}>
+                    <Plus className="h-4 w-4" />
+                    Create project
                   </Button>
                 }
               />
@@ -346,7 +348,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
   return (
     <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-accent/20">
-      <Card variant="featured" className="relative h-full rounded-[24px] overflow-hidden">
+      <Card variant="featured" className="relative h-full overflow-hidden rounded-[24px] border-accent/12 bg-[color:color-mix(in_srgb,var(--color-accent)_4%,var(--color-panel))]">
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start gap-3">
             <div className="min-w-0">
@@ -359,7 +361,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-panel p-4 shadow-[var(--shadow-panel-soft)]">
+          <div className="rounded-2xl border border-accent/10 bg-[color:color-mix(in_srgb,var(--color-accent)_3%,var(--color-panel))] p-4 shadow-[var(--shadow-panel-soft)]">
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Progress</p>
@@ -387,7 +389,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             {!hasFlags ? <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--color-success)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-panel))] px-2.5 py-1 text-[11px] font-medium text-[color:color-mix(in_srgb,var(--color-success)_72%,var(--color-text))]">No active flags</span> : null}
           </div>
 
-          <div className="flex items-center justify-between border-t border-border/60 pt-1 text-sm text-text-muted">
+          <div className="flex items-center justify-between border-t border-accent/10 pt-1 text-sm text-text-muted">
             <span>Open project workspace</span>
             <span className="inline-flex items-center gap-1 font-medium text-text-secondary transition-colors group-hover:text-accent-strong">
               View project

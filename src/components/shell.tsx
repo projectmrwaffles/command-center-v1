@@ -78,8 +78,8 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
     >
       <div
         className={cn(
-          "relative shrink-0 overflow-hidden rounded-[1.25rem] border border-border/70 bg-white shadow-sm transition-transform group-hover:scale-[1.01]",
-          compact ? "h-[3.75rem] w-[10.5rem]" : "h-20 w-full"
+          "relative shrink-0 overflow-hidden rounded-[1.25rem] border border-border/70 bg-white transition-transform group-hover:scale-[1.01]",
+          compact ? "h-[3.25rem] w-[9.5rem]" : "h-20 w-full"
         )}
       >
         <Image
@@ -88,10 +88,10 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
           fill
           className={cn(
             compact
-              ? "object-cover object-center scale-[1.18] transition-transform duration-200 group-hover:scale-[1.22]"
+              ? "object-cover object-center scale-[1.1] transition-transform duration-200 group-hover:scale-[1.14]"
               : "object-cover object-center px-1 py-0.5 scale-[1.12] transition-transform duration-200 group-hover:scale-[1.15]"
           )}
-          sizes={compact ? "168px" : "216px"}
+          sizes={compact ? "152px" : "216px"}
           priority
         />
       </div>
@@ -146,13 +146,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="min-w-0 flex-1">
-          <main className="min-h-screen px-3 py-5 pb-24 sm:px-4 sm:py-6 md:px-8 md:py-8 md:pb-8">
-            <div className="mb-4 md:hidden">
-              <div className="flex items-center justify-between gap-3">
-                <BrandMark compact />
-                <ThemeToggle compact className="shrink-0" />
-              </div>
+          <header className="border-b border-border/80 bg-shell md:hidden">
+            <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-4">
+              <BrandMark compact />
+              <ThemeToggle compact className="shrink-0" />
             </div>
+          </header>
+
+          <main className="min-h-screen px-3 py-5 pb-24 sm:px-4 sm:py-6 md:px-8 md:py-8 md:pb-8">
             {children}
           </main>
         </div>

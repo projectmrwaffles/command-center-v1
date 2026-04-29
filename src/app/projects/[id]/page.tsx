@@ -21,7 +21,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHero } from "@/components/ui/page-hero";
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state";
 import { ProjectTypeBadge } from "@/components/ui/project-badges";
-import { formatRelativeTimestamp, getExecutionTone, isStaleExecutionTimestamp, ProgressRing } from "@/components/ui/execution-visibility";
+import { formatRelativeTimestamp, ProgressRing } from "@/components/ui/execution-visibility";
 import {
   formatIntakeValue,
 } from "@/lib/project-intake";
@@ -327,11 +327,6 @@ function taskProgressValue(task: any) {
   }
 
   return null;
-}
-
-function isTaskExecutionStale(task: { status?: string | null; updated_at?: string | null } | null | undefined) {
-  if (!task || task.status !== "in_progress") return false;
-  return isStaleExecutionTimestamp(task.updated_at, 1 * 60 * 1000);
 }
 
 function isBootstrapTask(task: any, bootstrapSprintIds?: ReadonlySet<string>) {
@@ -857,10 +852,11 @@ export default function ProjectDetailPage() {
   const reviewCount = Math.max(reviewTaskCount, activeReviewMilestones.length);
   const blockedWorkCount = Math.max(data?.stats.blockedTasks ?? 0, blockerOnlyMilestones.length);
   const summaryMetrics = [
-    { label: "Open tasks", value: openTaskCount },
-    { label: "QC follow-through", value: reviewCount },
-    { label: "Blocked work", value: blockedWorkCount },
-    { label: "Completed tasks", value: data?.stats.doneTasks ?? 0 },
+    { label: "Open work", value: openTaskCount },
+    {
+      label: blockedWorkCount > 0 ? "Blocked now" : "In QC",
+      value: blockedWorkCount > 0 ? blockedWorkCount : reviewCount,
+    },
   ];
   const visibleProgressPct = Math.max(0, Math.min(100, headerState.progressPct ?? project.progress_pct ?? 0));
   const statusBadgeLabel = formatTaskStatusLabel(project.status);
@@ -1030,7 +1026,7 @@ export default function ProjectDetailPage() {
                 <div className="rounded-2xl border border-border/80 bg-panel/80 px-4 py-3 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Tracked progress</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Progress</div>
                       <div className="mt-1 text-2xl font-semibold tracking-tight text-text">{visibleProgressPct}%</div>
                     </div>
                     <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone.pill)}>{statusTone.label}</span>
@@ -1038,10 +1034,10 @@ export default function ProjectDetailPage() {
                   <div className={cn("mt-3 h-2 overflow-hidden rounded-full", statusTone.progressTrack)}>
                     <div className={cn("h-full rounded-full transition-all", statusTone.progress)} style={{ width: `${visibleProgressPct}%` }} />
                   </div>
-                  <p className="mt-2 text-xs text-text-muted">Progress reflects tracked work completion and QC holds.</p>
+                  <p className="mt-2 text-xs text-text-muted">Based on tracked work and QC hold-ups.</p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {summaryMetrics.map((item) => (
                     <div key={item.label} className="rounded-2xl border border-border/80 bg-panel/80 px-4 py-3 shadow-sm">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{item.label}</div>
@@ -1055,37 +1051,39 @@ export default function ProjectDetailPage() {
 
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[320px] lg:max-w-sm">
             <div className="rounded-2xl border border-border bg-panel p-4">
-              <div className="flex items-start justify-between gap-3">
+              <div>
                 <div>
-                  <div className="text-sm font-medium text-text">Project actions</div>
-                  <p className="mt-1 text-sm leading-6 text-text-muted">Keep delivery moving from here.</p>
-                </div>
-                <div className="text-right text-xs text-text-muted">
-                  <div className="font-semibold uppercase tracking-[0.14em] text-text-muted">Updated</div>
-                  <div className="mt-1 text-sm font-medium text-text">{updatedLabel}</div>
+                  <div className="text-sm font-medium text-text">Next step</div>
+                  <p className="mt-1 text-sm leading-6 text-text-muted">Capture the next work item, then use secondary controls only when needed.</p>
                 </div>
               </div>
 
               <div className="mt-4 grid gap-2">
+                <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" className="w-full justify-center rounded-xl">
+                  <Plus className="h-4 w-4" />
+                  Add follow-up work
+                </Button>
                 {actionTargetStatus && actionLabel ? (
                   <Button
                     onClick={() => handleStatusChange(actionTargetStatus)}
                     disabled={isStatusActionLoading}
-                    variant={actionTargetStatus === "paused" ? "outline" : "secondary"}
-                    className="w-full justify-center rounded-xl"
+                    variant="ghost"
+                    className="w-full justify-center rounded-xl text-text-secondary"
                   >
                     {actionTargetStatus === "paused" ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
                     {isStatusActionLoading ? "Updating..." : actionLabel}
                   </Button>
                 ) : null}
-                <Button onClick={() => { setSelectedTask(null); setShowTaskModal(true); }} size="lg" className="w-full rounded-xl">
-                  <Plus className="h-4 w-4" />
-                  Add follow-up work
-                </Button>
-                <Button onClick={() => setShowDeleteConfirm(true)} variant="outline" className="w-full justify-center rounded-xl border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">
-                  <Trash2 className="h-4 w-4" />
-                  Delete project
-                </Button>
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-red-700 transition hover:text-red-800"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete project
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1134,13 +1132,6 @@ export default function ProjectDetailPage() {
                           && (checkpointDisplayState.stageState.key === "delivery_review_active" || checkpointDisplayState.stageState.key === "rereview_active")
                         );
                         const effectiveTaskStatus = checkpointReviewActive ? "review" : task.status;
-                        const effectiveReviewStatus = checkpointReviewActive ? "in_review" : task.review_status;
-                        const executionTone = getExecutionTone({
-                          status: effectiveTaskStatus,
-                          reviewRequired: task.review_required,
-                          reviewStatus: effectiveReviewStatus,
-                          stale: isTaskExecutionStale(task),
-                        });
                         const showTaskReviewBadge = Boolean(
                           task.review_required
                           && task.status !== "in_progress"
@@ -1165,14 +1156,13 @@ export default function ProjectDetailPage() {
                                   <span className="line-clamp-2 text-sm font-medium text-text">{task.title}</span>
                                   <TaskStatusBadge status={effectiveTaskStatus} />
                                 </div>
-                                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
-                                  <span className="text-text-muted">Task</span>
-                                  {taskTypeConfig ? <span className="text-red-600">{taskTypeConfig.label}</span> : null}
-                                  {taskMilestone?.name ? <span className="text-text-muted">Stage: {taskMilestone.name}</span> : null}
+                                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+                                  {taskTypeConfig ? <span>{taskTypeConfig.label}</span> : null}
+                                  {taskTypeConfig && taskMilestone?.name ? <span>•</span> : null}
+                                  {taskMilestone?.name ? <span>{taskMilestone.name}</span> : null}
                                 </div>
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", executionTone.badgeClassName)}>{executionTone.label}</span>
-                                  {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-border bg-panel-subtle px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Kickoff</span> : bucketKey === "done" ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">Completed</span> : bucketKey === "stalled" ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">On hold</span> : bucketKey === "queued" ? <span className="rounded-full border border-border bg-panel-subtle-strong px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Queued next</span> : <span className="rounded-full border border-accent/16 bg-accent-soft px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">Active work</span>}
+                                  {isBootstrapTask(task, bootstrapSprintIds) ? <span className="rounded-full border border-border bg-panel-subtle px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">Kickoff</span> : null}
                                   {showTaskReviewBadge ? <span className="rounded-full border border-accent/16 bg-accent-soft/80 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">{formatReviewStatus(task.review_status)}</span> : null}
                                   {showCheckpointBadge ? <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", checkpointDisplayState?.stageState.className || checkpointTone(checkpointDisplayState?.checkpointState.key))}>{checkpointDisplayState?.stageState.label || checkpointDisplayState?.checkpointState.label}</span> : null}
                                 </div>

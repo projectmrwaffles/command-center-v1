@@ -79,7 +79,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       <div
         className={cn(
           "relative shrink-0 overflow-hidden rounded-[1.25rem] border border-border/70 bg-white shadow-sm transition-transform group-hover:scale-[1.01]",
-          compact ? "h-16 w-44" : "h-20 w-full"
+          compact ? "h-[3.75rem] w-[10.5rem]" : "h-20 w-full"
         )}
       >
         <Image
@@ -88,10 +88,10 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
           fill
           className={cn(
             compact
-              ? "object-cover object-center scale-[1.24] transition-transform duration-200 group-hover:scale-[1.28]"
+              ? "object-cover object-center scale-[1.18] transition-transform duration-200 group-hover:scale-[1.22]"
               : "object-cover object-center px-1 py-0.5 scale-[1.12] transition-transform duration-200 group-hover:scale-[1.15]"
           )}
-          sizes={compact ? "176px" : "216px"}
+          sizes={compact ? "168px" : "216px"}
           priority
         />
       </div>

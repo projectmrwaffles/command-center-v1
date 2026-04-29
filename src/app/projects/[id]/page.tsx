@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { RevisionRequestCard } from "@/components/project/revision-request-card";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -36,7 +35,7 @@ import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-bootstrap";
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
-import { deriveMilestoneDisplayState, deriveMilestoneReviewCardCopy, deriveProjectDetailHeaderState, getCompletedProjectRevisionMilestones, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
+import { deriveMilestoneDisplayState, deriveProjectDetailHeaderState, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
 import { resolveProjectDetailRecentUpdates } from "@/lib/project-detail-truth";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
@@ -391,61 +390,6 @@ function Section({ title, description, children, className, action }: { title: s
         {children}
       </CardContent>
     </Card>
-  );
-}
-
-function MilestoneReviewCard({
-  projectId,
-  milestone,
-  documents,
-  onSaved,
-}: {
-  projectId: string;
-  milestone: Milestone;
-  documents: ProjectDocument[];
-  onSaved: () => void;
-}) {
-  const { milestoneDisplayState, summaryCopy, helperCopy, showRevisionRequestCard } = deriveMilestoneReviewCardCopy(milestone);
-  const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
-  const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
-
-  const stateBadge = milestoneDisplayState.stageState;
-
-  return (
-    <div className="rounded-2xl border border-border bg-panel p-4 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Completed work review</div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-text">{milestone.name}</p>
-            <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-text-secondary">{milestone.progressPct}% complete</span>
-            <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em]", stateBadge.className)}>{stateBadge.label}</span>
-            {revisionCycleActive ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-red-700">Revision requested</span> : null}
-          </div>
-          {milestone.goal ? <p className="mt-2 text-sm leading-6 text-text-secondary">{milestone.goal}</p> : null}
-          <p className="mt-2 text-sm leading-6 text-text-secondary">{summaryCopy}</p>
-        </div>
-        <TaskStatusBadge status={milestone.status === "active" ? "in_progress" : milestone.status === "completed" ? "done" : milestone.status === "blocked" ? "blocked" : "todo"} />
-      </div>
-
-      {showRevisionRequestCard ? (
-        <div className="mt-4">
-          <RevisionRequestCard
-            projectId={projectId}
-            sprintId={milestone.id}
-            sprintName={milestone.name}
-            documents={documents}
-            onSubmitted={onSaved}
-            hasActiveRevisionCycle={revisionCycleActive}
-            shippedApproved={deliveryApproved}
-          />
-        </div>
-      ) : (
-        <div className="mt-4 rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-3 text-sm text-text-muted">
-          {helperCopy}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -869,14 +813,6 @@ export default function ProjectDetailPage() {
     truth,
     attachmentKickoffState: attachmentProcessingState,
   });
-  const pendingRealtimeApprovals = Array.from(approvalsById.values())
-    .filter((approval) => approval.project_id === projectId && approval.status === "pending")
-    .sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return bTime - aTime;
-    });
-
   const reviewableMilestones = milestones
     .filter((milestone) => {
       if (isPrebuildCheckpointMilestone(milestone)) return false;
@@ -910,7 +846,6 @@ export default function ProjectDetailPage() {
     });
 
   const blockerOnlyMilestones = milestones.filter(isBlockerOnlyCheckpoint);
-  const completedProjectRevisionMilestones = getCompletedProjectRevisionMilestones(milestones);
   const activeReviewMilestones = reviewableMilestones.filter((milestone) => {
     const stageKey = deriveMilestoneDisplayState(milestone).stageState.key;
     return stageKey !== "iteration_shipped";
@@ -918,15 +853,14 @@ export default function ProjectDetailPage() {
   const projectWorkSignalCount = blockerOnlyMilestones.length + activeReviewMilestones.length;
 
   const openTaskCount = Math.max(0, (data?.stats.totalTasks ?? 0) - (data?.stats.doneTasks ?? 0));
-  const pendingApprovalCount = data?.stats.pendingApprovals ?? 0;
   const reviewTaskCount = tasks.filter((task: any) => task.review_status && task.review_status !== "not_requested" && task.review_status !== "approved").length;
   const reviewCount = Math.max(reviewTaskCount, activeReviewMilestones.length);
   const blockedWorkCount = Math.max(data?.stats.blockedTasks ?? 0, blockerOnlyMilestones.length);
   const summaryMetrics = [
     { label: "Open tasks", value: openTaskCount },
-    { label: "Pending approvals", value: pendingApprovalCount },
-    { label: "In review", value: reviewCount },
+    { label: "QC follow-through", value: reviewCount },
     { label: "Blocked work", value: blockedWorkCount },
+    { label: "Completed tasks", value: data?.stats.doneTasks ?? 0 },
   ];
   const visibleProgressPct = Math.max(0, Math.min(100, headerState.progressPct ?? project.progress_pct ?? 0));
   const statusBadgeLabel = formatTaskStatusLabel(project.status);
@@ -943,19 +877,13 @@ export default function ProjectDetailPage() {
         tone: "border-red-200 bg-red-50 text-red-700",
         summary: blockedWorkCount === 1 ? "1 work item is blocked and needs attention now." : `${blockedWorkCount} work items are blocked and need attention now.`,
       }
-    : pendingApprovalCount > 0
+    : reviewCount > 0
       ? {
-          label: "Awaiting approval",
-          tone: "border-amber-200 bg-amber-50 text-amber-700",
-          summary: pendingApprovalCount === 1 ? "1 approval decision is holding work open." : `${pendingApprovalCount} approval decisions are holding work open.`,
+          label: "QC follow-through",
+          tone: "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground",
+          summary: reviewCount === 1 ? "1 completed item is in QC or ready for QC." : `${reviewCount} completed items are in QC or ready for QC.`,
         }
-      : reviewCount > 0
-        ? {
-            label: "Review follow-through",
-            tone: "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground",
-            summary: reviewCount === 1 ? "1 item is in or ready for review." : `${reviewCount} items are in or ready for review.`,
-          }
-        : openTaskCount > 0
+      : openTaskCount > 0
           ? {
               label: "Active work",
               tone: "border-accent/16 bg-accent-soft/80 text-accent-soft-foreground",
@@ -1110,7 +1038,7 @@ export default function ProjectDetailPage() {
                   <div className={cn("mt-3 h-2 overflow-hidden rounded-full", statusTone.progressTrack)}>
                     <div className={cn("h-full rounded-full transition-all", statusTone.progress)} style={{ width: `${visibleProgressPct}%` }} />
                   </div>
-                  <p className="mt-2 text-xs text-text-muted">Progress reflects tracked work completion and review holds.</p>
+                  <p className="mt-2 text-xs text-text-muted">Progress reflects tracked work completion and QC holds.</p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1278,89 +1206,7 @@ export default function ProjectDetailPage() {
           )}
         </Section>
 
-        <Section title="Approvals & review" description="Keep permission decisions and completed-work review in one place, without blending them into the work board.">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <div className="rounded-2xl border border-border bg-panel-elevated/70 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-text">Pending approvals</h3>
-                  <p className="mt-1 text-sm leading-6 text-text-muted">Permission and risk gates that must be decided before work can proceed.</p>
-                </div>
-                <Link href="/approvals" className="text-xs font-medium text-red-600 hover:text-red-700">Open approvals</Link>
-              </div>
-              <div className="mt-3 rounded-2xl border border-border bg-panel px-4 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Pending approvals</div>
-                <div className="mt-1 text-2xl font-semibold tracking-tight text-text">{data?.stats.pendingApprovals ?? 0}</div>
-                <p className="mt-2 text-xs leading-5 text-text-muted">Use approvals when the question is whether the team may proceed, not whether delivered work is acceptable.</p>
-              </div>
-              <div className="mt-3 space-y-3">
-                {pendingRealtimeApprovals.length > 0 ? pendingRealtimeApprovals.slice(0, 4).map((approval) => (
-                  <div key={approval.id} className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">Approval gate</span>
-                      {approval.severity ? <span className="rounded-full border border-border bg-panel-elevated px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">{approval.severity} risk</span> : null}
-                      <span className="ml-auto text-xs text-text-muted">{formatRelativeTimestamp(approval.created_at)}</span>
-                    </div>
-                    <p className="mt-2 text-sm font-medium text-text">{approval.summary || "Approval decision needed"}</p>
-                    <p className="mt-1 text-xs leading-5 text-text-muted">Decide this gate before more work moves forward.</p>
-                  </div>
-                )) : (
-                  <div className="rounded-2xl border border-dashed border-border bg-panel px-4 py-4 text-sm text-text-muted">No permission or risk gates are waiting right now.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-panel p-4">
-              <h3 className="text-sm font-semibold text-text">Review & revisions</h3>
-              <p className="mt-1 text-sm leading-6 text-text-muted">Review completed work, confirm what shipped, and track any requested follow-up changes.</p>
-              <div className="mt-3 space-y-3">
-                {reviewableMilestones.length > 0 ? reviewableMilestones.map((milestone) => (
-                  <MilestoneReviewCard
-                    key={milestone.id}
-                    projectId={projectId}
-                    milestone={milestone}
-                    documents={documents}
-                    onSaved={() => {
-                      void Promise.all([fetchProject(false), fetchDocuments()]);
-                    }}
-                  />
-                )) : (
-                  <div className="rounded-2xl border border-dashed border-border bg-panel-elevated px-4 py-4 text-sm text-text-muted">No completed work is waiting for review yet.</div>
-                )}
-
-                {completedProjectRevisionMilestones.length > 0 ? (
-                  <div className="border-t border-border pt-4">
-                    <h4 className="text-sm font-semibold text-text">Revision requests</h4>
-                    <p className="mt-1 text-sm leading-6 text-text-muted">Use this when accepted work needs another pass after review, not as a substitute for approval.</p>
-                    <div className="mt-3 space-y-3">
-                      {completedProjectRevisionMilestones.map((milestone) => {
-                        const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
-                        const revisionCycleActive = milestoneDisplayState.stageState.key === "revision_cycle";
-                        const deliveryApproved = milestoneDisplayState.stageState.key === "iteration_shipped";
-                        return (
-                          <RevisionRequestCard
-                            key={`${milestone.id}-completed-revision`}
-                            projectId={projectId}
-                            sprintId={milestone.id}
-                            sprintName={milestone.name}
-                            documents={documents}
-                            onSubmitted={() => {
-                              void Promise.all([fetchProject(false), fetchDocuments()]);
-                            }}
-                            hasActiveRevisionCycle={revisionCycleActive}
-                            shippedApproved={deliveryApproved}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </Section>
-
-        <Section title="Recent signals" description="Operator-relevant updates only: blockers, approvals, review movement, completions, and meaningful project changes.">
+        <Section title="Recent signals" description="Operator-relevant updates only: blockers, QC movement, completions, and meaningful project changes.">
           {recentSignalItems.length > 0 ? (
             <div className="space-y-3">
               {recentSignalItems.slice(0, 8).map((signal) => (

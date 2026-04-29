@@ -60,6 +60,9 @@ assert.doesNotMatch(pageSource, /<Section title="Approvals & review"/, "Project 
 assert.doesNotMatch(pageSource, /<Section title="Approvals & checkpoints"/, "Project detail page should not keep a separate approvals and checkpoints card once project work is canonical");
 assert.match(pageSource, /Capture the next work item, then use secondary controls only when needed\./, "Project actions should guide users into the message-first follow-up flow");
 assert.match(pageSource, /Add follow-up work/, "Project actions should expose the follow-up work entry point");
+assert.match(pageSource, /payload\.follow_up_intent === "revise_delivered_work"/, "Project detail submit flow should detect revision-linked follow-up requests");
+assert.match(pageSource, /\/api\/projects\/\$\{projectId\}\/revision-requests/, "Revision-linked follow-up requests should use the real revision request API path");
+assert.match(pageSource, /attachmentDocumentIds: payload\.reference_document_ids \?\? \[\]/, "Revision-linked follow-up requests should carry selected attachments into the revision workflow");
 assert.match(modalSource, /Message-first intake/, "Follow-up modal should identify the message-first intake flow");
 assert.match(modalSource, /Automatic routing/, "Follow-up modal should explain that routing happens automatically");
 assert.match(modalSource, /What needs to change\?/, "Follow-up modal should collect the follow-up request as a single message");

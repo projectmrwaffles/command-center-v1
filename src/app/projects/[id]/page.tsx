@@ -699,16 +699,30 @@ export default function ProjectDetailPage() {
   const handleCreateTask = async (payload: StructuredTaskPayload) => {
     setCreatingTask(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/tasks`, {
+      const isRevisionRequest = payload.follow_up_intent === "revise_delivered_work" && !!payload.revision_source_task_id && !!payload.sprint_id;
+      const endpoint = isRevisionRequest
+        ? `/api/projects/${projectId}/revision-requests`
+        : `/api/projects/${projectId}/tasks`;
+      const requestBody = isRevisionRequest
+        ? {
+            sprintId: payload.sprint_id,
+            message: [payload.task_goal, payload.context_note].filter((value): value is string => typeof value === "string" && value.trim().length > 0).join("\n\n"),
+            attachmentDocumentIds: payload.reference_document_ids ?? [],
+          }
+        : payload;
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(requestBody),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Failed to create task");
+      if (!res.ok) {
+        throw new Error(json.error || (isRevisionRequest ? "Failed to submit revision request" : "Failed to create task"));
+      }
       setSelectedTask(null);
       setShowTaskModal(false);
-      await fetchProject(false);
+      await Promise.all([fetchProject(false), fetchDocuments()]);
     } catch (e: any) {
       setError(e.message);
     } finally {

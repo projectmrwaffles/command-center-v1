@@ -25,6 +25,14 @@ function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
+const activeWorkSectionClass = "rounded-[28px] border border-[color:color-mix(in_srgb,#2563eb_14%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_4%,var(--color-panel))]";
+const activeWorkCardClass = "border-[color:color-mix(in_srgb,#2563eb_14%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_3%,var(--color-panel))]";
+const activeWorkInnerCardClass = "rounded-2xl border border-[color:color-mix(in_srgb,#2563eb_12%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_2%,var(--color-panel))] p-4 shadow-[var(--shadow-panel-soft)]";
+const activeWorkLiveBadgeClass = "inline-flex items-center gap-2 rounded-full border border-[color:color-mix(in_srgb,#2563eb_18%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_10%,var(--color-panel))] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[color:color-mix(in_srgb,#2563eb_68%,var(--color-text))]";
+const activeWorkProgressTrackClass = "mt-3 h-2 w-full overflow-hidden rounded-full bg-[color:color-mix(in_srgb,#2563eb_14%,var(--color-panel-subtle))]";
+const activeWorkProgressFillClass = "h-2 rounded-full bg-[#2563eb] transition-all";
+const activeWorkFooterClass = "flex items-center justify-between border-t border-[color:color-mix(in_srgb,#2563eb_10%,var(--color-border))] pt-1 text-sm text-text-muted";
+
 function StatusDot({ status }: { status: string }) {
   const color = status === "active" ? "bg-success" : status === "idle" ? "bg-text-muted" : "bg-text-muted";
   return <span className={cn("h-2.5 w-2.5 rounded-full", color)} />;
@@ -245,11 +253,11 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="space-y-6">
-          <section className="space-y-3 rounded-[28px] border border-accent/12 bg-[color:color-mix(in_srgb,var(--color-accent)_5%,var(--color-panel))] p-4 shadow-[var(--shadow-panel-soft)] sm:p-5">
+          <section className={cn("space-y-3 p-4 shadow-[var(--shadow-panel-soft)] sm:p-5", activeWorkSectionClass)}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <SectionTitle meta="Active work, current state, and open flags.">Active Work ({projectCards.length})</SectionTitle>
               <div className="ml-auto flex items-center gap-3">
-                <span className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent-soft px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-accent-soft-foreground">
+                <span className={activeWorkLiveBadgeClass}>
                   <Radio className="h-3.5 w-3.5" />
                   Live
                 </span>
@@ -260,7 +268,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
             </div>
             {projectCards.length === 0 ? (
               <BrandedEmptyState
-                className="items-start rounded-[24px] border border-accent/10 bg-panel px-6 py-10 text-left"
+                className="items-start rounded-[24px] border border-[color:color-mix(in_srgb,#2563eb_10%,var(--color-border))] bg-panel px-6 py-10 text-left"
                 icon={<Layers3 className="h-7 w-7" />}
                 title="No active projects yet"
                 description="Create a project to start routing work, tracking progress, and surfacing dashboard health here."
@@ -313,7 +321,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
                   return (
                     <Link key={team.id} href={`/teams/${team.id}`} className="block">
-                      <Card variant="soft" className="rounded-[24px]">
+                      <Card className="rounded-[24px]">
                         <CardContent className="flex flex-col justify-between gap-3 p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
@@ -348,7 +356,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
   return (
     <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-accent/20">
-      <Card variant="featured" className="relative h-full overflow-hidden rounded-[24px] border-accent/12 bg-[color:color-mix(in_srgb,var(--color-accent)_4%,var(--color-panel))]">
+      <Card variant="featured" className={cn("relative h-full overflow-hidden rounded-[24px]", activeWorkCardClass)}>
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start gap-3">
             <div className="min-w-0">
@@ -361,7 +369,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-accent/10 bg-[color:color-mix(in_srgb,var(--color-accent)_3%,var(--color-panel))] p-4 shadow-[var(--shadow-panel-soft)]">
+          <div className={activeWorkInnerCardClass}>
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Progress</p>
@@ -378,18 +386,18 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
                 {hasFlags ? `${(project.approvalCount ?? 0) + (project.blockedCount ?? 0)} active flags` : "Healthy"}
               </span>
             </div>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-accent-soft">
-              <div className="h-2 rounded-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+            <div className={activeWorkProgressTrackClass}>
+              <div className={activeWorkProgressFillClass} style={{ width: `${progress}%` }} />
             </div>
           </div>
 
           <div className="mt-auto flex flex-wrap gap-2">
-            {(project.approvalCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-accent/15 bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-accent-soft-foreground">{project.approvalCount} approvals</span> : null}
+            {(project.approvalCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,#2563eb_18%,var(--color-border))] bg-[color:color-mix(in_srgb,#2563eb_10%,var(--color-panel))] px-2.5 py-1 text-[11px] font-medium text-[color:color-mix(in_srgb,#2563eb_68%,var(--color-text))]">{project.approvalCount} approvals</span> : null}
             {(project.blockedCount ?? 0) > 0 ? <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--color-warning)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-warning)_14%,var(--color-panel))] px-2.5 py-1 text-[11px] font-medium text-[color:color-mix(in_srgb,var(--color-warning)_72%,var(--color-text))]">{project.blockedCount} blocked</span> : null}
             {!hasFlags ? <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--color-success)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-panel))] px-2.5 py-1 text-[11px] font-medium text-[color:color-mix(in_srgb,var(--color-success)_72%,var(--color-text))]">No active flags</span> : null}
           </div>
 
-          <div className="flex items-center justify-between border-t border-accent/10 pt-1 text-sm text-text-muted">
+          <div className={activeWorkFooterClass}>
             <span>Open project workspace</span>
             <span className="inline-flex items-center gap-1 font-medium text-text-secondary transition-colors group-hover:text-accent-strong">
               View project
@@ -404,7 +412,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
 function UsageCard({ usage }: { usage: UsageModel }) {
   return (
-    <Card variant="soft" className="rounded-[24px]">
+    <Card className="rounded-[24px]">
       <CardContent className="space-y-5 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

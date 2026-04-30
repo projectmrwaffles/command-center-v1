@@ -1122,17 +1122,17 @@ export default function ProjectDetailPage() {
                   label: "Queued work",
                   bucket: taskGroups.todo,
                   bucketKey: "queued",
-                  sectionClass: "border-amber-200 bg-gradient-to-b from-amber-50 to-amber-100/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] dark:border-amber-900/40 dark:from-amber-950/28 dark:to-amber-900/18",
-                  countClass: "border-amber-300/80 bg-amber-100/90 text-amber-900 dark:border-amber-800/70 dark:bg-amber-900/45 dark:text-amber-100",
-                  emptyClass: "border-amber-200 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/36",
+                  sectionClass: "border-amber-200/90 bg-gradient-to-b from-amber-50 via-white to-amber-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-amber-900/40 dark:from-amber-950/30 dark:via-[color:color-mix(in_srgb,var(--color-panel)_88%,transparent)] dark:to-amber-900/20",
+                  countClass: "border-amber-300/80 bg-amber-100/95 text-amber-900 dark:border-amber-800/70 dark:bg-amber-900/45 dark:text-amber-100",
+                  emptyClass: "border-amber-200/90 bg-white/70 dark:border-amber-900/40 dark:bg-amber-950/34",
                 },
                 {
                   label: "Active work",
                   bucket: taskGroups.inProgress,
                   bucketKey: "in_flight",
-                  sectionClass: "border-sky-200 bg-gradient-to-b from-sky-50 to-sky-100/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] dark:border-sky-900/40 dark:from-sky-950/28 dark:to-sky-900/18",
-                  countClass: "border-sky-300/80 bg-sky-100/90 text-sky-900 dark:border-sky-800/70 dark:bg-sky-900/45 dark:text-sky-100",
-                  emptyClass: "border-sky-200 bg-sky-50/80 dark:border-sky-900/40 dark:bg-sky-950/36",
+                  sectionClass: "border-sky-200/90 bg-gradient-to-b from-sky-50 via-white to-sky-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-sky-900/40 dark:from-sky-950/30 dark:via-[color:color-mix(in_srgb,var(--color-panel)_88%,transparent)] dark:to-sky-900/20",
+                  countClass: "border-sky-300/80 bg-sky-100/95 text-sky-900 dark:border-sky-800/70 dark:bg-sky-900/45 dark:text-sky-100",
+                  emptyClass: "border-sky-200/90 bg-white/70 dark:border-sky-900/40 dark:bg-sky-950/34",
                 },
                 {
                   label: "Blocked work",
@@ -1195,9 +1195,9 @@ export default function ProjectDetailPage() {
                           ? task.task_metadata.reference_document_titles.split("|").map((value: string) => value.trim()).filter(Boolean).length
                           : 0;
                         const taskCardSurfaceClass = bucketKey === "queued"
-                          ? "border-amber-200/90 bg-white/80 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/28"
+                          ? "border-amber-200/90 bg-white/88 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/28"
                           : bucketKey === "in_flight"
-                            ? "border-sky-200/90 bg-white/80 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/28"
+                            ? "border-sky-200/90 bg-white/88 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/28"
                             : bucketKey === "stalled"
                               ? "border-red-200 bg-red-50/25 dark:border-red-900/40 dark:bg-red-950/20"
                               : bucketKey === "done"

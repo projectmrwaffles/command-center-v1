@@ -1120,8 +1120,8 @@ export default function ProjectDetailPage() {
               {[
                 ["Queued work", taskGroups.todo, "border-border bg-panel-subtle", "queued"],
                 ["Active work", taskGroups.inProgress, "border-border bg-panel-subtle", "in_flight"],
-                ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/35 dark:border-amber-900/40 dark:bg-amber-950/20", "stalled"],
-                ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/35 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
+                ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/15 dark:border-amber-900/40 dark:bg-amber-950/20", "stalled"],
+                ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/15 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
               ].map(([label, bucket, bucketClass, bucketKey]) => (
                 <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
                   <div className="mb-3 flex items-center justify-between gap-2">

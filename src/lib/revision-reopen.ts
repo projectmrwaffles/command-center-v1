@@ -11,6 +11,14 @@ type SprintRow = {
   created_at?: string | null;
 };
 
+type SprintTaskRow = {
+  id: string;
+  sprint_id: string;
+  status: string | null;
+  task_type?: string | null;
+  review_required?: boolean | null;
+};
+
 function sortSprints(a: SprintRow, b: SprintRow) {
   const ao = a.phase_order ?? Number.MAX_SAFE_INTEGER;
   const bo = b.phase_order ?? Number.MAX_SAFE_INTEGER;
@@ -18,10 +26,54 @@ function sortSprints(a: SprintRow, b: SprintRow) {
   return +new Date(a.created_at || 0) - +new Date(b.created_at || 0);
 }
 
+export async function reopenSprintTasksForRevision(db: DbClient, input: {
+  projectId: string;
+  sprintId: string;
+  now?: string;
+  revisionSourceTaskId?: string | null;
+}) {
+  const now = input.now || new Date().toISOString();
+  const { data: sprintTasks, error } = await db
+    .from("sprint_items")
+    .select("id, sprint_id, status, task_type, review_required")
+    .eq("project_id", input.projectId)
+    .eq("sprint_id", input.sprintId);
+
+  if (error) throw new Error(error.message || "Failed to load sprint tasks for revision reopen");
+
+  const tasks = (sprintTasks || []) as SprintTaskRow[];
+  const explicitSource = input.revisionSourceTaskId
+    ? tasks.find((task) => task.id === input.revisionSourceTaskId)
+    : null;
+
+  const reopenTargets = explicitSource
+    ? [explicitSource]
+    : tasks.filter((task) => {
+        if (!task.id) return false;
+        if (task.status !== "done") return false;
+        if (task.task_type === "qa_validation") return false;
+        return true;
+      });
+
+  const reopenIds = reopenTargets.map((task) => task.id).filter(Boolean);
+  if (reopenIds.length === 0) return [] as string[];
+
+  const { error: updateError } = await db
+    .from("sprint_items")
+    .update({ status: "todo", review_status: "revision_requested", updated_at: now })
+    .eq("project_id", input.projectId)
+    .in("id", reopenIds);
+
+  if (updateError) throw new Error(updateError.message || "Failed to reopen sprint tasks for revision work");
+
+  return reopenIds;
+}
+
 export async function reopenProjectSprintForRevision(db: DbClient, input: {
   projectId: string;
   sprintId: string;
   now?: string;
+  revisionSourceTaskId?: string | null;
 }) {
   const now = input.now || new Date().toISOString();
   const { data: sprints, error } = await db
@@ -67,10 +119,18 @@ export async function reopenProjectSprintForRevision(db: DbClient, input: {
     if (downstreamTaskReset.error) throw new Error(downstreamTaskReset.error.message || "Failed to reset downstream tasks for revision work");
   }
 
+  const reopenedTaskIds = await reopenSprintTasksForRevision(db, {
+    projectId: input.projectId,
+    sprintId: input.sprintId,
+    now,
+    revisionSourceTaskId: input.revisionSourceTaskId,
+  });
+
   return {
     reopenedProject: true,
     reopenedSprintId: input.sprintId,
     resetSprintIds: laterSprintIds,
+    reopenedTaskIds,
   };
 }
 

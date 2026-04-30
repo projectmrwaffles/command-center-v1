@@ -62,6 +62,7 @@ assert.match(pageSource, /Capture the next work item, then use secondary control
 assert.match(pageSource, /Add follow-up work/, "Project actions should expose the follow-up work entry point");
 assert.match(pageSource, /payload\.follow_up_intent === "revise_delivered_work"/, "Project detail submit flow should detect revision-linked follow-up requests");
 assert.match(pageSource, /\/api\/projects\/\$\{projectId\}\/revision-requests/, "Revision-linked follow-up requests should use the real revision request API path");
+assert.match(pageSource, /revisionSourceTaskId: payload\.revision_source_task_id/, "Revision-linked follow-up requests should preserve the selected delivered work id");
 assert.match(pageSource, /attachmentDocumentIds: payload\.reference_document_ids \?\? \[\]/, "Revision-linked follow-up requests should carry selected attachments into the revision workflow");
 assert.match(modalSource, /Message-first intake/, "Follow-up modal should identify the message-first intake flow");
 assert.match(modalSource, /Automatic routing/, "Follow-up modal should explain that routing happens automatically");

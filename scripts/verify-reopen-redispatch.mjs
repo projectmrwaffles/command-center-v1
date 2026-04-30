@@ -11,6 +11,7 @@ function createMockDb(seed) {
     return filters.every((filter) => {
       if (filter.kind === 'eq') return row[filter.column] === filter.value;
       if (filter.kind === 'in') return filter.values.includes(row[filter.column]);
+      if (filter.kind === 'neq') return row[filter.column] !== filter.value;
       if (filter.kind === 'not_like') return !String(row[filter.column] ?? '').includes(filter.value.replaceAll('%', ''));
       return true;
     });
@@ -40,6 +41,7 @@ function createMockDb(seed) {
     const api = {
       eq(column, value) { state.filters.push({ kind: 'eq', column, value }); return api; },
       in(column, values) { state.filters.push({ kind: 'in', column, values }); return api; },
+      neq(column, value) { state.filters.push({ kind: 'neq', column, value }); return api; },
       not(column, op, value) { if (op === 'like') state.filters.push({ kind: 'not_like', column, value }); return api; },
       order(column, { ascending = true } = {}) { state.orderBy.push({ column, ascending }); return api; },
       limit(value) { state.limitValue = value; return api; },
@@ -92,7 +94,15 @@ function createMockDb(seed) {
 const now = '2026-04-23T21:00:00.000Z';
 const db = createMockDb({
   projects: [
-    { id: 'project-1', name: 'Content Planner 9.0', status: 'completed', updated_at: null, type: 'web' },
+    {
+      id: 'project-1',
+      name: 'Content Planner 9.0',
+      status: 'completed',
+      updated_at: null,
+      type: 'web',
+      github_repo_binding: { url: 'https://github.com/projectmrwaffles/content-planner-9-0', fullName: 'projectmrwaffles/content-planner-9-0' },
+      links: { github: 'https://github.com/projectmrwaffles/content-planner-9-0' },
+    },
   ],
   sprints: [
     { id: 's1', project_id: 'project-1', name: 'Discovery', status: 'completed', phase_order: 1, created_at: '2026-04-20T00:00:00.000Z', phase_key: 'discover', approval_gate_required: false, approval_gate_status: 'not_requested', delivery_review_required: false, delivery_review_status: 'not_requested' },
@@ -100,22 +110,26 @@ const db = createMockDb({
     { id: 's3', project_id: 'project-1', name: 'Validate', status: 'draft', phase_order: 3, created_at: '2026-04-20T00:02:00.000Z', phase_key: 'validate', approval_gate_required: false, approval_gate_status: 'not_requested', delivery_review_required: false, delivery_review_status: 'not_requested' },
   ],
   sprint_items: [
-    { id: 'task-build', project_id: 'project-1', sprint_id: 's2', title: 'Implement approved revisions', status: 'todo', assignee_agent_id: 'agent-1', owner_team_id: null, task_type: null, review_required: true, review_status: 'revision_requested' },
+    { id: 'task-build', project_id: 'project-1', sprint_id: 's2', title: 'Implement approved revisions', status: 'done', assignee_agent_id: '11111111-1111-1111-1111-000000000006', owner_team_id: null, task_type: 'build_implementation', review_required: true, review_status: 'approved' },
+    { id: 'task-review', project_id: 'project-1', sprint_id: 's3', title: 'Acceptance review', status: 'done', assignee_agent_id: '11111111-1111-1111-1111-000000000006', owner_team_id: null, task_type: 'qa_validation', review_required: true, review_status: 'approved' },
   ],
   jobs: [],
   agents: [
-    { id: 'agent-1', status: 'idle', current_job_id: null, name: 'Backend Engineer' },
+    { id: '11111111-1111-1111-1111-000000000006', status: 'idle', current_job_id: null, name: 'Tech Lead Architect' },
   ],
   agent_events: [],
   agent_notifications: [],
 });
 
-await reopenProjectSprintForRevision(db, { projectId: 'project-1', sprintId: 's2', now });
+const reopenResult = await reopenProjectSprintForRevision(db, { projectId: 'project-1', sprintId: 's2', now });
 const dispatchResults = await redispatchReopenedSprintTasks(db, { projectId: 'project-1', sprintId: 's2' });
 
 assert.equal(db.tables.projects[0].status, 'active');
 assert.equal(db.tables.sprints.find((row) => row.id === 's2')?.status, 'active');
 assert.equal(db.tables.sprints.find((row) => row.id === 's3')?.status, 'draft');
+assert.deepEqual(reopenResult.reopenedTaskIds, ['task-build']);
+assert.equal(db.tables.sprint_items.find((row) => row.id === 'task-build')?.status, 'todo');
+assert.equal(db.tables.sprint_items.find((row) => row.id === 'task-review')?.status, 'todo');
 assert.equal(dispatchResults.length, 1);
 assert.equal(dispatchResults[0].dispatched, true);
 assert.equal(db.tables.jobs.length, 1);

@@ -5,12 +5,14 @@ function createMockDb(seed) {
   const tables = {
     projects: seed.projects.map((row) => ({ ...row })),
     sprints: seed.sprints.map((row) => ({ ...row })),
+    sprint_items: (seed.sprint_items || []).map((row) => ({ ...row })),
   };
 
   function matches(row, filters) {
     return filters.every((filter) => {
       if (filter.kind === 'eq') return row[filter.column] === filter.value;
       if (filter.kind === 'in') return filter.values.includes(row[filter.column]);
+      if (filter.kind === 'neq') return row[filter.column] !== filter.value;
       return true;
     });
   }
@@ -28,6 +30,10 @@ function createMockDb(seed) {
               filters.push({ kind: 'eq', column, value });
               return this;
             },
+            in(column, values) {
+              filters.push({ kind: 'in', column, values });
+              return this;
+            },
             async then(resolve) {
               return resolve({ data: table.filter((row) => matches(row, filters)), error: null });
             },
@@ -42,6 +48,10 @@ function createMockDb(seed) {
             },
             in(column, valuesList) {
               filters.push({ kind: 'in', column, values: valuesList });
+              return chain;
+            },
+            neq(column, value) {
+              filters.push({ kind: 'neq', column, value });
               return chain;
             },
             async then(resolve) {
@@ -68,9 +78,14 @@ const db = createMockDb({
     { id: 's2', project_id: 'project-1', status: 'completed', phase_order: 2, created_at: '2026-04-20T00:01:00.000Z' },
     { id: 's3', project_id: 'project-1', status: 'completed', phase_order: 3, created_at: '2026-04-20T00:02:00.000Z' },
   ],
+  sprint_items: [
+    { id: 'task-build', project_id: 'project-1', sprint_id: 's2', status: 'done', task_type: 'build_implementation', review_required: true, review_status: 'approved' },
+    { id: 'task-review', project_id: 'project-1', sprint_id: 's2', status: 'done', task_type: 'qa_validation', review_required: true, review_status: 'approved' },
+    { id: 'task-validate', project_id: 'project-1', sprint_id: 's3', status: 'done', task_type: 'qa_validation', review_required: true, review_status: 'approved' },
+  ],
 });
 
-await reopenProjectSprintForRevision(db, { projectId: 'project-1', sprintId: 's2', now });
+const result = await reopenProjectSprintForRevision(db, { projectId: 'project-1', sprintId: 's2', now });
 
 assert.equal(db.tables.projects[0].status, 'active');
 assert.equal(db.tables.projects[0].updated_at, now);
@@ -78,9 +93,15 @@ assert.equal(db.tables.sprints.find((row) => row.id === 's2')?.status, 'active')
 assert.equal(db.tables.sprints.find((row) => row.id === 's2')?.updated_at, now);
 assert.equal(db.tables.sprints.find((row) => row.id === 's3')?.status, 'draft');
 assert.equal(db.tables.sprints.find((row) => row.id === 's1')?.status, 'completed');
+assert.deepEqual(result.reopenedTaskIds, ['task-build']);
+assert.equal(db.tables.sprint_items.find((row) => row.id === 'task-build')?.status, 'todo');
+assert.equal(db.tables.sprint_items.find((row) => row.id === 'task-build')?.review_status, 'revision_requested');
+assert.equal(db.tables.sprint_items.find((row) => row.id === 'task-review')?.status, 'done');
+assert.equal(db.tables.sprint_items.find((row) => row.id === 'task-validate')?.status, 'todo');
 
 console.log('verify-revision-reopen: ok', JSON.stringify({
   projectStatus: db.tables.projects[0].status,
   reopenedSprint: db.tables.sprints.find((row) => row.id === 's2')?.status,
   resetSprint: db.tables.sprints.find((row) => row.id === 's3')?.status,
+  reopenedTaskIds: result.reopenedTaskIds,
 }));

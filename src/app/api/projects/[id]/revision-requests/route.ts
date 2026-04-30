@@ -60,6 +60,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const { id: projectId } = await ctx.params;
     const body = await req.json();
     const sprintId = typeof body?.sprintId === "string" && body.sprintId.trim() ? body.sprintId.trim() : null;
+    const revisionSourceTaskId = typeof body?.revisionSourceTaskId === "string" && body.revisionSourceTaskId.trim() ? body.revisionSourceTaskId.trim() : null;
     const message = typeof body?.message === "string" && body.message.trim() ? body.message.trim() : null;
     const attachmentDocumentIds = Array.isArray(body?.attachmentDocumentIds)
       ? body.attachmentDocumentIds.filter((value: unknown) => typeof value === "string" && value.trim().length > 0)
@@ -166,7 +167,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     await db.from("sprints").update({ delivery_review_required: true, delivery_review_status: "rejected", updated_at: now }).eq("id", sprintId).eq("project_id", projectId);
     await db.from("sprint_items").update({ review_status: "revision_requested", status: "todo", updated_at: now }).eq("project_id", projectId).eq("sprint_id", sprintId).eq("review_required", true);
-    await reopenProjectSprintForRevision(db as any, { projectId, sprintId, now });
+    await reopenProjectSprintForRevision(db as any, { projectId, sprintId, now, revisionSourceTaskId });
     const dispatchResults = await redispatchReopenedSprintTasks(db as any, { projectId, sprintId });
 
     await db.from("agent_events").insert({

@@ -706,6 +706,7 @@ export default function ProjectDetailPage() {
       const requestBody = isRevisionRequest
         ? {
             sprintId: payload.sprint_id,
+            revisionSourceTaskId: payload.revision_source_task_id,
             message: [payload.task_goal, payload.context_note].filter((value): value is string => typeof value === "string" && value.trim().length > 0).join("\n\n"),
             attachmentDocumentIds: payload.reference_document_ids ?? [],
           }

@@ -57,6 +57,14 @@ export async function reopenProjectSprintForRevision(db: DbClient, input: {
       .eq("project_id", input.projectId)
       .in("id", laterSprintIds);
     if (laterUpdate.error) throw new Error(laterUpdate.error.message || "Failed to reset downstream milestones for revision work");
+
+    const downstreamTaskReset = await db
+      .from("sprint_items")
+      .update({ status: "todo", review_status: "not_requested", updated_at: now })
+      .eq("project_id", input.projectId)
+      .in("sprint_id", laterSprintIds)
+      .neq("status", "cancelled");
+    if (downstreamTaskReset.error) throw new Error(downstreamTaskReset.error.message || "Failed to reset downstream tasks for revision work");
   }
 
   return {

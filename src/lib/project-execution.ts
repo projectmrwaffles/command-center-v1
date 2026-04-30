@@ -101,6 +101,11 @@ export function isSprintEffectivelyCompleteForSequencing(input: {
     && input.sprint.delivery_review_status !== "approved";
   if (!deliveryReviewBlocked) return true;
 
+  const activeRevisionCycle = input.sprint.delivery_review_status === "rejected"
+    || input.sprint.delivery_review_status === "revision_requested"
+    || input.sprint.delivery_review_status === "changes_requested";
+  if (activeRevisionCycle) return false;
+
   const allSprints = (input.sprints || []).slice().sort(sortSprints);
   const sprintIndex = allSprints.findIndex((candidate) => candidate.id === input.sprint.id);
   if (sprintIndex === -1) return false;

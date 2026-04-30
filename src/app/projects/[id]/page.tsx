@@ -1119,7 +1119,7 @@ export default function ProjectDetailPage() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
                 ["Queued work", taskGroups.todo, "border-border bg-panel-subtle", "queued"],
-                ["Active work", taskGroups.inProgress, "border-border bg-panel-elevated/70", "in_flight"],
+                ["Active work", taskGroups.inProgress, "border-border bg-panel-subtle", "in_flight"],
                 ["Blocked work", taskGroups.blocked, "border-amber-100 bg-amber-50/70 dark:border-amber-900/40 dark:bg-amber-950/20", "stalled"],
                 ["Completed work", taskGroups.done, "border-emerald-100 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
               ].map(([label, bucket, bucketClass, bucketKey]) => (
@@ -1166,8 +1166,11 @@ export default function ProjectDetailPage() {
                         const referenceFileCount = typeof task.task_metadata?.reference_document_titles === "string"
                           ? task.task_metadata.reference_document_titles.split("|").map((value: string) => value.trim()).filter(Boolean).length
                           : 0;
+                        const taskCardSurfaceClass = bucketKey === "queued" || bucketKey === "in_flight"
+                          ? "bg-white shadow-sm dark:bg-panel"
+                          : "bg-panel";
                         return (
-                          <button key={task.id} onClick={() => handleTaskClick(task)} className="block w-full rounded-xl border border-border bg-panel p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25">
+                          <button key={task.id} onClick={() => handleTaskClick(task)} className={cn("block w-full rounded-xl border border-border p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25", taskCardSurfaceClass)}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-start justify-between gap-2">

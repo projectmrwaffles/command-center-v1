@@ -1118,8 +1118,8 @@ export default function ProjectDetailPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
-                ["Queued work", taskGroups.todo, "border-border bg-panel-subtle", "queued"],
-                ["Active work", taskGroups.inProgress, "border-border bg-panel-subtle", "in_flight"],
+                ["Queued work", taskGroups.todo, "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20", "queued"],
+                ["Active work", taskGroups.inProgress, "border-sky-200 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/20", "in_flight"],
                 ["Blocked work", taskGroups.blocked, "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20", "stalled"],
                 ["Completed work", taskGroups.done, "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
               ].map(([label, bucket, bucketClass, bucketKey]) => (
@@ -1130,11 +1130,15 @@ export default function ProjectDetailPage() {
                   </div>
                   <div className="space-y-2">
                     {(bucket as any[]).length === 0 ? (
-                      <div className={cn("rounded-xl border border-dashed px-3 py-4 text-xs text-text-muted", bucketKey === "stalled"
-                        ? "border-red-200 bg-red-50/40 dark:border-red-900/40 dark:bg-red-950/20"
-                        : bucketKey === "done"
-                          ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-                          : "border-border bg-panel")}>No work items</div>
+                      <div className={cn("rounded-xl border border-dashed px-3 py-4 text-xs text-text-muted", bucketKey === "queued"
+                        ? "border-amber-200 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/20"
+                        : bucketKey === "in_flight"
+                          ? "border-sky-200 bg-sky-50/40 dark:border-sky-900/40 dark:bg-sky-950/20"
+                          : bucketKey === "stalled"
+                            ? "border-red-200 bg-red-50/40 dark:border-red-900/40 dark:bg-red-950/20"
+                            : bucketKey === "done"
+                              ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                              : "border-border bg-panel")}>No work items</div>
                     ) : (
                       (bucket as any[]).map((task: any) => {
                         const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
@@ -1170,13 +1174,15 @@ export default function ProjectDetailPage() {
                         const referenceFileCount = typeof task.task_metadata?.reference_document_titles === "string"
                           ? task.task_metadata.reference_document_titles.split("|").map((value: string) => value.trim()).filter(Boolean).length
                           : 0;
-                        const taskCardSurfaceClass = bucketKey === "queued" || bucketKey === "in_flight"
-                          ? "bg-white shadow-sm dark:bg-panel"
-                          : bucketKey === "stalled"
-                            ? "border-red-200 bg-red-50/25 dark:border-red-900/40 dark:bg-red-950/20"
-                            : bucketKey === "done"
-                              ? "border-emerald-200 bg-emerald-50/25 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-                              : "bg-panel";
+                        const taskCardSurfaceClass = bucketKey === "queued"
+                          ? "border-amber-200 bg-amber-50/30 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20"
+                          : bucketKey === "in_flight"
+                            ? "border-sky-200 bg-sky-50/30 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/20"
+                            : bucketKey === "stalled"
+                              ? "border-red-200 bg-red-50/25 dark:border-red-900/40 dark:bg-red-950/20"
+                              : bucketKey === "done"
+                                ? "border-emerald-200 bg-emerald-50/25 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                                : "bg-panel";
                         return (
                           <button key={task.id} onClick={() => handleTaskClick(task)} className={cn("block w-full rounded-xl border border-border p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25", taskCardSurfaceClass)}>
                             <div className="flex items-start justify-between gap-3">

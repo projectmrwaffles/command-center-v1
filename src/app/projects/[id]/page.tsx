@@ -1118,29 +1118,49 @@ export default function ProjectDetailPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
-                ["Queued work", taskGroups.todo, "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20", "queued"],
-                ["Active work", taskGroups.inProgress, "border-sky-200 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/20", "in_flight"],
-                ["Blocked work", taskGroups.blocked, "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20", "stalled"],
-                ["Completed work", taskGroups.done, "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20", "done"],
-              ].map(([label, bucket, bucketClass, bucketKey]) => (
-                <div key={String(label)} className={cn("rounded-2xl border p-3", String(bucketClass))}>
+                {
+                  label: "Queued work",
+                  bucket: taskGroups.todo,
+                  bucketKey: "queued",
+                  sectionClass: "border-amber-200/90 bg-amber-50/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] dark:border-amber-900/50 dark:bg-amber-950/28",
+                  countClass: "border-amber-300/80 bg-amber-100/90 text-amber-900 dark:border-amber-800/70 dark:bg-amber-900/45 dark:text-amber-100",
+                  emptyClass: "border-amber-200 bg-amber-100/55 dark:border-amber-900/40 dark:bg-amber-950/30",
+                },
+                {
+                  label: "Active work",
+                  bucket: taskGroups.inProgress,
+                  bucketKey: "in_flight",
+                  sectionClass: "border-sky-200/90 bg-sky-50/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] dark:border-sky-900/50 dark:bg-sky-950/28",
+                  countClass: "border-sky-300/80 bg-sky-100/90 text-sky-900 dark:border-sky-800/70 dark:bg-sky-900/45 dark:text-sky-100",
+                  emptyClass: "border-sky-200 bg-sky-100/55 dark:border-sky-900/40 dark:bg-sky-950/30",
+                },
+                {
+                  label: "Blocked work",
+                  bucket: taskGroups.blocked,
+                  bucketKey: "stalled",
+                  sectionClass: "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20",
+                  countClass: "border-red-200/80 bg-red-100/90 text-red-900 dark:border-red-800/60 dark:bg-red-900/40 dark:text-red-100",
+                  emptyClass: "border-red-200 bg-red-50/40 dark:border-red-900/40 dark:bg-red-950/20",
+                },
+                {
+                  label: "Completed work",
+                  bucket: taskGroups.done,
+                  bucketKey: "done",
+                  sectionClass: "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20",
+                  countClass: "border-emerald-200/80 bg-emerald-100/90 text-emerald-900 dark:border-emerald-800/60 dark:bg-emerald-900/40 dark:text-emerald-100",
+                  emptyClass: "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20",
+                },
+              ].map(({ label, bucket, bucketKey, sectionClass, countClass, emptyClass }) => (
+                <div key={label} className={cn("rounded-2xl border p-3", sectionClass)}>
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-text">{label}</h3>
-                    <span className="rounded-full border border-border bg-panel px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-text-muted">{(bucket as any[]).length}</span>
+                    <span className={cn("rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]", countClass)}>{bucket.length}</span>
                   </div>
                   <div className="space-y-2">
-                    {(bucket as any[]).length === 0 ? (
-                      <div className={cn("rounded-xl border border-dashed px-3 py-4 text-xs text-text-muted", bucketKey === "queued"
-                        ? "border-amber-200 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/20"
-                        : bucketKey === "in_flight"
-                          ? "border-sky-200 bg-sky-50/40 dark:border-sky-900/40 dark:bg-sky-950/20"
-                          : bucketKey === "stalled"
-                            ? "border-red-200 bg-red-50/40 dark:border-red-900/40 dark:bg-red-950/20"
-                            : bucketKey === "done"
-                              ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-                              : "border-border bg-panel")}>No work items</div>
+                    {bucket.length === 0 ? (
+                      <div className={cn("rounded-xl border border-dashed px-3 py-4 text-xs text-text-muted", emptyClass)}>No work items</div>
                     ) : (
-                      (bucket as any[]).map((task: any) => {
+                      bucket.map((task: any) => {
                         const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
                         const taskTypeConfig = task.task_type ? TASK_TYPE_CONFIG[task.task_type as keyof typeof TASK_TYPE_CONFIG] : null;
                         const taskProgress = taskProgressValue(task);

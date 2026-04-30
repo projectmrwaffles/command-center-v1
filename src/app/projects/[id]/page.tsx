@@ -1287,7 +1287,7 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-text">Links</h3>
                 <p className="mt-1 text-sm leading-6 text-text-muted">Separate active delivery surfaces from reference material so operators can get where they need faster.</p>
@@ -1312,12 +1312,12 @@ export default function ProjectDetailPage() {
                       {group.entries.length > 0 ? (
                         <div className="mt-3 space-y-2">
                           {group.entries.map((link) => (
-                            <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-border bg-panel-elevated px-4 py-3 transition hover:border-accent/25 hover:bg-panel">
-                              <div className="min-w-0">
+                            <a key={link.key} href={link.url} target="_blank" rel="noreferrer" className="flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-border bg-panel-elevated px-4 py-3 transition hover:border-accent/25 hover:bg-panel sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0 w-full">
                                 <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">{link.label}</div>
                                 <div className="mt-1 break-all text-sm font-medium text-text">{link.url}</div>
                               </div>
-                              <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
+                              <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600 sm:self-center">
                                 Open
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </div>
@@ -1339,7 +1339,7 @@ export default function ProjectDetailPage() {
               )}
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-text">Documents & uploads</h3>
                 <p className="mt-1 text-sm leading-6 text-text-muted">Uploads and derived notes stay together here so reference files and extracted context scan as one set.</p>
@@ -1363,8 +1363,8 @@ export default function ProjectDetailPage() {
                     {documents.length > 0 ? (
                       <div className="mt-3 space-y-2">
                         {documents.map((doc) => (
-                          <a key={doc.id} href={doc.url || undefined} target={doc.url ? "_blank" : undefined} rel={doc.url ? "noreferrer" : undefined} className={cn("flex items-start justify-between gap-3 rounded-2xl border border-border px-4 py-3", doc.url ? "bg-panel-elevated transition hover:border-accent/25 hover:bg-panel" : "bg-panel")}>
-                            <div className="min-w-0">
+                          <a key={doc.id} href={doc.url || undefined} target={doc.url ? "_blank" : undefined} rel={doc.url ? "noreferrer" : undefined} className={cn("flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between", doc.url ? "bg-panel-elevated transition hover:border-accent/25 hover:bg-panel" : "bg-panel")}>
+                            <div className="min-w-0 w-full">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="rounded-full border border-border bg-panel-elevated px-2 py-0.5 text-[10px] font-medium uppercase text-text-secondary">{doc.type.replace(/_/g, " ")}</span>
                                 <p className="truncate text-sm font-medium text-text">{doc.title}</p>
@@ -1373,7 +1373,7 @@ export default function ProjectDetailPage() {
                               {doc.storage_path ? <p className="mt-1 break-all text-[11px] text-text-muted">{doc.storage_path}</p> : null}
                             </div>
                             {doc.url ? (
-                              <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600">
+                              <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600 sm:self-center">
                                 Open
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </div>

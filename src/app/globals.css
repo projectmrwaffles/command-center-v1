@@ -5,11 +5,11 @@ html[data-theme="light"] {
   --background: #fafafa;
   --foreground: #0f172a;
   --color-page: #fafafa;
-  --color-shell: #ffffff;
+  --color-shell: #eef2f7;
   --color-panel: #ffffff;
-  --color-panel-elevated: #ffffff;
-  --color-panel-subtle: #f6f6f7;
-  --color-panel-subtle-strong: #f1f2f4;
+  --color-panel-elevated: #fbfcfd;
+  --color-panel-subtle: #f4f7fb;
+  --color-panel-subtle-strong: #eef3f8;
   --color-border: #e6e6e8;
   --color-text: #0f172a;
   --color-text-muted: #64748b;

@@ -1130,7 +1130,11 @@ export default function ProjectDetailPage() {
                   </div>
                   <div className="space-y-2">
                     {(bucket as any[]).length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-border bg-panel px-3 py-4 text-xs text-text-muted">No work items</div>
+                      <div className={cn("rounded-xl border border-dashed px-3 py-4 text-xs text-text-muted", bucketKey === "stalled"
+                        ? "border-red-200 bg-red-50/40 dark:border-red-900/40 dark:bg-red-950/20"
+                        : bucketKey === "done"
+                          ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                          : "border-border bg-panel")}>No work items</div>
                     ) : (
                       (bucket as any[]).map((task: any) => {
                         const assignee = task.assignee_agent_id ? agentsById.get(task.assignee_agent_id) : null;
@@ -1168,7 +1172,11 @@ export default function ProjectDetailPage() {
                           : 0;
                         const taskCardSurfaceClass = bucketKey === "queued" || bucketKey === "in_flight"
                           ? "bg-white shadow-sm dark:bg-panel"
-                          : "bg-panel";
+                          : bucketKey === "stalled"
+                            ? "border-red-200 bg-red-50/25 dark:border-red-900/40 dark:bg-red-950/20"
+                            : bucketKey === "done"
+                              ? "border-emerald-200 bg-emerald-50/25 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                              : "bg-panel";
                         return (
                           <button key={task.id} onClick={() => handleTaskClick(task)} className={cn("block w-full rounded-xl border border-border p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25", taskCardSurfaceClass)}>
                             <div className="flex items-start justify-between gap-3">

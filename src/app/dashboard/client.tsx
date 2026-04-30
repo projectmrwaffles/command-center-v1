@@ -25,10 +25,10 @@ function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
-const activeWorkSectionClass = "space-y-3 rounded-[28px] border border-sky-200/80 bg-gradient-to-b from-sky-50 via-white to-sky-100/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),var(--shadow-panel-soft)] dark:border-sky-900/40 dark:from-sky-950/24 dark:via-[color:color-mix(in_srgb,var(--color-panel)_88%,transparent)] dark:to-sky-900/18";
+const activeWorkSectionClass = "space-y-3";
 const activeWorkCardClass = "relative h-full overflow-hidden rounded-[24px]";
-const activeWorkInnerCardClass = "rounded-2xl border border-sky-200/70 bg-white/88 p-4 shadow-[var(--shadow-panel-soft)] dark:border-sky-900/40 dark:bg-sky-950/24";
-const activeWorkLiveBadgeClass = "inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-sky-100/90 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-sky-900 dark:border-sky-800/70 dark:bg-sky-900/40 dark:text-sky-100";
+const activeWorkInnerCardClass = "rounded-2xl border border-border/70 bg-panel p-4 shadow-[var(--shadow-panel-soft)]";
+const activeWorkLiveBadgeClass = "inline-flex items-center gap-2 rounded-full border border-border/70 bg-panel-subtle px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-text-secondary";
 const activeWorkProgressTrackClass = "mt-3 h-2 w-full overflow-hidden rounded-full bg-accent-soft";
 const activeWorkProgressFillClass = "h-2 rounded-full bg-accent transition-all";
 const activeWorkFooterClass = "flex items-center justify-between border-t border-border/60 pt-1 text-sm text-text-muted";

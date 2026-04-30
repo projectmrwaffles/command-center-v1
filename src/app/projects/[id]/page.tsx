@@ -1199,9 +1199,9 @@ export default function ProjectDetailPage() {
                           : bucketKey === "in_flight"
                             ? "border-sky-200/90 bg-white/88 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/28"
                             : bucketKey === "stalled"
-                              ? "border-red-200 bg-red-50/25 dark:border-red-900/40 dark:bg-red-950/20"
+                              ? "border-red-200/90 bg-white/88 shadow-sm dark:border-red-900/40 dark:bg-red-950/28"
                               : bucketKey === "done"
-                                ? "border-emerald-200 bg-emerald-50/25 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                                ? "border-emerald-200/90 bg-white/88 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/28"
                                 : "bg-panel";
                         return (
                           <button key={task.id} onClick={() => handleTaskClick(task)} className={cn("block w-full rounded-xl border border-border p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25", taskCardSurfaceClass)}>

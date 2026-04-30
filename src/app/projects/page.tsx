@@ -203,40 +203,37 @@ function ProjectsContent() {
             return (
               <Link key={project.id} href={`/projects/${project.id}`} className="group block min-w-0">
                 <Card variant="featured" className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px]">
-                                    <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-3">
+                  <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <ProjectTypeBadge type={project.type} status={project.status} />
-                        <div>
-                          <h2 className="text-lg font-semibold tracking-tight text-text transition-colors group-hover:text-accent">{project.name}</h2>
-                          <p className="mt-2 mobile-summary-clamp text-sm leading-6 text-text-secondary">{summary}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 flex-col items-end gap-2">
                         <ProjectStatusBadge status={project.status} className="shrink-0" />
                         <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${executionTone.badgeClassName}`}>{project.truth?.execution?.label || executionTone.label}</span>
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold tracking-tight text-text transition-colors group-hover:text-accent">{project.name}</h2>
+                        <p className="mt-2 mobile-summary-clamp text-sm leading-6 text-text-secondary">{summary}</p>
                       </div>
                     </div>
 
                     <div className={`rounded-2xl border p-4 ${statusTone.surface}`}>
-                      <div className="flex items-center justify-between gap-3 text-sm">
+                      <div className="space-y-3 text-sm">
                         <div>
                           <p className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">Progress</p>
-                          <div className="mt-1 flex items-center gap-2">
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
                             <p className="text-lg font-semibold tracking-tight text-text">{progress}% complete</p>
                             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone.pill}`}>{statusTone.label}</span>
                           </div>
-                          {project.truth?.summary ? <p className="mt-2 max-w-sm text-xs leading-5 text-text-secondary">{project.truth.summary}</p> : null}
+                          {project.truth?.summary ? <p className="mt-2 text-xs leading-5 text-text-secondary">{project.truth.summary}</p> : null}
                         </div>
-                        <div className="text-right text-xs text-text-muted">
-                          <div>{formatRelativeDate(project.updated_at || project.created_at)}</div>
-                          <div className="mt-1">{formatRelativeTimestamp(project.updated_at || project.created_at)}</div>
-                          {project.truth?.counts ? <div className="mt-1">{project.truth.counts.delivery?.queued || 0} queued · {project.truth.counts.delivery?.running || 0} in progress · {project.truth.counts.bootstrap?.total || 0} kickoff</div> : null}
+                        <div className={`h-2 overflow-hidden rounded-full ${statusTone.progressTrack}`}>
+                          <div className={`h-full rounded-full ${statusTone.progress} transition-all`} style={{ width: `${progress}%` }} />
                         </div>
-                      </div>
-                      <div className={`mt-3 h-2 overflow-hidden rounded-full ${statusTone.progressTrack}`}>
-                        <div className={`h-full rounded-full ${statusTone.progress} transition-all`} style={{ width: `${progress}%` }} />
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+                          <span>{formatRelativeDate(project.updated_at || project.created_at)}</span>
+                          <span>{formatRelativeTimestamp(project.updated_at || project.created_at)}</span>
+                          {project.truth?.counts ? <span>{project.truth.counts.delivery?.queued || 0} queued · {project.truth.counts.delivery?.running || 0} in progress · {project.truth.counts.bootstrap?.total || 0} kickoff</span> : null}
+                        </div>
                       </div>
                     </div>
 

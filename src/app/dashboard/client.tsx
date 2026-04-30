@@ -25,9 +25,9 @@ function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
-const activeWorkSectionClass = "space-y-3";
+const activeWorkSectionClass = "space-y-4 rounded-[24px] border border-border/70 bg-panel";
 const activeWorkCardClass = "relative h-full overflow-hidden rounded-[24px]";
-const activeWorkInnerCardClass = "rounded-2xl border border-border/70 bg-panel p-4 shadow-[var(--shadow-panel-soft)]";
+const activeWorkInnerCardClass = "rounded-2xl border border-border/60 bg-panel-subtle p-4";
 const activeWorkLiveBadgeClass = "inline-flex items-center gap-2 rounded-full border border-border/70 bg-panel-subtle px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-text-secondary";
 const activeWorkProgressTrackClass = "mt-3 h-2 w-full overflow-hidden rounded-full bg-accent-soft";
 const activeWorkProgressFillClass = "h-2 rounded-full bg-accent transition-all";
@@ -253,7 +253,7 @@ export function OverviewClient({ initialData }: { initialData: DashboardData }) 
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="space-y-6">
-          <section className={cn("space-y-3 p-4 shadow-[var(--shadow-panel-soft)] sm:p-5", activeWorkSectionClass)}>
+          <section className={cn("p-5 shadow-[var(--shadow-panel-soft)] sm:p-6", activeWorkSectionClass)}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <SectionTitle meta="Active work, current state, and open flags.">Active Work ({projectCards.length})</SectionTitle>
               <div className="ml-auto flex items-center gap-3">
@@ -356,7 +356,7 @@ function ProjectCard({ project }: { project: ProjectCardModel }) {
 
   return (
     <Link href={`/projects/${project.id}`} className="group block rounded-[24px] focus:outline-none focus:ring-2 focus:ring-accent/20">
-      <Card variant="featured" className={activeWorkCardClass}>
+      <Card className={activeWorkCardClass}>
         <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="flex items-start gap-3">
             <div className="min-w-0">

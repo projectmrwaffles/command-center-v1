@@ -1168,11 +1168,7 @@ export default function ProjectDetailPage() {
                           : 0;
                         const taskCardSurfaceClass = bucketKey === "queued" || bucketKey === "in_flight"
                           ? "bg-white shadow-sm dark:bg-panel"
-                          : bucketKey === "stalled"
-                            ? "bg-red-50/70 shadow-sm dark:bg-red-950/20"
-                            : bucketKey === "done"
-                              ? "bg-emerald-50/70 shadow-sm dark:bg-emerald-950/20"
-                              : "bg-panel";
+                          : "bg-panel";
                         return (
                           <button key={task.id} onClick={() => handleTaskClick(task)} className={cn("block w-full rounded-xl border border-border p-3 text-left transition hover:-translate-y-0.5 hover:border-accent/25", taskCardSurfaceClass)}>
                             <div className="flex items-start justify-between gap-3">

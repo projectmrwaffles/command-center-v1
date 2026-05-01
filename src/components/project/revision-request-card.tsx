@@ -32,6 +32,31 @@ type ReviewSummary = {
   proofItems?: ProofItem[];
 };
 
+function getMotionCopy(state: RevisionDecisionState) {
+  switch (state.key) {
+    case "needs_revision":
+      return {
+        title: "Currently with the team",
+        body: "Your latest direction has been saved and this revision is back in motion with the team now.",
+      };
+    case "approved_for_implementation":
+      return {
+        title: "Ready for build",
+        body: "The direction is finalized and ready to move into implementation.",
+      };
+    case "implemented":
+      return {
+        title: "Already implemented",
+        body: "This approved direction has already been carried through implementation.",
+      };
+    default:
+      return {
+        title: "Decision needed",
+        body: "Choose the next move here. The team will not move until a direction or revision request is sent.",
+      };
+  }
+}
+
 type RevisionDecisionState = {
   key: "decision_needed" | "needs_revision" | "approved_for_implementation" | "implemented";
   label: string;
@@ -133,6 +158,7 @@ export function RevisionRequestCard({
   }, [candidateOptions]);
 
   const artifactCount = candidateOptions.length || reviewSummary.proofItemCount || reviewArtifacts.length;
+  const motionCopy = getMotionCopy(decisionState);
 
   const resetForm = () => {
     setMode(null);
@@ -197,9 +223,13 @@ export function RevisionRequestCard({
               <span>•</span>
               <span>{formatRelative(reviewSummary.latestSubmittedAt)}</span>
             </div>
+            <div className="rounded-2xl border border-border bg-panel-elevated px-4 py-3 text-sm text-text-secondary">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{motionCopy.title}</div>
+              <p className="mt-2 leading-6">{motionCopy.body}</p>
+            </div>
             {reviewSummary.latestDecisionNotes ? (
               <div className="rounded-2xl border border-border bg-panel-elevated px-4 py-3 text-sm text-text-secondary">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Latest decision notes</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Last direction sent to team</div>
                 <p className="mt-2 whitespace-pre-wrap leading-6">{reviewSummary.latestDecisionNotes}</p>
               </div>
             ) : null}
@@ -227,7 +257,7 @@ export function RevisionRequestCard({
 
             <div className="rounded-2xl border border-border bg-panel-elevated p-4 text-sm text-text-secondary">
               <div className="font-medium text-text">What happens next</div>
-              <p className="mt-2 leading-6">Move forward with this direction saves any notes you add, then sends the current mockup back into motion for the team automatically.</p>
+              <p className="mt-2 leading-6">Move forward with this direction saves any notes you add, then sends the current mockup back into motion for the team automatically. After saving, this card should read as currently with the team.</p>
             </div>
 
             <div className="grid gap-2">

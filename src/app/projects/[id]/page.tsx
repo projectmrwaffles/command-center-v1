@@ -1576,6 +1576,7 @@ export default function ProjectDetailPage() {
         task={selectedTask}
         milestone={selectedTask?.sprint_id ? milestones.find((milestone) => milestone.id === selectedTask.sprint_id) ?? null : null}
         assignee={selectedTask?.assignee_agent_id ? agentsById.get(selectedTask.assignee_agent_id) ?? null : null}
+        documents={documents}
       />
 
       <StructuredTaskModal

@@ -51,6 +51,13 @@ type TaskLike = {
   review_status?: string | null;
 };
 
+type ProjectDocumentLike = {
+  id: string;
+  title: string;
+  url?: string | null;
+  storage_path?: string | null;
+};
+
 type AssigneeLike = {
   name?: string | null;
   title?: string | null;
@@ -91,8 +98,8 @@ function getReviewState(task: TaskLike, milestone: MilestoneLike | null) {
   if (stageKey === "revision_cycle") {
     return {
       badge: milestoneState?.stageState.label || "Revision cycle",
-      title: "Revision requested",
-      detail: milestone?.reviewRequest?.summary || milestone?.reviewSummary?.latestDecisionNotes || milestone?.reviewSummary?.latestRejectionComment || "Changes were requested on delivered work. Complete the revision, then send it back for review.",
+      title: "Back with the team now",
+      detail: milestone?.reviewSummary?.latestDecisionNotes || milestone?.reviewRequest?.summary || milestone?.reviewSummary?.latestRejectionComment || "Your latest direction was sent back to the team and the revision is in motion now.",
       tone: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
     };
   }
@@ -160,12 +167,14 @@ export function TaskDetailModal({
   task,
   milestone,
   assignee,
+  documents = [],
 }: {
   open: boolean;
   onClose: () => void;
   task: TaskLike | null;
   milestone: MilestoneLike | null;
   assignee: AssigneeLike;
+  documents?: ProjectDocumentLike[];
 }) {
   if (!open || !task) return null;
 
@@ -182,6 +191,16 @@ export function TaskDetailModal({
   const referenceDocumentTitles = task.task_metadata?.reference_document_titles
     ? String(task.task_metadata.reference_document_titles).split("|").map((value) => value.trim()).filter(Boolean)
     : [];
+  const referenceDocumentIds = task.task_metadata?.reference_document_ids
+    ? String(task.task_metadata.reference_document_ids).split(",").map((value) => value.trim()).filter(Boolean)
+    : [];
+  const referenceDocuments = (referenceDocumentIds.length > 0
+    ? referenceDocumentIds
+        .map((id) => documents.find((document) => document.id === id) || null)
+        .filter(Boolean)
+    : referenceDocumentTitles
+        .map((title) => documents.find((document) => document.title === title) || null)
+        .filter(Boolean)) as ProjectDocumentLike[];
   const followUpIntentLabel = getFollowUpIntentLabel(task.task_metadata?.follow_up_intent);
   const revisionSourceTitle = task.task_metadata?.revision_source_task_title
     ? String(task.task_metadata.revision_source_task_title).trim()
@@ -239,6 +258,12 @@ export function TaskDetailModal({
               </div>
               <h3 className="mt-3 text-sm font-semibold">{reviewState.title}</h3>
               <p className="mt-2 text-sm leading-6">{reviewState.detail}</p>
+              {milestone?.reviewSummary?.latestDecisionNotes ? (
+                <div className="mt-4 rounded-2xl border border-current/20 bg-panel/70 px-4 py-3 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-70">Last direction sent to team</div>
+                  <p className="mt-2 whitespace-pre-wrap leading-6">{milestone.reviewSummary.latestDecisionNotes}</p>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -266,9 +291,26 @@ export function TaskDetailModal({
               {referenceDocumentTitles.length > 0 ? (
                 <div className="mt-3 rounded-2xl border border-border bg-panel px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Reference files</div>
-                  <ul className="mt-2 space-y-1 text-sm text-text">
-                    {referenceDocumentTitles.map((title) => <li key={title}>• {title}</li>)}
-                  </ul>
+                  {referenceDocuments.length > 0 ? (
+                    <ul className="mt-2 space-y-2 text-sm text-text">
+                      {referenceDocuments.map((document) => {
+                        const href = document.url || document.storage_path || null;
+                        return (
+                          <li key={document.id}>
+                            {href ? (
+                              <a href={href} target="_blank" rel="noreferrer" className="font-medium text-red-600 hover:text-red-700 hover:underline">• {document.title}</a>
+                            ) : (
+                              <span>• {document.title}</span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <ul className="mt-2 space-y-1 text-sm text-text">
+                      {referenceDocumentTitles.map((title) => <li key={title}>• {title}</li>)}
+                    </ul>
+                  )}
                 </div>
               ) : null}
             </section>

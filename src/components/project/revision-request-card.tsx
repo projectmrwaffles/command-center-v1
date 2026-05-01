@@ -145,10 +145,6 @@ export function RevisionRequestCard({
 
   const submit = async () => {
     if (!mode) return;
-    if ((mode === "select_direction" || mode === "approve_for_implementation") && !selectedCandidateId) {
-      setStatus("Choose a candidate before continuing.");
-      return;
-    }
     if (mode === "request_another_pass" && !notes.trim()) {
       setStatus("Add notes before requesting another pass.");
       return;
@@ -183,7 +179,7 @@ export function RevisionRequestCard({
 
   const renderCandidateSelector = () => (
     <div className="space-y-2">
-      <div className="text-sm font-medium text-text-secondary">Choose a candidate</div>
+      <div className="text-sm font-medium text-text-secondary">Choose a candidate {candidateOptions.length > 0 ? "(optional)" : ""}</div>
       {candidateOptions.length > 0 ? (
         candidateOptions.map((candidate) => {
           const checked = selectedCandidateId === candidate.id;
@@ -203,7 +199,7 @@ export function RevisionRequestCard({
           );
         })
       ) : (
-        <div className="rounded-xl border border-dashed border-border bg-panel-elevated px-3 py-4 text-sm text-text-muted">No candidate links were materialized for this submission yet.</div>
+        <div className="rounded-xl border border-dashed border-border bg-panel-elevated px-3 py-4 text-sm text-text-muted">No candidate links were materialized for this submission yet. You can still save and use notes to describe the direction.</div>
       )}
     </div>
   );
@@ -271,7 +267,7 @@ export function RevisionRequestCard({
       </div>
 
       {mode === "select_direction" ? (
-        <ModalShell title="Select Direction" description="Choose the direction to anchor the next move. This records the selected candidate without creating a new revision request." onClose={resetForm}>
+        <ModalShell title="Select Direction" description="Choose the direction to anchor the next move. This records the direction without creating a new revision request." onClose={resetForm}>
           <div className="space-y-4">
             {renderCandidateSelector()}
             <div>
@@ -309,7 +305,7 @@ export function RevisionRequestCard({
       ) : null}
 
       {mode === "approve_for_implementation" ? (
-        <ModalShell title="Approve for Implementation" description="Mark the selected direction as final for build and move this milestone toward implementation." onClose={resetForm}>
+        <ModalShell title="Approve for Implementation" description="Mark this direction as final for build and move this milestone toward implementation." onClose={resetForm}>
           <div className="space-y-4">
             {renderCandidateSelector()}
             <div>

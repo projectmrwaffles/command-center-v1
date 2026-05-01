@@ -72,7 +72,7 @@ function buildDecisionNotes(input: {
   approvedForImplementation?: boolean;
 }) {
   const lines = [
-    input.selectedCandidateLabel ? `Selected direction: ${input.selectedCandidateLabel}` : null,
+    input.selectedCandidateLabel ? `Selected direction: ${input.selectedCandidateLabel}` : "Direction selected.",
     input.approvedForImplementation ? "Approved for implementation." : null,
     input.requiresAnotherPass ? "Another design pass is required before implementation." : null,
     input.notes || null,
@@ -98,9 +98,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!projectId) return NextResponse.json({ error: "Project ID required" }, { status: 400 });
     if (!action) return NextResponse.json({ error: "A supported revision decision action is required" }, { status: 400 });
     if (!sprintId) return NextResponse.json({ error: "Milestone ID required" }, { status: 400 });
-    if ((action === "select_direction" || action === "approve_for_implementation") && !selectedCandidateId) {
-      return NextResponse.json({ error: "A selected candidate is required for this action" }, { status: 400 });
-    }
     if (action === "request_another_pass" && !notes) {
       return NextResponse.json({ error: "Notes are required to request another pass" }, { status: 400 });
     }
@@ -218,14 +215,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       : { data: [], error: null };
     if (proofItemsError) return NextResponse.json({ error: proofItemsError.message || "Failed to inspect proof items" }, { status: 500 });
 
-    const selectedCandidate = (proofItems || []).find((item: any) => item.id === selectedCandidateId) || null;
-    if (!selectedCandidate) {
+    const selectedCandidate = selectedCandidateId
+      ? (proofItems || []).find((item: any) => item.id === selectedCandidateId) || null
+      : null;
+    if (selectedCandidateId && !selectedCandidate) {
       return NextResponse.json({ error: "Selected candidate was not found on the latest submission" }, { status: 400 });
     }
 
     if (action === "select_direction") {
       const decisionNotes = buildDecisionNotes({
-        selectedCandidateLabel: selectedCandidate.label || "Selected candidate",
+        selectedCandidateLabel: selectedCandidate?.label || null,
         notes,
         requiresAnotherPass,
       });
@@ -258,7 +257,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         {
           submission_id: latestSubmission.id,
           feedback_type: "required",
-          body: `Direction selected: ${selectedCandidate.label || "Candidate"}`,
+          body: selectedCandidate?.label ? `Direction selected: ${selectedCandidate.label}` : "Direction selected",
         },
         ...(notes ? [{ submission_id: latestSubmission.id, feedback_type: "optional", body: notes }] : []),
       ]);
@@ -272,8 +271,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           sprint_name: sprint.name,
           submission_id: latestSubmission.id,
           revision_number: latestSubmission.revision_number,
-          selected_candidate_id: selectedCandidate.id,
-          selected_candidate_label: selectedCandidate.label,
+          selected_candidate_id: selectedCandidate?.id || null,
+          selected_candidate_label: selectedCandidate?.label || null,
           candidate_count: proofItems?.length || 0,
           notes,
           requires_another_pass: requiresAnotherPass,
@@ -299,7 +298,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const decisionNotes = buildDecisionNotes({
-      selectedCandidateLabel: selectedCandidate.label || "Selected candidate",
+      selectedCandidateLabel: selectedCandidate?.label || null,
       notes,
       approvedForImplementation: true,
     });
@@ -325,7 +324,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       {
         submission_id: latestSubmission.id,
         feedback_type: "required",
-        body: `Approved for implementation: ${selectedCandidate.label || "Candidate"}`,
+        body: selectedCandidate?.label ? `Approved for implementation: ${selectedCandidate.label}` : "Approved for implementation",
       },
       ...(notes ? [{ submission_id: latestSubmission.id, feedback_type: "optional", body: notes }] : []),
     ]);
@@ -339,8 +338,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         sprint_name: sprint.name,
         submission_id: latestSubmission.id,
         revision_number: latestSubmission.revision_number,
-        selected_candidate_id: selectedCandidate.id,
-        selected_candidate_label: selectedCandidate.label,
+        selected_candidate_id: selectedCandidate?.id || null,
+        selected_candidate_label: selectedCandidate?.label || null,
         candidate_count: proofItems?.length || 0,
         notes,
         routed_to: "implementation_owner",

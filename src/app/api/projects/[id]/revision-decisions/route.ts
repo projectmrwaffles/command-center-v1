@@ -229,15 +229,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         requiresAnotherPass,
       });
 
-      const nextStatus = requiresAnotherPass ? "changes_requested" : latestSubmission.status;
-      const nextDecision = requiresAnotherPass ? "request_changes" : null;
       const { error: updateError } = await db
         .from("milestone_submissions")
         .update({
-          status: nextStatus,
-          decision: nextDecision,
+          status: "changes_requested",
+          decision: "request_changes",
           decision_notes: decisionNotes,
-          rejection_comment: requiresAnotherPass ? notes : null,
+          rejection_comment: notes,
           decided_at: now,
           updated_at: now,
         })
@@ -245,13 +243,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         .eq("sprint_id", sprintId);
       if (updateError) return NextResponse.json({ error: updateError.message || "Failed to record selected direction" }, { status: 500 });
 
-      let redispatchResults: unknown[] = [];
-      if (requiresAnotherPass) {
-        await db.from("sprints").update({ delivery_review_required: true, delivery_review_status: "rejected", updated_at: now }).eq("id", sprintId).eq("project_id", projectId);
-        await db.from("sprint_items").update({ review_status: "revision_requested", status: "todo", updated_at: now }).eq("project_id", projectId).eq("sprint_id", sprintId).eq("review_required", true);
-        await reopenProjectSprintForRevision(db as any, { projectId, sprintId, now });
-        redispatchResults = await redispatchReopenedSprintTasks(db as any, { projectId, sprintId });
-      }
+      await db.from("sprints").update({ delivery_review_required: true, delivery_review_status: "rejected", updated_at: now }).eq("id", sprintId).eq("project_id", projectId);
+      await db.from("sprint_items").update({ review_status: "revision_requested", status: "todo", updated_at: now }).eq("project_id", projectId).eq("sprint_id", sprintId).eq("review_required", true);
+      await reopenProjectSprintForRevision(db as any, { projectId, sprintId, now });
+      const redispatchResults: unknown[] = await redispatchReopenedSprintTasks(db as any, { projectId, sprintId });
 
       await db.from("submission_feedback_items").insert([
         {
@@ -285,7 +280,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         ok: true,
         action,
         submissionId: latestSubmission.id,
-        state: requiresAnotherPass ? "needs_revision" : "decision_needed",
+        state: "needs_revision",
         redispatchResults,
       });
     }

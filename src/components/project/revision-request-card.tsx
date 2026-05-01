@@ -167,7 +167,15 @@ export function RevisionRequestCard({
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.error || "Failed to record revision decision");
-      setStatus(mode === "request_another_pass" ? "Another pass requested" : mode === "approve_for_implementation" ? "Approved for implementation" : "Direction selected");
+      setStatus(
+        mode === "request_another_pass"
+          ? "Another pass requested"
+          : mode === "approve_for_implementation"
+            ? "Approved for implementation"
+            : payload?.redispatchResults && Array.isArray(payload.redispatchResults)
+              ? "Direction selected and sent back into motion"
+              : "Direction selected",
+      );
       resetForm();
       onSubmitted?.();
     } catch (error: any) {

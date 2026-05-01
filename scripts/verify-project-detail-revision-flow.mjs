@@ -67,11 +67,15 @@ assert.match(pageSource, /Add follow-up work/, "Project actions should expose th
 assert.match(pageSource, /payload\.follow_up_intent === "revise_delivered_work"/, "Project detail submit flow should detect revision-linked follow-up requests");
 assert.match(pageSource, /\/api\/projects\/\$\{projectId\}\/revision-requests/, "Revision-linked follow-up requests should use the real revision request API path");
 assert.match(pageSource, /revisionSourceTaskId: payload\.revision_source_task_id/, "Revision-linked follow-up requests should preserve the selected delivered work id");
-assert.match(decisionCardSource, /Select Direction/, "Decision card should expose the Select Direction action");
+assert.match(decisionCardSource, /Move Forward With This Direction/, "Decision card should expose the clear move-forward action");
 assert.match(decisionCardSource, /Request Another Pass/, "Decision card should expose the Request Another Pass action");
-assert.match(decisionCardSource, /Approve for Implementation/, "Decision card should expose the Approve for Implementation action");
-assert.match(decisionCardSource, /requires another design pass before implementation/i, "Select Direction flow should support the another-pass toggle");
+assert.match(decisionCardSource, /Mark as Final for Implementation/, "Decision card should de-emphasize the implementation approval action");
+assert.match(decisionCardSource, /What happens next/, "Decision card should explain the outcome of the primary action");
+assert.match(decisionCardSource, /No candidate selection needed/i, "Move-forward flow should remove candidate selection requirements");
+assert.doesNotMatch(decisionCardSource, /Choose a candidate/, "Decision flow should not ask the operator to choose a candidate");
+assert.match(decisionCardSource, /read-only/i, "Decision flow should keep artifact pages read-only in the copy");
 assert.match(decisionRouteSource, /revision_direction_selected/, "Decision route should log direction selections durably");
+assert.match(decisionRouteSource, /Move forward with the current direction\./, "Decision route should store move-forward language when no candidate is chosen");
 assert.match(decisionRouteSource, /revision_another_pass_requested/, "Decision route should log another-pass requests durably");
 assert.match(decisionRouteSource, /revision_approved_for_implementation/, "Decision route should log implementation approvals durably");
 assert.match(pageSource, /attachmentDocumentIds: payload\.reference_document_ids \?\? \[\]/, "Revision-linked follow-up requests should carry selected attachments into the revision workflow");

@@ -46,7 +46,7 @@ type CandidateOption = {
   sublabel: string;
 };
 
-type ActionMode = "select_direction" | "request_another_pass" | "approve_for_implementation" | null;
+type ActionMode = "move_forward" | "request_another_pass" | "approve_for_implementation" | null;
 
 function formatRelative(value?: string | null) {
   if (!value) return "Recently updated";
@@ -105,9 +105,7 @@ export function RevisionRequestCard({
   onSubmitted?: () => void;
 }) {
   const [mode, setMode] = useState<ActionMode>(null);
-  const [selectedCandidateId, setSelectedCandidateId] = useState("");
   const [notes, setNotes] = useState("");
-  const [requiresAnotherPass, setRequiresAnotherPass] = useState(false);
   const [savingMode, setSavingMode] = useState<ActionMode>(null);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -134,13 +132,11 @@ export function RevisionRequestCard({
     return links.slice(0, 4);
   }, [candidateOptions]);
 
-  const candidateCount = candidateOptions.length || reviewSummary.proofItemCount || reviewArtifacts.length;
+  const artifactCount = candidateOptions.length || reviewSummary.proofItemCount || reviewArtifacts.length;
 
   const resetForm = () => {
     setMode(null);
-    setSelectedCandidateId("");
     setNotes("");
-    setRequiresAnotherPass(false);
   };
 
   const submit = async () => {
@@ -157,12 +153,10 @@ export function RevisionRequestCard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: mode,
+          action: mode === "move_forward" ? "select_direction" : mode,
           sprintId,
           submissionId: reviewSummary.latestSubmissionId,
-          selectedCandidateId: selectedCandidateId || null,
           notes: notes.trim() || null,
-          requiresAnotherPass,
         }),
       });
       const payload = await res.json().catch(() => ({}));
@@ -173,8 +167,8 @@ export function RevisionRequestCard({
           : mode === "approve_for_implementation"
             ? "Approved for implementation"
             : payload?.redispatchResults && Array.isArray(payload.redispatchResults)
-              ? "Direction selected and sent back into motion"
-              : "Direction selected",
+              ? "Saved and routed back into motion"
+              : "Saved and routed back into motion",
       );
       resetForm();
       onSubmitted?.();
@@ -184,33 +178,6 @@ export function RevisionRequestCard({
       setSavingMode(null);
     }
   };
-
-  const renderCandidateSelector = () => (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-text-secondary">Choose a candidate {candidateOptions.length > 0 ? "(optional)" : ""}</div>
-      {candidateOptions.length > 0 ? (
-        candidateOptions.map((candidate) => {
-          const checked = selectedCandidateId === candidate.id;
-          return (
-            <label key={candidate.id} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm", checked ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40" : "border-border bg-panel-elevated")}>
-              <input type="radio" checked={checked} onChange={() => setSelectedCandidateId(candidate.id)} className="mt-1" />
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-text">{candidate.label}</div>
-                <div className="text-xs text-text-muted">{candidate.sublabel}</div>
-              </div>
-              {candidate.href ? (
-                <a href={candidate.href} target="_blank" rel="noreferrer" className="shrink-0 text-xs font-medium text-red-600 hover:text-red-700">
-                  Open
-                </a>
-              ) : null}
-            </label>
-          );
-        })
-      ) : (
-        <div className="rounded-xl border border-dashed border-border bg-panel-elevated px-3 py-4 text-sm text-text-muted">No candidate links were materialized for this submission yet. You can still save and use notes to describe the direction.</div>
-      )}
-    </div>
-  );
 
   return (
     <>
@@ -226,7 +193,7 @@ export function RevisionRequestCard({
               <p className="mt-2 text-sm leading-6 text-text-secondary">{reviewSummary.latestSubmissionSummary || decisionState.description}</p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs text-text-muted">
-              <span>{candidateCount} candidate{candidateCount === 1 ? "" : "s"}</span>
+              <span>{artifactCount} submitted artifact{artifactCount === 1 ? "" : "s"}</span>
               <span>•</span>
               <span>{formatRelative(reviewSummary.latestSubmittedAt)}</span>
             </div>
@@ -258,15 +225,20 @@ export function RevisionRequestCard({
               )}
             </div>
 
+            <div className="rounded-2xl border border-border bg-panel-elevated p-4 text-sm text-text-secondary">
+              <div className="font-medium text-text">What happens next</div>
+              <p className="mt-2 leading-6">Move forward with this direction saves any notes you add, then sends the current mockup back into motion for the team automatically.</p>
+            </div>
+
             <div className="grid gap-2">
-              <Button type="button" className="w-full rounded-xl justify-center" disabled={!!savingMode} onClick={() => setMode("select_direction")}>
-                Select Direction
+              <Button type="button" className="w-full rounded-xl justify-center" disabled={!!savingMode} onClick={() => setMode("move_forward")}>
+                Move Forward With This Direction
               </Button>
               <Button type="button" variant="outline" className="w-full rounded-xl justify-center" disabled={!!savingMode} onClick={() => setMode("request_another_pass")}>
                 Request Another Pass
               </Button>
-              <Button type="button" variant="ghost" className="w-full rounded-xl justify-center text-text" disabled={!!savingMode} onClick={() => setMode("approve_for_implementation")}>
-                Approve for Implementation
+              <Button type="button" variant="ghost" className="w-full rounded-xl justify-center text-xs text-text-muted hover:text-text" disabled={!!savingMode} onClick={() => setMode("approve_for_implementation")}>
+                Mark as Final for Implementation
               </Button>
             </div>
             {status ? <p className={cn("text-xs", /failed|required|choose|add/i.test(status) ? "text-red-600" : "text-emerald-600")}>{status}</p> : null}
@@ -274,31 +246,26 @@ export function RevisionRequestCard({
         </div>
       </div>
 
-      {mode === "select_direction" ? (
-        <ModalShell title="Select Direction" description="Choose the direction to anchor the next move. This records the direction without creating a new revision request." onClose={resetForm}>
+      {mode === "move_forward" ? (
+        <ModalShell title="Move Forward With This Direction" description="We’ll save any notes you add here, then route this mockup back into motion automatically. No candidate selection needed." onClose={resetForm}>
           <div className="space-y-4">
-            {renderCandidateSelector()}
             <div>
-              <label className="block text-sm font-medium text-text-secondary">Notes (optional)</label>
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Capture what to keep, combine, or sharpen for the next step..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />
+              <label className="block text-sm font-medium text-text-secondary">Notes for the next pass (optional)</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Capture what to keep, refine, or emphasize as the team keeps going..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />
             </div>
-            <label className="flex items-start gap-3 rounded-xl border border-border bg-panel-elevated px-3 py-3 text-sm">
-              <input type="checkbox" checked={requiresAnotherPass} onChange={(e) => setRequiresAnotherPass(e.target.checked)} className="mt-1" />
-              <div>
-                <div className="font-medium text-text">Requires another design pass before implementation</div>
-                <div className="mt-1 text-text-muted">Use this when you want to pick a base direction now but send the work back for another pass.</div>
-              </div>
-            </label>
+            <div className="rounded-xl border border-border bg-panel-elevated px-4 py-3 text-sm text-text-secondary">
+              Pressing continue keeps the artifact page read-only, saves your notes, and sends the current direction back to the team to keep moving.
+            </div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl" onClick={resetForm}>Cancel</Button>
-              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Saving..." : "Save direction"}</Button>
+              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Saving..." : "Save and keep it moving"}</Button>
             </div>
           </div>
         </ModalShell>
       ) : null}
 
       {mode === "request_another_pass" ? (
-        <ModalShell title="Request Another Pass" description="Keep the same revision lineage, send clear notes back to design, and reopen the existing flow." onClose={resetForm}>
+        <ModalShell title="Request Another Pass" description="Send clear change notes back to design and reopen this revision flow for another round." onClose={resetForm}>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary">What needs to change</label>
@@ -313,9 +280,8 @@ export function RevisionRequestCard({
       ) : null}
 
       {mode === "approve_for_implementation" ? (
-        <ModalShell title="Approve for Implementation" description="Mark this direction as final for build and move this milestone toward implementation." onClose={resetForm}>
+        <ModalShell title="Approve for Implementation" description="Use this only when the direction is final and ready to leave the design revision loop for build." onClose={resetForm}>
           <div className="space-y-4">
-            {renderCandidateSelector()}
             <div>
               <label className="block text-sm font-medium text-text-secondary">Implementation notes (optional)</label>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Call out handoff details the implementation owner should keep in mind..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />

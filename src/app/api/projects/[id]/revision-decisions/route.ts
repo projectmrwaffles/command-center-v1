@@ -72,7 +72,7 @@ function buildDecisionNotes(input: {
   approvedForImplementation?: boolean;
 }) {
   const lines = [
-    input.selectedCandidateLabel ? `Selected direction: ${input.selectedCandidateLabel}` : "Direction selected.",
+    input.selectedCandidateLabel ? `Move forward with direction: ${input.selectedCandidateLabel}` : "Move forward with the current direction.",
     input.approvedForImplementation ? "Approved for implementation." : null,
     input.requiresAnotherPass ? "Another design pass is required before implementation." : null,
     input.notes || null,
@@ -252,7 +252,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         {
           submission_id: latestSubmission.id,
           feedback_type: "required",
-          body: selectedCandidate?.label ? `Direction selected: ${selectedCandidate.label}` : "Direction selected",
+          body: selectedCandidate?.label ? `Move forward with direction: ${selectedCandidate.label}` : "Move forward with the current direction",
         },
         ...(notes ? [{ submission_id: latestSubmission.id, feedback_type: "optional", body: notes }] : []),
       ]);

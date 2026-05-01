@@ -176,6 +176,55 @@ export function getCompletedProjectRevisionMilestones<T extends MilestoneLike>(m
   });
 }
 
+export function deriveMilestoneDecisionState(milestone: MilestoneLike) {
+  const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
+  const approved = milestoneDisplayState.checkpointState.key === "approved" || milestoneDisplayState.stageState.key === "iteration_shipped";
+  const needsRevision = milestoneDisplayState.checkpointState.key === "changes_requested" || milestoneDisplayState.stageState.key === "revision_cycle";
+  const implemented = approved
+    && milestoneDisplayState.stageState.key === "iteration_shipped"
+    && (milestone.totalTasks || 0) > 0
+    && milestone.doneTasks === milestone.totalTasks
+    && milestone.reviewSummary?.latestDecision === "approve"
+    && milestone.reviewSummary?.latestSubmissionStatus === "approved"
+    && milestone.reviewRequest?.status !== "pending"
+    && milestone.reviewSummary?.latestRevisionNumber != null
+    && milestone.reviewSummary.latestRevisionNumber > 1;
+
+  if (implemented) {
+    return {
+      key: "implemented",
+      label: "Implemented",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      description: "The approved direction is already implemented in the shipped milestone.",
+    } as const;
+  }
+
+  if (approved) {
+    return {
+      key: "approved_for_implementation",
+      label: "Approved for implementation",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      description: "A final direction has been approved and can move into implementation.",
+    } as const;
+  }
+
+  if (needsRevision) {
+    return {
+      key: "needs_revision",
+      label: "Needs revision",
+      className: "border-amber-200 bg-amber-50 text-amber-700",
+      description: "Another design pass is needed before this milestone can move forward.",
+    } as const;
+  }
+
+  return {
+    key: "decision_needed",
+    label: "Decision needed",
+    className: "border-violet-200 bg-violet-50 text-violet-700",
+    description: "Review the current submission and decide whether to select a direction, request another pass, or approve it for implementation.",
+  } as const;
+}
+
 export function deriveMilestoneReviewCardCopy(milestone: MilestoneLike) {
   const milestoneDisplayState = deriveMilestoneDisplayState(milestone);
   const reviewTasksReady = (milestone.totalTasks || 0) > 0 && milestone.doneTasks === milestone.totalTasks;

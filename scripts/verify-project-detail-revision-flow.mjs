@@ -49,6 +49,8 @@ const pageSource = fs.readFileSync(path.resolve("./src/app/projects/[id]/page.ts
 const modalSource = fs.readFileSync(path.resolve("./src/components/project/structured-task-modal.tsx"), "utf8");
 const taskDetailSource = fs.readFileSync(path.resolve("./src/components/project/task-detail-modal.tsx"), "utf8");
 const taskRouteSource = fs.readFileSync(path.resolve("./src/app/api/projects/[id]/tasks/route.ts"), "utf8");
+const decisionCardSource = fs.readFileSync(path.resolve("./src/components/project/revision-request-card.tsx"), "utf8");
+const decisionRouteSource = fs.readFileSync(path.resolve("./src/app/api/projects/[id]/revision-decisions/route.ts"), "utf8");
 
 assert.equal(activeCopy.showRevisionRequestCard, false, "Ready-for-QC milestones should not show revision request controls before completion/shipping");
 assert.match(activeCopy.summaryCopy, /QA\/QC is the next step/i, "Active milestone copy should frame review as QC, not checkpoint workflow");
@@ -59,10 +61,19 @@ assert.match(pageSource, /<Section title="Project work"/, "Project detail page s
 assert.doesNotMatch(pageSource, /<Section title="Approvals & review"/, "Project detail page should no longer expose a separate approvals and review section");
 assert.doesNotMatch(pageSource, /<Section title="Approvals & checkpoints"/, "Project detail page should not keep a separate approvals and checkpoints card once project work is canonical");
 assert.match(pageSource, /Capture the next work item, then use secondary controls only when needed\./, "Project actions should guide users into the message-first follow-up flow");
+assert.match(pageSource, /<Section title="Design revision decisions"/, "Project detail page should expose the product-page revision decision surface");
+assert.match(pageSource, /deriveMilestoneDecisionState\(milestone\)/, "Project detail page should project revision state into product decision language");
 assert.match(pageSource, /Add follow-up work/, "Project actions should expose the follow-up work entry point");
 assert.match(pageSource, /payload\.follow_up_intent === "revise_delivered_work"/, "Project detail submit flow should detect revision-linked follow-up requests");
 assert.match(pageSource, /\/api\/projects\/\$\{projectId\}\/revision-requests/, "Revision-linked follow-up requests should use the real revision request API path");
 assert.match(pageSource, /revisionSourceTaskId: payload\.revision_source_task_id/, "Revision-linked follow-up requests should preserve the selected delivered work id");
+assert.match(decisionCardSource, /Select Direction/, "Decision card should expose the Select Direction action");
+assert.match(decisionCardSource, /Request Another Pass/, "Decision card should expose the Request Another Pass action");
+assert.match(decisionCardSource, /Approve for Implementation/, "Decision card should expose the Approve for Implementation action");
+assert.match(decisionCardSource, /requires another design pass before implementation/i, "Select Direction flow should support the another-pass toggle");
+assert.match(decisionRouteSource, /revision_direction_selected/, "Decision route should log direction selections durably");
+assert.match(decisionRouteSource, /revision_another_pass_requested/, "Decision route should log another-pass requests durably");
+assert.match(decisionRouteSource, /revision_approved_for_implementation/, "Decision route should log implementation approvals durably");
 assert.match(pageSource, /attachmentDocumentIds: payload\.reference_document_ids \?\? \[\]/, "Revision-linked follow-up requests should carry selected attachments into the revision workflow");
 assert.match(modalSource, /Message-first intake/, "Follow-up modal should identify the message-first intake flow");
 assert.match(modalSource, /Automatic routing/, "Follow-up modal should explain that routing happens automatically");

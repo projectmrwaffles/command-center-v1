@@ -31,11 +31,12 @@ import { getGroupedProjectLinks, getWorkingProjectLinkCount } from "@/lib/projec
 import { type GitHubRepoBinding, type GitHubRepoProvenance } from "@/lib/github-repo-binding";
 import { StructuredTaskModal, type StructuredTaskPayload } from "@/components/project/structured-task-modal";
 import { TaskDetailModal } from "@/components/project/task-detail-modal";
+import { RevisionRequestCard } from "@/components/project/revision-request-card";
 import { TASK_TYPE_CONFIG } from "@/lib/task-model";
 import { getBootstrapSprintIds, matchesBootstrapTruth } from "@/lib/project-bootstrap";
 import { useRealtimeStore } from "@/lib/realtime-store";
 import { cn } from "@/lib/utils";
-import { deriveMilestoneDisplayState, deriveProjectDetailHeaderState, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
+import { deriveMilestoneDecisionState, deriveMilestoneDisplayState, deriveProjectDetailHeaderState, shouldShowAttachmentKickoffBanner } from "@/lib/project-detail-state";
 import { resolveProjectDetailRecentUpdates } from "@/lib/project-detail-truth";
 
 const PROJECT_CREATE_HANDOFF_KEY = "project-create-handoff";
@@ -736,6 +737,10 @@ export default function ProjectDetailPage() {
     setShowTaskModal(true);
   };
 
+  const handleRevisionDecisionSubmitted = async () => {
+    await Promise.all([fetchProject(false), fetchDocuments()]);
+  };
+
   const project = data?.project ?? null;
   const milestones = useMemo(() => data?.milestones ?? [], [data?.milestones]);
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
@@ -1253,6 +1258,28 @@ export default function ProjectDetailPage() {
             </div>
           )}
         </Section>
+
+        {reviewableMilestones.length > 0 ? (
+          <Section title="Design revision decisions" description="Use the product page as the canonical decision surface for submitted revision sets.">
+            <div className="space-y-4">
+              {reviewableMilestones.map((milestone) => {
+                if (!milestone.reviewSummary?.latestSubmissionId) return null;
+                return (
+                  <RevisionRequestCard
+                    key={milestone.id}
+                    projectId={projectId}
+                    sprintId={milestone.id}
+                    sprintName={milestone.name}
+                    reviewSummary={milestone.reviewSummary}
+                    reviewArtifacts={milestone.reviewArtifacts || []}
+                    decisionState={deriveMilestoneDecisionState(milestone)}
+                    onSubmitted={handleRevisionDecisionSubmitted}
+                  />
+                );
+              })}
+            </div>
+          </Section>
+        ) : null}
 
         <Section title="Recent signals" description="Operator-relevant updates only: blockers, QC movement, completions, and meaningful project changes.">
           {recentSignalItems.length > 0 ? (

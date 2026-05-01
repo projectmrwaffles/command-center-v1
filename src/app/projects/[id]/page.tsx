@@ -1260,7 +1260,7 @@ export default function ProjectDetailPage() {
         </Section>
 
         {reviewableMilestones.length > 0 ? (
-          <Section title="Design revision decisions" description="Use the product page as the canonical decision surface for submitted revision sets.">
+          <Section title="Revision implementation decisions" description="Use the product page as the canonical decision surface for accepted revision sets and implementation handoff.">
             <div className="space-y-4">
               {reviewableMilestones.map((milestone) => {
                 if (!milestone.reviewSummary?.latestSubmissionId) return null;

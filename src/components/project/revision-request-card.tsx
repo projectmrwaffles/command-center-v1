@@ -41,8 +41,8 @@ function getMotionCopy(state: RevisionDecisionState) {
       };
     case "approved_for_implementation":
       return {
-        title: "Ready for build",
-        body: "The direction is finalized and ready to move into implementation.",
+        title: "Implementation unlocked",
+        body: "This revision was accepted and the workflow can now move forward into implementation and commit-ready execution.",
       };
     case "implemented":
       return {
@@ -52,7 +52,7 @@ function getMotionCopy(state: RevisionDecisionState) {
     default:
       return {
         title: "Decision needed",
-        body: "Choose the next move here. The team will not move until a direction or revision request is sent.",
+        body: "Choose whether to send this straight into implementation or kick it back for another design pass.",
       };
   }
 }
@@ -71,7 +71,7 @@ type CandidateOption = {
   sublabel: string;
 };
 
-type ActionMode = "move_forward" | "request_another_pass" | "approve_for_implementation" | null;
+type ActionMode = "approve_and_implement" | "request_another_pass" | "keep_in_design" | null;
 
 function formatRelative(value?: string | null) {
   if (!value) return "Recently updated";
@@ -179,7 +179,11 @@ export function RevisionRequestCard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: mode === "move_forward" ? "select_direction" : mode,
+          action: mode === "approve_and_implement"
+            ? "approve_for_implementation"
+            : mode === "keep_in_design"
+              ? "select_direction"
+              : mode,
           sprintId,
           submissionId: reviewSummary.latestSubmissionId,
           notes: notes.trim() || null,
@@ -190,11 +194,11 @@ export function RevisionRequestCard({
       setStatus(
         mode === "request_another_pass"
           ? "Another pass requested"
-          : mode === "approve_for_implementation"
-            ? "Approved for implementation"
+          : mode === "approve_and_implement"
+            ? "Approved and moved into implementation"
             : payload?.redispatchResults && Array.isArray(payload.redispatchResults)
-              ? "Saved and routed back into motion"
-              : "Saved and routed back into motion",
+              ? "Saved and routed back into design"
+              : "Saved and routed back into design",
       );
       resetForm();
       onSubmitted?.();
@@ -257,18 +261,18 @@ export function RevisionRequestCard({
 
             <div className="rounded-2xl border border-border bg-panel-elevated p-4 text-sm text-text-secondary">
               <div className="font-medium text-text">What happens next</div>
-              <p className="mt-2 leading-6">Move forward with this direction saves any notes you add, then sends the current mockup back into motion for the team automatically. After saving, this card should read as currently with the team.</p>
+              <p className="mt-2 leading-6">Approve and start implementation is the default forward path here. It keeps the artifact page read-only, saves your notes, and moves this accepted revision into implementation/commit flow. If the design still needs work, use the secondary path to send it back for another pass.</p>
             </div>
 
             <div className="grid gap-2">
-              <Button type="button" className="w-full rounded-xl justify-center" disabled={!!savingMode} onClick={() => setMode("move_forward")}>
-                Move Forward With This Direction
+              <Button type="button" className="w-full rounded-xl justify-center" disabled={!!savingMode} onClick={() => setMode("approve_and_implement")}>
+                Approve and Start Implementation
               </Button>
               <Button type="button" variant="outline" className="w-full rounded-xl justify-center" disabled={!!savingMode} onClick={() => setMode("request_another_pass")}>
-                Request Another Pass
+                Needs More Design Work
               </Button>
-              <Button type="button" variant="ghost" className="w-full rounded-xl justify-center text-xs text-text-muted hover:text-text" disabled={!!savingMode} onClick={() => setMode("approve_for_implementation")}>
-                Mark as Final for Implementation
+              <Button type="button" variant="ghost" className="w-full rounded-xl justify-center text-xs text-text-muted hover:text-text" disabled={!!savingMode} onClick={() => setMode("keep_in_design")}>
+                Keep This in the Design Loop
               </Button>
             </div>
             {status ? <p className={cn("text-xs", /failed|required|choose|add/i.test(status) ? "text-red-600" : "text-emerald-600")}>{status}</p> : null}
@@ -276,26 +280,26 @@ export function RevisionRequestCard({
         </div>
       </div>
 
-      {mode === "move_forward" ? (
-        <ModalShell title="Move Forward With This Direction" description="We’ll save any notes you add here, then route this mockup back into motion automatically. No candidate selection needed." onClose={resetForm}>
+      {mode === "approve_and_implement" ? (
+        <ModalShell title="Approve and Start Implementation" description="We’ll keep the artifact page read-only, save your notes, and move this accepted revision into implementation/commit flow. No candidate selection needed." onClose={resetForm}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary">Notes for the next pass (optional)</label>
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Capture what to keep, refine, or emphasize as the team keeps going..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />
+              <label className="block text-sm font-medium text-text-secondary">Implementation notes (optional)</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Call out anything the implementation owner should preserve while building and committing this revision..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />
             </div>
             <div className="rounded-xl border border-border bg-panel-elevated px-4 py-3 text-sm text-text-secondary">
-              Pressing continue keeps the artifact page read-only, saves your notes, and sends the current direction back to the team to keep moving.
+              Pressing continue keeps the artifact page read-only, saves your notes, and advances this accepted revision into implementation/commit flow.
             </div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl" onClick={resetForm}>Cancel</Button>
-              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Saving..." : "Save and keep it moving"}</Button>
+              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Saving..." : "Approve and start implementation"}</Button>
             </div>
           </div>
         </ModalShell>
       ) : null}
 
       {mode === "request_another_pass" ? (
-        <ModalShell title="Request Another Pass" description="Send clear change notes back to design and reopen this revision flow for another round." onClose={resetForm}>
+        <ModalShell title="Needs More Design Work" description="Send clear change notes back to design and reopen this revision flow for another round." onClose={resetForm}>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary">What needs to change</label>
@@ -303,22 +307,22 @@ export function RevisionRequestCard({
             </div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl" onClick={resetForm}>Cancel</Button>
-              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Submitting..." : "Request another pass"}</Button>
+              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Submitting..." : "Send back for another design pass"}</Button>
             </div>
           </div>
         </ModalShell>
       ) : null}
 
-      {mode === "approve_for_implementation" ? (
-        <ModalShell title="Approve for Implementation" description="Use this only when the direction is final and ready to leave the design revision loop for build." onClose={resetForm}>
+      {mode === "keep_in_design" ? (
+        <ModalShell title="Keep This in the Design Loop" description="Use this only if you want to save notes without leaving the design revision loop yet." onClose={resetForm}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary">Implementation notes (optional)</label>
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Call out handoff details the implementation owner should keep in mind..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />
+              <label className="block text-sm font-medium text-text-secondary">Notes for the next design pass (optional)</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Capture what to keep, refine, or emphasize while the work stays in the design loop..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />
             </div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl" onClick={resetForm}>Cancel</Button>
-              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Approving..." : "Approve for implementation"}</Button>
+              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Saving..." : "Save and keep it in design"}</Button>
             </div>
           </div>
         </ModalShell>

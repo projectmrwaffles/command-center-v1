@@ -202,18 +202,18 @@ export function deriveMilestoneDecisionState(milestone: MilestoneLike) {
   if (approved) {
     return {
       key: "approved_for_implementation",
-      label: "Approved for implementation",
+      label: "Implementation unlocked",
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      description: "A final direction has been approved and can move into implementation.",
+      description: "A final revision direction has been accepted and should now move into implementation.",
     } as const;
   }
 
   if (needsRevision) {
     return {
       key: "needs_revision",
-      label: "Needs revision",
+      label: "Needs more design work",
       className: "border-amber-200 bg-amber-50 text-amber-700",
-      description: "Another design pass is needed before this milestone can move forward.",
+      description: "Another design pass is needed before this milestone should move into implementation.",
     } as const;
   }
 
@@ -221,7 +221,7 @@ export function deriveMilestoneDecisionState(milestone: MilestoneLike) {
     key: "decision_needed",
     label: "Decision needed",
     className: "border-violet-200 bg-violet-50 text-violet-700",
-    description: "Review the current submission and decide whether to select a direction, request another pass, or approve it for implementation.",
+    description: "Review the current submission and decide whether it should move into implementation now or go back for another design pass.",
   } as const;
 }
 

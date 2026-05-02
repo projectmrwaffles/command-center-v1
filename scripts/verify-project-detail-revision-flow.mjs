@@ -69,7 +69,7 @@ assert.match(pageSource, /\/api\/projects\/\$\{projectId\}\/revision-requests/, 
 assert.match(pageSource, /revisionSourceTaskId: payload\.revision_source_task_id/, "Revision-linked follow-up requests should preserve the selected delivered work id");
 assert.match(decisionCardSource, /Approve and Start Implementation/, "Decision card should expose implementation as the primary forward action");
 assert.match(decisionCardSource, /Needs More Design Work/, "Decision card should preserve a clear send-back path for more design work");
-assert.match(decisionCardSource, /Keep This in the Design Loop/, "Decision card should preserve an explicit design-loop option for edge cases");
+assert.doesNotMatch(decisionCardSource, /Keep This in the Design Loop/, "Decision card should not preserve a fallback design-loop action");
 assert.match(decisionCardSource, /What happens next/, "Decision card should explain the outcome of the primary action");
 assert.match(decisionCardSource, /implementation\/commit flow/i, "Primary revision flow should clearly move accepted work into implementation and commit flow");
 assert.match(decisionCardSource, /No candidate selection needed/i, "Implementation-forward flow should remove candidate selection requirements");

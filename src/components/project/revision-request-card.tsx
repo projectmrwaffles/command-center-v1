@@ -52,7 +52,7 @@ function getMotionCopy(state: RevisionDecisionState) {
     default:
       return {
         title: "Decision needed",
-        body: "Choose whether to send this straight into implementation or kick it back for another design pass.",
+        body: "Choose whether to start implementation now or send it back for another design pass.",
       };
   }
 }
@@ -71,7 +71,7 @@ type CandidateOption = {
   sublabel: string;
 };
 
-type ActionMode = "approve_and_implement" | "request_another_pass" | "keep_in_design" | null;
+type ActionMode = "approve_and_implement" | "request_another_pass" | null;
 
 function formatRelative(value?: string | null) {
   if (!value) return "Recently updated";
@@ -181,9 +181,7 @@ export function RevisionRequestCard({
         body: JSON.stringify({
           action: mode === "approve_and_implement"
             ? "approve_for_implementation"
-            : mode === "keep_in_design"
-              ? "select_direction"
-              : mode,
+            : mode,
           sprintId,
           submissionId: reviewSummary.latestSubmissionId,
           notes: notes.trim() || null,
@@ -194,11 +192,7 @@ export function RevisionRequestCard({
       setStatus(
         mode === "request_another_pass"
           ? "Another pass requested"
-          : mode === "approve_and_implement"
-            ? "Approved and moved into implementation"
-            : payload?.redispatchResults && Array.isArray(payload.redispatchResults)
-              ? "Saved and routed back into design"
-              : "Saved and routed back into design",
+          : "Approved and moved into implementation",
       );
       resetForm();
       onSubmitted?.();
@@ -271,9 +265,6 @@ export function RevisionRequestCard({
               <Button type="button" variant="outline" className="w-full rounded-xl justify-center" disabled={!!savingMode} onClick={() => setMode("request_another_pass")}>
                 Needs More Design Work
               </Button>
-              <Button type="button" variant="ghost" className="w-full rounded-xl justify-center text-xs text-text-muted hover:text-text" disabled={!!savingMode} onClick={() => setMode("keep_in_design")}>
-                Keep This in the Design Loop
-              </Button>
             </div>
             {status ? <p className={cn("text-xs", /failed|required|choose|add/i.test(status) ? "text-red-600" : "text-emerald-600")}>{status}</p> : null}
           </div>
@@ -313,20 +304,6 @@ export function RevisionRequestCard({
         </ModalShell>
       ) : null}
 
-      {mode === "keep_in_design" ? (
-        <ModalShell title="Keep This in the Design Loop" description="Use this only if you want to save notes without leaving the design revision loop yet." onClose={resetForm}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-text-secondary">Notes for the next design pass (optional)</label>
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} placeholder="Capture what to keep, refine, or emphasize while the work stays in the design loop..." className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm text-text focus:border-red-500 focus:outline-none" />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" className="rounded-xl" onClick={resetForm}>Cancel</Button>
-              <Button type="button" className="rounded-xl" disabled={savingMode === mode} onClick={submit}>{savingMode === mode ? "Saving..." : "Save and keep it in design"}</Button>
-            </div>
-          </div>
-        </ModalShell>
-      ) : null}
     </>
   );
 }
